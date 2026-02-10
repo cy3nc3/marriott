@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -12,20 +13,14 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $roles = [
-            'superadmin' => 'superAdmin',
-            'admin' => 'admin',
-            'registrar' => 'registrar',
-            'finance' => 'finance',
-            'teacher' => 'teacher',
-            'student' => 'student',
-            'parent' => 'parent',
-        ];
+        foreach (UserRole::cases() as $role) {
+            $prefix = str_replace('_', '', $role->value);
 
-        foreach ($roles as $emailPrefix => $factoryState) {
-            User::factory()->$factoryState()->create([
-                'name' => ucwords(str_replace('superadmin', 'Super Admin', $emailPrefix)),
-                'email' => "{$emailPrefix}@marriott.edu",
+            User::factory()->create([
+                'name' => "Test {$role->label()}",
+                'email' => "{$prefix}@marriott.edu",
+                'password' => 'password',
+                'role' => $role,
             ]);
         }
     }
