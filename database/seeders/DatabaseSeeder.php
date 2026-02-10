@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -13,11 +12,21 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $roles = [
+            'superadmin' => 'superAdmin',
+            'admin' => 'admin',
+            'registrar' => 'registrar',
+            'finance' => 'finance',
+            'teacher' => 'teacher',
+            'student' => 'student',
+            'parent' => 'parent',
+        ];
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        foreach ($roles as $emailPrefix => $factoryState) {
+            User::factory()->$factoryState()->create([
+                'name' => ucwords(str_replace('superadmin', 'Super Admin', $emailPrefix)),
+                'email' => "{$emailPrefix}@marriott.edu",
+            ]);
+        }
     }
 }
