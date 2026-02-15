@@ -1,13 +1,9 @@
 import { Head } from '@inertiajs/react';
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import {
     Card,
-    CardAction,
     CardContent,
-    CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -15,36 +11,27 @@ import { Button } from '@/components/ui/button';
 import {
     Table,
     TableBody,
-    TableCaption,
     TableCell,
     TableHead,
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
 import {
-    Field,
-    FieldContent,
-    FieldDescription,
-    FieldError,
-    FieldGroup,
-    FieldLabel,
-    FieldLegend,
     FieldSeparator,
-    FieldSet,
-    FieldTitle,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-    SelectLabel,
-} from '@/components/ui/select';
-import { ButtonGroup } from '@/components/ui/button-group';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { 
+    Search, 
+    Printer, 
+    FilePlus2, 
+    GraduationCap, 
+    Building2,
+    Calendar,
+    Plus
+} from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -57,325 +44,159 @@ export default function PermanentRecords() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Permanent Records" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
+                
+                {/* Search Section */}
                 <Card>
-                    <CardContent className="space-y-6">
-                        <Field>
-                            <FieldLabel>Search Student</FieldLabel>
-                            <ButtonGroup>
-                                <Input
-                                    id="search-student"
-                                    type="string"
-                                    placeholder="Enter name or LRN"
-                                />
-                                <Button variant="outline">Search</Button>
-                            </ButtonGroup>
-                        </Field>
-                        <Card>
-                            <CardContent className="flex flex-row items-center justify-between">
-                                <div className="flex flex-row items-center gap-4">
-                                    <Avatar size="2xl">
-                                        <AvatarImage src="" />
-                                        <AvatarFallback>J</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <h4>Juan Dela Cruz</h4>
-                                        <p> Grade 7 | LRN: 1234567890123</p>
-                                    </div>
-                                </div>
-                                <Button variant="outline" size="lg">
-                                    Print SF10
-                                </Button>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader>Academic History</CardHeader>
-                            <CardContent className="grid grid-cols-5 items-start gap-6">
-                                <div className="col-span-3 space-y-6">
-                                    <Card>
-                                        <CardHeader>
-                                            <h4>Grade 7</h4>
-                                            <p>School Year | School Name</p>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>
-                                                            Subject
-                                                        </TableHead>
-                                                        <TableHead className="text-right">
-                                                            Grade
-                                                        </TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            Math
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            90
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            English
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            91
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            Science
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            92
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            AP
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            93
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            Filipino
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            94
-                                                        </TableCell>
-                                                    </TableRow>
-                                                </TableBody>
-                                            </Table>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card>
-                                        <CardHeader>
-                                            <h4>Grade 8</h4>
-                                            <p>School Year | School Name</p>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>
-                                                            Subject
-                                                        </TableHead>
-                                                        <TableHead className="text-right">
-                                                            Grade
-                                                        </TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            Math
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            90
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            English
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            91
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            Science
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            92
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            AP
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            93
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            Filipino
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            94
-                                                        </TableCell>
-                                                    </TableRow>
-                                                </TableBody>
-                                            </Table>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card>
-                                        <CardHeader>
-                                            <h4>Grade 9</h4>
-                                            <p>School Year | School Name</p>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>
-                                                            Subject
-                                                        </TableHead>
-                                                        <TableHead className="text-right">
-                                                            Grade
-                                                        </TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            Math
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            90
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            English
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            91
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            Science
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            92
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            AP
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            93
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            Filipino
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            94
-                                                        </TableCell>
-                                                    </TableRow>
-                                                </TableBody>
-                                            </Table>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-                                <Card className="sticky top-4 col-span-2 gap-2">
-                                    <CardHeader className="gap-0">
-                                        Add Historical Record
-                                    </CardHeader>
-                                    <CardContent className="">
-                                        <FieldGroup className="gap-4">
-                                            <FieldSet className="gap-4">
-                                                <FieldGroup className="gap-4">
-                                                    <Field className="py-0">
-                                                        <FieldLabel htmlFor="school-name">
-                                                            School Name
-                                                        </FieldLabel>
-                                                        <Input
-                                                            id="school-name"
-                                                            type="text"
-                                                            placeholder="Enter Scool Name"
-                                                        />
-                                                    </Field>
-                                                    <Field
-                                                        orientation="horizontal"
-                                                        className="flex items-center justify-between"
-                                                    >
-                                                        <FieldLabel className="whitespace-nowrap">
-                                                            School Year
-                                                        </FieldLabel>
-                                                        <div className="flex items-center gap-2">
-                                                            <Input
-                                                                id="sy-from"
-                                                                type="text"
-                                                                placeholder="20XX"
-                                                                className="w-20"
-                                                            />
-                                                            <span className="text-muted-foreground">
-                                                                -
-                                                            </span>
-                                                            <Input
-                                                                id="sy-to"
-                                                                type="text"
-                                                                placeholder="20XX"
-                                                                className="w-20"
-                                                            />
-                                                        </div>
-                                                    </Field>
-                                                    <FieldGroup className="gap-4">
-                                                        <Field
-                                                            orientation={
-                                                                'horizontal'
-                                                            }
-                                                        >
-                                                            <FieldLabel>
-                                                                Grade Level:
-                                                            </FieldLabel>
-                                                            <Input
-                                                                id="grade-level"
-                                                                type="text"
-                                                                placeholder="7"
-                                                                className="max-w-xs"
-                                                            />
-                                                        </Field>
-                                                    </FieldGroup>
-
-                                                    <FieldSeparator />
-                                                    <Field className="gap-4">
-                                                        <FieldLabel>
-                                                            Subjects & Grades
-                                                        </FieldLabel>
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <Input
-                                                                type="text"
-                                                                placeholder="Subject"
-                                                            />
-                                                            <Input
-                                                                type="text"
-                                                                placeholder="Grade"
-                                                            />
-                                                        </div>
-                                                    </Field>
-
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="xs"
-                                                        className="max-w-fit self-center"
-                                                    >
-                                                        + Add Subject
-                                                    </Button>
-                                                    <Button>Save</Button>
-                                                </FieldGroup>
-                                            </FieldSet>
-                                        </FieldGroup>
-                                    </CardContent>
-                                </Card>
-                            </CardContent>
-                        </Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg">Search Student Registry</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex gap-4">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                                <Input placeholder="Enter LRN or Name to view SF10..." className="pl-10" />
+                            </div>
+                            <Button className="gap-2">
+                                <Search className="size-4" />
+                                Find Record
+                            </Button>
+                        </div>
                     </CardContent>
                 </Card>
+
+                {/* Selected Student Profile */}
+                <Card className="border-primary/20">
+                    <CardContent className="flex flex-col md:flex-row items-center justify-between p-6 gap-6">
+                        <div className="flex flex-row items-center gap-6">
+                            <Avatar size="2xl" className="border-4 border-background shadow-sm">
+                                <AvatarImage src="" />
+                                <AvatarFallback>JD</AvatarFallback>
+                            </Avatar>
+                            <div className="space-y-1">
+                                <h2 className="text-2xl font-black tracking-tight text-primary">Juan Dela Cruz</h2>
+                                <div className="flex gap-4 text-sm font-medium text-muted-foreground">
+                                    <p>Grade 7 - Rizal</p>
+                                    <span>•</span>
+                                    <p>LRN: 1234567890123</p>
+                                </div>
+                            </div>
+                        </div>
+                        <Button variant="outline" size="lg" className="gap-2 font-bold uppercase tracking-wider text-xs">
+                            <Printer className="size-4" />
+                            Print SF10 (Form 137)
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                <div className="grid grid-cols-1 lg:grid-cols-5 items-start gap-6">
+                    {/* Academic History List (SF10 Content) */}
+                    <div className="lg:col-span-3 space-y-6">
+                        <div className="flex items-center gap-2 mb-2">
+                            <GraduationCap className="size-5 text-primary" />
+                            <h3 className="font-bold text-lg">Academic History</h3>
+                        </div>
+
+                        {/* Sample Grade 7 Card */}
+                        <Card>
+                            <CardHeader className="bg-muted/30 border-b flex flex-row justify-between items-center py-4 px-6">
+                                <div className="space-y-0.5">
+                                    <CardTitle className="text-base font-bold">Grade 7</CardTitle>
+                                    <p className="text-xs text-muted-foreground font-medium">SY 2023-2024 • Marriott School System</p>
+                                </div>
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Promoted</Badge>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <Table>
+                                    <TableHeader className="bg-muted/10">
+                                        <TableRow>
+                                            <TableHead className="pl-6">Subject</TableHead>
+                                            <TableHead className="text-right pr-6">Final Rating</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        <TableRow>
+                                            <TableCell className="pl-6 font-medium">Mathematics</TableCell>
+                                            <TableCell className="text-right pr-6 font-bold">90</TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell className="pl-6 font-medium">Science</TableCell>
+                                            <TableCell className="text-right pr-6 font-bold">92</TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Add Historical Record Sidebar */}
+                    <Card className="lg:col-span-2 sticky top-4 border-primary/10 shadow-sm">
+                        <CardHeader className="bg-primary/5 border-b">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <FilePlus2 className="size-5 text-primary" />
+                                Add Historical Record
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-6 space-y-6">
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                                        <Building2 className="size-3 text-muted-foreground" />
+                                        School Name
+                                    </Label>
+                                    <Input placeholder="Name of previous school..." />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                                            <Calendar className="size-3 text-muted-foreground" />
+                                            School Year
+                                        </Label>
+                                        <div className="flex items-center gap-2">
+                                            <Input placeholder="2023" className="text-center" />
+                                            <span className="text-muted-foreground">-</span>
+                                            <Input placeholder="2024" className="text-center" />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                                            <GraduationCap className="size-3 text-muted-foreground" />
+                                            Grade Level
+                                        </Label>
+                                        <Input placeholder="e.g. 6" className="text-center" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <FieldSeparator />
+
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <Label className="text-xs font-bold uppercase tracking-wider">Subjects & Final Grades</Label>
+                                    <Button variant="ghost" size="xs" className="h-7 text-primary hover:bg-primary/5 gap-1 font-bold">
+                                        <Plus className="size-3" />
+                                        Add Subject
+                                    </Button>
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-4 gap-2">
+                                        <Input placeholder="Subject" className="col-span-3" />
+                                        <Input placeholder="Grade" className="text-center font-bold" />
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        <Input placeholder="Subject" className="col-span-3" />
+                                        <Input placeholder="Grade" className="text-center font-bold" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <Button className="w-full h-11 font-bold tracking-wide mt-4">
+                                Save to SF10 History
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </AppLayout>
     );

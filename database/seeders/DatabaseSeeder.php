@@ -13,6 +13,14 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call([
+            AcademicYearSeeder::class,
+            GradeLevelSeeder::class,
+            TeacherSeeder::class,
+            SectionSeeder::class,
+            StudentSeeder::class,
+        ]);
+
         foreach (UserRole::cases() as $role) {
             $prefix = str_replace('_', '', $role->value);
 

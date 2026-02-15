@@ -57,11 +57,6 @@ const footerNavItems: NavItem[] = [
 const roleNavItems: Record<string, NavItem[]> = {
     super_admin: [
         {
-            title: 'School Year Manager',
-            href: '/super-admin/school-year-manager',
-            icon: Calendar,
-        },
-        {
             title: 'User Manager',
             href: '/super-admin/user-manager',
             icon: Users,
@@ -73,6 +68,11 @@ const roleNavItems: Record<string, NavItem[]> = {
         },
     ],
     admin: [
+        {
+            title: 'Academic Controls',
+            href: '/admin/academic-controls',
+            icon: Calendar,
+        },
         {
             title: 'Curriculum Manager',
             href: '/admin/curriculum-manager',

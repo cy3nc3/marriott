@@ -1,10 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
-import {
-    Card,
-    CardContent,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
     Table,
@@ -14,163 +11,104 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Field } from '@/components/ui/field';
+import { Printer, CalendarDays } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Schedule',
+        title: 'My Schedule',
         href: '/teacher/schedule',
     },
 ];
 
 export default function Schedule() {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Schedule" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex gap-4 items-end">
-                            <Field className="w-[200px]">
-                                <Select defaultValue="rizal">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select Section" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="rizal">Grade 7 - Rizal</SelectItem>
-                                        <SelectItem value="bonifacio">Grade 7 - Bonifacio</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </Field>
-                            <Button variant="outline">Load Schedule</Button>
-                        </div>
-                    </CardContent>
-                </Card>
+            <Head title="My Schedule" />
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
+                
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                    <div className="flex items-center gap-2">
+                        <CalendarDays className="size-6 text-primary" />
+                        <h1 className="text-2xl font-black tracking-tight">My Weekly Teaching Load</h1>
+                    </div>
+                    <Button variant="outline" className="gap-2 border-primary/20">
+                        <Printer className="size-4 text-primary" />
+                        Print My Schedule
+                    </Button>
+                </div>
 
-                <Card className="overflow-hidden">
-                    <Table className="border-collapse border">
+                <Card className="shadow-md border-primary/10 overflow-hidden">
+                    <Table className="border-collapse">
                         <TableHeader>
-                            <TableRow className="bg-muted/50">
-                                <TableHead className="w-[100px] border text-center font-bold">Time</TableHead>
-                                <TableHead className="border text-center font-bold">Monday</TableHead>
-                                <TableHead className="border text-center font-bold">Tuesday</TableHead>
-                                <TableHead className="border text-center font-bold">Wednesday</TableHead>
-                                <TableHead className="border text-center font-bold">Thursday</TableHead>
-                                <TableHead className="border text-center font-bold">Friday</TableHead>
+                            <TableRow className="bg-muted/30">
+                                <TableHead className="w-28 border-r text-center font-black text-[10px] uppercase">Time</TableHead>
+                                {days.map(day => (
+                                    <TableHead key={day} className="text-center font-black text-[10px] uppercase border-r">{day}</TableHead>
+                                ))}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow className="h-16">
-                                <TableCell className="border bg-muted/30 text-center font-bold text-xs">07:00 AM</TableCell>
-                                <TableCell className="border p-1" colSpan={5}>
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">Flag Ceremony</p>
+                            {/* 8:00 AM Row */}
+                            <TableRow className="h-24">
+                                <TableCell className="text-center font-mono text-[11px] font-bold text-muted-foreground border-r bg-muted/5">08:00 AM</TableCell>
+                                <TableCell className="border-r p-1.5">
+                                    <div className="bg-blue-50 border-l-4 border-blue-500 p-2 h-full rounded shadow-sm">
+                                        <p className="font-black text-blue-700 text-xs">MATH 7</p>
+                                        <p className="text-[9px] font-bold text-blue-600/80 uppercase">Grade 7 - Rizal</p>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="border-r p-1.5">
+                                    <div className="bg-purple-50 border-l-4 border-purple-500 p-2 h-full rounded shadow-sm">
+                                        <p className="font-black text-purple-700 text-xs">MATH 8</p>
+                                        <p className="text-[9px] font-bold text-purple-600/80 uppercase">Grade 8 - Gusion</p>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="border-r p-1.5">
+                                    <div className="bg-blue-50 border-l-4 border-blue-500 p-2 h-full rounded shadow-sm">
+                                        <p className="font-black text-blue-700 text-xs">MATH 7</p>
+                                        <p className="text-[9px] font-bold text-blue-600/80 uppercase">Grade 7 - Rizal</p>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="border-r p-1.5">
+                                    <div className="bg-purple-50 border-l-4 border-purple-500 p-2 h-full rounded shadow-sm">
+                                        <p className="font-black text-purple-700 text-xs">MATH 8</p>
+                                        <p className="text-[9px] font-bold text-purple-600/80 uppercase">Grade 8 - Gusion</p>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="p-1.5">
+                                    <div className="bg-amber-50 border-l-4 border-amber-500 p-2 h-full rounded shadow-sm">
+                                        <p className="font-black text-amber-700 text-xs">ADVISORY</p>
+                                        <p className="text-[9px] font-bold text-amber-600/80 uppercase">Rizal</p>
                                     </div>
                                 </TableCell>
                             </TableRow>
-                            <TableRow className="h-20">
-                                <TableCell className="border bg-muted/30 text-center font-bold text-xs">08:00 AM</TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">MATH7</p>
-                                        <p className="text-muted-foreground italic text-[10px]">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">MATH7</p>
-                                        <p className="text-muted-foreground italic text-[10px]">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">MATH7</p>
-                                        <p className="text-muted-foreground italic text-[10px]">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">MATH7</p>
-                                        <p className="text-muted-foreground italic text-[10px]">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-yellow-500/10 border-l-4 border-yellow-500 p-2 h-full rounded text-xs text-yellow-700 dark:text-yellow-500">
-                                        <p className="font-bold">ESP7</p>
-                                        <p className="text-[10px] opacity-80 italic">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
+
+                            {/* 10:00 AM Recess */}
+                            <TableRow className="h-10 bg-muted/20">
+                                <TableCell className="text-center font-mono text-[10px] font-black border-r">10:00 AM</TableCell>
+                                <TableCell colSpan={5} className="text-center text-[10px] font-black tracking-[0.3em] text-muted-foreground/50 uppercase">Recess Break</TableCell>
                             </TableRow>
-                            <TableRow className="h-20">
-                                <TableCell className="border bg-muted/30 text-center font-bold text-xs">09:00 AM</TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">ENG7</p>
-                                        <p className="text-muted-foreground italic text-[10px]">Grade 7 - Rizal</p>
+
+                            {/* 10:30 AM Row */}
+                            <TableRow className="h-24">
+                                <TableCell className="text-center font-mono text-[11px] font-bold text-muted-foreground border-r bg-muted/5">10:30 AM</TableCell>
+                                <TableCell className="border-r p-1.5" />
+                                <TableCell className="border-r p-1.5">
+                                    <div className="bg-blue-50 border-l-4 border-blue-500 p-2 h-full rounded shadow-sm">
+                                        <p className="font-black text-blue-700 text-xs">MATH 7</p>
+                                        <p className="text-[9px] font-bold text-blue-600/80 uppercase">Grade 7 - Bonifacio</p>
                                     </div>
                                 </TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">ENG7</p>
-                                        <p className="text-muted-foreground italic text-[10px]">Grade 7 - Rizal</p>
+                                <TableCell className="border-r p-1.5" />
+                                <TableCell className="border-r p-1.5">
+                                    <div className="bg-blue-50 border-l-4 border-blue-500 p-2 h-full rounded shadow-sm">
+                                        <p className="font-black text-blue-700 text-xs">MATH 7</p>
+                                        <p className="text-[9px] font-bold text-blue-600/80 uppercase">Grade 7 - Bonifacio</p>
                                     </div>
                                 </TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">ENG7</p>
-                                        <p className="text-muted-foreground italic text-[10px]">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">ENG7</p>
-                                        <p className="text-muted-foreground italic text-[10px]">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border p-1" />
-                            </TableRow>
-                            <TableRow className="bg-muted/50 h-8">
-                                <TableCell className="border text-center font-bold text-[10px]">10:00 AM</TableCell>
-                                <TableCell className="border text-center font-bold text-muted-foreground text-xs" colSpan={5}>RECESS</TableCell>
-                            </TableRow>
-                            <TableRow className="h-20">
-                                <TableCell className="border bg-muted/30 text-center font-bold text-xs">10:30 AM</TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">SCI7</p>
-                                        <p className="text-muted-foreground italic text-[10px]">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">SCI7</p>
-                                        <p className="text-muted-foreground italic text-[10px]">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">SCI7</p>
-                                        <p className="text-muted-foreground italic text-[10px]">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border p-1">
-                                    <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs">
-                                        <p className="font-bold">SCI7</p>
-                                        <p className="text-muted-foreground italic text-[10px]">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border p-1" />
-                            </TableRow>
-                            <TableRow className="bg-muted/50 h-10">
-                                <TableCell className="border text-center font-bold text-[10px]">11:30 AM</TableCell>
-                                <TableCell className="border text-center font-bold text-muted-foreground text-xs" colSpan={5}>LUNCH BREAK</TableCell>
+                                <TableCell className="p-1.5" />
                             </TableRow>
                         </TableBody>
                     </Table>

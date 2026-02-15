@@ -1,13 +1,9 @@
 import { Head } from '@inertiajs/react';
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import {
     Card,
-    CardAction,
     CardContent,
-    CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -15,25 +11,11 @@ import { Button } from '@/components/ui/button';
 import {
     Table,
     TableBody,
-    TableCaption,
     TableCell,
     TableHead,
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Field,
-    FieldContent,
-    FieldDescription,
-    FieldError,
-    FieldGroup,
-    FieldLabel,
-    FieldLegend,
-    FieldSeparator,
-    FieldSet,
-    FieldTitle,
-} from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
@@ -41,8 +23,18 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-    SelectLabel,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { 
+    Users, 
+    UploadCloud, 
+    Search, 
+    AlertTriangle, 
+    CheckCircle2, 
+    Clock,
+    MoreVertical
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -55,158 +47,112 @@ export default function StudentDirectory() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Student Directory" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <Card>
-                    <CardContent>
-                        <FieldGroup className="flex flex-row justify-start gap-6 space-y-6">
-                            <Field className="max-w-3xs">
-                                <FieldLabel>Search Student</FieldLabel>
-                                <Input
-                                    id="search-student"
-                                    type="text"
-                                    placeholder="Search by name or LRN"
-                                />
-                            </Field>
-                            <Field className="max-w-fit">
-                                <FieldLabel>Grade Level</FieldLabel>
-                                <Select>
-                                    <SelectTrigger className="max-w-fit">
-                                        <SelectValue placeholder="Select Grade Level" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectGroup>
-                                            <SelectLabel>
-                                                Grade Level
-                                            </SelectLabel>
-                                            <SelectItem value="grade-7">
-                                                Grade 7
-                                            </SelectItem>
-                                            <SelectItem value="grade-8">
-                                                Grade 8
-                                            </SelectItem>
-                                            <SelectItem value="grade-9">
-                                                Grade 9
-                                            </SelectItem>
-                                            <SelectItem value="grade-10">
-                                                Grade 10
-                                            </SelectItem>
-                                        </SelectGroup>
-                                    </SelectContent>
-                                </Select>
-                            </Field>
-                            <Field className="max-w-fit">
-                                <FieldLabel>Section</FieldLabel>
-                                <Select>
-                                    <SelectTrigger className="max-w-fit">
-                                        <SelectValue placeholder="Select Section" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectGroup>
-                                            <SelectLabel>Section</SelectLabel>
-                                            <SelectItem value="section-a">
-                                                Section A
-                                            </SelectItem>
-                                            <SelectItem value="section-b">
-                                                Section B
-                                            </SelectItem>
-                                            <SelectItem value="section-c">
-                                                Section C
-                                            </SelectItem>
-                                            <SelectItem value="section-d">
-                                                Section D
-                                            </SelectItem>
-                                        </SelectGroup>
-                                    </SelectContent>
-                                </Select>
-                            </Field>
-                        </FieldGroup>
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
+                
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                    <div className="flex items-center gap-2">
+                        <Users className="size-6 text-primary" />
+                        <h1 className="text-2xl font-black tracking-tight">Student Directory</h1>
+                    </div>
+                    <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5">
+                        <UploadCloud className="size-4 text-primary" />
+                        Upload SF1 (LIS Sync)
+                    </Button>
+                </div>
 
+                <Card>
+                    <CardHeader className="bg-muted/30 border-b py-4">
+                        <div className="flex flex-wrap gap-4 items-center">
+                            <div className="relative w-full max-w-sm">
+                                <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                                <Input placeholder="Search name or LRN..." className="pl-10" />
+                            </div>
+                            <Select defaultValue="all">
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Verification" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Status</SelectItem>
+                                    <SelectItem value="verified">LIS Verified</SelectItem>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="error">Discrepancy</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Select>
+                                <SelectTrigger className="w-[150px]">
+                                    <SelectValue placeholder="Grade Level" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="7">Grade 7</SelectItem>
+                                    <SelectItem value="8">Grade 8</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
                         <Table>
-                            <TableHeader>
+                            <TableHeader className="bg-muted/20">
                                 <TableRow>
-                                    <TableHead>LRN</TableHead>
-                                    <TableHead className="text-center">
-                                        Student Name
-                                    </TableHead>
-                                    <TableHead className="text-center">
-                                        Grade & Section
-                                    </TableHead>
-                                    <TableHead className="text-center">
-                                        Emergency Contact
-                                    </TableHead>
-                                    <TableHead className="text-center">
-                                        Requirements
-                                    </TableHead>
-                                    <TableHead className="text-right">
-                                        Actions
-                                    </TableHead>
+                                    <TableHead className="pl-6">LRN</TableHead>
+                                    <TableHead>Student Name</TableHead>
+                                    <TableHead>Grade & Section</TableHead>
+                                    <TableHead className="text-center">Verification</TableHead>
+                                    <TableHead className="text-right pr-6">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                <TableRow>
-                                    <TableCell className="font-medium">
-                                        1000000000001
+                                <TableRow className="hover:bg-muted/30 transition-colors">
+                                    <TableCell className="pl-6 font-mono text-xs">123456789012</TableCell>
+                                    <TableCell className="font-bold">Juan Dela Cruz</TableCell>
+                                    <TableCell>
+                                        <div className="text-sm font-medium">Grade 7 - Rizal</div>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        Godalle, Jade
+                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1">
+                                            <CheckCircle2 className="size-3" />
+                                            LIS Verified
+                                        </Badge>
                                     </TableCell>
-                                    <TableCell className="text-center">
-                                        Grade 7 - Section A
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        Atan Godalle
-                                        <br />
-                                        09123456789
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        Badge Here
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        Action Here
+                                    <TableCell className="text-right pr-6">
+                                        <Button variant="ghost" size="icon" className="size-8">
+                                            <MoreVertical className="size-4" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
-                                <TableRow>
-                                    <TableCell className="font-medium">
-                                        1000000000002
+                                <TableRow className="hover:bg-muted/30 transition-colors">
+                                    <TableCell className="pl-6 font-mono text-xs">987654321098</TableCell>
+                                    <TableCell className="font-bold">Maria Santos</TableCell>
+                                    <TableCell>
+                                        <div className="text-sm text-muted-foreground italic">Unassigned</div>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        Solitario, Edson
+                                        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 gap-1">
+                                            <Clock className="size-3" />
+                                            Pending Sync
+                                        </Badge>
                                     </TableCell>
-                                    <TableCell className="text-center">
-                                        Grade 8 - Section B
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        Sadam Solitario
-                                        <br />
-                                        0912345671
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        Badge Here
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        Action Here
+                                    <TableCell className="text-right pr-6">
+                                        <Button variant="ghost" size="icon" className="size-8">
+                                            <MoreVertical className="size-4" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
-                                <TableRow>
-                                    <TableCell className="font-medium">
-                                        1000000000003
+                                <TableRow className="hover:bg-muted/30 transition-colors bg-destructive/5">
+                                    <TableCell className="pl-6 font-mono text-xs text-destructive">555555555555</TableCell>
+                                    <TableCell className="font-bold">Mark Typo</TableCell>
+                                    <TableCell>
+                                        <div className="text-sm text-muted-foreground italic">Unassigned</div>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        Raagas, Francis
+                                        <Badge variant="destructive" className="gap-1 animate-pulse uppercase text-[10px]">
+                                            <AlertTriangle className="size-3" />
+                                            Discrepancy
+                                        </Badge>
                                     </TableCell>
-                                    <TableCell className="text-center">
-                                        Grade 9 - Section C
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        Bandol Raagas
-                                        <br />
-                                        09123456782
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        Badge Here
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        Action Here
+                                    <TableCell className="text-right pr-6">
+                                        <Button variant="ghost" size="icon" className="size-8">
+                                            <MoreVertical className="size-4" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
