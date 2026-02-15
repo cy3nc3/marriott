@@ -108,12 +108,12 @@ const FacultyCertificationList = ({
     return (
         <div className="grid gap-4">
             <div className="grid gap-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Search Faculty</Label>
+                <Label className="text-xs text-muted-foreground">Search Faculty</Label>
                 <div className="relative">
                     <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                     <Input 
                         placeholder="Search and select qualified teachers..." 
-                        className="pl-10 font-medium"
+                        className="pl-10"
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
                     />
@@ -136,11 +136,11 @@ const FacultyCertificationList = ({
                         </div>
                     )}
                 </div>
-                <p className="text-[10px] text-muted-foreground font-medium italic">Tip: You can search and select multiple teachers.</p>
+                <p className="text-xs text-muted-foreground italic">Tip: You can search and select multiple teachers.</p>
             </div>
 
             <div className="space-y-3">
-                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                <Label className="text-xs text-muted-foreground">
                     Qualified Teachers ({selectedList.length}):
                 </Label>
                 
@@ -149,14 +149,14 @@ const FacultyCertificationList = ({
                         {selectedList.map((teacher) => (
                             <div key={teacher.id} className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
                                 <div className="flex items-center gap-3">
-                                    <Avatar className="size-10 border-2 border-background shadow-sm">
-                                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                                    <Avatar className="size-8 border-2 border-background shadow-sm">
+                                        <AvatarFallback className="text-xs font-semibold">
                                             {teacher.initial}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <p className="text-sm font-bold">{teacher.name}</p>
-                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Certified Faculty</p>
+                                        <p className="text-sm font-medium">{teacher.name}</p>
+                                        <p className="text-xs text-muted-foreground">Certified Faculty</p>
                                     </div>
                                 </div>
                                 <Button 
@@ -173,7 +173,7 @@ const FacultyCertificationList = ({
                 ) : (
                     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center bg-muted/10">
                         <Users className="size-8 text-muted-foreground/20" />
-                        <p className="mt-2 text-xs font-medium text-muted-foreground uppercase tracking-widest">No Qualified Teachers Selected</p>
+                        <p className="mt-2 text-sm text-muted-foreground">No Qualified Teachers Selected</p>
                     </div>
                 )}
             </div>
@@ -268,32 +268,32 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Curriculum Manager" />
             <TooltipProvider>
-                <div className="flex flex-col gap-6 p-4 lg:p-6">
+                <div className="flex flex-col gap-6 p-6">
                     
-                    <div className="flex flex-col gap-1 px-1">
+                    <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2">
                             <BookOpen className="size-6 text-primary" />
-                            <h1 className="text-2xl font-bold tracking-tight uppercase">Curriculum Management</h1>
+                            <h1 className="text-2xl font-bold tracking-tight">Curriculum Management</h1>
                         </div>
-                        <p className="text-sm text-muted-foreground font-medium">Define subjects and manage qualified faculty per grade level.</p>
+                        <p className="text-sm text-muted-foreground">Define subjects and manage qualified faculty per grade level.</p>
                     </div>
 
-                    <Card className="overflow-hidden border-primary/10">
+                    <Card className="flex flex-col border-primary/10">
                         <Tabs value={activeTab} onValueChange={(val) => {
                             setActiveTab(val);
                             addForm.setData('grade_level_id', val);
-                        }} className="w-full">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/5 py-3 px-6">
+                        }} className="w-full flex-1 flex flex-col">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b py-3 px-6">
                                 <TabsList className="h-9">
                                     {gradeLevels.map(grade => (
-                                        <TabsTrigger key={grade.id} value={grade.id.toString()} className="text-xs font-bold uppercase tracking-wider">
+                                        <TabsTrigger key={grade.id} value={grade.id.toString()}>
                                             {grade.name}
                                         </TabsTrigger>
                                     ))}
                                 </TabsList>
                                 <Button 
                                     size="sm" 
-                                    className="gap-2 font-bold uppercase tracking-tight h-9" 
+                                    className="gap-2"
                                     onClick={() => {
                                         addForm.reset();
                                         addForm.setData('grade_level_id', activeTab);
@@ -301,7 +301,7 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                                     }}
                                 >
                                     <Plus className="size-4" />
-                                    Add Subject for {currentGrade?.name}
+                                    Add Subject
                                 </Button>
                             </CardHeader>
                             
@@ -310,39 +310,39 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                                     <TabsContent key={grade.id} value={grade.id.toString()} className="m-0 outline-none">
                                         <div className="rounded-md border overflow-hidden">
                                             <Table>
-                                                <TableHeader className="bg-muted/50">
+                                                <TableHeader>
                                                     <TableRow>
-                                                        <TableHead className="w-[120px] pl-6 font-black text-[10px] uppercase tracking-widest">Code</TableHead>
-                                                        <TableHead className="font-black text-[10px] uppercase tracking-widest">Descriptive Title</TableHead>
-                                                        <TableHead className="font-black text-[10px] uppercase tracking-widest">Qualified Teachers</TableHead>
-                                                        <TableHead className="text-right pr-6 font-black text-[10px] uppercase tracking-widest">Actions</TableHead>
+                                                        <TableHead className="w-[120px] pl-6">Code</TableHead>
+                                                        <TableHead>Descriptive Title</TableHead>
+                                                        <TableHead>Qualified Teachers</TableHead>
+                                                        <TableHead className="text-right pr-6">Actions</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
                                                     {grade.subjects.map((sub) => (
                                                         <TableRow key={sub.id}>
                                                             <TableCell className="pl-6">
-                                                                <Badge variant="secondary" className="font-mono text-[11px] font-black uppercase tracking-wider">
+                                                                <Badge variant="outline" className="font-mono text-xs">
                                                                     {sub.subject_code}
                                                                 </Badge>
                                                             </TableCell>
-                                                            <TableCell className="font-bold text-sm tracking-tight">{sub.subject_name}</TableCell>
+                                                            <TableCell className="font-medium">{sub.subject_name}</TableCell>
                                                             <TableCell>
                                                                 <div className="flex -space-x-2">
                                                                     {sub.teachers.map((t) => (
                                                                         <Tooltip key={t.id}>
                                                                             <TooltipTrigger asChild>
                                                                                 <Avatar className="border-2 border-background size-8 ring-1 ring-primary/5">
-                                                                                    <AvatarFallback className="text-[10px] font-bold bg-muted text-muted-foreground">
+                                                                                    <AvatarFallback className="text-xs font-semibold bg-muted text-muted-foreground">
                                                                                         {t.initial}
                                                                                     </AvatarFallback>
                                                                                 </Avatar>
                                                                             </TooltipTrigger>
-                                                                            <TooltipContent className="font-bold text-xs">{t.name}</TooltipContent>
+                                                                            <TooltipContent className="font-medium text-xs">{t.name}</TooltipContent>
                                                                         </Tooltip>
                                                                     ))}
                                                                     {sub.teachers.length === 0 && (
-                                                                        <span className="text-[10px] font-medium text-muted-foreground uppercase italic">No qualified teachers</span>
+                                                                        <span className="text-xs text-muted-foreground italic">No qualified teachers</span>
                                                                     )}
                                                                 </div>
                                                             </TableCell>
@@ -353,7 +353,7 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                                                                             <Button 
                                                                                 variant="ghost" 
                                                                                 size="icon" 
-                                                                                className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                                                                                className="size-8 text-muted-foreground hover:text-primary"
                                                                                 onClick={() => {
                                                                                     setSelectedSubject(sub);
                                                                                     certifyForm.setData('teacher_ids', sub.teachers.map(t => t.id));
@@ -371,7 +371,7 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                                                                             <Button 
                                                                                 variant="ghost" 
                                                                                 size="icon" 
-                                                                                className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                                                                                className="size-8 text-muted-foreground hover:text-primary"
                                                                                 onClick={() => {
                                                                                     setSelectedSubject(sub);
                                                                                     editForm.setData({
@@ -392,7 +392,7 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                                                                             <Button 
                                                                                 variant="ghost" 
                                                                                 size="icon" 
-                                                                                className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                                                                                className="size-8 text-muted-foreground hover:text-destructive"
                                                                                 onClick={() => handleDeleteSubject(sub.id)}
                                                                             >
                                                                                 <Trash2 className="size-4" />
@@ -407,7 +407,7 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                                                     {grade.subjects.length === 0 && (
                                                         <TableRow>
                                                             <TableCell colSpan={4} className="h-24 text-center">
-                                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">No subjects defined for this level</p>
+                                                                <p className="text-sm text-muted-foreground">No subjects defined for this level</p>
                                                             </TableCell>
                                                         </TableRow>
                                                     )}
@@ -424,27 +424,26 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                     <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
                         <DialogContent className="sm:max-w-[500px]">
                             <DialogHeader>
-                                <DialogTitle className="text-xl font-bold uppercase tracking-tight">New Subject Entry</DialogTitle>
-                                <DialogDescription className="font-medium">
-                                    Define a core academic subject for <span className="text-primary font-bold">{currentGrade?.name}</span>.
+                                <DialogTitle>New Subject Entry</DialogTitle>
+                                <DialogDescription>
+                                    Define a core academic subject for <span className="text-primary font-medium">{currentGrade?.name}</span>.
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-6 py-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-2">
-                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Subject Code</Label>
+                                        <Label className="text-xs text-muted-foreground">Subject Code</Label>
                                         <Input 
                                             placeholder="MATH7" 
-                                            className="font-black uppercase tracking-wider" 
+                                            className="uppercase"
                                             value={addForm.data.subject_code}
                                             onChange={e => addForm.setData('subject_code', e.target.value)}
                                         />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descriptive Title</Label>
+                                        <Label className="text-xs text-muted-foreground">Descriptive Title</Label>
                                         <Input 
                                             placeholder="Mathematics 7" 
-                                            className="font-bold" 
                                             value={addForm.data.subject_name}
                                             onChange={e => addForm.setData('subject_name', e.target.value)}
                                         />
@@ -461,8 +460,8 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                                 />
                             </div>
                             <DialogFooter>
-                                <Button variant="outline" className="font-bold" onClick={() => setIsAddSubjectOpen(false)}>Cancel</Button>
-                                <Button className="font-black uppercase tracking-tight" onClick={handleAddSubject} disabled={addForm.processing}>Save to Curriculum</Button>
+                                <Button variant="outline" onClick={() => setIsAddSubjectOpen(false)}>Cancel</Button>
+                                <Button onClick={handleAddSubject} disabled={addForm.processing}>Save to Curriculum</Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
@@ -470,9 +469,9 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                     <Dialog open={isCertifyOpen} onOpenChange={setIsCertifyOpen}>
                         <DialogContent className="sm:max-w-[500px]">
                             <DialogHeader>
-                                <DialogTitle className="text-xl font-bold uppercase tracking-tight">Qualified Teachers</DialogTitle>
-                                <DialogDescription className="font-medium">
-                                    Managing qualified teachers for <span className="text-primary font-bold">{selectedSubject?.subject_name}</span>.
+                                <DialogTitle>Qualified Teachers</DialogTitle>
+                                <DialogDescription>
+                                    Managing qualified teachers for <span className="text-primary font-medium">{selectedSubject?.subject_name}</span>.
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="py-4">
@@ -486,8 +485,8 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                                 />
                             </div>
                             <DialogFooter>
-                                <Button variant="outline" className="font-bold" onClick={() => setIsCertifyOpen(false)}>Cancel</Button>
-                                <Button className="font-black uppercase tracking-tight" onClick={handleCertify} disabled={certifyForm.processing}>Update List</Button>
+                                <Button variant="outline" onClick={() => setIsCertifyOpen(false)}>Cancel</Button>
+                                <Button onClick={handleCertify} disabled={certifyForm.processing}>Update List</Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
@@ -495,30 +494,29 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                     <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle className="text-xl font-bold uppercase tracking-tight">Modify Subject</DialogTitle>
-                                <DialogDescription className="font-medium">Update the structural details for this academic subject.</DialogDescription>
+                                <DialogTitle>Modify Subject</DialogTitle>
+                                <DialogDescription>Update the structural details for this academic subject.</DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
                                 <div className="grid gap-2">
-                                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Subject Code</Label>
+                                    <Label className="text-xs text-muted-foreground">Subject Code</Label>
                                     <Input 
-                                        className="font-black uppercase tracking-wider" 
+                                        className="uppercase"
                                         value={editForm.data.subject_code}
                                         onChange={e => editForm.setData('subject_code', e.target.value)}
                                     />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descriptive Title</Label>
+                                    <Label className="text-xs text-muted-foreground">Descriptive Title</Label>
                                     <Input 
-                                        className="font-bold" 
                                         value={editForm.data.subject_name}
                                         onChange={e => editForm.setData('subject_name', e.target.value)}
                                     />
                                 </div>
                             </div>
                             <DialogFooter>
-                                <Button variant="outline" className="font-bold" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                                <Button className="font-black uppercase tracking-tight" onClick={handleUpdateSubject} disabled={editForm.processing}>Update Details</Button>
+                                <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+                                <Button onClick={handleUpdateSubject} disabled={editForm.processing}>Update Details</Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>

@@ -32,8 +32,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Calendar, Clock, Trash2, User, AlertTriangle, Info, AlertCircle, Plus, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -42,7 +41,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-// Configuration - Reduced height for better fit on PC screens
+// Configuration
 const START_HOUR = 7;
 const END_HOUR = 17;
 const HOUR_HEIGHT = 80; 
@@ -123,7 +122,7 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
         section_id: 0,
         subject_id: null as number | null,
         teacher_id: null as number | null,
-        type: 'academic' as const,
+        type: 'academic' as 'academic' | 'break' | 'ceremony',
         label: '',
         day: 'Monday',
         start_time: '08:00',
@@ -131,7 +130,7 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
     });
 
     const editForm = useForm({
-        type: 'academic' as const,
+        type: 'academic' as 'academic' | 'break' | 'ceremony',
         label: '',
         day: '',
         start_time: '',
@@ -222,16 +221,16 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
         return (
             <AppLayout breadcrumbs={breadcrumbs}>
                 <div className="flex h-[400px] flex-col items-center justify-center gap-4 text-center">
-                    <div className="rounded-full bg-amber-50 p-4 dark:bg-amber-950/20">
+                    <div className="rounded-full bg-amber-100 p-4 dark:bg-amber-900/20">
                         <AlertCircle className="size-10 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div className="space-y-1">
-                        <h2 className="text-xl font-black uppercase tracking-tight">System Notice</h2>
+                        <h2 className="text-xl font-bold tracking-tight">System Notice</h2>
                         <p className="max-w-sm text-sm text-muted-foreground font-medium">
                             An active School Year must be initialized before managing schedules.
                         </p>
                     </div>
-                    <Button variant="outline" className="font-bold uppercase text-xs" onClick={() => router.get('/admin/academic-controls')}>
+                    <Button variant="outline" className="text-xs" onClick={() => router.get('/admin/academic-controls')}>
                         Go to Academic Controls
                     </Button>
                 </div>
@@ -246,23 +245,23 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Schedule Builder" />
             <TooltipProvider>
-                <div className="flex flex-col gap-6 p-4 lg:p-6 h-full">
+                <div className="flex flex-col gap-6 p-6 h-full">
                     
-                    <div className="flex flex-col gap-1 px-1">
+                    <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2 text-primary">
                             <Calendar className="size-6" />
-                            <h1 className="text-2xl font-bold tracking-tight uppercase">Schedule Builder</h1>
+                            <h1 className="text-2xl font-bold tracking-tight">Schedule Builder</h1>
                         </div>
-                        <p className="text-sm text-muted-foreground font-medium italic leading-none">Fluid canvas with visual conflict detection.</p>
+                        <p className="text-sm text-muted-foreground">Fluid canvas with visual conflict detection.</p>
                     </div>
 
-                    <Card className="overflow-hidden border-primary/10 flex flex-col flex-1">
-                        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b bg-muted/5 py-3 px-6 shrink-0">
+                    <Card className="flex flex-col flex-1 border-primary/10 overflow-hidden">
+                        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b py-3 px-6 shrink-0 bg-muted/5">
                             <div className="flex flex-wrap items-center gap-4">
                                 <div className="grid gap-1">
-                                    <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Grade Level</Label>
+                                    <Label className="text-xs text-muted-foreground">Grade Level</Label>
                                     <Select value={selectedGradeId} onValueChange={setSelectedGradeId}>
-                                        <SelectTrigger className="w-[110px] h-8 font-bold uppercase text-[10px] tracking-wider">
+                                        <SelectTrigger className="w-[140px] h-9">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -273,9 +272,9 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                                     </Select>
                                 </div>
                                 <div className="grid gap-1">
-                                    <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Section</Label>
+                                    <Label className="text-xs text-muted-foreground">Section</Label>
                                     <Select value={selectedSectionId} onValueChange={setSelectedSectionId}>
-                                        <SelectTrigger className="w-[130px] h-8 font-bold uppercase text-[10px] tracking-wider">
+                                        <SelectTrigger className="w-[160px] h-9">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -286,12 +285,12 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                                     </Select>
                                 </div>
 
-                                <div className="w-px h-6 bg-border mx-1 hidden lg:block" />
+                                <div className="w-px h-8 bg-border mx-2 hidden lg:block" />
 
                                 <div className="grid gap-1">
-                                    <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Highlight Subject</Label>
+                                    <Label className="text-xs text-muted-foreground">Highlight Subject</Label>
                                     <Select value={selectedSubjectId || 'none'} onValueChange={val => setSelectedSubjectId(val === 'none' ? null : val)}>
-                                        <SelectTrigger className="w-[160px] h-8 font-bold uppercase text-[10px] tracking-wider">
+                                        <SelectTrigger className="w-[180px] h-9">
                                             <SelectValue placeholder="All Subjects" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -302,11 +301,11 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                                 </div>
 
                                 <div className="grid gap-1">
-                                    <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                                        Teacher Availability <Info className="size-2.5" />
+                                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                                        Teacher Availability <Info className="size-3" />
                                     </Label>
                                     <Select value={selectedTeacherId || 'none'} onValueChange={val => setSelectedTeacherId(val === 'none' ? null : val)}>
-                                        <SelectTrigger className="w-[160px] h-8 font-bold uppercase text-[10px] tracking-wider">
+                                        <SelectTrigger className="w-[180px] h-9">
                                             <SelectValue placeholder="Select Teacher..." />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -321,11 +320,11 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                         <CardContent className="p-0 overflow-auto relative flex-1">
                             <div className="w-full relative flex" style={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT + 40 }}>
                                 
-                                {/* Time Rulers - Fixed with higher Z and background */}
+                                {/* Time Rulers */}
                                 <div className="w-16 border-r bg-background pt-10 sticky left-0 z-30 shrink-0">
                                     {Array.from({ length: END_HOUR - START_HOUR + 1 }).map((_, i) => (
                                         <div key={i} className="h-[80px] -mt-2 pr-2 text-right">
-                                            <span className="text-[9px] font-bold text-muted-foreground font-mono">
+                                            <span className="text-xs font-medium text-muted-foreground font-mono">
                                                 {`${(START_HOUR + i) % 12 || 12}:00 ${(START_HOUR + i) >= 12 ? 'PM' : 'AM'}`}
                                             </span>
                                         </div>
@@ -333,11 +332,11 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                                 </div>
 
                                 <div className="flex-1 relative min-w-[800px]">
-                                    {/* Days Header - Fixed with higher Z */}
+                                    {/* Days Header */}
                                     <div className="flex border-b h-10 sticky top-0 bg-background z-40">
-                                        <div className="w-px shrink-0" /> {/* Spacer for time ruler */}
+                                        <div className="w-px shrink-0" />
                                         {DAYS.map(day => (
-                                            <div key={day} className="flex-1 border-r flex items-center justify-center text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground last:border-r-0">
+                                            <div key={day} className="flex-1 border-r flex items-center justify-center text-xs font-semibold text-muted-foreground last:border-r-0 uppercase tracking-wider">
                                                 {day}
                                             </div>
                                         ))}
@@ -377,7 +376,7 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                                                         >
                                                             <div className="p-1">
                                                                 <p className={cn(
-                                                                    "text-[7px] font-black uppercase truncate",
+                                                                    "text-[10px] font-bold uppercase truncate",
                                                                     isConflicting ? "text-destructive" : "text-amber-600/50"
                                                                 )}>
                                                                     {isConflicting ? 'CONFLICT' : 'OCCUPIED'}
@@ -403,10 +402,10 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                                                         <div
                                                             key={item.id}
                                                             className={cn(
-                                                                "absolute z-10 rounded-sm border-l-2 p-1.5 shadow-sm transition-all cursor-pointer group",
-                                                                isHighlighted ? "opacity-100 z-20 shadow-md scale-[1.01]" : "opacity-30",
-                                                                item.type === 'academic' ? "bg-background border-primary" : "bg-muted border-muted-foreground/30",
-                                                                hasTeacherConflict ? "left-[30%] right-0.5 border-destructive ring-1 ring-destructive/20 bg-destructive/5" : "left-0.5 right-0.5"
+                                                                "absolute z-10 rounded-md border p-2 shadow-sm transition-all cursor-pointer group",
+                                                                isHighlighted ? "opacity-100 z-20 shadow-md scale-[1.01]" : "opacity-40 grayscale",
+                                                                item.type === 'academic' ? "bg-background border-primary/20 hover:border-primary" : "bg-muted border-transparent",
+                                                                hasTeacherConflict ? "left-[30%] right-1 border-destructive ring-1 ring-destructive/20 bg-destructive/5" : "left-1 right-1"
                                                             )}
                                                             style={{ 
                                                                 top: getPosition(item.start_time),
@@ -415,26 +414,26 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                                                             onClick={(e) => handleItemClick(e, item)}
                                                         >
                                                             <div className="flex flex-col h-full justify-between overflow-hidden">
-                                                                <div className="space-y-0.5">
-                                                                    <div className="flex items-center justify-between">
+                                                                <div className="space-y-1">
+                                                                    <div className="flex items-center justify-between gap-1">
                                                                         <p className={cn(
-                                                                            "font-black uppercase tracking-tighter truncate leading-tight",
-                                                                            item.type === 'academic' ? "text-primary text-[10px]" : "text-[9px]"
+                                                                            "font-semibold text-xs truncate leading-tight",
+                                                                            item.type === 'academic' ? "text-primary" : "text-muted-foreground"
                                                                         )}>
                                                                             {subjectName}
                                                                         </p>
-                                                                        {hasTeacherConflict && <AlertTriangle className="size-2.5 text-destructive animate-pulse" />}
+                                                                        {hasTeacherConflict && <AlertTriangle className="size-3 text-destructive animate-pulse shrink-0" />}
                                                                     </div>
                                                                     {teacherName && (
-                                                                        <p className="text-[8px] font-medium text-muted-foreground truncate flex items-center gap-1">
-                                                                            <User className="size-2" />
+                                                                        <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                                                                            <User className="size-3" />
                                                                             {teacherName}
                                                                         </p>
                                                                     )}
                                                                 </div>
-                                                                <div className="flex items-center gap-1 opacity-60">
-                                                                    <Clock className="size-2" />
-                                                                    <span className="text-[7px] font-mono font-bold">{item.start_time.substring(0, 5)} - {item.end_time.substring(0, 5)}</span>
+                                                                <div className="flex items-center gap-1 opacity-70">
+                                                                    <Clock className="size-3" />
+                                                                    <span className="text-[10px] font-mono">{item.start_time.substring(0, 5)} - {item.end_time.substring(0, 5)}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -451,29 +450,27 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogContent className="sm:max-w-[450px]">
                             <DialogHeader>
-                                <DialogTitle className="uppercase font-black tracking-tight text-lg">
+                                <DialogTitle>
                                     {selectedItem ? 'Edit Scheduled Slot' : 'Assign New Schedule'}
                                 </DialogTitle>
-                                <DialogDescription className="font-medium text-xs">
+                                <DialogDescription>
                                     Configure timing and assignments for this period.
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="py-4 space-y-6">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Start Time</Label>
+                                        <Label className="text-xs text-muted-foreground">Start Time</Label>
                                         <Input 
                                             type="time" 
-                                            className="font-bold h-9"
                                             value={selectedItem ? editForm.data.start_time : addForm.data.start_time}
                                             onChange={e => (selectedItem ? editForm : addForm).setData('start_time', e.target.value)}
                                         />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">End Time</Label>
+                                        <Label className="text-xs text-muted-foreground">End Time</Label>
                                         <Input 
                                             type="time" 
-                                            className="font-bold h-9"
                                             value={selectedItem ? editForm.data.end_time : addForm.data.end_time}
                                             onChange={e => (selectedItem ? editForm : addForm).setData('end_time', e.target.value)}
                                         />
@@ -481,12 +478,12 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Period Type</Label>
+                                    <Label className="text-xs text-muted-foreground">Period Type</Label>
                                     <Select 
                                         value={selectedItem ? editForm.data.type : addForm.data.type}
                                         onValueChange={val => (selectedItem ? editForm : addForm).setData('type', val as any)}
                                     >
-                                        <SelectTrigger className="font-bold uppercase text-[10px] h-9"><SelectValue /></SelectTrigger>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="academic">Academic Subject</SelectItem>
                                             <SelectItem value="break">Institutional Break</SelectItem>
@@ -498,21 +495,21 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                                 {(selectedItem ? editForm.data.type : addForm.data.type) === 'academic' ? (
                                     <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
                                         <div className="flex items-center gap-2 text-primary">
-                                            <BookOpen className="size-3.5" />
-                                            <p className="text-[9px] font-black uppercase tracking-widest">Assignment Preview</p>
+                                            <BookOpen className="size-4" />
+                                            <p className="text-xs font-semibold uppercase tracking-wider">Assignment Preview</p>
                                         </div>
                                         
                                         <div className="grid gap-2">
                                             <div className="grid gap-1">
-                                                <Label className="text-[8px] font-bold uppercase text-muted-foreground">Subject</Label>
-                                                <div className="rounded border bg-background px-2.5 py-1.5 text-xs font-bold">
+                                                <Label className="text-xs text-muted-foreground">Subject</Label>
+                                                <div className="rounded-md border bg-background px-3 py-2 text-sm font-medium">
                                                     {currentAddSubject ? currentAddSubject.name : "Select subject above"}
                                                 </div>
                                             </div>
 
                                             <div className="grid gap-1">
-                                                <Label className="text-[8px] font-bold uppercase text-muted-foreground">Assigned Teacher</Label>
-                                                <div className="rounded border bg-background px-2.5 py-1.5 text-xs font-bold">
+                                                <Label className="text-xs text-muted-foreground">Assigned Teacher</Label>
+                                                <div className="rounded-md border bg-background px-3 py-2 text-sm font-medium">
                                                     {currentAddTeacher ? currentAddTeacher.name : "Select teacher above"}
                                                 </div>
                                             </div>
@@ -520,10 +517,9 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                                     </div>
                                 ) : (
                                     <div className="grid gap-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Label</Label>
+                                        <Label className="text-xs text-muted-foreground">Label</Label>
                                         <Input 
                                             placeholder="e.g. Recess or Lunch"
-                                            className="font-bold h-9"
                                             value={selectedItem ? editForm.data.label : addForm.data.label}
                                             onChange={e => (selectedItem ? editForm : addForm).setData('label', e.target.value)}
                                         />
@@ -532,13 +528,12 @@ export default function ScheduleBuilder({ gradeLevels, subjects, teachers, secti
                             </div>
                             <DialogFooter className="gap-2 shrink-0">
                                 {selectedItem && (
-                                    <Button variant="ghost" className="text-destructive font-bold h-9 gap-2 mr-auto px-2" onClick={handleDelete}>
-                                        <Trash2 className="size-3.5" /> Remove
+                                    <Button variant="ghost" className="text-destructive gap-2 mr-auto" onClick={handleDelete}>
+                                        <Trash2 className="size-4" /> Remove
                                     </Button>
                                 )}
-                                <Button variant="outline" className="font-bold h-9 px-4 text-xs" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                                 <Button 
-                                    className="font-black uppercase tracking-tight h-9 min-w-[100px] text-xs" 
                                     onClick={selectedItem ? handleUpdate : handleAdd}
                                     disabled={addForm.processing || editForm.processing || (addForm.data.type === 'academic' && (!addForm.data.subject_id || !addForm.data.teacher_id))}
                                 >

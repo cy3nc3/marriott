@@ -8,6 +8,7 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -67,6 +68,7 @@ interface GradeLevel {
 interface AcademicYear {
     id: number;
     name: string;
+    activeYear: AcademicYear | null;
 }
 
 interface Props {
@@ -95,13 +97,13 @@ export default function ClassLists({ gradeLevels, activeYear }: Props) {
     const getStatusBadge = (status: string) => {
         switch (status.toLowerCase()) {
             case 'enrolled':
-                return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 uppercase text-[10px] font-black">Active</Badge>;
+                return <Badge variant="outline" className="border-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">Active</Badge>;
             case 'transferred':
-                return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 uppercase text-[10px] font-black">Transferred Out</Badge>;
+                return <Badge variant="outline" className="border-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100">Transferred Out</Badge>;
             case 'dropped':
-                return <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200 uppercase text-[10px] font-black">Dropped Out</Badge>;
+                return <Badge variant="outline" className="border-rose-500 text-rose-700 bg-rose-50 hover:bg-rose-100">Dropped Out</Badge>;
             default:
-                return <Badge variant="secondary" className="uppercase text-[10px] font-black">{status}</Badge>;
+                return <Badge variant="secondary">{status}</Badge>;
         }
     };
 
@@ -109,13 +111,13 @@ export default function ClassLists({ gradeLevels, activeYear }: Props) {
         return (
             <AppLayout breadcrumbs={breadcrumbs}>
                 <div className="flex h-[400px] flex-col items-center justify-center gap-4 text-center">
-                    <div className="rounded-full bg-amber-50 p-4 dark:bg-amber-950/20">
+                    <div className="rounded-full bg-amber-100 p-4 dark:bg-amber-900/20">
                         <AlertCircle className="size-10 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div className="space-y-1">
-                        <h2 className="text-xl font-black uppercase tracking-tight">System Notice</h2>
-                        <p className="max-w-sm text-sm text-muted-foreground font-medium">
-                            An active School Year must be initialized in <span className="text-foreground font-bold">Academic Controls</span> before viewing class lists.
+                        <h2 className="text-xl font-bold tracking-tight">System Notice</h2>
+                        <p className="max-w-sm text-sm text-muted-foreground">
+                            An active School Year must be initialized in <span className="font-semibold text-foreground">Academic Controls</span> before viewing class lists.
                         </p>
                     </div>
                 </div>
@@ -126,74 +128,76 @@ export default function ClassLists({ gradeLevels, activeYear }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Class Lists" />
-            <div className="flex flex-col gap-6 p-4 lg:p-6 h-full">
+            <div className="flex flex-col gap-6 p-6 h-full">
                 
-                <div className="flex flex-col gap-1 px-1">
-                    <div className="flex items-center gap-2 text-primary">
-                        <Users className="size-6" />
-                        <h1 className="text-2xl font-bold tracking-tight uppercase">Class Lists</h1>
+                <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                        <Users className="size-6 text-primary" />
+                        <h1 className="text-2xl font-bold tracking-tight">Class Lists</h1>
                     </div>
-                    <p className="text-sm text-muted-foreground font-medium italic leading-none">View and manage student distributions for <span className="text-foreground font-bold uppercase tracking-wider">{activeYear.name}</span>.</p>
+                    <p className="text-sm text-muted-foreground">
+                        View and manage student distributions for <span className="font-medium text-foreground">{activeYear.name}</span>.
+                    </p>
                 </div>
 
-                <Card className="overflow-hidden border-primary/10">
-                    <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b bg-muted/5 py-4 px-6 shrink-0">
-                        <div className="flex flex-wrap items-center gap-6">
-                            <div className="grid gap-1.5">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Grade Level</Label>
-                                <Select value={selectedGradeId} onValueChange={setSelectedGradeId}>
-                                    <SelectTrigger className="w-full sm:w-[140px] h-9 font-bold uppercase text-xs tracking-wider">
-                                        <SelectValue placeholder="Grade" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {gradeLevels.map(g => (
-                                            <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                <Card className="flex-1 flex flex-col overflow-hidden">
+                    <CardHeader className="border-b pb-4">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <div className="grid gap-2">
+                                    <Label className="text-xs text-muted-foreground">Grade Level</Label>
+                                    <Select value={selectedGradeId} onValueChange={setSelectedGradeId}>
+                                        <SelectTrigger className="w-[180px]">
+                                            <SelectValue placeholder="Grade" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {gradeLevels.map(g => (
+                                                <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label className="text-xs text-muted-foreground">Section</Label>
+                                    <Select value={selectedSectionId} onValueChange={setSelectedSectionId}>
+                                        <SelectTrigger className="w-[180px]">
+                                            <SelectValue placeholder="Section" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {gradeLevels.find(g => g.id.toString() === selectedGradeId)?.sections.map(s => (
+                                                <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                            <div className="grid gap-1.5">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Section</Label>
-                                <Select value={selectedSectionId} onValueChange={setSelectedSectionId}>
-                                    <SelectTrigger className="w-full sm:w-[180px] h-9 font-bold uppercase text-xs tracking-wider">
-                                        <SelectValue placeholder="Section" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {gradeLevels.find(g => g.id.toString() === selectedGradeId)?.sections.map(s => (
-                                            <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <CardAction>
-                            <Button variant="outline" className="gap-2 font-bold uppercase tracking-tight h-9">
+                            <Button variant="outline" className="gap-2 sm:self-end">
                                 <Printer className="size-4" />
                                 Print Class List
                             </Button>
-                        </CardAction>
+                        </div>
                     </CardHeader>
-                    <CardContent className="p-0 overflow-auto flex-1">
+                    <CardContent className="p-0 flex-1 overflow-auto">
                         <Table>
-                            <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
+                            <TableHeader>
                                 <TableRow>
-                                    <TableHead className="pl-6 font-black text-[10px] uppercase tracking-widest">LRN</TableHead>
-                                    <TableHead className="text-center font-black text-[10px] uppercase tracking-widest">Student Name</TableHead>
-                                    <TableHead className="text-center font-black text-[10px] uppercase tracking-widest">Gender</TableHead>
-                                    <TableHead className="text-right pr-6 font-black text-[10px] uppercase tracking-widest">Status</TableHead>
+                                    <TableHead className="pl-6 w-[150px]">LRN</TableHead>
+                                    <TableHead className="text-center">Student Name</TableHead>
+                                    <TableHead className="text-center w-[100px]">Gender</TableHead>
+                                    <TableHead className="text-right pr-6 w-[150px]">Status</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {currentSection?.enrollments.map((enrollment) => (
-                                    <TableRow key={enrollment.id} className="hover:bg-muted/30 transition-colors">
-                                        <TableCell className="pl-6 font-mono text-xs font-bold text-primary">
+                                    <TableRow key={enrollment.id}>
+                                        <TableCell className="pl-6 font-mono text-xs font-medium">
                                             {enrollment.student.lrn}
                                         </TableCell>
-                                        <TableCell className="text-center font-bold text-sm tracking-tight">
+                                        <TableCell className="text-center font-medium">
                                             {enrollment.student.last_name}, {enrollment.student.first_name}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            <Badge variant="secondary" className="uppercase text-[9px] font-black tracking-tighter bg-muted/50 text-muted-foreground border-none">
+                                            <Badge variant="secondary" className="font-normal text-xs">
                                                 {enrollment.student.gender}
                                             </Badge>
                                         </TableCell>
@@ -204,10 +208,10 @@ export default function ClassLists({ gradeLevels, activeYear }: Props) {
                                 ))}
                                 {(!currentSection || currentSection.enrollments.length === 0) && (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="h-32 text-center">
-                                            <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground/40">
-                                                <Users className="size-8" />
-                                                <p className="text-xs font-medium uppercase tracking-widest">No students found in this section</p>
+                                        <TableCell colSpan={4} className="h-24 text-center">
+                                            <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                                                <Users className="size-6 opacity-50" />
+                                                <p className="text-sm">No students found in this section</p>
                                             </div>
                                         </TableCell>
                                     </TableRow>
