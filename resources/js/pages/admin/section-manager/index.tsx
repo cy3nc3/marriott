@@ -10,9 +10,7 @@ import {
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
-    CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -56,7 +54,6 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { cn } from '@/lib/utils';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -78,7 +75,7 @@ interface Section {
     academic_year_id: number;
     adviser_id: number | null;
     adviser: Teacher | null;
-    students_count?: number; // Added for later when students are connected
+    students_count?: number;
 }
 
 interface GradeLevel {
@@ -119,12 +116,12 @@ const AdviserSearchField = ({
     filteredTeachers: Teacher[];
 }) => (
     <div className="grid gap-2">
-        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Class Adviser</Label>
+        <Label className="text-xs text-muted-foreground">Class Adviser</Label>
         <div className="relative">
             <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
             <Input 
                 placeholder="Search faculty name..." 
-                className="pl-10 font-medium"
+                className="pl-10"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
             />
@@ -158,7 +155,7 @@ const AdviserSearchField = ({
                     </Avatar>
                     <div>
                         <p className="text-sm font-bold">{selectedAdviser.name}</p>
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Selected Adviser</p>
+                        <p className="text-xs text-muted-foreground">Selected Adviser</p>
                     </div>
                 </div>
                 <Button 
@@ -175,7 +172,7 @@ const AdviserSearchField = ({
         {!selectedAdviser && (
             <div className="mt-2 flex flex-col items-center justify-center rounded-lg border border-dashed p-6 text-center bg-muted/5">
                 <User className="size-8 text-muted-foreground/20" />
-                <p className="mt-2 text-xs font-medium text-muted-foreground">No adviser selected. Search above to assign.</p>
+                <p className="mt-2 text-xs text-muted-foreground">No adviser selected. Search above to assign.</p>
             </div>
         )}
     </div>
@@ -262,30 +259,30 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
     const SectionTable = ({ sections }: { sections: Section[] }) => (
         <div className="rounded-md border overflow-hidden">
             <Table>
-                <TableHeader className="bg-muted/50">
+                <TableHeader>
                     <TableRow>
-                        <TableHead className="pl-6 font-black text-[10px] uppercase tracking-widest">Section Name</TableHead>
-                        <TableHead className="font-black text-[10px] uppercase tracking-widest">Class Adviser</TableHead>
-                        <TableHead className="text-center font-black text-[10px] uppercase tracking-widest">Population</TableHead>
-                        <TableHead className="text-right pr-6 font-black text-[10px] uppercase tracking-widest">Actions</TableHead>
+                        <TableHead className="pl-6">Section Name</TableHead>
+                        <TableHead>Class Adviser</TableHead>
+                        <TableHead className="text-center">Population</TableHead>
+                        <TableHead className="text-right pr-6">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {sections.map((section) => (
                         <TableRow key={section.id}>
-                            <TableCell className="pl-6 font-bold text-primary">{section.name}</TableCell>
+                            <TableCell className="pl-6 font-medium text-primary">{section.name}</TableCell>
                             <TableCell>
                                 {section.adviser ? (
                                     <div className="flex items-center gap-2">
                                         <Avatar className="size-8 ring-1 ring-primary/5">
-                                            <AvatarFallback className="text-[10px] font-bold bg-muted text-muted-foreground">
+                                            <AvatarFallback className="text-xs font-semibold bg-muted text-muted-foreground">
                                                 {section.adviser.initial}
                                             </AvatarFallback>
                                         </Avatar>
                                         <span className="font-medium text-sm">{section.adviser.name}</span>
                                     </div>
                                 ) : (
-                                    <span className="text-xs font-medium text-muted-foreground uppercase italic tracking-wider">No Adviser Assigned</span>
+                                    <span className="text-xs text-muted-foreground italic">No Adviser Assigned</span>
                                 )}
                             </TableCell>
                             <TableCell className="text-center font-medium">
@@ -299,7 +296,7 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                                                 <Button 
                                                     variant="ghost" 
                                                     size="icon" 
-                                                    className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                                                    className="size-8 text-muted-foreground hover:text-primary"
                                                     onClick={() => {
                                                         setSelectedSection(section);
                                                         editForm.setData({
@@ -312,7 +309,7 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                                                     <Edit2 className="size-4" />
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent className="font-bold text-xs">Edit Section</TooltipContent>
+                                            <TooltipContent>Edit Section</TooltipContent>
                                         </Tooltip>
 
                                         <Tooltip>
@@ -320,13 +317,13 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                                                 <Button 
                                                     variant="ghost" 
                                                     size="icon" 
-                                                    className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                                                    className="size-8 text-muted-foreground hover:text-destructive"
                                                     onClick={() => handleDelete(section.id)}
                                                 >
                                                     <Trash2 className="size-4" />
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent className="font-bold text-xs">Remove Section</TooltipContent>
+                                            <TooltipContent>Remove Section</TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
                                 </div>
@@ -336,7 +333,7 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                     {sections.length === 0 && (
                         <TableRow>
                             <TableCell colSpan={4} className="h-24 text-center">
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">No sections defined for this level</p>
+                                <p className="text-sm text-muted-foreground">No sections defined for this level</p>
                             </TableCell>
                         </TableRow>
                     )}
@@ -349,16 +346,16 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
         return (
             <AppLayout breadcrumbs={breadcrumbs}>
                 <div className="flex h-[400px] flex-col items-center justify-center gap-4 text-center">
-                    <div className="rounded-full bg-amber-50 p-4 dark:bg-amber-950/20">
+                    <div className="rounded-full bg-amber-100 p-4 dark:bg-amber-900/20">
                         <AlertCircle className="size-10 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div className="space-y-1">
-                        <h2 className="text-xl font-black uppercase tracking-tight">System Notice</h2>
-                        <p className="max-w-sm text-sm text-muted-foreground font-medium">
-                            An active School Year must be initialized in <span className="text-foreground font-bold">Academic Controls</span> before managing sections.
+                        <h2 className="text-xl font-bold tracking-tight">System Notice</h2>
+                        <p className="max-w-sm text-sm text-muted-foreground">
+                            An active School Year must be initialized in <span className="font-semibold text-foreground">Academic Controls</span> before managing sections.
                         </p>
                     </div>
-                    <Button variant="outline" className="font-bold uppercase text-xs" onClick={() => router.get(route('admin.academic_controls'))}>
+                    <Button variant="outline" className="text-xs" onClick={() => router.get('/admin/academic-controls')}>
                         Go to Academic Controls
                     </Button>
                 </div>
@@ -369,32 +366,32 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Section Manager" />
-            <div className="flex flex-col gap-6 p-4 lg:p-6">
+            <div className="flex flex-col gap-6 p-6">
                 
-                <div className="flex flex-col gap-1 px-1">
+                <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
                         <Layers className="size-6 text-primary" />
-                        <h1 className="text-2xl font-bold tracking-tight uppercase">Section Management</h1>
+                        <h1 className="text-2xl font-bold tracking-tight">Section Management</h1>
                     </div>
-                    <p className="text-sm text-muted-foreground font-medium">Organize class groups and assign faculty mentors for <span className="text-foreground font-bold uppercase tracking-wider">{activeYear.name}</span>.</p>
+                    <p className="text-sm text-muted-foreground">Organize class groups and assign faculty mentors for <span className="font-semibold text-foreground">{activeYear.name}</span>.</p>
                 </div>
 
-                <Card className="overflow-hidden border-primary/10">
+                <Card className="flex flex-col border-primary/10">
                     <Tabs value={activeTab} onValueChange={(val) => {
                         setActiveTab(val);
                         addForm.setData('grade_level_id', parseInt(val));
-                    }} className="w-full">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/5 py-3 px-6">
+                    }} className="w-full flex-1 flex flex-col">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b py-3 px-6">
                             <TabsList className="h-9">
                                 {gradeLevels.map(grade => (
-                                    <TabsTrigger key={grade.id} value={grade.id.toString()} className="text-xs font-bold uppercase tracking-wider">
+                                    <TabsTrigger key={grade.id} value={grade.id.toString()}>
                                         {grade.name}
                                     </TabsTrigger>
                                 ))}
                             </TabsList>
                             <Button 
                                 size="sm" 
-                                className="gap-2 font-bold uppercase tracking-tight h-9" 
+                                className="gap-2"
                                 onClick={() => {
                                     addForm.reset();
                                     addForm.setData({
@@ -407,7 +404,7 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                                 }}
                             >
                                 <Plus className="size-4" />
-                                Add Section for {currentGrade?.name}
+                                Add Section
                             </Button>
                         </CardHeader>
                         
@@ -425,18 +422,17 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                     <DialogContent className="sm:max-w-[450px]">
                         <DialogHeader>
-                            <DialogTitle className="text-xl font-bold uppercase tracking-tight">Create New Section</DialogTitle>
-                            <DialogDescription className="font-medium">
-                                Define a new class group for <span className="text-primary font-bold">{currentGrade?.name}</span>.
+                            <DialogTitle>Create New Section</DialogTitle>
+                            <DialogDescription>
+                                Define a new class group for <span className="text-primary font-medium">{currentGrade?.name}</span>.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-6 py-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Section Name</Label>
+                                <Label htmlFor="name">Section Name</Label>
                                 <Input 
                                     id="name" 
                                     placeholder="e.g. Rizal" 
-                                    className="font-bold h-10"
                                     value={addForm.data.name}
                                     onChange={e => addForm.setData('name', e.target.value)}
                                 />
@@ -453,8 +449,8 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                             />
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" className="font-bold" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-                            <Button className="font-black uppercase tracking-tight" onClick={handleAdd} disabled={addForm.processing}>Create Section</Button>
+                            <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+                            <Button onClick={handleAdd} disabled={addForm.processing}>Create Section</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -462,15 +458,14 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                 <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                     <DialogContent className="sm:max-w-[450px]">
                         <DialogHeader>
-                            <DialogTitle className="text-xl font-bold uppercase tracking-tight">Edit Section Details</DialogTitle>
-                            <DialogDescription className="font-medium">Update organization details for this class group.</DialogDescription>
+                            <DialogTitle>Edit Section Details</DialogTitle>
+                            <DialogDescription>Update organization details for this class group.</DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-6 py-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="edit-name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Section Name</Label>
+                                <Label htmlFor="edit-name">Section Name</Label>
                                 <Input 
                                     id="edit-name" 
-                                    className="font-bold h-10"
                                     value={editForm.data.name}
                                     onChange={e => editForm.setData('name', e.target.value)}
                                 />
@@ -487,8 +482,8 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                             />
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" className="font-bold" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                            <Button className="font-black uppercase tracking-tight" onClick={handleUpdate} disabled={editForm.processing}>Update Section</Button>
+                            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+                            <Button onClick={handleUpdate} disabled={editForm.processing}>Update Section</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
