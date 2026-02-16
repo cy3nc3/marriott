@@ -1,24 +1,23 @@
-import { useState, useMemo } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
-import {
-    store,
-    update,
-    destroy,
-    certify,
-} from '@/routes/admin/curriculum_manager';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { 
+    Plus,
+    BookOpen,
+    UserPlus,
+    Edit2,
+    Search,
+    X,
+    Users,
+    Trash2
+} from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    Card,
+    CardContent,
+    CardHeader,
+} from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -30,23 +29,33 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import {
-    Plus,
-    BookOpen,
-    UserPlus,
-    Edit2,
-    Search,
-    X,
-    Users,
-    Trash2,
-} from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from '@/components/ui/tabs';
 import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Badge } from '@/components/ui/badge';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
+import {
+    store,
+    update,
+    destroy,
+    certify,
+} from '@/routes/admin/curriculum_manager';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

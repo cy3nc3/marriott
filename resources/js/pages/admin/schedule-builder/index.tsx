@@ -1,27 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
-import { store, update, destroy } from '@/routes/admin/schedule_builder';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import {
     Calendar,
     Clock,
@@ -33,8 +10,31 @@ import {
     Plus,
     BookOpen,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState, useMemo, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
+import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
+import type { BreadcrumbItem } from '@/types';
+import { store, update, destroy } from '@/routes/admin/schedule_builder';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
