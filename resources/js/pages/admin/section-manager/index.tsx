@@ -41,11 +41,6 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { store, update, destroy } from '@/routes/admin/section_manager';
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
