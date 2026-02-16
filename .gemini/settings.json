@@ -1,13 +1,12 @@
 {
     "mcpServers": {
         "laravel-boost": {
-            "command": "/home/lomonol/.config/herd-lite/bin/php",
+            "command": "wsl.exe",
             "args": [
-                "/home/lomonol/projects/marriott/artisan",
+                "/usr/bin/php8.3",
+                "/home/jade/projects/marriott/artisan",
                 "boost:mcp"
-            ],
-            "cwd": "/home/lomonol/projects/marriott",
-            "timeout": 60000
+            ]
         }
     },
     "mcp": {
