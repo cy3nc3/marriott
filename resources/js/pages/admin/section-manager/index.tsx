@@ -41,19 +41,19 @@ import {
     TabsList,
     TabsTrigger,
 } from '@/components/ui/tabs';
-import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
-import { 
-    store,
-    update,
-    destroy
-} from '@/routes/admin/section_manager';
 import { 
     Tooltip,
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import AppLayout from '@/layouts/app-layout';
+import {
+    store,
+    update,
+    destroy
+} from '@/routes/admin/section_manager';
+import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

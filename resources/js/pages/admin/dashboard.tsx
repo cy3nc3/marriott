@@ -5,8 +5,8 @@ import { StatCard } from '@/components/dashboard/stat-card';
 import { TrendChart } from '@/components/dashboard/trend-chart';
 import { WorkloadChart } from '@/components/dashboard/workload-chart';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
 import { dashboard } from '@/routes';
+import type { BreadcrumbItem } from '@/types';
 
 interface DashboardProps {
     stats: {

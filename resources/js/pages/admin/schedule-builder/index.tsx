@@ -27,12 +27,12 @@ import {
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
-import type { BreadcrumbItem } from '@/types';
 import {
     store,
     update,
     destroy
 } from '@/routes/admin/schedule_builder';
+import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

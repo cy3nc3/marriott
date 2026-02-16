@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\GradeLevel;
-use App\Models\Section;
-use App\Models\Enrollment;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -17,17 +15,17 @@ class ClassListController extends Controller
     {
         $activeYear = AcademicYear::where('status', '!=', 'completed')->first();
 
-        if (!$activeYear) {
+        if (! $activeYear) {
             return Inertia::render('admin/class-lists/index', [
                 'activeYear' => null,
                 'gradeLevels' => [],
             ]);
         }
 
-        $gradeLevels = GradeLevel::with(['sections' => function($query) use ($activeYear) {
+        $gradeLevels = GradeLevel::with(['sections' => function ($query) use ($activeYear) {
             $query->where('academic_year_id', $activeYear->id)
-                  ->withCount('enrollments')
-                  ->with(['enrollments.student']);
+                ->withCount('enrollments')
+                ->with(['enrollments.student']);
         }])->orderBy('level_order')->get();
 
         return Inertia::render('admin/class-lists/index', [

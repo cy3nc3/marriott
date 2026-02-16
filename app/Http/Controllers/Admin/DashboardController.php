@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\Section;
-use App\Models\Student;
 use App\Models\Subject;
 use App\Models\TeacherSubject;
 use App\Models\User;
@@ -43,7 +42,7 @@ class DashboardController extends Controller
         $enrollmentTrends = [];
 
         if ($currentYear) {
-             $enrollmentByGrade = Enrollment::where('enrollments.academic_year_id', $currentYear->id)
+            $enrollmentByGrade = Enrollment::where('enrollments.academic_year_id', $currentYear->id)
                 ->where('enrollments.status', 'enrolled')
                 ->join('grade_levels', 'enrollments.grade_level_id', '=', 'grade_levels.id')
                 ->select('grade_levels.name', 'grade_levels.level_order', DB::raw('count(*) as count'))

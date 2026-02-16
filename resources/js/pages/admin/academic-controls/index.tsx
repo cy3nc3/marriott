@@ -40,8 +40,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
-import type { BreadcrumbItem } from '@/types';
-import type { AcademicYear } from '@/types/academic-year';
 import {
     curriculum_manager,
     section_manager,
@@ -54,6 +52,8 @@ import {
     advance_quarter,
     reset_simulation,
 } from '@/routes/admin/academic_controls';
+import type { BreadcrumbItem } from '@/types';
+import type { AcademicYear } from '@/types/academic-year';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

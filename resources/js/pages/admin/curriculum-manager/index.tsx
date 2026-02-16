@@ -36,14 +36,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
-import {
-    store,
-    update,
-    destroy,
-    certify
-} from '@/routes/admin/curriculum_manager';
 import {
     Tabs,
     TabsContent,
@@ -56,6 +48,14 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import AppLayout from '@/layouts/app-layout';
+import {
+    store,
+    update,
+    destroy,
+    certify
+} from '@/routes/admin/curriculum_manager';
+import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

@@ -18,10 +18,10 @@ class SchoolYearController extends Controller
             ?? AcademicYear::orderBy('end_date', 'desc')->first();
 
         $nextYearName = null;
-        
+
         // Find the absolute latest year record to determine what the 'next' one should be named
         $latestRecord = AcademicYear::orderBy('end_date', 'desc')->first();
-        
+
         if ($latestRecord) {
             $years = explode('-', $latestRecord->name);
             if (count($years) === 2) {
