@@ -12,7 +12,9 @@ class SectionSeeder extends Seeder
     public function run(): void
     {
         $activeYear = AcademicYear::where('status', '!=', 'completed')->first();
-        if (!$activeYear) return;
+        if (! $activeYear) {
+            return;
+        }
 
         $grades = GradeLevel::all();
 
@@ -20,7 +22,7 @@ class SectionSeeder extends Seeder
             Section::create([
                 'academic_year_id' => $activeYear->id,
                 'grade_level_id' => $grade->id,
-                'name' => $grade->name . ' - A',
+                'name' => $grade->name.' - A',
             ]);
         }
     }

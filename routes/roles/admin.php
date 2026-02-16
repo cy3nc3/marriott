@@ -1,10 +1,10 @@
 <?php
 
-use App\Http\Controllers\Admin\SchoolYearController;
-use App\Http\Controllers\Admin\CurriculumController;
-use App\Http\Controllers\Admin\SectionController;
-use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\ClassListController;
+use App\Http\Controllers\Admin\CurriculumController;
+use App\Http\Controllers\Admin\ScheduleController;
+use App\Http\Controllers\Admin\SchoolYearController;
+use App\Http\Controllers\Admin\SectionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -12,7 +12,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::get('/academic-controls', [SchoolYearController::class, 'index'])->name('academic_controls');
     Route::patch('/academic-controls/{academicYear}/dates', [SchoolYearController::class, 'updateDates'])->name('academic_controls.update_dates');
     Route::post('/academic-controls/initialize', [SchoolYearController::class, 'initializeNext'])->name('academic_controls.initialize');
-    
+
     // Simulation routes
     Route::post('/academic-controls/{academicYear}/simulate-opening', [SchoolYearController::class, 'simulateOpening'])->name('academic_controls.simulate_opening');
     Route::post('/academic-controls/{academicYear}/advance-quarter', [SchoolYearController::class, 'advanceQuarter'])->name('academic_controls.advance_quarter');

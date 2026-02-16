@@ -47,6 +47,8 @@ import {
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
+} from "@/components/ui/tooltip"
+import AppLayout from '@/layouts/app-layout';
 } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -54,6 +56,9 @@ import {
     store,
     update,
     destroy,
+    certify
+} from '@/routes/admin/curriculum_manager';
+import type { BreadcrumbItem } from '@/types';
     certify,
 } from '@/routes/admin/curriculum_manager';
 

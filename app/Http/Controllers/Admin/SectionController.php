@@ -21,16 +21,16 @@ class SectionController extends Controller
         $currentYear = AcademicYear::where('status', '!=', 'completed')->first();
 
         return Inertia::render('admin/section-manager/index', [
-            'gradeLevels' => GradeLevel::with(['sections' => function($query) use ($currentYear) {
+            'gradeLevels' => GradeLevel::with(['sections' => function ($query) use ($currentYear) {
                 $query->where('academic_year_id', $currentYear?->id)
-                      ->with('adviser');
+                    ->with('adviser');
             }])->orderBy('level_order')->get(),
             'teachers' => User::where('role', UserRole::TEACHER)
                 ->get(['id', 'name'])
-                ->map(fn($user) => [
+                ->map(fn ($user) => [
                     'id' => $user->id,
                     'name' => $user->name,
-                    'initial' => collect(explode(' ', $user->name))->map(fn($n) => $n[0])->take(2)->join(''),
+                    'initial' => collect(explode(' ', $user->name))->map(fn ($n) => $n[0])->take(2)->join(''),
                 ]),
             'activeYear' => $currentYear,
         ]);
