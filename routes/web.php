@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\UserRole;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -9,9 +11,13 @@ Route::get('/', function () {
 })->name('home');
 
 Route::get('dashboard', function () {
-    $role = auth()->user()->role->value;
+    $user = auth()->user();
 
-    return Inertia::render("{$role}/dashboard");
+    if ($user->role === UserRole::ADMIN) {
+        return app(AdminDashboardController::class)->index();
+    }
+
+    return Inertia::render("{$user->role->value}/dashboard");
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::group([], __DIR__.'/roles/super_admin.php');
