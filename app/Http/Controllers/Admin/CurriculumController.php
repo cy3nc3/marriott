@@ -22,10 +22,10 @@ class CurriculumController extends Controller
             'gradeLevels' => GradeLevel::with(['subjects.teachers'])->orderBy('level_order')->get(),
             'teachers' => User::where('role', UserRole::TEACHER)
                 ->get(['id', 'name'])
-                ->map(fn($user) => [
+                ->map(fn ($user) => [
                     'id' => $user->id,
                     'name' => $user->name,
-                    'initial' => collect(explode(' ', $user->name))->map(fn($n) => $n[0])->take(2)->join(''),
+                    'initial' => collect(explode(' ', $user->name))->map(fn ($n) => $n[0])->take(2)->join(''),
                 ]),
         ]);
     }

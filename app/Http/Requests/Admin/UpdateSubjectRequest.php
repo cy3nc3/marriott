@@ -16,9 +16,9 @@ class UpdateSubjectRequest extends FormRequest
     {
         return [
             'subject_code' => [
-                'required', 
-                'string', 
-                'max:20', 
+                'required',
+                'string',
+                'max:20',
                 Rule::unique('subjects', 'subject_code')->ignore($this->subject),
             ],
             'subject_name' => ['required', 'string', 'max:255'],
