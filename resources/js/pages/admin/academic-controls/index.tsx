@@ -1,28 +1,4 @@
-import { useState, useEffect } from 'react';
 import { Head, useForm, router, Link } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
-import type { AcademicYear } from '@/types/academic-year';
-import {
-    initialize,
-    update_dates,
-    simulate_opening,
-    advance_quarter,
-    reset_simulation,
-} from '@/routes/admin/academic_controls';
-import {
-    curriculum_manager,
-    section_manager,
-    schedule_builder,
-} from '@/routes/admin';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import {
     CalendarDays,
     ArrowRightCircle,
@@ -42,7 +18,16 @@ import {
     CalendarRange,
     Settings2,
 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+} from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -51,9 +36,24 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
+import type { BreadcrumbItem } from '@/types';
+import type { AcademicYear } from '@/types/academic-year';
+import {
+    curriculum_manager,
+    section_manager,
+    schedule_builder,
+} from '@/routes/admin';
+import {
+    initialize,
+    update_dates,
+    simulate_opening,
+    advance_quarter,
+    reset_simulation,
+} from '@/routes/admin/academic_controls';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

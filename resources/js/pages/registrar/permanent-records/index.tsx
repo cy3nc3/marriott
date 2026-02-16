@@ -1,13 +1,27 @@
 import { Head } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
+import {
+    Search,
+    Printer,
+    FilePlus2,
+    GraduationCap,
+    Building2,
+    Calendar,
+    Plus
+} from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import {
+    FieldSeparator,
+} from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Table,
     TableBody,
@@ -16,22 +30,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    FieldSeparator,
-} from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-    Search, 
-    Printer, 
-    FilePlus2, 
-    GraduationCap, 
-    Building2,
-    Calendar,
-    Plus
-} from 'lucide-react';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
