@@ -11,6 +11,7 @@ import {
     FileText,
     Folder,
     GraduationCap,
+    HelpCircle,
     History,
     LayoutGrid,
     Layers,
@@ -41,7 +42,13 @@ import { dashboard } from '@/routes';
 import type { NavItem, SharedData } from '@/types';
 import AppLogo from './app-logo';
 
-const footerNavItems: NavItem[] = [];
+const footerNavItems: NavItem[] = [
+    {
+        title: 'System Help',
+        href: '#',
+        icon: HelpCircle,
+    },
+];
 
 const roleNavItems: Record<string, NavItem[]> = {
     super_admin: [
@@ -61,21 +68,20 @@ const roleNavItems: Record<string, NavItem[]> = {
             title: 'Academic Controls',
             href: '/admin/academic-controls',
             icon: Calendar,
-        },
-        {
-            title: 'Curriculum Manager',
-            href: '/admin/curriculum-manager',
-            icon: BookOpen,
-        },
-        {
-            title: 'Section Manager',
-            href: '/admin/section-manager',
-            icon: Layers,
-        },
-        {
-            title: 'Schedule Builder',
-            href: '/admin/schedule-builder',
-            icon: Calendar,
+            items: [
+                {
+                    title: 'Curriculum Manager',
+                    href: '/admin/curriculum-manager',
+                },
+                {
+                    title: 'Section Manager',
+                    href: '/admin/section-manager',
+                },
+                {
+                    title: 'Schedule Builder',
+                    href: '/admin/schedule-builder',
+                },
+            ],
         },
         { title: 'Class Lists', href: '/admin/class-lists', icon: Users },
         {

@@ -1,5 +1,5 @@
 import { Head, useForm, router } from '@inertiajs/react';
-import { 
+import {
     Plus,
     BookOpen,
     UserPlus,
@@ -7,17 +7,13 @@ import {
     Search,
     X,
     Users,
-    Trash2
+    Trash2,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -36,19 +32,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
-} from "@/components/ui/tooltip"
-import AppLayout from '@/layouts/app-layout';
 } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -56,9 +45,6 @@ import {
     store,
     update,
     destroy,
-    certify
-} from '@/routes/admin/curriculum_manager';
-import type { BreadcrumbItem } from '@/types';
     certify,
 } from '@/routes/admin/curriculum_manager';
 
@@ -261,7 +247,7 @@ export default function CurriculumManager({
     ]);
 
     const handleAddSubject = () => {
-        addForm.post(store(), {
+        addForm.submit(store(), {
             onSuccess: () => {
                 setIsAddSubjectOpen(false);
                 addForm.reset();
@@ -271,7 +257,7 @@ export default function CurriculumManager({
 
     const handleUpdateSubject = () => {
         if (!selectedSubject) return;
-        editForm.patch(update({ subject: selectedSubject.id }), {
+        editForm.submit(update({ subject: selectedSubject.id }), {
             onSuccess: () => {
                 setIsEditOpen(false);
                 editForm.reset();
@@ -281,7 +267,7 @@ export default function CurriculumManager({
 
     const handleCertify = () => {
         if (!selectedSubject) return;
-        certifyForm.post(certify({ subject: selectedSubject.id }), {
+        certifyForm.submit(certify({ subject: selectedSubject.id }), {
             onSuccess: () => {
                 setIsCertifyOpen(false);
                 certifyForm.reset();
@@ -296,16 +282,21 @@ export default function CurriculumManager({
     };
 
     const toggleTeacher = (teacherId: number, formType: 'add' | 'certify') => {
-        const form = formType === 'add' ? addForm : certifyForm;
-        const currentIds = form.data.teacher_ids;
-        if (currentIds.includes(teacherId)) {
-            form.setData(
-                'teacher_ids',
-                currentIds.filter((id) => id !== teacherId),
-            );
+        const currentIds =
+            formType === 'add'
+                ? addForm.data.teacher_ids
+                : certifyForm.data.teacher_ids;
+
+        const newIds = currentIds.includes(teacherId)
+            ? currentIds.filter((id) => id !== teacherId)
+            : [...currentIds, teacherId];
+
+        if (formType === 'add') {
+            addForm.setData('teacher_ids', newIds);
         } else {
-            form.setData('teacher_ids', [...currentIds, teacherId]);
+            certifyForm.setData('teacher_ids', newIds);
         }
+
         setSearchQuery('');
     };
 
@@ -313,21 +304,8 @@ export default function CurriculumManager({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Curriculum Manager" />
             <TooltipProvider>
-                <div className="flex flex-col gap-6 p-6">
-                    <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2">
-                            <BookOpen className="size-6 text-primary" />
-                            <h1 className="text-2xl font-bold tracking-tight">
-                                Curriculum Management
-                            </h1>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                            Define subjects and manage qualified faculty per
-                            grade level.
-                        </p>
-                    </div>
-
-                    <Card className="flex flex-col">
+                <div className="flex flex-col gap-6">
+                    <Card className="flex flex-col pt-0">
                         <Tabs
                             value={activeTab}
                             onValueChange={(val) => {

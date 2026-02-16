@@ -33,14 +33,8 @@ import {
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
-import {
-    store,
-    update,
-    destroy
-} from '@/routes/admin/schedule_builder';
-import type { BreadcrumbItem } from '@/types';
-import type { BreadcrumbItem } from '@/types';
 import { store, update, destroy } from '@/routes/admin/schedule_builder';
+import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -52,7 +46,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 // Configuration
 const START_HOUR = 7;
 const END_HOUR = 17;
-const HOUR_HEIGHT = 80;
+const HOUR_HEIGHT = 56;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 interface Teacher {
@@ -224,7 +218,7 @@ export default function ScheduleBuilder({
     };
 
     const handleAdd = () => {
-        addForm.post(store(), {
+        addForm.submit(store(), {
             onSuccess: () => {
                 setIsDialogOpen(false);
                 addForm.reset();
@@ -234,7 +228,7 @@ export default function ScheduleBuilder({
 
     const handleUpdate = () => {
         if (!selectedItem) return;
-        editForm.patch(update({ schedule: selectedItem.id }), {
+        editForm.submit(update({ schedule: selectedItem.id }), {
             onSuccess: () => {
                 setIsDialogOpen(false);
                 editForm.reset();
@@ -290,21 +284,9 @@ export default function ScheduleBuilder({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Schedule Builder" />
             <TooltipProvider>
-                <div className="flex h-full flex-col gap-6 p-6">
-                    <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-primary">
-                            <Calendar className="size-6" />
-                            <h1 className="text-2xl font-bold tracking-tight">
-                                Schedule Builder
-                            </h1>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                            Fluid canvas with visual conflict detection.
-                        </p>
-                    </div>
-
-                    <Card className="flex flex-1 flex-col overflow-hidden border-primary/10">
-                        <CardHeader className="flex shrink-0 flex-col items-start justify-between gap-4 border-b bg-muted/5 px-6 py-3 md:flex-row md:items-center">
+                <div className="flex flex-col gap-6">
+                    <Card className="gap-0 pt-0">
+                        <CardHeader className="flex shrink-0 flex-col items-start justify-between gap-4 border-b md:flex-row md:items-center">
                             <div className="flex flex-wrap items-center gap-4">
                                 <div className="grid gap-1">
                                     <Label className="text-xs text-muted-foreground">
@@ -359,7 +341,7 @@ export default function ScheduleBuilder({
                                     </Select>
                                 </div>
 
-                                <div className="mx-2 hidden h-8 w-px bg-border lg:block" />
+                                <div className="mx-2 hidden h-15 w-px bg-border lg:block" />
 
                                 <div className="grid gap-1">
                                     <Label className="text-xs text-muted-foreground">
@@ -426,7 +408,7 @@ export default function ScheduleBuilder({
                             </div>
                         </CardHeader>
 
-                        <CardContent className="relative flex-1 overflow-auto p-0">
+                        <CardContent className="relative p-0">
                             <div
                                 className="relative flex w-full"
                                 style={{
@@ -436,15 +418,21 @@ export default function ScheduleBuilder({
                                 }}
                             >
                                 {/* Time Rulers */}
-                                <div className="sticky left-0 z-30 w-16 shrink-0 border-r bg-background pt-10">
+                                <div className="sticky left-0 z-30 w-20 shrink-0 border-r bg-background pt-10 pl-0.5">
                                     {Array.from({
                                         length: END_HOUR - START_HOUR + 1,
                                     }).map((_, i) => (
                                         <div
                                             key={i}
-                                            className="-mt-2 h-[80px] pr-2 text-right"
+                                            className="relative pr-2 text-right"
+                                            style={{
+                                                height:
+                                                    i === END_HOUR - START_HOUR
+                                                        ? 0
+                                                        : HOUR_HEIGHT,
+                                            }}
                                         >
-                                            <span className="text-no-wrap font-mono text-xs font-medium text-muted-foreground">
+                                            <span className="absolute top-0 right-2 -translate-y-1/2 font-mono text-[10px] leading-none font-medium whitespace-nowrap text-muted-foreground uppercase">
                                                 {`${(START_HOUR + i) % 12 || 12}:00 ${START_HOUR + i >= 12 ? 'PM' : 'AM'}`}
                                             </span>
                                         </div>
@@ -454,7 +442,6 @@ export default function ScheduleBuilder({
                                 <div className="relative min-w-[800px] flex-1">
                                     {/* Days Header */}
                                     <div className="sticky top-0 z-40 flex h-10 border-b bg-background">
-                                        <div className="w-px shrink-0" />
                                         {DAYS.map((day) => (
                                             <div
                                                 key={day}
@@ -472,7 +459,8 @@ export default function ScheduleBuilder({
                                         }).map((_, i) => (
                                             <div
                                                 key={i}
-                                                className="h-[80px] border-b border-dashed border-border/40"
+                                                className="border-b border-dashed border-border/40"
+                                                style={{ height: HOUR_HEIGHT }}
                                             />
                                         ))}
                                     </div>
@@ -714,15 +702,19 @@ export default function ScheduleBuilder({
                                                     ? editForm.data.start_time
                                                     : addForm.data.start_time
                                             }
-                                            onChange={(e) =>
-                                                (selectedItem
-                                                    ? editForm
-                                                    : addForm
-                                                ).setData(
-                                                    'start_time',
-                                                    e.target.value,
-                                                )
-                                            }
+                                            onChange={(e) => {
+                                                if (selectedItem) {
+                                                    editForm.setData(
+                                                        'start_time',
+                                                        e.target.value,
+                                                    );
+                                                } else {
+                                                    addForm.setData(
+                                                        'start_time',
+                                                        e.target.value,
+                                                    );
+                                                }
+                                            }}
                                         />
                                     </div>
                                     <div className="grid gap-2">
@@ -736,15 +728,19 @@ export default function ScheduleBuilder({
                                                     ? editForm.data.end_time
                                                     : addForm.data.end_time
                                             }
-                                            onChange={(e) =>
-                                                (selectedItem
-                                                    ? editForm
-                                                    : addForm
-                                                ).setData(
-                                                    'end_time',
-                                                    e.target.value,
-                                                )
-                                            }
+                                            onChange={(e) => {
+                                                if (selectedItem) {
+                                                    editForm.setData(
+                                                        'end_time',
+                                                        e.target.value,
+                                                    );
+                                                } else {
+                                                    addForm.setData(
+                                                        'end_time',
+                                                        e.target.value,
+                                                    );
+                                                }
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -759,12 +755,19 @@ export default function ScheduleBuilder({
                                                 ? editForm.data.type
                                                 : addForm.data.type
                                         }
-                                        onValueChange={(val) =>
-                                            (selectedItem
-                                                ? editForm
-                                                : addForm
-                                            ).setData('type', val as any)
-                                        }
+                                        onValueChange={(val) => {
+                                            if (selectedItem) {
+                                                editForm.setData(
+                                                    'type',
+                                                    val as any,
+                                                );
+                                            } else {
+                                                addForm.setData(
+                                                    'type',
+                                                    val as any,
+                                                );
+                                            }
+                                        }}
                                     >
                                         <SelectTrigger>
                                             <SelectValue />
@@ -830,15 +833,19 @@ export default function ScheduleBuilder({
                                                     ? editForm.data.label
                                                     : addForm.data.label
                                             }
-                                            onChange={(e) =>
-                                                (selectedItem
-                                                    ? editForm
-                                                    : addForm
-                                                ).setData(
-                                                    'label',
-                                                    e.target.value,
-                                                )
-                                            }
+                                            onChange={(e) => {
+                                                if (selectedItem) {
+                                                    editForm.setData(
+                                                        'label',
+                                                        e.target.value,
+                                                    );
+                                                } else {
+                                                    addForm.setData(
+                                                        'label',
+                                                        e.target.value,
+                                                    );
+                                                }
+                                            }}
                                         />
                                     </div>
                                 )}

@@ -75,7 +75,6 @@ export default function AcademicControls({
 }: Props) {
     const [isInitNextYearOpen, setIsInitNextYearOpen] = useState(false);
     const [isEditDatesOpen, setIsEditDatesOpen] = useState(false);
-    const [isGuideOpen, setIsGuideOpen] = useState(false);
 
     const initForm = useForm({
         name: nextYearName || '',
@@ -95,7 +94,7 @@ export default function AcademicControls({
     }, [nextYearName]);
 
     const handleInitialize = () => {
-        initForm.post(initialize(), {
+        initForm.submit(initialize(), {
             onSuccess: () => {
                 setIsInitNextYearOpen(false);
                 initForm.reset();
@@ -105,7 +104,7 @@ export default function AcademicControls({
 
     const handleUpdateDates = () => {
         if (!currentYear) return;
-        editForm.patch(update_dates({ academicYear: currentYear.id }), {
+        editForm.submit(update_dates({ academicYear: currentYear.id }), {
             onSuccess: () => setIsEditDatesOpen(false),
         });
     };
@@ -223,257 +222,157 @@ export default function AcademicControls({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Academic Controls" />
-            <div className="flex h-full flex-col gap-6 p-6">
-                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                            <Settings2 className="size-6 text-primary" />
-                            <h1 className="text-2xl font-bold tracking-tight">
-                                Academic Controls
-                            </h1>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                            Configure institutional lifecycle, academic years,
-                            and curriculum management.
-                        </p>
-                    </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => setIsGuideOpen(true)}
-                    >
-                        <HelpCircle className="size-4" />
-                        Operational Guide
-                    </Button>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-                    <Card className="max-h-fit gap-0 xl:col-span-2">
-                        <CardHeader className="flex flex-row items-center gap-2 space-y-0 border-b pb-4">
-                            <CalendarDays className="size-4 text-primary" />
-                            <CardTitle className="text-base">
-                                Active School Year
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6">
-                            <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-3">
-                                <div className="space-y-1">
-                                    <Label className="text-xs text-muted-foreground">
-                                        Cycle Name
-                                    </Label>
-                                    <p className="text-2xl font-bold">
-                                        {currentYear?.status === 'completed'
-                                            ? nextYearName
-                                            : currentYear?.name ||
-                                              '---- - ----'}
+            <div className="flex flex-col gap-6">
+                <Card className="max-h-fit">
+                    <CardContent className="pt-6">
+                        <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-4">
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">
+                                    Active School Year
+                                </Label>
+                                <p className="text-2xl font-bold">
+                                    {currentYear?.status === 'completed'
+                                        ? nextYearName
+                                        : currentYear?.name || '---- - ----'}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">
+                                    Start & End Date
+                                </Label>
+                                <div
+                                    className="group flex cursor-pointer items-center justify-between transition-colors hover:text-primary"
+                                    onClick={() =>
+                                        currentYear?.status !== 'completed' &&
+                                        setIsEditDatesOpen(true)
+                                    }
+                                >
+                                    <div className="space-y-1">
+                                        <p className="flex items-center gap-2 text-sm font-medium">
+                                            <Calendar className="size-3.5 opacity-50" />
+                                            {currentYear?.status === 'completed'
+                                                ? 'Not Set'
+                                                : currentYear?.start_date ||
+                                                  '---'}
+                                        </p>
+                                        <p className="flex items-center gap-2 pl-5 text-sm font-medium">
+                                            {currentYear?.status === 'completed'
+                                                ? 'Not Set'
+                                                : currentYear?.end_date ||
+                                                  '---'}
+                                        </p>
+                                    </div>
+                                    {currentYear?.status !== 'completed' &&
+                                        currentYear && (
+                                            <Edit2 className="size-4 opacity-0 transition-opacity group-hover:opacity-100" />
+                                        )}
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">
+                                    Status
+                                </Label>
+                                <div className="pt-1">{getStatusBadge()}</div>
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">
+                                    Current Quarter
+                                </Label>
+                                <div className="flex items-center gap-3">
+                                    <p className="text-sm font-semibold">
+                                        {currentYear?.status === 'completed' ||
+                                        !currentYear
+                                            ? 'Awaiting Setup'
+                                            : currentYear?.status === 'upcoming'
+                                              ? 'Pre-Opening'
+                                              : `${currentYear.current_quarter}${currentYear.current_quarter === '1' ? 'st' : currentYear.current_quarter === '2' ? 'nd' : currentYear.current_quarter === '3' ? 'rd' : 'th'} Quarter`}
                                     </p>
                                 </div>
-                                <div className="space-y-1">
-                                    <Label className="text-xs text-muted-foreground">
-                                        Operating Window
-                                    </Label>
-                                    <div
-                                        className="group flex cursor-pointer items-center justify-between transition-colors hover:text-primary"
-                                        onClick={() =>
-                                            currentYear?.status !==
-                                                'completed' &&
-                                            setIsEditDatesOpen(true)
-                                        }
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            {getSmartButton()}
+
+                            <div className="flex items-center justify-between border-t border-dashed pt-4">
+                                <div className="flex items-center gap-4">
+                                    {currentYear?.status === 'upcoming' && (
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            className="gap-2"
+                                            onClick={handleSimulateOpening}
+                                        >
+                                            <Zap className="size-3.5" />
+                                            Simulate Opening Day
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="gap-2 text-muted-foreground hover:text-destructive"
+                                        onClick={handleResetSimulation}
                                     >
-                                        <div className="space-y-1">
-                                            <p className="flex items-center gap-2 text-sm font-medium">
-                                                <Calendar className="size-3.5 opacity-50" />
-                                                {currentYear?.status ===
-                                                'completed'
-                                                    ? 'Not Set'
-                                                    : currentYear?.start_date ||
-                                                      '---'}
+                                        <RefreshCcw className="size-3" />
+                                        Wipe System Data
+                                    </Button>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground/60">
+                                    <FlaskConical className="size-3" />
+                                    Simulation Mode
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    {[
+                        {
+                            title: 'Curriculum',
+                            icon: BookOpen,
+                            href: curriculum_manager().url,
+                            desc: 'Subjects & Requirements',
+                        },
+                        {
+                            title: 'Sections',
+                            icon: Layers,
+                            href: section_manager().url,
+                            desc: 'Class Organizations',
+                        },
+                        {
+                            title: 'Schedules',
+                            icon: CalendarRange,
+                            href: schedule_builder().url,
+                            desc: 'Weekly Timetables',
+                        },
+                    ].map((item) => (
+                        <Link
+                            key={item.title}
+                            href={item.href}
+                            className="group"
+                        >
+                            <Card className="transition-colors hover:bg-muted/50">
+                                <CardContent className="flex items-center justify-between p-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex size-10 items-center justify-center rounded-lg border bg-background text-muted-foreground shadow-sm transition-colors group-hover:text-primary">
+                                            <item.icon className="size-5" />
+                                        </div>
+                                        <div>
+                                            <p className="leading-none font-semibold">
+                                                {item.title}
                                             </p>
-                                            <p className="flex items-center gap-2 pl-5 text-sm font-medium">
-                                                {currentYear?.status ===
-                                                'completed'
-                                                    ? 'Not Set'
-                                                    : currentYear?.end_date ||
-                                                      '---'}
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {item.desc}
                                             </p>
                                         </div>
-                                        {currentYear?.status !== 'completed' &&
-                                            currentYear && (
-                                                <Edit2 className="size-4 opacity-0 transition-opacity group-hover:opacity-100" />
-                                            )}
                                     </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-xs text-muted-foreground">
-                                        Current Progress
-                                    </Label>
-                                    <div className="flex items-center gap-3">
-                                        <p className="text-sm font-semibold">
-                                            {currentYear?.status ===
-                                                'completed' || !currentYear
-                                                ? 'Awaiting Setup'
-                                                : currentYear?.status ===
-                                                    'upcoming'
-                                                  ? 'Pre-Opening'
-                                                  : `${currentYear.current_quarter}${currentYear.current_quarter === '1' ? 'st' : currentYear.current_quarter === '2' ? 'nd' : currentYear.current_quarter === '3' ? 'rd' : 'th'} Quarter`}
-                                        </p>
-                                        {getStatusBadge()}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                {getSmartButton()}
-
-                                <div className="flex items-center justify-between border-t border-dashed pt-4">
-                                    <div className="flex items-center gap-4">
-                                        {currentYear?.status === 'upcoming' && (
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                className="gap-2"
-                                                onClick={handleSimulateOpening}
-                                            >
-                                                <Zap className="size-3.5" />
-                                                Simulate Opening Day
-                                            </Button>
-                                        )}
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="gap-2 text-muted-foreground hover:text-destructive"
-                                            onClick={handleResetSimulation}
-                                        >
-                                            <RefreshCcw className="size-3" />
-                                            Wipe System Data
-                                        </Button>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground/60">
-                                        <FlaskConical className="size-3" />
-                                        Simulation Mode
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <div className="space-y-6">
-                        <div className="flex items-center gap-2">
-                            <ShieldCheck className="size-4 text-primary" />
-                            <h2 className="text-sm font-medium text-muted-foreground">
-                                Academic Management
-                            </h2>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4">
-                            {[
-                                {
-                                    title: 'Curriculum',
-                                    icon: BookOpen,
-                                    href: curriculum_manager().url,
-                                    desc: 'Subjects & Requirements',
-                                },
-                                {
-                                    title: 'Sections',
-                                    icon: Layers,
-                                    href: section_manager().url,
-                                    desc: 'Class Organizations',
-                                },
-                                {
-                                    title: 'Schedules',
-                                    icon: CalendarRange,
-                                    href: schedule_builder().url,
-                                    desc: 'Weekly Timetables',
-                                },
-                            ].map((item) => (
-                                <Link
-                                    key={item.title}
-                                    href={item.href}
-                                    className="group"
-                                >
-                                    <Card className="transition-colors hover:bg-muted/50">
-                                        <CardContent className="flex items-center justify-between p-4">
-                                            <div className="flex items-center gap-4">
-                                                <div className="flex size-10 items-center justify-center rounded-lg border bg-background text-muted-foreground shadow-sm transition-colors group-hover:text-primary">
-                                                    <item.icon className="size-5" />
-                                                </div>
-                                                <div>
-                                                    <p className="leading-none font-semibold">
-                                                        {item.title}
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-muted-foreground">
-                                                        {item.desc}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <ArrowRightCircle className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            ))}
-                        </div>
-                    </div>
+                                    <ArrowRightCircle className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
+                                </CardContent>
+                            </Card>
+                        </Link>
+                    ))}
                 </div>
-
-                <Dialog open={isGuideOpen} onOpenChange={setIsGuideOpen}>
-                    <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2 text-xl">
-                                <Info className="size-5 text-primary" />
-                                Operational Guide
-                            </DialogTitle>
-                            <DialogDescription>
-                                System logic and institutional lifecycle rules.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-6 py-4">
-                            <div className="space-y-2 text-sm">
-                                <p className="font-semibold text-primary">
-                                    Smart Workflow
-                                </p>
-                                <p className="leading-relaxed text-muted-foreground">
-                                    The system automatically transitions states
-                                    based on administrative actions:
-                                    <span className="font-medium text-foreground">
-                                        {' '}
-                                        Setup → Opening → Quarter Cycles →
-                                        Archiving.
-                                    </span>
-                                </p>
-                            </div>
-                            <div className="space-y-2 text-sm">
-                                <p className="font-semibold text-primary">
-                                    Data Integrity
-                                </p>
-                                <p className="leading-relaxed text-muted-foreground">
-                                    Finalizing a year archives all records and
-                                    moves the system focus to the next
-                                    calculated school year.
-                                </p>
-                            </div>
-                            <div className="space-y-2 text-sm">
-                                <p className="font-semibold text-primary">
-                                    Service Availability
-                                </p>
-                                <p className="leading-relaxed text-muted-foreground">
-                                    Enrollment and Finance features remain
-                                    accessible. Initializing a school year
-                                    designates the target cycle for upcoming
-                                    records.
-                                </p>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button
-                                className="w-full"
-                                onClick={() => setIsGuideOpen(false)}
-                            >
-                                Understood
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
 
                 <Dialog
                     open={isEditDatesOpen}

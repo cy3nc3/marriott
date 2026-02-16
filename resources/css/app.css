@@ -137,7 +137,81 @@
         @apply border-border;
     }
 
+    html,
+    body {
+        height: 100% !important;
+        overflow: hidden !important;
+        overscroll-behavior: none !important;
+    }
+
     body {
         @apply bg-background text-foreground;
     }
+}
+
+/* Aggressively hide all native scrollbars */
+html, body, div, section, main, aside, nav {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
+::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-button:start,
+::-webkit-scrollbar-button:end,
+::-webkit-scrollbar-button:single-button,
+::-webkit-scrollbar-button:double-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+/* SimpleBar Custom Styling */
+.simplebar-scrollbar::before {
+    background-color: rgba(156, 163, 175, 0.5) !important;
+    border-radius: 10px !important;
+    left: 2px !important;
+    right: 2px !important;
+    opacity: 0 !important;
+    transition: opacity 0.2s linear !important;
+}
+
+.simplebar-scrollbar.simplebar-visible::before {
+    opacity: 1 !important;
+}
+
+.simplebar-track {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.simplebar-track.simplebar-vertical {
+    width: 6px !important;
+}
+
+.simplebar-track.simplebar-horizontal {
+    height: 6px !important;
+}
+
+/* Ensure SimpleBar correctly fills its flex parent and prevents shifting */
+.simplebar-wrapper {
+    height: 100% !important;
+}
+
+.simplebar-content-wrapper {
+    height: 100% !important;
+    overscroll-behavior: none !important;
+}
+
+/* Fix for potential layout shift in flex containers */
+.simplebar-content {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100% !important;
 }
