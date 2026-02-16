@@ -19,10 +19,18 @@ class SectionSeeder extends Seeder
         $grades = GradeLevel::all();
 
         foreach ($grades as $grade) {
-            Section::create([
+            // Create Section - A
+            Section::updateOrCreate([
                 'academic_year_id' => $activeYear->id,
                 'grade_level_id' => $grade->id,
-                'name' => $grade->name.' - A',
+                'name' => 'Section - A',
+            ]);
+
+            // Create Section - B
+            Section::updateOrCreate([
+                'academic_year_id' => $activeYear->id,
+                'grade_level_id' => $grade->id,
+                'name' => 'Section - B',
             ]);
         }
     }

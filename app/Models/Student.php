@@ -18,6 +18,7 @@ class Student extends Model
         'contact_number',
         'address',
         'guardian_name',
+        'is_for_remedial',
     ];
 
     public function user(): BelongsTo

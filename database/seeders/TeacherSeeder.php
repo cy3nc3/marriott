@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class TeacherSeeder extends Seeder
 {
@@ -24,12 +25,14 @@ class TeacherSeeder extends Seeder
         ];
 
         foreach ($teachers as $teacher) {
-            User::factory()->create([
-                'name' => $teacher['name'],
-                'email' => $teacher['email'],
-                'password' => 'password',
-                'role' => UserRole::TEACHER,
-            ]);
+            User::updateOrCreate(
+                ['email' => $teacher['email']],
+                [
+                    'name' => $teacher['name'],
+                    'password' => Hash::make('password'),
+                    'role' => UserRole::TEACHER,
+                ]
+            );
         }
     }
 }

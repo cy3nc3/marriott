@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -24,12 +25,14 @@ class DatabaseSeeder extends Seeder
         foreach (UserRole::cases() as $role) {
             $prefix = str_replace('_', '', $role->value);
 
-            User::factory()->create([
-                'name' => "Test {$role->label()}",
-                'email' => "{$prefix}@marriott.edu",
-                'password' => 'password',
-                'role' => $role,
-            ]);
+            User::updateOrCreate(
+                ['email' => "{$prefix}@marriott.edu"],
+                [
+                    'name' => "Test {$role->label()}",
+                    'password' => Hash::make('password'),
+                    'role' => $role,
+                ]
+            );
         }
     }
 }

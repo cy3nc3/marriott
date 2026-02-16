@@ -18,33 +18,37 @@ class StudentSeeder extends Seeder
         }
 
         $sections = Section::all();
+        $studentCounter = 1;
 
         foreach ($sections as $section) {
-            // Create 15 students per section
-            for ($i = 1; $i <= 15; $i++) {
-                $student = Student::create([
-                    'lrn' => '100000'.$section->id.str_pad($i, 2, '0', STR_PAD_LEFT),
-                    'first_name' => 'Student '.$i,
-                    'last_name' => $section->name.' Section',
-                    'gender' => $i % 2 == 0 ? 'Male' : 'Female',
-                ]);
+            // Create 20 students per section
+            for ($i = 1; $i <= 20; $i++) {
+                $lrn = '100000' . str_pad($studentCounter, 4, '0', STR_PAD_LEFT);
+                
+                $student = Student::updateOrCreate(
+                    ['lrn' => $lrn],
+                    [
+                        'first_name' => 'Student',
+                        'last_name' => (string) $studentCounter,
+                        'gender' => $i % 2 == 0 ? 'Male' : 'Female',
+                        'birthdate' => '2010-01-01',
+                    ]
+                );
 
-                $status = 'enrolled';
-                if ($i === 14) {
-                    $status = 'dropped';
-                }
-                if ($i === 15) {
-                    $status = 'transferred';
-                }
+                Enrollment::updateOrCreate(
+                    [
+                        'student_id' => $student->id,
+                        'academic_year_id' => $activeYear->id,
+                    ],
+                    [
+                        'grade_level_id' => $section->grade_level_id,
+                        'section_id' => $section->id,
+                        'payment_term' => 'full',
+                        'status' => 'enrolled',
+                    ]
+                );
 
-                Enrollment::create([
-                    'student_id' => $student->id,
-                    'academic_year_id' => $activeYear->id,
-                    'grade_level_id' => $section->grade_level_id,
-                    'section_id' => $section->id,
-                    'payment_term' => 'full',
-                    'status' => $status,
-                ]);
+                $studentCounter++;
             }
         }
     }
