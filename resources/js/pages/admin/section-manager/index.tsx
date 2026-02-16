@@ -2,16 +2,8 @@ import { useState, useMemo } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
-import { 
-    store, 
-    update, 
-    destroy 
-} from '@/routes/admin/section_manager';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-} from '@/components/ui/card';
+import { store, update, destroy } from '@/routes/admin/section_manager';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
     Table,
@@ -21,21 +13,16 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from '@/components/ui/tabs';
-import { 
-    Plus, 
-    Layers, 
+    Plus,
+    Layers,
     Edit2,
     Trash2,
     Search,
     User,
     X,
-    AlertCircle
+    AlertCircle,
 } from 'lucide-react';
 import {
     Dialog,
@@ -44,16 +31,16 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
+import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from '@/components/ui/tooltip';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -98,14 +85,14 @@ interface Props {
 }
 
 // Stable search component
-const AdviserSearchField = ({ 
-    teachers, 
-    selectedAdviser, 
-    searchQuery, 
-    onSearchChange, 
-    onSelect, 
+const AdviserSearchField = ({
+    teachers,
+    selectedAdviser,
+    searchQuery,
+    onSearchChange,
+    onSelect,
     onRemove,
-    filteredTeachers 
+    filteredTeachers,
 }: {
     teachers: Teacher[];
     selectedAdviser: Teacher | null;
@@ -118,16 +105,16 @@ const AdviserSearchField = ({
     <div className="grid gap-2">
         <Label className="text-xs text-muted-foreground">Class Adviser</Label>
         <div className="relative">
-            <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-            <Input 
-                placeholder="Search faculty name..." 
+            <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
+            <Input
+                placeholder="Search faculty name..."
                 className="pl-10"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
             />
             {searchQuery && filteredTeachers.length > 0 && (
-                <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-auto rounded-md border bg-popover p-1 shadow-md">
-                    {filteredTeachers.map(teacher => (
+                <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-auto rounded-md border bg-popover p-1 shadow-md">
+                    {filteredTeachers.map((teacher) => (
                         <button
                             key={teacher.id}
                             type="button"
@@ -135,7 +122,9 @@ const AdviserSearchField = ({
                             onClick={() => onSelect(teacher)}
                         >
                             <Avatar className="size-6">
-                                <AvatarFallback className="text-[8px] font-bold">{teacher.initial}</AvatarFallback>
+                                <AvatarFallback className="text-[8px] font-bold">
+                                    {teacher.initial}
+                                </AvatarFallback>
                             </Avatar>
                             <span className="font-medium">{teacher.name}</span>
                             <Plus className="ml-auto size-3 opacity-50" />
@@ -144,23 +133,27 @@ const AdviserSearchField = ({
                 </div>
             )}
         </div>
-        
+
         {selectedAdviser && (
-            <div className="mt-2 flex items-center justify-between rounded-lg border bg-muted/30 p-3 animate-in fade-in slide-in-from-top-1">
+            <div className="mt-2 flex animate-in items-center justify-between rounded-lg border bg-muted/30 p-3 fade-in slide-in-from-top-1">
                 <div className="flex items-center gap-3">
                     <Avatar className="size-10 border-2 border-background shadow-sm">
-                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                        <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
                             {selectedAdviser.initial}
                         </AvatarFallback>
                     </Avatar>
                     <div>
-                        <p className="text-sm font-bold">{selectedAdviser.name}</p>
-                        <p className="text-xs text-muted-foreground">Selected Adviser</p>
+                        <p className="text-sm font-bold">
+                            {selectedAdviser.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Selected Adviser
+                        </p>
                     </div>
                 </div>
-                <Button 
-                    variant="ghost" 
-                    size="icon" 
+                <Button
+                    variant="ghost"
+                    size="icon"
                     className="size-8 text-muted-foreground hover:text-destructive"
                     onClick={onRemove}
                 >
@@ -168,21 +161,31 @@ const AdviserSearchField = ({
                 </Button>
             </div>
         )}
-        
+
         {!selectedAdviser && (
-            <div className="mt-2 flex flex-col items-center justify-center rounded-lg border border-dashed p-6 text-center bg-muted/5">
+            <div className="mt-2 flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/5 p-6 text-center">
                 <User className="size-8 text-muted-foreground/20" />
-                <p className="mt-2 text-xs text-muted-foreground">No adviser selected. Search above to assign.</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                    No adviser selected. Search above to assign.
+                </p>
             </div>
         )}
     </div>
 );
 
-export default function SectionManager({ gradeLevels, teachers, activeYear }: Props) {
-    const [activeTab, setActiveTab] = useState(gradeLevels[0]?.id.toString() || '');
+export default function SectionManager({
+    gradeLevels,
+    teachers,
+    activeYear,
+}: Props) {
+    const [activeTab, setActiveTab] = useState(
+        gradeLevels[0]?.id.toString() || '',
+    );
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
-    const [selectedSection, setSelectedSection] = useState<Section | null>(null);
+    const [selectedSection, setSelectedSection] = useState<Section | null>(
+        null,
+    );
     const [searchQuery, setSearchQuery] = useState('');
 
     const addForm = useForm({
@@ -197,20 +200,29 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
         adviser_id: null as number | null,
     });
 
-    const currentGrade = useMemo(() => 
-        gradeLevels.find(g => g.id.toString() === activeTab), 
-    [gradeLevels, activeTab]);
+    const currentGrade = useMemo(
+        () => gradeLevels.find((g) => g.id.toString() === activeTab),
+        [gradeLevels, activeTab],
+    );
 
     const currentAdviser = useMemo(() => {
-        const id = isEditOpen ? editForm.data.adviser_id : addForm.data.adviser_id;
-        return teachers.find(t => t.id === id) || null;
-    }, [teachers, addForm.data.adviser_id, editForm.data.adviser_id, isEditOpen]);
+        const id = isEditOpen
+            ? editForm.data.adviser_id
+            : addForm.data.adviser_id;
+        return teachers.find((t) => t.id === id) || null;
+    }, [
+        teachers,
+        addForm.data.adviser_id,
+        editForm.data.adviser_id,
+        isEditOpen,
+    ]);
 
     const filteredTeachers = useMemo(() => {
         if (!searchQuery) return [];
-        return teachers.filter(t => 
-            t.name.toLowerCase().includes(searchQuery.toLowerCase()) && 
-            t.id !== currentAdviser?.id
+        return teachers.filter(
+            (t) =>
+                t.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+                t.id !== currentAdviser?.id,
         );
     }, [teachers, searchQuery, currentAdviser]);
 
@@ -257,51 +269,64 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
     };
 
     const SectionTable = ({ sections }: { sections: Section[] }) => (
-        <div className="rounded-md border overflow-hidden">
+        <div className="overflow-hidden rounded-md border">
             <Table>
                 <TableHeader>
                     <TableRow>
                         <TableHead className="pl-6">Section Name</TableHead>
                         <TableHead>Class Adviser</TableHead>
-                        <TableHead className="text-center">Population</TableHead>
-                        <TableHead className="text-right pr-6">Actions</TableHead>
+                        <TableHead className="text-center">
+                            Population
+                        </TableHead>
+                        <TableHead className="pr-6 text-right">
+                            Actions
+                        </TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {sections.map((section) => (
                         <TableRow key={section.id}>
-                            <TableCell className="pl-6 font-medium text-primary">{section.name}</TableCell>
+                            <TableCell className="pl-6 font-medium text-primary">
+                                {section.name}
+                            </TableCell>
                             <TableCell>
                                 {section.adviser ? (
                                     <div className="flex items-center gap-2">
                                         <Avatar className="size-8 ring-1 ring-primary/5">
-                                            <AvatarFallback className="text-xs font-semibold bg-muted text-muted-foreground">
+                                            <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
                                                 {section.adviser.initial}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <span className="font-medium text-sm">{section.adviser.name}</span>
+                                        <span className="text-sm font-medium">
+                                            {section.adviser.name}
+                                        </span>
                                     </div>
                                 ) : (
-                                    <span className="text-xs text-muted-foreground italic">No Adviser Assigned</span>
+                                    <span className="text-xs text-muted-foreground italic">
+                                        No Adviser Assigned
+                                    </span>
                                 )}
                             </TableCell>
                             <TableCell className="text-center font-medium">
                                 {section.students_count || 0}
                             </TableCell>
-                            <TableCell className="text-right pr-6">
+                            <TableCell className="pr-6 text-right">
                                 <div className="flex justify-end gap-2">
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
                                                     className="size-8 text-muted-foreground hover:text-primary"
                                                     onClick={() => {
-                                                        setSelectedSection(section);
+                                                        setSelectedSection(
+                                                            section,
+                                                        );
                                                         editForm.setData({
                                                             name: section.name,
-                                                            adviser_id: section.adviser_id,
+                                                            adviser_id:
+                                                                section.adviser_id,
                                                         });
                                                         setIsEditOpen(true);
                                                     }}
@@ -309,21 +334,27 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                                                     <Edit2 className="size-4" />
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent>Edit Section</TooltipContent>
+                                            <TooltipContent>
+                                                Edit Section
+                                            </TooltipContent>
                                         </Tooltip>
 
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
                                                     className="size-8 text-muted-foreground hover:text-destructive"
-                                                    onClick={() => handleDelete(section.id)}
+                                                    onClick={() =>
+                                                        handleDelete(section.id)
+                                                    }
                                                 >
                                                     <Trash2 className="size-4" />
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent>Remove Section</TooltipContent>
+                                            <TooltipContent>
+                                                Remove Section
+                                            </TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
                                 </div>
@@ -333,7 +364,9 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                     {sections.length === 0 && (
                         <TableRow>
                             <TableCell colSpan={4} className="h-24 text-center">
-                                <p className="text-sm text-muted-foreground">No sections defined for this level</p>
+                                <p className="text-sm text-muted-foreground">
+                                    No sections defined for this level
+                                </p>
                             </TableCell>
                         </TableRow>
                     )}
@@ -350,12 +383,22 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                         <AlertCircle className="size-10 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div className="space-y-1">
-                        <h2 className="text-xl font-bold tracking-tight">System Notice</h2>
+                        <h2 className="text-xl font-bold tracking-tight">
+                            System Notice
+                        </h2>
                         <p className="max-w-sm text-sm text-muted-foreground">
-                            An active School Year must be initialized in <span className="font-semibold text-foreground">Academic Controls</span> before managing sections.
+                            An active School Year must be initialized in{' '}
+                            <span className="font-semibold text-foreground">
+                                Academic Controls
+                            </span>{' '}
+                            before managing sections.
                         </p>
                     </div>
-                    <Button variant="outline" className="text-xs" onClick={() => router.get('/admin/academic-controls')}>
+                    <Button
+                        variant="outline"
+                        className="text-xs"
+                        onClick={() => router.get('/admin/academic-controls')}
+                    >
                         Go to Academic Controls
                     </Button>
                 </div>
@@ -367,30 +410,44 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Section Manager" />
             <div className="flex flex-col gap-6 p-6">
-                
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
                         <Layers className="size-6 text-primary" />
-                        <h1 className="text-2xl font-bold tracking-tight">Section Management</h1>
+                        <h1 className="text-2xl font-bold tracking-tight">
+                            Section Management
+                        </h1>
                     </div>
-                    <p className="text-sm text-muted-foreground">Organize class groups and assign faculty mentors for <span className="font-semibold text-foreground">{activeYear.name}</span>.</p>
+                    <p className="text-sm text-muted-foreground">
+                        Organize class groups and assign faculty mentors for{' '}
+                        <span className="font-semibold text-foreground">
+                            {activeYear.name}
+                        </span>
+                        .
+                    </p>
                 </div>
 
-                <Card className="flex flex-col border-primary/10">
-                    <Tabs value={activeTab} onValueChange={(val) => {
-                        setActiveTab(val);
-                        addForm.setData('grade_level_id', parseInt(val));
-                    }} className="w-full flex-1 flex flex-col">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b py-3 px-6">
+                <Card className="flex flex-col">
+                    <Tabs
+                        value={activeTab}
+                        onValueChange={(val) => {
+                            setActiveTab(val);
+                            addForm.setData('grade_level_id', parseInt(val));
+                        }}
+                        className="flex w-full flex-1 flex-col gap-0"
+                    >
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b">
                             <TabsList className="h-9">
-                                {gradeLevels.map(grade => (
-                                    <TabsTrigger key={grade.id} value={grade.id.toString()}>
+                                {gradeLevels.map((grade) => (
+                                    <TabsTrigger
+                                        key={grade.id}
+                                        value={grade.id.toString()}
+                                    >
                                         {grade.name}
                                     </TabsTrigger>
                                 ))}
                             </TabsList>
-                            <Button 
-                                size="sm" 
+                            <Button
+                                size="sm"
                                 className="gap-2"
                                 onClick={() => {
                                     addForm.reset();
@@ -398,7 +455,7 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                                         academic_year_id: activeYear.id,
                                         grade_level_id: parseInt(activeTab),
                                         name: '',
-                                        adviser_id: null
+                                        adviser_id: null,
                                     });
                                     setIsAddOpen(true);
                                 }}
@@ -407,10 +464,14 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                                 Add Section
                             </Button>
                         </CardHeader>
-                        
-                        <CardContent className="p-6">
-                            {gradeLevels.map(grade => (
-                                <TabsContent key={grade.id} value={grade.id.toString()} className="m-0 outline-none">
+
+                        <CardContent className="p-6 pb-0">
+                            {gradeLevels.map((grade) => (
+                                <TabsContent
+                                    key={grade.id}
+                                    value={grade.id.toString()}
+                                    className="m-0 outline-none"
+                                >
                                     <SectionTable sections={grade.sections} />
                                 </TabsContent>
                             ))}
@@ -424,21 +485,27 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                         <DialogHeader>
                             <DialogTitle>Create New Section</DialogTitle>
                             <DialogDescription>
-                                Define a new class group for <span className="text-primary font-medium">{currentGrade?.name}</span>.
+                                Define a new class group for{' '}
+                                <span className="font-medium text-primary">
+                                    {currentGrade?.name}
+                                </span>
+                                .
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-6 py-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="name">Section Name</Label>
-                                <Input 
-                                    id="name" 
-                                    placeholder="e.g. Rizal" 
+                                <Input
+                                    id="name"
+                                    placeholder="e.g. Rizal"
                                     value={addForm.data.name}
-                                    onChange={e => addForm.setData('name', e.target.value)}
+                                    onChange={(e) =>
+                                        addForm.setData('name', e.target.value)
+                                    }
                                 />
                             </div>
-                            
-                            <AdviserSearchField 
+
+                            <AdviserSearchField
                                 teachers={teachers}
                                 selectedAdviser={currentAdviser}
                                 searchQuery={searchQuery}
@@ -449,8 +516,18 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                             />
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-                            <Button onClick={handleAdd} disabled={addForm.processing}>Create Section</Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsAddOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleAdd}
+                                disabled={addForm.processing}
+                            >
+                                Create Section
+                            </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -459,19 +536,24 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                     <DialogContent className="sm:max-w-[450px]">
                         <DialogHeader>
                             <DialogTitle>Edit Section Details</DialogTitle>
-                            <DialogDescription>Update organization details for this class group.</DialogDescription>
+                            <DialogDescription>
+                                Update organization details for this class
+                                group.
+                            </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-6 py-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="edit-name">Section Name</Label>
-                                <Input 
-                                    id="edit-name" 
+                                <Input
+                                    id="edit-name"
                                     value={editForm.data.name}
-                                    onChange={e => editForm.setData('name', e.target.value)}
+                                    onChange={(e) =>
+                                        editForm.setData('name', e.target.value)
+                                    }
                                 />
                             </div>
-                            
-                            <AdviserSearchField 
+
+                            <AdviserSearchField
                                 teachers={teachers}
                                 selectedAdviser={currentAdviser}
                                 searchQuery={searchQuery}
@@ -482,12 +564,21 @@ export default function SectionManager({ gradeLevels, teachers, activeYear }: Pr
                             />
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                            <Button onClick={handleUpdate} disabled={editForm.processing}>Update Section</Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsEditOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleUpdate}
+                                disabled={editForm.processing}
+                            >
+                                Update Section
+                            </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
-
             </div>
         </AppLayout>
     );

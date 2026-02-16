@@ -2,17 +2,13 @@ import { useState, useMemo } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
-import { 
-    store, 
-    update, 
-    destroy, 
-    certify 
-} from '@/routes/admin/curriculum_manager';
 import {
-    Card,
-    CardContent,
-    CardHeader,
-} from '@/components/ui/card';
+    store,
+    update,
+    destroy,
+    certify,
+} from '@/routes/admin/curriculum_manager';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
     Table,
@@ -22,12 +18,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Dialog,
     DialogContent,
@@ -35,26 +26,26 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { 
-    Plus, 
-    BookOpen, 
-    UserPlus, 
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import {
+    Plus,
+    BookOpen,
+    UserPlus,
     Edit2,
     Search,
     X,
     Users,
-    Trash2
+    Trash2,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
+import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -95,31 +86,33 @@ interface FacultyListProps {
 }
 
 // Stable component to prevent focus loss
-const FacultyCertificationList = ({ 
-    teachers, 
-    selectedIds, 
-    searchQuery, 
-    onSearchChange, 
-    onToggle, 
-    filteredTeachers 
+const FacultyCertificationList = ({
+    teachers,
+    selectedIds,
+    searchQuery,
+    onSearchChange,
+    onToggle,
+    filteredTeachers,
 }: FacultyListProps) => {
-    const selectedList = teachers.filter(t => selectedIds.includes(t.id));
+    const selectedList = teachers.filter((t) => selectedIds.includes(t.id));
 
     return (
         <div className="grid gap-4">
             <div className="grid gap-2">
-                <Label className="text-xs text-muted-foreground">Search Faculty</Label>
+                <Label className="text-xs text-muted-foreground">
+                    Search Faculty
+                </Label>
                 <div className="relative">
-                    <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-                    <Input 
-                        placeholder="Search and select qualified teachers..." 
+                    <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search and select qualified teachers..."
                         className="pl-10"
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
                     />
                     {searchQuery && filteredTeachers.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-auto rounded-md border bg-popover p-1 shadow-md">
-                            {filteredTeachers.map(teacher => (
+                        <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-auto rounded-md border bg-popover p-1 shadow-md">
+                            {filteredTeachers.map((teacher) => (
                                 <button
                                     key={teacher.id}
                                     type="button"
@@ -127,27 +120,36 @@ const FacultyCertificationList = ({
                                     onClick={() => onToggle(teacher.id)}
                                 >
                                     <Avatar className="size-6">
-                                        <AvatarFallback className="text-[8px] font-bold">{teacher.initial}</AvatarFallback>
+                                        <AvatarFallback className="text-[8px] font-bold">
+                                            {teacher.initial}
+                                        </AvatarFallback>
                                     </Avatar>
-                                    <span className="font-medium">{teacher.name}</span>
+                                    <span className="font-medium">
+                                        {teacher.name}
+                                    </span>
                                     <Plus className="ml-auto size-3 opacity-50" />
                                 </button>
                             ))}
                         </div>
                     )}
                 </div>
-                <p className="text-xs text-muted-foreground italic">Tip: You can search and select multiple teachers.</p>
+                <p className="text-xs text-muted-foreground italic">
+                    Tip: You can search and select multiple teachers.
+                </p>
             </div>
 
             <div className="space-y-3">
                 <Label className="text-xs text-muted-foreground">
                     Qualified Teachers ({selectedList.length}):
                 </Label>
-                
+
                 {selectedList.length > 0 ? (
                     <div className="grid gap-2">
                         {selectedList.map((teacher) => (
-                            <div key={teacher.id} className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
+                            <div
+                                key={teacher.id}
+                                className="flex items-center justify-between rounded-lg border bg-muted/30 p-3"
+                            >
                                 <div className="flex items-center gap-3">
                                     <Avatar className="size-8 border-2 border-background shadow-sm">
                                         <AvatarFallback className="text-xs font-semibold">
@@ -155,13 +157,17 @@ const FacultyCertificationList = ({
                                         </AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <p className="text-sm font-medium">{teacher.name}</p>
-                                        <p className="text-xs text-muted-foreground">Certified Faculty</p>
+                                        <p className="text-sm font-medium">
+                                            {teacher.name}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Certified Faculty
+                                        </p>
                                     </div>
                                 </div>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     className="size-8 text-muted-foreground hover:text-destructive"
                                     onClick={() => onToggle(teacher.id)}
                                 >
@@ -171,9 +177,11 @@ const FacultyCertificationList = ({
                         ))}
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center bg-muted/10">
+                    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/10 p-8 text-center">
                         <Users className="size-8 text-muted-foreground/20" />
-                        <p className="mt-2 text-sm text-muted-foreground">No Qualified Teachers Selected</p>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            No Qualified Teachers Selected
+                        </p>
                     </div>
                 )}
             </div>
@@ -181,12 +189,22 @@ const FacultyCertificationList = ({
     );
 };
 
-export default function CurriculumManager({ gradeLevels, teachers }: { gradeLevels: GradeLevel[], teachers: Teacher[] }) {
-    const [activeTab, setActiveTab] = useState(gradeLevels[0]?.id.toString() || '');
+export default function CurriculumManager({
+    gradeLevels,
+    teachers,
+}: {
+    gradeLevels: GradeLevel[];
+    teachers: Teacher[];
+}) {
+    const [activeTab, setActiveTab] = useState(
+        gradeLevels[0]?.id.toString() || '',
+    );
     const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false);
     const [isCertifyOpen, setIsCertifyOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
-    const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+    const [selectedSubject, setSelectedSubject] = useState<Subject | null>(
+        null,
+    );
     const [searchQuery, setSearchQuery] = useState('');
 
     const addForm = useForm({
@@ -205,18 +223,28 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
         teacher_ids: [] as number[],
     });
 
-    const currentGrade = useMemo(() => 
-        gradeLevels.find(g => g.id.toString() === activeTab), 
-    [gradeLevels, activeTab]);
+    const currentGrade = useMemo(
+        () => gradeLevels.find((g) => g.id.toString() === activeTab),
+        [gradeLevels, activeTab],
+    );
 
     const filteredTeachers = useMemo(() => {
         if (!searchQuery) return [];
-        const currentSelectedIds = isCertifyOpen ? certifyForm.data.teacher_ids : addForm.data.teacher_ids;
-        return teachers.filter(t => 
-            t.name.toLowerCase().includes(searchQuery.toLowerCase()) && 
-            !currentSelectedIds.includes(t.id)
+        const currentSelectedIds = isCertifyOpen
+            ? certifyForm.data.teacher_ids
+            : addForm.data.teacher_ids;
+        return teachers.filter(
+            (t) =>
+                t.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+                !currentSelectedIds.includes(t.id),
         );
-    }, [teachers, searchQuery, addForm.data.teacher_ids, certifyForm.data.teacher_ids, isCertifyOpen]);
+    }, [
+        teachers,
+        searchQuery,
+        addForm.data.teacher_ids,
+        certifyForm.data.teacher_ids,
+        isCertifyOpen,
+    ]);
 
     const handleAddSubject = () => {
         addForm.post(store(), {
@@ -257,7 +285,10 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
         const form = formType === 'add' ? addForm : certifyForm;
         const currentIds = form.data.teacher_ids;
         if (currentIds.includes(teacherId)) {
-            form.setData('teacher_ids', currentIds.filter(id => id !== teacherId));
+            form.setData(
+                'teacher_ids',
+                currentIds.filter((id) => id !== teacherId),
+            );
         } else {
             form.setData('teacher_ids', [...currentIds, teacherId]);
         }
@@ -269,34 +300,48 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
             <Head title="Curriculum Manager" />
             <TooltipProvider>
                 <div className="flex flex-col gap-6 p-6">
-                    
                     <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2">
                             <BookOpen className="size-6 text-primary" />
-                            <h1 className="text-2xl font-bold tracking-tight">Curriculum Management</h1>
+                            <h1 className="text-2xl font-bold tracking-tight">
+                                Curriculum Management
+                            </h1>
                         </div>
-                        <p className="text-sm text-muted-foreground">Define subjects and manage qualified faculty per grade level.</p>
+                        <p className="text-sm text-muted-foreground">
+                            Define subjects and manage qualified faculty per
+                            grade level.
+                        </p>
                     </div>
 
-                    <Card className="flex flex-col border-primary/10">
-                        <Tabs value={activeTab} onValueChange={(val) => {
-                            setActiveTab(val);
-                            addForm.setData('grade_level_id', val);
-                        }} className="w-full flex-1 flex flex-col">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b py-3 px-6">
+                    <Card className="flex flex-col">
+                        <Tabs
+                            value={activeTab}
+                            onValueChange={(val) => {
+                                setActiveTab(val);
+                                addForm.setData('grade_level_id', val);
+                            }}
+                            className="flex w-full flex-1 flex-col gap-0"
+                        >
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b">
                                 <TabsList className="h-9">
-                                    {gradeLevels.map(grade => (
-                                        <TabsTrigger key={grade.id} value={grade.id.toString()}>
+                                    {gradeLevels.map((grade) => (
+                                        <TabsTrigger
+                                            key={grade.id}
+                                            value={grade.id.toString()}
+                                        >
                                             {grade.name}
                                         </TabsTrigger>
                                     ))}
                                 </TabsList>
-                                <Button 
-                                    size="sm" 
+                                <Button
+                                    size="sm"
                                     className="gap-2"
                                     onClick={() => {
                                         addForm.reset();
-                                        addForm.setData('grade_level_id', activeTab);
+                                        addForm.setData(
+                                            'grade_level_id',
+                                            activeTab,
+                                        );
                                         setIsAddSubjectOpen(true);
                                     }}
                                 >
@@ -304,110 +349,206 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                                     Add Subject
                                 </Button>
                             </CardHeader>
-                            
-                            <CardContent className="p-6">
-                                {gradeLevels.map(grade => (
-                                    <TabsContent key={grade.id} value={grade.id.toString()} className="m-0 outline-none">
-                                        <div className="rounded-md border overflow-hidden">
+
+                            <CardContent className="p-6 pb-0">
+                                {gradeLevels.map((grade) => (
+                                    <TabsContent
+                                        key={grade.id}
+                                        value={grade.id.toString()}
+                                        className="m-0 outline-none"
+                                    >
+                                        <div className="overflow-hidden rounded-md border">
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
-                                                        <TableHead className="w-[120px] pl-6">Code</TableHead>
-                                                        <TableHead>Descriptive Title</TableHead>
-                                                        <TableHead>Qualified Teachers</TableHead>
-                                                        <TableHead className="text-right pr-6">Actions</TableHead>
+                                                        <TableHead className="w-[120px] pl-6">
+                                                            Code
+                                                        </TableHead>
+                                                        <TableHead>
+                                                            Descriptive Title
+                                                        </TableHead>
+                                                        <TableHead>
+                                                            Qualified Teachers
+                                                        </TableHead>
+                                                        <TableHead className="pr-6 text-right">
+                                                            Actions
+                                                        </TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {grade.subjects.map((sub) => (
-                                                        <TableRow key={sub.id}>
-                                                            <TableCell className="pl-6">
-                                                                <Badge variant="outline" className="font-mono text-xs">
-                                                                    {sub.subject_code}
-                                                                </Badge>
-                                                            </TableCell>
-                                                            <TableCell className="font-medium">{sub.subject_name}</TableCell>
-                                                            <TableCell>
-                                                                <div className="flex -space-x-2">
-                                                                    {sub.teachers.map((t) => (
-                                                                        <Tooltip key={t.id}>
-                                                                            <TooltipTrigger asChild>
-                                                                                <Avatar className="border-2 border-background size-8 ring-1 ring-primary/5">
-                                                                                    <AvatarFallback className="text-xs font-semibold bg-muted text-muted-foreground">
-                                                                                        {t.initial}
-                                                                                    </AvatarFallback>
-                                                                                </Avatar>
+                                                    {grade.subjects.map(
+                                                        (sub) => (
+                                                            <TableRow
+                                                                key={sub.id}
+                                                            >
+                                                                <TableCell className="pl-6">
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="font-mono text-xs"
+                                                                    >
+                                                                        {
+                                                                            sub.subject_code
+                                                                        }
+                                                                    </Badge>
+                                                                </TableCell>
+                                                                <TableCell className="font-medium">
+                                                                    {
+                                                                        sub.subject_name
+                                                                    }
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <div className="flex -space-x-2">
+                                                                        {sub.teachers.map(
+                                                                            (
+                                                                                t,
+                                                                            ) => (
+                                                                                <Tooltip
+                                                                                    key={
+                                                                                        t.id
+                                                                                    }
+                                                                                >
+                                                                                    <TooltipTrigger
+                                                                                        asChild
+                                                                                    >
+                                                                                        <Avatar className="size-8 border-2 border-background ring-1 ring-primary/5">
+                                                                                            <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
+                                                                                                {
+                                                                                                    t.initial
+                                                                                                }
+                                                                                            </AvatarFallback>
+                                                                                        </Avatar>
+                                                                                    </TooltipTrigger>
+                                                                                    <TooltipContent className="text-xs font-medium">
+                                                                                        {
+                                                                                            t.name
+                                                                                        }
+                                                                                    </TooltipContent>
+                                                                                </Tooltip>
+                                                                            ),
+                                                                        )}
+                                                                        {sub
+                                                                            .teachers
+                                                                            .length ===
+                                                                            0 && (
+                                                                            <span className="text-xs text-muted-foreground italic">
+                                                                                No
+                                                                                qualified
+                                                                                teachers
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell className="pr-6 text-right">
+                                                                    <div className="flex justify-end gap-2">
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger
+                                                                                asChild
+                                                                            >
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="size-8 text-muted-foreground hover:text-primary"
+                                                                                    onClick={() => {
+                                                                                        setSelectedSubject(
+                                                                                            sub,
+                                                                                        );
+                                                                                        certifyForm.setData(
+                                                                                            'teacher_ids',
+                                                                                            sub.teachers.map(
+                                                                                                (
+                                                                                                    t,
+                                                                                                ) =>
+                                                                                                    t.id,
+                                                                                            ),
+                                                                                        );
+                                                                                        setIsCertifyOpen(
+                                                                                            true,
+                                                                                        );
+                                                                                    }}
+                                                                                >
+                                                                                    <UserPlus className="size-4" />
+                                                                                </Button>
                                                                             </TooltipTrigger>
-                                                                            <TooltipContent className="font-medium text-xs">{t.name}</TooltipContent>
+                                                                            <TooltipContent>
+                                                                                Manage
+                                                                                Qualified
+                                                                                Teachers
+                                                                            </TooltipContent>
                                                                         </Tooltip>
-                                                                    ))}
-                                                                    {sub.teachers.length === 0 && (
-                                                                        <span className="text-xs text-muted-foreground italic">No qualified teachers</span>
-                                                                    )}
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell className="text-right pr-6">
-                                                                <div className="flex justify-end gap-2">
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button 
-                                                                                variant="ghost" 
-                                                                                size="icon" 
-                                                                                className="size-8 text-muted-foreground hover:text-primary"
-                                                                                onClick={() => {
-                                                                                    setSelectedSubject(sub);
-                                                                                    certifyForm.setData('teacher_ids', sub.teachers.map(t => t.id));
-                                                                                    setIsCertifyOpen(true);
-                                                                                }}
-                                                                            >
-                                                                                <UserPlus className="size-4" />
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>Manage Qualified Teachers</TooltipContent>
-                                                                    </Tooltip>
 
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button 
-                                                                                variant="ghost" 
-                                                                                size="icon" 
-                                                                                className="size-8 text-muted-foreground hover:text-primary"
-                                                                                onClick={() => {
-                                                                                    setSelectedSubject(sub);
-                                                                                    editForm.setData({
-                                                                                        subject_code: sub.subject_code,
-                                                                                        subject_name: sub.subject_name,
-                                                                                    });
-                                                                                    setIsEditOpen(true);
-                                                                                }}
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger
+                                                                                asChild
                                                                             >
-                                                                                <Edit2 className="size-4" />
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>Edit Details</TooltipContent>
-                                                                    </Tooltip>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="size-8 text-muted-foreground hover:text-primary"
+                                                                                    onClick={() => {
+                                                                                        setSelectedSubject(
+                                                                                            sub,
+                                                                                        );
+                                                                                        editForm.setData(
+                                                                                            {
+                                                                                                subject_code:
+                                                                                                    sub.subject_code,
+                                                                                                subject_name:
+                                                                                                    sub.subject_name,
+                                                                                            },
+                                                                                        );
+                                                                                        setIsEditOpen(
+                                                                                            true,
+                                                                                        );
+                                                                                    }}
+                                                                                >
+                                                                                    <Edit2 className="size-4" />
+                                                                                </Button>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                Edit
+                                                                                Details
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
 
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button 
-                                                                                variant="ghost" 
-                                                                                size="icon" 
-                                                                                className="size-8 text-muted-foreground hover:text-destructive"
-                                                                                onClick={() => handleDeleteSubject(sub.id)}
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger
+                                                                                asChild
                                                                             >
-                                                                                <Trash2 className="size-4" />
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>Delete Subject</TooltipContent>
-                                                                    </Tooltip>
-                                                                </div>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                    {grade.subjects.length === 0 && (
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="size-8 text-muted-foreground hover:text-destructive"
+                                                                                    onClick={() =>
+                                                                                        handleDeleteSubject(
+                                                                                            sub.id,
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    <Trash2 className="size-4" />
+                                                                                </Button>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                Delete
+                                                                                Subject
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </div>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ),
+                                                    )}
+                                                    {grade.subjects.length ===
+                                                        0 && (
                                                         <TableRow>
-                                                            <TableCell colSpan={4} className="h-24 text-center">
-                                                                <p className="text-sm text-muted-foreground">No subjects defined for this level</p>
+                                                            <TableCell
+                                                                colSpan={4}
+                                                                className="h-24 text-center"
+                                                            >
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    No subjects
+                                                                    defined for
+                                                                    this level
+                                                                </p>
                                                             </TableCell>
                                                         </TableRow>
                                                     )}
@@ -421,36 +562,57 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                     </Card>
 
                     {/* Modals */}
-                    <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
+                    <Dialog
+                        open={isAddSubjectOpen}
+                        onOpenChange={setIsAddSubjectOpen}
+                    >
                         <DialogContent className="sm:max-w-[500px]">
                             <DialogHeader>
                                 <DialogTitle>New Subject Entry</DialogTitle>
                                 <DialogDescription>
-                                    Define a core academic subject for <span className="text-primary font-medium">{currentGrade?.name}</span>.
+                                    Define a core academic subject for{' '}
+                                    <span className="font-medium text-primary">
+                                        {currentGrade?.name}
+                                    </span>
+                                    .
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-6 py-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-2">
-                                        <Label className="text-xs text-muted-foreground">Subject Code</Label>
-                                        <Input 
-                                            placeholder="MATH7" 
+                                        <Label className="text-xs text-muted-foreground">
+                                            Subject Code
+                                        </Label>
+                                        <Input
+                                            placeholder="MATH7"
                                             className="uppercase"
                                             value={addForm.data.subject_code}
-                                            onChange={e => addForm.setData('subject_code', e.target.value)}
+                                            onChange={(e) =>
+                                                addForm.setData(
+                                                    'subject_code',
+                                                    e.target.value,
+                                                )
+                                            }
                                         />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label className="text-xs text-muted-foreground">Descriptive Title</Label>
-                                        <Input 
-                                            placeholder="Mathematics 7" 
+                                        <Label className="text-xs text-muted-foreground">
+                                            Descriptive Title
+                                        </Label>
+                                        <Input
+                                            placeholder="Mathematics 7"
                                             value={addForm.data.subject_name}
-                                            onChange={e => addForm.setData('subject_name', e.target.value)}
+                                            onChange={(e) =>
+                                                addForm.setData(
+                                                    'subject_name',
+                                                    e.target.value,
+                                                )
+                                            }
                                         />
                                     </div>
                                 </div>
-                                
-                                <FacultyCertificationList 
+
+                                <FacultyCertificationList
                                     teachers={teachers}
                                     selectedIds={addForm.data.teacher_ids}
                                     searchQuery={searchQuery}
@@ -460,33 +622,62 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                                 />
                             </div>
                             <DialogFooter>
-                                <Button variant="outline" onClick={() => setIsAddSubjectOpen(false)}>Cancel</Button>
-                                <Button onClick={handleAddSubject} disabled={addForm.processing}>Save to Curriculum</Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setIsAddSubjectOpen(false)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={handleAddSubject}
+                                    disabled={addForm.processing}
+                                >
+                                    Save to Curriculum
+                                </Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
 
-                    <Dialog open={isCertifyOpen} onOpenChange={setIsCertifyOpen}>
+                    <Dialog
+                        open={isCertifyOpen}
+                        onOpenChange={setIsCertifyOpen}
+                    >
                         <DialogContent className="sm:max-w-[500px]">
                             <DialogHeader>
                                 <DialogTitle>Qualified Teachers</DialogTitle>
                                 <DialogDescription>
-                                    Managing qualified teachers for <span className="text-primary font-medium">{selectedSubject?.subject_name}</span>.
+                                    Managing qualified teachers for{' '}
+                                    <span className="font-medium text-primary">
+                                        {selectedSubject?.subject_name}
+                                    </span>
+                                    .
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="py-4">
-                                <FacultyCertificationList 
+                                <FacultyCertificationList
                                     teachers={teachers}
                                     selectedIds={certifyForm.data.teacher_ids}
                                     searchQuery={searchQuery}
                                     onSearchChange={setSearchQuery}
-                                    onToggle={(id) => toggleTeacher(id, 'certify')}
+                                    onToggle={(id) =>
+                                        toggleTeacher(id, 'certify')
+                                    }
                                     filteredTeachers={filteredTeachers}
                                 />
                             </div>
                             <DialogFooter>
-                                <Button variant="outline" onClick={() => setIsCertifyOpen(false)}>Cancel</Button>
-                                <Button onClick={handleCertify} disabled={certifyForm.processing}>Update List</Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setIsCertifyOpen(false)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={handleCertify}
+                                    disabled={certifyForm.processing}
+                                >
+                                    Update List
+                                </Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
@@ -495,32 +686,58 @@ export default function CurriculumManager({ gradeLevels, teachers }: { gradeLeve
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Modify Subject</DialogTitle>
-                                <DialogDescription>Update the structural details for this academic subject.</DialogDescription>
+                                <DialogDescription>
+                                    Update the structural details for this
+                                    academic subject.
+                                </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
                                 <div className="grid gap-2">
-                                    <Label className="text-xs text-muted-foreground">Subject Code</Label>
-                                    <Input 
+                                    <Label className="text-xs text-muted-foreground">
+                                        Subject Code
+                                    </Label>
+                                    <Input
                                         className="uppercase"
                                         value={editForm.data.subject_code}
-                                        onChange={e => editForm.setData('subject_code', e.target.value)}
+                                        onChange={(e) =>
+                                            editForm.setData(
+                                                'subject_code',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label className="text-xs text-muted-foreground">Descriptive Title</Label>
-                                    <Input 
+                                    <Label className="text-xs text-muted-foreground">
+                                        Descriptive Title
+                                    </Label>
+                                    <Input
                                         value={editForm.data.subject_name}
-                                        onChange={e => editForm.setData('subject_name', e.target.value)}
+                                        onChange={(e) =>
+                                            editForm.setData(
+                                                'subject_name',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                             </div>
                             <DialogFooter>
-                                <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                                <Button onClick={handleUpdateSubject} disabled={editForm.processing}>Update Details</Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setIsEditOpen(false)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={handleUpdateSubject}
+                                    disabled={editForm.processing}
+                                >
+                                    Update Details
+                                </Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
-
                 </div>
             </TooltipProvider>
         </AppLayout>
