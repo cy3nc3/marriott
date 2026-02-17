@@ -46,59 +46,52 @@ export default function GradingSheet() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Grading Sheet" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
-                
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex flex-wrap items-center gap-4">
-                        <div className="space-y-1">
-                            <Label className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">Section & Subject</Label>
-                            <div className="flex items-center gap-2">
-                                <Select defaultValue="rizal">
-                                    <SelectTrigger className="h-9 w-40 font-bold border-primary/20">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="rizal">7 - Rizal</SelectItem>
-                                        <SelectItem value="bonifacio">7 - Bonifacio</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Select defaultValue="math">
-                                    <SelectTrigger className="h-9 w-40 font-bold border-primary/20">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="math">Mathematics 7</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <Label className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">Quarter</Label>
-                            <Select defaultValue="1st">
-                                <SelectTrigger className="h-9 w-24 font-bold border-primary/20">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="1st">1st Qtr</SelectItem>
-                                    <SelectItem value="2nd">2nd Qtr</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Select defaultValue="rizal">
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="rizal">7 - Rizal</SelectItem>
+                                <SelectItem value="bonifacio">7 - Bonifacio</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        <Select defaultValue="math">
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="math">Mathematics 7</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        <Select defaultValue="1st">
+                            <SelectTrigger className="w-[120px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="1st">1st Qtr</SelectItem>
+                                <SelectItem value="2nd">2nd Qtr</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="gap-2 border-primary/20" onClick={() => setIsRubricModalOpen(true)}>
-                            <Settings2 className="size-4 text-primary" />
+                        <Button variant="outline" size="sm" className="gap-2" onClick={() => setIsRubricModalOpen(true)}>
+                            <Settings2 className="size-4" />
                             Configure Rubric
                         </Button>
-                        <Button size="sm" className="gap-2 bg-green-600 hover:bg-green-700">
+                        <Button size="sm" className="gap-2">
                             <CheckCircle2 className="size-4" />
                             Finalize Grades
                         </Button>
                     </div>
                 </div>
 
-                <Card className="overflow-hidden shadow-md">
+                <Card>
                     <div className="flex items-center justify-between border-b bg-muted/30 p-4">
                         <div className="flex gap-4">
                             <div className="flex items-center gap-2">
