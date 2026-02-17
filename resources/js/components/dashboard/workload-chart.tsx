@@ -1,4 +1,11 @@
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+    Bar,
+    BarChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface WorkloadChartProps {
@@ -14,7 +21,11 @@ export function WorkloadChart({ data }: WorkloadChartProps) {
             <CardContent className="pl-2">
                 <div className="h-[350px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data} layout="vertical" margin={{ left: 20 }}>
+                        <BarChart
+                            data={data}
+                            layout="vertical"
+                            margin={{ left: 20 }}
+                        >
                             <XAxis type="number" hide />
                             <YAxis
                                 dataKey="name"

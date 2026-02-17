@@ -117,7 +117,12 @@ export default function SectionManager({
             ? editForm.data.adviser_id
             : addForm.data.adviser_id;
         return teachers.find((t) => t.id === adviserId);
-    }, [teachers, editForm.data.adviser_id, addForm.data.adviser_id, isEditOpen]);
+    }, [
+        teachers,
+        editForm.data.adviser_id,
+        addForm.data.adviser_id,
+        isEditOpen,
+    ]);
 
     const filteredTeachers = useMemo(() => {
         if (!searchQuery) return [];
@@ -426,9 +431,7 @@ export default function SectionManager({
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="size-10 border-2 border-background shadow-sm">
                                                     <AvatarFallback className="text-xs font-semibold">
-                                                        {
-                                                            currentAdviser.initial
-                                                        }
+                                                        {currentAdviser.initial}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div>
@@ -565,9 +568,7 @@ export default function SectionManager({
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="size-10 border-2 border-background shadow-sm">
                                                     <AvatarFallback className="text-xs font-semibold">
-                                                        {
-                                                            currentAdviser.initial
-                                                        }
+                                                        {currentAdviser.initial}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div>

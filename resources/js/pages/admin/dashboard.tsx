@@ -1,7 +1,5 @@
 import { Head } from '@inertiajs/react';
-import {
-    BookOpen, GraduationCap, School, Users
-} from 'lucide-react';
+import { BookOpen, GraduationCap, School, Users } from 'lucide-react';
 import { EnrollmentChart } from '@/components/dashboard/enrollment-chart';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { TrendChart } from '@/components/dashboard/trend-chart';
@@ -20,7 +18,11 @@ interface DashboardProps {
     charts: {
         enrollmentByGrade: { name: string; count: number }[];
         teacherWorkload: { name: string; full_name: string; count: number }[];
-        enrollmentForecast: { year: string; enrollees: number | null; isProjected: boolean }[];
+        enrollmentForecast: {
+            year: string;
+            enrollees: number | null;
+            isProjected: boolean;
+        }[];
     };
     currentYear?: {
         name: string;
@@ -35,7 +37,11 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Dashboard({ stats, charts, currentYear }: DashboardProps) {
+export default function Dashboard({
+    stats,
+    charts,
+    currentYear,
+}: DashboardProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Admin Dashboard" />
@@ -44,7 +50,11 @@ export default function Dashboard({ stats, charts, currentYear }: DashboardProps
                     <StatCard
                         title="Total Students"
                         value={stats.totalStudents}
-                        description={currentYear ? `Active in ${currentYear.name}` : 'No active year'}
+                        description={
+                            currentYear
+                                ? `Active in ${currentYear.name}`
+                                : 'No active year'
+                        }
                         icon={GraduationCap}
                     />
                     <StatCard
@@ -64,7 +74,11 @@ export default function Dashboard({ stats, charts, currentYear }: DashboardProps
                         value={stats.unassignedSubjects}
                         description="Subjects without teachers"
                         icon={BookOpen}
-                        className={stats.unassignedSubjects > 0 ? "border-destructive/50 bg-destructive/10" : ""}
+                        className={
+                            stats.unassignedSubjects > 0
+                                ? 'border-destructive/50 bg-destructive/10'
+                                : ''
+                        }
                     />
                 </div>
 
@@ -78,9 +92,9 @@ export default function Dashboard({ stats, charts, currentYear }: DashboardProps
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                     <div className="col-span-3">
+                    <div className="col-span-3">
                         <WorkloadChart data={charts.teacherWorkload} />
-                     </div>
+                    </div>
                 </div>
             </div>
         </AppLayout>

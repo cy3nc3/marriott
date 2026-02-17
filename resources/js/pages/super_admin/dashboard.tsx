@@ -47,27 +47,33 @@ export default function Dashboard() {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                    <div className="col-span-4 relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card">
+                    <div className="relative col-span-4 aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 bg-card dark:border-sidebar-border">
                         <div className="absolute inset-0 p-6">
-                            <h3 className="text-sm font-black uppercase tracking-wider text-muted-foreground mb-4">System Activity</h3>
+                            <h3 className="mb-4 text-sm font-black tracking-wider text-muted-foreground uppercase">
+                                System Activity
+                            </h3>
                             <PlaceholderPattern className="size-full stroke-neutral-900/10 dark:stroke-neutral-100/10" />
                         </div>
                     </div>
-                    <div className="col-span-3 relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card">
+                    <div className="relative col-span-3 aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 bg-card dark:border-sidebar-border">
                         <div className="absolute inset-0 p-6">
-                            <h3 className="text-sm font-black uppercase tracking-wider text-muted-foreground mb-4">User Distribution</h3>
+                            <h3 className="mb-4 text-sm font-black tracking-wider text-muted-foreground uppercase">
+                                User Distribution
+                            </h3>
                             <PlaceholderPattern className="size-full stroke-neutral-900/10 dark:stroke-neutral-100/10" />
                         </div>
                     </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                     <div className="col-span-3 relative min-h-[300px] overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card">
+                    <div className="relative col-span-3 min-h-[300px] overflow-hidden rounded-xl border border-sidebar-border/70 bg-card dark:border-sidebar-border">
                         <div className="absolute inset-0 p-6">
-                            <h3 className="text-sm font-black uppercase tracking-wider text-muted-foreground mb-4">Audit Logs</h3>
+                            <h3 className="mb-4 text-sm font-black tracking-wider text-muted-foreground uppercase">
+                                Audit Logs
+                            </h3>
                             <PlaceholderPattern className="size-full stroke-neutral-900/10 dark:stroke-neutral-100/10" />
                         </div>
-                     </div>
+                    </div>
                 </div>
             </div>
         </AppLayout>

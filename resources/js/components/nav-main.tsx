@@ -38,13 +38,17 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                         <Collapsible
                             key={item.title}
                             asChild
-                            defaultOpen={isCurrentUrl(item.href) || isChildActive}
+                            defaultOpen={
+                                isCurrentUrl(item.href) || isChildActive
+                            }
                             className="group/collapsible"
                         >
                             <SidebarMenuItem>
                                 <SidebarMenuButton
                                     asChild
-                                    isActive={isCurrentUrl(item.href) && !hasItems}
+                                    isActive={
+                                        isCurrentUrl(item.href) && !hasItems
+                                    }
                                     tooltip={{ children: item.title }}
                                 >
                                     <Link href={item.href} prefetch>
@@ -63,7 +67,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                                 </span>
                                             </SidebarMenuAction>
                                         </CollapsibleTrigger>
-                                        <CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden">
+                                        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                                             <SidebarMenuSub>
                                                 {item.items?.map((subItem) => (
                                                     <SidebarMenuSubItem

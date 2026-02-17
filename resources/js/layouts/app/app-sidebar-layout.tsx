@@ -15,10 +15,10 @@ export default function AppSidebarLayout({
             <AppSidebar />
             <AppContent
                 variant="sidebar"
-                className="flex flex-1 flex-col min-h-0 overflow-hidden"
+                className="flex min-h-0 flex-1 flex-col overflow-hidden"
             >
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
-                <div className="relative flex-1 min-h-0">
+                <div className="relative min-h-0 flex-1">
                     <SimpleBar
                         style={{ position: 'absolute', inset: 0 }}
                         className="overflow-x-hidden"
