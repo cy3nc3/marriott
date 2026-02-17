@@ -1,8 +1,8 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Save, School, Cog, Image as ImageIcon, Database, Clock, RefreshCcw, UploadCloud, Settings2, History, RotateCcw, AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import {
     Card,
     CardContent,
@@ -10,12 +10,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import {
-    Field,
-    FieldGroup,
-    FieldLabel,
-    FieldDescription as UIFieldDescription,
-} from '@/components/ui/field';
 import {
     Dialog,
     DialogContent,
@@ -26,12 +20,21 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+    Field,
+    FieldGroup,
+    FieldLabel,
+    FieldDescription as UIFieldDescription,
+} from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import {
     Table,
     TableBody,
@@ -40,11 +43,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
-import { useState } from 'react';
 import type { BreadcrumbItem } from '@/types';
 import { store } from '@/routes/super_admin/system_settings';
 

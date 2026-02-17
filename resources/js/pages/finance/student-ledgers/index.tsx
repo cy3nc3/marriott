@@ -2,9 +2,7 @@ import { Head } from '@inertiajs/react';
 import { Printer, Search } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ButtonGroup } from '@/components/ui/button-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
     Table,
@@ -28,7 +26,7 @@ export default function StudentLedgers() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Student Ledger" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
+            <div className="flex flex-col gap-6">
                 {/* Print Header (Only visible on print) */}
                 <div className="mb-8 hidden space-y-2 text-center print:block">
                     <h1 className="text-2xl font-bold uppercase">
