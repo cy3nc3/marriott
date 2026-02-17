@@ -1,0 +1,15 @@
+
+> dev
+> vite
+
+6:27:15 PM [vite] (client) info: Types generated for actions, routes, form variants
+  Plugin: @laravel/vite-plugin-wayfinder
+
+  VITE v7.3.1  ready in 2050 ms
+
+  ➜  Local:   http://localhost:5174/
+  ➜  Network: use --host to expose
+
+  LARAVEL v12.50.0  plugin v2.1.0
+
+  ➜  APP_URL: http://localhost
