@@ -60,6 +60,10 @@ const breadcrumbs: BreadcrumbItem[] = [
         title: 'Academic Controls',
         href: '/admin/academic-controls',
     },
+    {
+        title: 'School Year Manager',
+        href: '/admin/academic-controls',
+    },
 ];
 
 interface Props {
@@ -221,7 +225,7 @@ export default function AcademicControls({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Academic Controls" />
+            <Head title="School Year Manager" />
             <div className="flex flex-col gap-6">
                 <Card className="max-h-fit">
                     <CardContent className="pt-6">

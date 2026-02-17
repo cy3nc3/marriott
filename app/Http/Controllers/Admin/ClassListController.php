@@ -13,7 +13,9 @@ class ClassListController extends Controller
 {
     public function index(Request $request): Response
     {
-        $activeYear = AcademicYear::where('status', '!=', 'completed')->first();
+        $activeYear = AcademicYear::where('status', 'ongoing')->first() 
+              ?? AcademicYear::where('status', '!=', 'completed')->first()
+              ?? AcademicYear::orderBy('end_date', 'desc')->first();
 
         if (! $activeYear) {
             return Inertia::render('admin/class-lists/index', [
@@ -24,8 +26,8 @@ class ClassListController extends Controller
 
         $gradeLevels = GradeLevel::with(['sections' => function ($query) use ($activeYear) {
             $query->where('academic_year_id', $activeYear->id)
-                ->withCount('enrollments')
-                ->with(['enrollments.student']);
+                ->withCount(['enrollments' => fn($q) => $q->where('status', 'enrolled')])
+                ->with(['enrollments' => fn($q) => $q->where('status', 'enrolled')->with('student')]);
         }])->orderBy('level_order')->get();
 
         return Inertia::render('admin/class-lists/index', [

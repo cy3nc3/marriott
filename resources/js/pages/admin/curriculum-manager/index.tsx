@@ -50,6 +50,10 @@ import {
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
+        title: 'Academic Controls',
+        href: '/admin/academic-controls',
+    },
+    {
         title: 'Curriculum Manager',
         href: '/admin/curriculum-manager',
     },

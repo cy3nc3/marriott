@@ -21,10 +21,14 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
+        'first_name',
+        'last_name',
         'name',
         'email',
         'password',
+        'birthday',
         'role',
+        'is_active',
     ];
 
     /**
@@ -50,12 +54,19 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'birthday' => 'date',
             'role' => UserRole::class,
+            'is_active' => 'boolean',
         ];
     }
 
     public function teacherSubjects(): BelongsToMany
     {
         return $this->belongsToMany(Subject::class, 'teacher_subjects', 'teacher_id', 'subject_id');
+    }
+
+    public function announcements()
+    {
+        return $this->hasMany(Announcement::class);
     }
 }

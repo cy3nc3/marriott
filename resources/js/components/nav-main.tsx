@@ -28,18 +28,23 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
             <SidebarMenu>
                 {items.map((item) => {
                     const hasItems = item.items && item.items.length > 0;
+                    const isChildActive = hasItems
+                        ? item.items?.some((subItem) =>
+                              isCurrentUrl(subItem.href),
+                          )
+                        : false;
 
                     return (
                         <Collapsible
                             key={item.title}
                             asChild
-                            defaultOpen={isCurrentUrl(item.href)}
+                            defaultOpen={isCurrentUrl(item.href) || isChildActive}
                             className="group/collapsible"
                         >
                             <SidebarMenuItem>
                                 <SidebarMenuButton
                                     asChild
-                                    isActive={isCurrentUrl(item.href)}
+                                    isActive={isCurrentUrl(item.href) && !hasItems}
                                     tooltip={{ children: item.title }}
                                 >
                                     <Link href={item.href} prefetch>
@@ -58,7 +63,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                                 </span>
                                             </SidebarMenuAction>
                                         </CollapsibleTrigger>
-                                        <CollapsibleContent>
+                                        <CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden">
                                             <SidebarMenuSub>
                                                 {item.items?.map((subItem) => (
                                                     <SidebarMenuSubItem

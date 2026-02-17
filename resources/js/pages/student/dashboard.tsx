@@ -31,7 +31,7 @@ export default function Dashboard() {
                             <GraduationCap className="size-4 text-primary" />
                             <span>Grade 7 - Rizal</span>
                             <span className="text-muted-foreground/30">|</span>
-                            <span>Adviser: Mr. Arthur Santos</span>
+                            <span>Adviser: Teacher 1</span>
                         </div>
                     </div>
                 </div>
@@ -52,7 +52,7 @@ export default function Dashboard() {
                                     Mathematics 7
                                 </h2>
                                 <p className="text-xl text-muted-foreground font-medium italic">
-                                    with <span className="font-bold text-primary not-italic">Mr. Arthur Santos</span>
+                                    with <span className="font-bold text-primary not-italic">Teacher 1</span>
                                 </p>
                             </div>
                             <div className="mt-8 flex gap-4">

@@ -17,9 +17,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             AcademicYearSeeder::class,
             GradeLevelSeeder::class,
+            SubjectSeeder::class,
             TeacherSeeder::class,
             SectionSeeder::class,
             StudentSeeder::class,
+            SuperAdminSeeder::class,
         ]);
 
         foreach (UserRole::cases() as $role) {
@@ -28,8 +30,11 @@ class DatabaseSeeder extends Seeder
             User::updateOrCreate(
                 ['email' => "{$prefix}@marriott.edu"],
                 [
+                    'first_name' => 'Test',
+                    'last_name' => $role->label(),
                     'name' => "Test {$role->label()}",
                     'password' => Hash::make('password'),
+                    'birthday' => '1990-01-01',
                     'role' => $role,
                 ]
             );

@@ -15,9 +15,11 @@ import {
     History,
     LayoutGrid,
     Layers,
+    Megaphone,
     Package,
     Receipt,
     Settings,
+    ShieldCheck,
     Tag,
     TrendingUp,
     UserCheck,
@@ -39,6 +41,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+// import { dashboard, super_admin as superAdminRoutes } from '@/routes';
 import type { NavItem, SharedData } from '@/types';
 import AppLogo from './app-logo';
 
@@ -58,6 +61,21 @@ const roleNavItems: Record<string, NavItem[]> = {
             icon: Users,
         },
         {
+            title: 'Announcements',
+            href: '/super-admin/announcements',
+            icon: Megaphone,
+        },
+        {
+            title: 'Audit Logs',
+            href: '/super-admin/audit-logs',
+            icon: History,
+        },
+        {
+            title: 'Permissions',
+            href: '/super-admin/permissions',
+            icon: ShieldCheck,
+        },
+        {
             title: 'System Settings',
             href: '/super-admin/system-settings',
             icon: Settings,
@@ -69,6 +87,10 @@ const roleNavItems: Record<string, NavItem[]> = {
             href: '/admin/academic-controls',
             icon: Calendar,
             items: [
+                {
+                    title: 'School Year Manager',
+                    href: '/admin/academic-controls',
+                },
                 {
                     title: 'Curriculum Manager',
                     href: '/admin/curriculum-manager',

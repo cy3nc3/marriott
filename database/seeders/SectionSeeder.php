@@ -11,27 +11,25 @@ class SectionSeeder extends Seeder
 {
     public function run(): void
     {
-        $activeYear = AcademicYear::where('status', '!=', 'completed')->first();
-        if (! $activeYear) {
-            return;
-        }
-
+        $academicYears = AcademicYear::all();
         $grades = GradeLevel::all();
 
-        foreach ($grades as $grade) {
-            // Create Section - A
-            Section::updateOrCreate([
-                'academic_year_id' => $activeYear->id,
-                'grade_level_id' => $grade->id,
-                'name' => 'Section - A',
-            ]);
+        foreach ($academicYears as $academicYear) {
+            foreach ($grades as $grade) {
+                // Create Section - A
+                Section::updateOrCreate([
+                    'academic_year_id' => $academicYear->id,
+                    'grade_level_id' => $grade->id,
+                    'name' => 'Section - A',
+                ]);
 
-            // Create Section - B
-            Section::updateOrCreate([
-                'academic_year_id' => $activeYear->id,
-                'grade_level_id' => $grade->id,
-                'name' => 'Section - B',
-            ]);
+                // Create Section - B
+                Section::updateOrCreate([
+                    'academic_year_id' => $academicYear->id,
+                    'grade_level_id' => $grade->id,
+                    'name' => 'Section - B',
+                ]);
+            }
         }
     }
 }

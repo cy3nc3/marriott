@@ -67,14 +67,14 @@ export default function Schedule() {
                                     <TableCell key={i} className="border-r p-1.5">
                                         <div className="bg-blue-50 border-l-4 border-blue-500 p-2 h-full rounded shadow-sm">
                                             <p className="font-black text-blue-700 text-xs uppercase">Mathematics 7</p>
-                                            <p className="text-[9px] font-bold text-blue-600/80 uppercase">Mr. Arthur Santos</p>
+                                            <p className="text-[9px] font-bold text-blue-600/80 uppercase">Teacher 1</p>
                                         </div>
                                     </TableCell>
                                 ))}
                                 <TableCell className="p-1.5">
                                     <div className="bg-amber-50 border-l-4 border-amber-500 p-2 h-full rounded shadow-sm">
                                         <p className="font-black text-amber-700 text-xs uppercase">Values Ed (EsP)</p>
-                                        <p className="text-[9px] font-bold text-amber-600/80 uppercase">Ms. Venus Cruz</p>
+                                        <p className="text-[9px] font-bold text-amber-600/80 uppercase">Teacher 2</p>
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -92,7 +92,7 @@ export default function Schedule() {
                                     <TableCell key={i} className="border-r p-1.5">
                                         <div className="bg-green-50 border-l-4 border-green-500 p-2 h-full rounded shadow-sm">
                                             <p className="font-black text-green-700 text-xs uppercase">Science 7</p>
-                                            <p className="text-[9px] font-bold text-green-600/80 uppercase">Ms. Clara Oswald</p>
+                                            <p className="text-[9px] font-bold text-green-600/80 uppercase">Teacher 3</p>
                                         </div>
                                     </TableCell>
                                 ))}

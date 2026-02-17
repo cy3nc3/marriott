@@ -45,6 +45,10 @@ import { store, update, destroy } from '@/routes/admin/section_manager';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
+        title: 'Academic Controls',
+        href: '/admin/academic-controls',
+    },
+    {
         title: 'Section Manager',
         href: '/admin/section-manager',
     },

@@ -38,6 +38,10 @@ import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
+        title: 'Academic Controls',
+        href: '/admin/academic-controls',
+    },
+    {
         title: 'Schedule Builder',
         href: '/admin/schedule-builder',
     },

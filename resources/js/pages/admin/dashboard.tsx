@@ -1,5 +1,7 @@
 import { Head } from '@inertiajs/react';
-import { BookOpen, GraduationCap, School, Users } from 'lucide-react';
+import {
+    BookOpen, GraduationCap, School, Users
+} from 'lucide-react';
 import { EnrollmentChart } from '@/components/dashboard/enrollment-chart';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { TrendChart } from '@/components/dashboard/trend-chart';
@@ -18,7 +20,7 @@ interface DashboardProps {
     charts: {
         enrollmentByGrade: { name: string; count: number }[];
         teacherWorkload: { name: string; full_name: string; count: number }[];
-        enrollmentTrends: { date: string; count: number }[];
+        enrollmentForecast: { year: string; enrollees: number | null; isProjected: boolean }[];
     };
     currentYear?: {
         name: string;
@@ -68,7 +70,7 @@ export default function Dashboard({ stats, charts, currentYear }: DashboardProps
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                     <div className="col-span-4">
-                        <TrendChart data={charts.enrollmentTrends} />
+                        <TrendChart data={charts.enrollmentForecast} />
                     </div>
                     <div className="col-span-3">
                         <EnrollmentChart data={charts.enrollmentByGrade} />

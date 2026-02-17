@@ -39,7 +39,7 @@ class DashboardController extends Controller
 
         // 2. Charts Data
         $enrollmentByGrade = [];
-        $enrollmentTrends = [];
+        $enrollmentForecast = [];
 
         if ($currentYear) {
             $enrollmentByGrade = Enrollment::where('enrollments.academic_year_id', $currentYear->id)
@@ -54,15 +54,35 @@ class DashboardController extends Controller
                     'count' => $item->count,
                 ]);
 
-            $enrollmentTrends = Enrollment::where('academic_year_id', $currentYear->id)
-                ->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
-                ->groupBy('date')
-                ->orderBy('date')
-                ->get()
-                ->map(fn ($item) => [
-                    'date' => $item->date,
-                    'count' => $item->count,
-                ]);
+            // Yearly Enrollment Forecast
+            $academicYears = AcademicYear::orderBy('start_date', 'asc')->get();
+            
+            foreach ($academicYears as $year) {
+                $count = Enrollment::where('academic_year_id', $year->id)
+                    ->where('status', 'enrolled')
+                    ->count();
+
+                $enrollmentForecast[] = [
+                    'year' => $year->name,
+                    'enrollees' => $count > 0 ? $count : null,
+                    'isProjected' => false,
+                ];
+            }
+
+            // Add projection for next year if we have data
+            if ($academicYears->isNotEmpty()) {
+                $lastYear = $academicYears->last();
+                $lastCount = Enrollment::where('academic_year_id', $lastYear->id)->count();
+                $nextYearStart = (int) explode('-', $lastYear->name)[1];
+                $nextYearName = $nextYearStart . '-' . ($nextYearStart + 1);
+
+                // Simple projection: 15% increase
+                $enrollmentForecast[] = [
+                    'year' => $nextYearName,
+                    'enrollees' => (int) ($lastCount * 1.15),
+                    'isProjected' => true,
+                ];
+            }
         }
 
         $teacherWorkload = TeacherSubject::select('teacher_id', DB::raw('count(*) as count'))
@@ -87,7 +107,7 @@ class DashboardController extends Controller
             'charts' => [
                 'enrollmentByGrade' => $enrollmentByGrade,
                 'teacherWorkload' => $teacherWorkload,
-                'enrollmentTrends' => $enrollmentTrends,
+                'enrollmentForecast' => $enrollmentForecast,
             ],
             'currentYear' => $currentYear,
         ]);
