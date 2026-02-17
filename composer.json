@@ -41,12 +41,19 @@
     },
     "scripts": {
         "setup": [
-            "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
-            "@php artisan key:generate",
-            "@php artisan boost:install --mcp",
-            "@php artisan migrate --seed --force",
             "npm install",
+            "@php artisan key:generate --ansi",
+            "@php artisan boost:install --mcp",
+            "@echo ' '",
+            "@echo '✅ Initial setup complete.'",
+            "@echo ' '",
+            "@echo 'Next steps:'",
+            "@echo '  1. Configure your database credentials in the .env file.'",
+            "@echo '  2. Run 'composer run setup:finish' to build the database and assets.'"
+        ],
+        "setup:finish": [
+            "@php artisan migrate --seed --force",
             "npm run build"
         ],
         "dev": [
