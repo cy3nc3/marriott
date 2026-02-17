@@ -48,17 +48,6 @@ export default function StudentDirectory() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Student Directory" />
             <div className="flex flex-col gap-6">
-                
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-                    <div className="flex flex-col">
-                        <h1 className="text-2xl font-black tracking-tight italic">Student <span className="text-primary not-italic">Directory</span></h1>
-                    </div>
-                    <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5">
-                        <UploadCloud className="size-4 text-primary" />
-                        Upload SF1 (LIS Sync)
-                    </Button>
-                </div>
-
                 <Card>
                     <CardHeader className="bg-muted/30 border-b py-4">
                         <div className="flex flex-wrap gap-4 items-center">
@@ -86,6 +75,10 @@ export default function StudentDirectory() {
                                     <SelectItem value="8">Grade 8</SelectItem>
                                 </SelectContent>
                             </Select>
+                            <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5 ml-auto">
+                                <UploadCloud className="size-4 text-primary" />
+                                Upload SF1 (LIS Sync)
+                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">

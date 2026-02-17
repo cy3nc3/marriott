@@ -40,13 +40,6 @@ export default function Enrollment() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Quick Enrollment" />
             <div className="flex flex-col gap-6">
-                
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex flex-col">
-                        <h1 className="text-2xl font-black tracking-tight italic">Student <span className="text-primary not-italic">Enrollment</span></h1>
-                    </div>
-                </div>
-
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Enrollment Form (Stub Entry) */}
                     <Card className="lg:col-span-1 border-primary/20 shadow-sm h-fit">

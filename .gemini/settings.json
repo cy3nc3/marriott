@@ -1,10 +1,9 @@
 {
     "mcpServers": {
         "laravel-boost": {
-            "command": "wsl.exe",
+            "command": "php",
             "args": [
-                "/usr/bin/php8.3",
-                "/home/jade/projects/marriott/artisan",
+                "artisan",
                 "boost:mcp"
             ]
         }

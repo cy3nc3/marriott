@@ -27,13 +27,6 @@ export default function Dashboard() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Registrar Dashboard" />
             <div className="flex flex-col gap-6">
-                
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex flex-col">
-                        <h1 className="text-2xl font-black tracking-tight italic">Registrar <span className="text-primary not-italic">Dashboard</span></h1>
-                    </div>
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Card className="shadow-sm border-primary/10">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
