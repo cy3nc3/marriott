@@ -47,8 +47,8 @@ export default function CashierPanel() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Cashier Panel" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
-                <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="flex flex-col gap-6">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                     {/* Left Column: Student Context */}
                     <div className="flex flex-col gap-4 lg:col-span-1">
                         {/* Search Bar */}

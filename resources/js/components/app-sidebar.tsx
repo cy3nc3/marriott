@@ -40,10 +40,10 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
 // import { dashboard, super_admin as superAdminRoutes } from '@/routes';
 import type { NavItem, SharedData } from '@/types';
 import AppLogo from './app-logo';
+import { dashboard } from '@/routes';
 
 const footerNavItems: NavItem[] = [
     {

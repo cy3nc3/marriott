@@ -33,7 +33,7 @@ export default function TransactionHistory() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Transaction History" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
+            <div className="flex flex-col gap-6">
                 <Card>
                     <CardHeader className="flex flex-col items-start justify-between border-b md:flex-row md:items-center">
                         <CardTitle className="text-lg">

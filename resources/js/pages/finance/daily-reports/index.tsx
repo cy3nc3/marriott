@@ -25,7 +25,7 @@ export default function DailyReports() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Daily Reports" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
+            <div className="flex flex-col gap-6">
                 {/* Header & Action */}
                 <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-bold tracking-tight">

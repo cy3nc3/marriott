@@ -1,9 +1,9 @@
 import { Head } from '@inertiajs/react';
-import { Plus, UserPlus, Info, Tag, Search, CreditCard } from 'lucide-react';
+import { Plus, UserPlus, Info, Search, CreditCard } from 'lucide-react';
 import { useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -46,15 +46,7 @@ export default function DiscountManager() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Discount Manager" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
-                
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-                    <div className="flex items-center gap-2">
-                        <Tag className="size-6 text-primary" />
-                        <h1 className="text-2xl font-black tracking-tight">Discounts & Scholarships</h1>
-                    </div>
-                </div>
-
+            <div className="flex flex-col gap-6">
                 <Alert className="bg-blue-50 border-blue-200">
                     <Info className="size-4 text-blue-700" />
                     <AlertDescription className="text-xs font-medium text-blue-800">

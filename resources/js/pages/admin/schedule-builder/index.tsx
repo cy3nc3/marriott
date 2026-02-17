@@ -21,8 +21,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -33,8 +33,8 @@ import {
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
-import { store, update, destroy } from '@/routes/admin/schedule_builder';
 import type { BreadcrumbItem } from '@/types';
+import { store, update, destroy } from '@/routes/admin/schedule_builder';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

@@ -46,7 +46,7 @@ export default function ProductInventory() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Product Inventory" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
+            <div className="flex flex-col gap-6">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b">
                         <CardTitle className="text-lg">

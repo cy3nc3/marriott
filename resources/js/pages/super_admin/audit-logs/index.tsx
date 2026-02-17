@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { 
     Search,
     History,
@@ -24,7 +25,6 @@ import {
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
-import { router } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
