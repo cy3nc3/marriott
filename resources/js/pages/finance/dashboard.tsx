@@ -1,10 +1,5 @@
 import { Head } from '@inertiajs/react';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -25,16 +20,20 @@ export default function Dashboard() {
                     {/* Card 1: Collection Efficiency */}
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-lg font-medium">Collection Efficiency</CardTitle>
+                            <CardTitle className="text-lg font-medium">
+                                Collection Efficiency
+                            </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-semibold">85% Collected</span>
+                            <div className="mb-2 flex items-center justify-between">
+                                <span className="text-sm font-semibold">
+                                    85% Collected
+                                </span>
                             </div>
-                            <div className="w-full bg-muted rounded-full h-4">
-                                <div className="bg-primary h-4 rounded-full w-[85%]"></div>
+                            <div className="h-4 w-full rounded-full bg-muted">
+                                <div className="h-4 w-[85%] rounded-full bg-primary"></div>
                             </div>
-                            <p className="mt-4 text-sm font-semibold text-muted-foreground text-center">
+                            <p className="mt-4 text-center text-sm font-semibold text-muted-foreground">
                                 85% Paid / 15% Outstanding
                             </p>
                         </CardContent>
@@ -43,7 +42,9 @@ export default function Dashboard() {
                     {/* Card 2: Cash in Drawer */}
                     <Card className="flex flex-col items-center justify-center text-center">
                         <CardContent className="p-6">
-                            <div className="text-sm uppercase tracking-wide font-semibold text-muted-foreground mb-4">Cash in Drawer (Today)</div>
+                            <div className="mb-4 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                                Cash in Drawer (Today)
+                            </div>
                             <div className="text-4xl font-extrabold text-primary">
                                 ₱ 45,200.00
                             </div>
@@ -53,11 +54,15 @@ export default function Dashboard() {
                     {/* Card 3: Revenue Forecast */}
                     <Card className="flex flex-col items-center justify-center text-center">
                         <CardContent className="p-6">
-                            <div className="text-sm uppercase tracking-wide font-semibold text-muted-foreground mb-4">Revenue Forecast (Next Month)</div>
+                            <div className="mb-4 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                                Revenue Forecast (Next Month)
+                            </div>
                             <div className="text-3xl font-bold">
                                 ₱ 1,250,000
                             </div>
-                            <p className="mt-2 text-sm font-semibold text-muted-foreground italic">Based on upcoming due dates</p>
+                            <p className="mt-2 text-sm font-semibold text-muted-foreground italic">
+                                Based on upcoming due dates
+                            </p>
                         </CardContent>
                     </Card>
                 </div>

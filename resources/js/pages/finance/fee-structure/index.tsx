@@ -48,11 +48,13 @@ export default function FeeStructure() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/10">
                 <div className="space-y-1">
                     <CardTitle className="text-lg">Grade {grade}</CardTitle>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Base Assessment</p>
+                    <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                        Base Assessment
+                    </p>
                 </div>
                 <Button
                     size="xs"
-                    className="gap-1 h-7"
+                    className="h-7 gap-1"
                     onClick={() => setIsAddModalOpen(true)}
                 >
                     <Plus className="size-3" />
@@ -65,7 +67,9 @@ export default function FeeStructure() {
                         <TableRow>
                             <TableHead className="pl-6">Description</TableHead>
                             <TableHead className="text-center">Type</TableHead>
-                            <TableHead className="text-right pr-6">Amount</TableHead>
+                            <TableHead className="pr-6 text-right">
+                                Amount
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -76,12 +80,12 @@ export default function FeeStructure() {
                             <TableCell className="text-center">
                                 <Badge
                                     variant="outline"
-                                    className="border-blue-200 bg-blue-50 text-blue-700 text-[10px]"
+                                    className="border-blue-200 bg-blue-50 text-[10px] text-blue-700"
                                 >
                                     Tuition
                                 </Badge>
                             </TableCell>
-                            <TableCell className="text-right pr-6 font-mono font-bold">
+                            <TableCell className="pr-6 text-right font-mono font-bold">
                                 20,000.00
                             </TableCell>
                         </TableRow>
@@ -90,20 +94,27 @@ export default function FeeStructure() {
                                 Miscellaneous Fee
                             </TableCell>
                             <TableCell className="text-center">
-                                <Badge variant="secondary" className="text-[10px]">Misc</Badge>
+                                <Badge
+                                    variant="secondary"
+                                    className="text-[10px]"
+                                >
+                                    Misc
+                                </Badge>
                             </TableCell>
-                            <TableCell className="text-right pr-6 font-mono font-bold">
+                            <TableCell className="pr-6 text-right font-mono font-bold">
                                 5,000.00
                             </TableCell>
                         </TableRow>
                     </TableBody>
                 </Table>
             </CardContent>
-            <div className="flex items-center justify-between border-t p-4 px-6 bg-muted/5">
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">
+            <div className="flex items-center justify-between border-t bg-muted/5 p-4 px-6">
+                <span className="text-[10px] font-black tracking-tighter text-muted-foreground uppercase">
                     Annual Total:
                 </span>
-                <span className="font-mono text-xl font-black text-primary">₱ {total}</span>
+                <span className="font-mono text-xl font-black text-primary">
+                    ₱ {total}
+                </span>
             </div>
         </Card>
     );
@@ -112,33 +123,44 @@ export default function FeeStructure() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Fee Structure" />
             <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
-                
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                     <div className="flex items-center gap-2">
                         <CalendarDays className="size-6 text-primary" />
-                        <h1 className="text-2xl font-black tracking-tight">Fee Configuration</h1>
+                        <h1 className="text-2xl font-black tracking-tight">
+                            Fee Configuration
+                        </h1>
                     </div>
                     <div className="flex items-center gap-3">
                         <Select defaultValue="2025-2026">
-                            <SelectTrigger className="w-[180px] h-9">
+                            <SelectTrigger className="h-9 w-[180px]">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="2025-2026">SY 2025-2026</SelectItem>
-                                <SelectItem value="2024-2025">SY 2024-2025</SelectItem>
+                                <SelectItem value="2025-2026">
+                                    SY 2025-2026
+                                </SelectItem>
+                                <SelectItem value="2024-2025">
+                                    SY 2024-2025
+                                </SelectItem>
                             </SelectContent>
                         </Select>
-                        <Button variant="outline" size="sm" className="gap-2 border-primary/20">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2 border-primary/20"
+                        >
                             <RefreshCcw className="size-3.5 text-primary" />
                             Sync from Previous
                         </Button>
                     </div>
                 </div>
 
-                <Alert className="bg-primary/5 border-primary/10">
+                <Alert className="border-primary/10 bg-primary/5">
                     <Info className="size-4 text-primary" />
                     <AlertDescription className="text-xs font-medium text-primary/80">
-                        Fees are automatically carried over from the previous school year. Changes here only affect the selected academic cycle.
+                        Fees are automatically carried over from the previous
+                        school year. Changes here only affect the selected
+                        academic cycle.
                     </AlertDescription>
                 </Alert>
 

@@ -1,19 +1,10 @@
 import { Head } from '@inertiajs/react';
-import { 
-    Search,
-    History,
-    Eye,
-    ShieldAlert
-} from 'lucide-react';
+import { Search, History, Eye, ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
-import { Badge } from "@/components/ui/badge"
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-} from '@/components/ui/card';
-import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
     Table,
     TableBody,
@@ -58,7 +49,11 @@ export default function AuditLogs({ logs, filters }: Props) {
 
     const handleSearch = (val: string) => {
         setSearchQuery(val);
-        router.get('/super-admin/audit-logs', { search: val }, { preserveState: true, replace: true });
+        router.get(
+            '/super-admin/audit-logs',
+            { search: val },
+            { preserveState: true, replace: true },
+        );
     };
 
     return (
@@ -66,54 +61,87 @@ export default function AuditLogs({ logs, filters }: Props) {
             <Head title="Audit Logs" />
             <div className="flex flex-col gap-6">
                 <Card className="flex flex-col pt-0">
-                    <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b">
+                    <CardHeader className="flex flex-col items-start justify-between gap-4 border-b md:flex-row md:items-center">
                         <div className="flex items-center gap-3">
                             <div className="relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Search logs (action, user, model)..."
-                                    className="pl-9 h-9 w-[350px] text-xs font-bold"
+                                    className="h-9 w-[350px] pl-9 text-xs font-bold"
                                     value={searchQuery}
-                                    onChange={(e) => handleSearch(e.target.value)}
+                                    onChange={(e) =>
+                                        handleSearch(e.target.value)
+                                    }
                                 />
                             </div>
                         </div>
-                        
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
+
+                        <div className="flex items-center gap-2 rounded-lg border border-primary/10 bg-primary/5 px-3 py-1.5">
                             <ShieldAlert className="size-3.5 text-primary" />
-                            <span className="text-[10px] font-black uppercase tracking-wider text-primary">Security Monitoring Active</span>
+                            <span className="text-[10px] font-black tracking-wider text-primary uppercase">
+                                Security Monitoring Active
+                            </span>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader className="bg-muted/30">
                                 <TableRow>
-                                    <TableHead className="pl-6 font-black text-[10px] uppercase">Timestamp</TableHead>
-                                    <TableHead className="font-black text-[10px] uppercase">User</TableHead>
-                                    <TableHead className="font-black text-[10px] uppercase">Action</TableHead>
-                                    <TableHead className="font-black text-[10px] uppercase">Target</TableHead>
-                                    <TableHead className="font-black text-[10px] uppercase">IP Address</TableHead>
-                                    <TableHead className="text-right pr-6 font-black text-[10px] uppercase">Details</TableHead>
+                                    <TableHead className="pl-6 text-[10px] font-black uppercase">
+                                        Timestamp
+                                    </TableHead>
+                                    <TableHead className="text-[10px] font-black uppercase">
+                                        User
+                                    </TableHead>
+                                    <TableHead className="text-[10px] font-black uppercase">
+                                        Action
+                                    </TableHead>
+                                    <TableHead className="text-[10px] font-black uppercase">
+                                        Target
+                                    </TableHead>
+                                    <TableHead className="text-[10px] font-black uppercase">
+                                        IP Address
+                                    </TableHead>
+                                    <TableHead className="pr-6 text-right text-[10px] font-black uppercase">
+                                        Details
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {logs.data.map((log) => (
-                                    <TableRow key={log.id} className="hover:bg-muted/30 transition-colors">
+                                    <TableRow
+                                        key={log.id}
+                                        className="transition-colors hover:bg-muted/30"
+                                    >
                                         <TableCell className="pl-6 font-mono text-[10px] text-muted-foreground">
-                                            {new Date(log.created_at).toLocaleString()}
+                                            {new Date(
+                                                log.created_at,
+                                            ).toLocaleString()}
                                         </TableCell>
-                                        <TableCell className="font-bold text-xs">{log.user?.name || 'System'}</TableCell>
+                                        <TableCell className="text-xs font-bold">
+                                            {log.user?.name || 'System'}
+                                        </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className="font-bold text-[10px] uppercase bg-muted/50">
+                                            <Badge
+                                                variant="outline"
+                                                className="bg-muted/50 text-[10px] font-bold uppercase"
+                                            >
                                                 {log.action}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-xs italic text-muted-foreground">
-                                            {log.model_type.split('').pop()} #{log.model_id}
+                                        <TableCell className="text-xs text-muted-foreground italic">
+                                            {log.model_type.split('').pop()} #
+                                            {log.model_id}
                                         </TableCell>
-                                        <TableCell className="font-mono text-[10px]">{log.ip_address}</TableCell>
-                                        <TableCell className="text-right pr-6">
-                                            <Button variant="ghost" size="icon" className="size-8">
+                                        <TableCell className="font-mono text-[10px]">
+                                            {log.ip_address}
+                                        </TableCell>
+                                        <TableCell className="pr-6 text-right">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="size-8"
+                                            >
                                                 <Eye className="size-4" />
                                             </Button>
                                         </TableCell>
@@ -121,10 +149,15 @@ export default function AuditLogs({ logs, filters }: Props) {
                                 ))}
                                 {logs.data.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-32 text-center">
+                                        <TableCell
+                                            colSpan={6}
+                                            className="h-32 text-center"
+                                        >
                                             <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground/50">
                                                 <History className="size-8 opacity-20" />
-                                                <p className="text-xs font-medium italic">No security logs recorded</p>
+                                                <p className="text-xs font-medium italic">
+                                                    No security logs recorded
+                                                </p>
                                             </div>
                                         </TableCell>
                                     </TableRow>

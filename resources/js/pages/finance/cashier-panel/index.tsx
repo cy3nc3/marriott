@@ -1,5 +1,12 @@
 import { Head } from '@inertiajs/react';
-import { Search, Plus, Trash2, ShoppingCart, CreditCard, Package } from 'lucide-react';
+import {
+    Search,
+    Plus,
+    Trash2,
+    ShoppingCart,
+    CreditCard,
+    Package,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -59,36 +66,36 @@ export default function CashierPanel() {
                                     <Input
                                         id="search"
                                         placeholder="Search LRN or Student Name..."
-                                        className="pl-10 h-10 border-primary/20 focus-visible:ring-primary"
+                                        className="h-10 border-primary/20 pl-10 focus-visible:ring-primary"
                                     />
                                 </div>
                             </CardContent>
                         </Card>
 
                         {/* Student Card */}
-                        <Card className="flex flex-1 flex-col border-primary/10 shadow-sm overflow-hidden">
+                        <Card className="flex flex-1 flex-col overflow-hidden border-primary/10 shadow-sm">
                             <CardContent className="flex flex-1 flex-col p-0">
-                                <div className="flex flex-col items-center space-y-4 bg-primary/5 p-8 border-b border-primary/10">
-                                    <Avatar
-                                        className="size-24 border-4 border-background shadow-md"
-                                    >
+                                <div className="flex flex-col items-center space-y-4 border-b border-primary/10 bg-primary/5 p-8">
+                                    <Avatar className="size-24 border-4 border-background shadow-md">
                                         <AvatarImage src="" />
-                                        <AvatarFallback className="text-2xl font-black bg-primary text-primary-foreground">JD</AvatarFallback>
+                                        <AvatarFallback className="bg-primary text-2xl font-black text-primary-foreground">
+                                            JD
+                                        </AvatarFallback>
                                     </Avatar>
-                                    <div className="text-center space-y-1">
+                                    <div className="space-y-1 text-center">
                                         <h2 className="text-2xl font-black tracking-tight text-primary">
                                             Juan Dela Cruz
                                         </h2>
-                                        <p className="text-sm font-mono font-bold text-muted-foreground">
+                                        <p className="font-mono text-sm font-bold text-muted-foreground">
                                             1234567890123
                                         </p>
                                     </div>
-                                    <div className="rounded-full bg-background border border-primary/20 px-4 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
+                                    <div className="rounded-full border border-primary/20 bg-background px-4 py-1 text-[10px] font-black tracking-widest text-primary uppercase">
                                         Grade 7 - Rizal
                                     </div>
                                 </div>
 
-                                <div className="flex flex-1 flex-col items-center justify-center space-y-4 p-8 text-center bg-white">
+                                <div className="flex flex-1 flex-col items-center justify-center space-y-4 bg-white p-8 text-center">
                                     <p className="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase">
                                         Outstanding Balance
                                     </p>
@@ -97,7 +104,10 @@ export default function CashierPanel() {
                                             ₱ 15,000.00
                                         </span>
                                     </div>
-                                    <p className="text-[10px] italic text-muted-foreground">Calculated from all active ledger entries</p>
+                                    <p className="text-[10px] text-muted-foreground italic">
+                                        Calculated from all active ledger
+                                        entries
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -105,8 +115,8 @@ export default function CashierPanel() {
 
                     {/* Right Column: Transaction Cart */}
                     <div className="flex flex-col lg:col-span-2">
-                        <Card className="flex flex-1 flex-col shadow-md border-primary/10">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b py-4 px-6 bg-muted/30">
+                        <Card className="flex flex-1 flex-col border-primary/10 shadow-md">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 px-6 py-4">
                                 <CardTitle className="flex items-center gap-2 text-lg font-bold">
                                     <ShoppingCart className="size-5 text-primary" />
                                     Transaction Items
@@ -117,52 +127,89 @@ export default function CashierPanel() {
                                     onOpenChange={setIsAddModalOpen}
                                 >
                                     <DialogTrigger asChild>
-                                        <Button size="sm" className="gap-2 font-bold shadow-sm">
+                                        <Button
+                                            size="sm"
+                                            className="gap-2 font-bold shadow-sm"
+                                        >
                                             <Plus className="size-4" />
                                             Add Item
                                         </Button>
                                     </DialogTrigger>
                                     <DialogContent className="sm:max-w-[500px]">
                                         <DialogHeader>
-                                            <DialogTitle className="text-2xl font-black">Add Transaction Item</DialogTitle>
+                                            <DialogTitle className="text-2xl font-black">
+                                                Add Transaction Item
+                                            </DialogTitle>
                                             <DialogDescription>
-                                                Select a fee or inventory item to process for this student.
+                                                Select a fee or inventory item
+                                                to process for this student.
                                             </DialogDescription>
                                         </DialogHeader>
-                                        
-                                        <Tabs defaultValue="fees" className="py-4">
+
+                                        <Tabs
+                                            defaultValue="fees"
+                                            className="py-4"
+                                        >
                                             <TabsList className="grid w-full grid-cols-2">
-                                                <TabsTrigger value="fees" className="gap-2">
+                                                <TabsTrigger
+                                                    value="fees"
+                                                    className="gap-2"
+                                                >
                                                     <CreditCard className="size-4" />
                                                     School Fees
                                                 </TabsTrigger>
-                                                <TabsTrigger value="inventory" className="gap-2">
+                                                <TabsTrigger
+                                                    value="inventory"
+                                                    className="gap-2"
+                                                >
                                                     <Package className="size-4" />
                                                     Inventory
                                                 </TabsTrigger>
                                             </TabsList>
-                                            <TabsContent value="fees" className="pt-4 space-y-4">
+                                            <TabsContent
+                                                value="fees"
+                                                className="space-y-4 pt-4"
+                                            >
                                                 <div className="grid gap-2">
-                                                    <Label>Select Outstanding Fee</Label>
+                                                    <Label>
+                                                        Select Outstanding Fee
+                                                    </Label>
                                                     <Select>
                                                         <SelectTrigger>
                                                             <SelectValue placeholder="Choose fee..." />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            <SelectItem value="tuition">Tuition Fee (Bal: ₱10,000)</SelectItem>
-                                                            <SelectItem value="misc">Misc Fee (Bal: ₱5,000)</SelectItem>
+                                                            <SelectItem value="tuition">
+                                                                Tuition Fee
+                                                                (Bal: ₱10,000)
+                                                            </SelectItem>
+                                                            <SelectItem value="misc">
+                                                                Misc Fee (Bal:
+                                                                ₱5,000)
+                                                            </SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
                                                 <div className="grid gap-2">
-                                                    <Label>Payment Amount</Label>
+                                                    <Label>
+                                                        Payment Amount
+                                                    </Label>
                                                     <div className="relative">
-                                                        <span className="absolute left-3 top-2.5 font-bold text-muted-foreground">₱</span>
-                                                        <Input placeholder="0.00" className="pl-7 font-mono font-bold" type="number" />
+                                                        <span className="absolute top-2.5 left-3 font-bold text-muted-foreground">
+                                                            ₱
+                                                        </span>
+                                                        <Input
+                                                            placeholder="0.00"
+                                                            className="pl-7 font-mono font-bold"
+                                                            type="number"
+                                                        />
                                                     </div>
                                                 </div>
                                             </TabsContent>
-                                            <TabsContent value="inventory" className="pt-4 space-y-4">
+                                            <TabsContent
+                                                value="inventory"
+                                                className="space-y-4 pt-4"
+                                            >
                                                 <div className="grid gap-2">
                                                     <Label>Product Name</Label>
                                                     <Select>
@@ -170,14 +217,22 @@ export default function CashierPanel() {
                                                             <SelectValue placeholder="Search inventory..." />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            <SelectItem value="uniform">School Uniform - Small (₱450)</SelectItem>
-                                                            <SelectItem value="id">ID Lace (₱50)</SelectItem>
+                                                            <SelectItem value="uniform">
+                                                                School Uniform -
+                                                                Small (₱450)
+                                                            </SelectItem>
+                                                            <SelectItem value="id">
+                                                                ID Lace (₱50)
+                                                            </SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
                                                 <div className="grid gap-2">
                                                     <Label>Quantity</Label>
-                                                    <Input type="number" defaultValue="1" />
+                                                    <Input
+                                                        type="number"
+                                                        defaultValue="1"
+                                                    />
                                                 </div>
                                             </TabsContent>
                                         </Tabs>
@@ -185,12 +240,16 @@ export default function CashierPanel() {
                                         <DialogFooter>
                                             <Button
                                                 variant="outline"
-                                                onClick={() => setIsAddModalOpen(false)}
+                                                onClick={() =>
+                                                    setIsAddModalOpen(false)
+                                                }
                                             >
                                                 Cancel
                                             </Button>
                                             <Button
-                                                onClick={() => setIsAddModalOpen(false)}
+                                                onClick={() =>
+                                                    setIsAddModalOpen(false)
+                                                }
                                             >
                                                 Add to Cart
                                             </Button>
@@ -203,20 +262,34 @@ export default function CashierPanel() {
                                 <Table>
                                     <TableHeader className="bg-muted/20">
                                         <TableRow>
-                                            <TableHead className="pl-6">Item Details</TableHead>
-                                            <TableHead className="text-center">Category</TableHead>
-                                            <TableHead className="text-right">Amount</TableHead>
-                                            <TableHead className="pr-6 text-right">Action</TableHead>
+                                            <TableHead className="pl-6">
+                                                Item Details
+                                            </TableHead>
+                                            <TableHead className="text-center">
+                                                Category
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                Amount
+                                            </TableHead>
+                                            <TableHead className="pr-6 text-right">
+                                                Action
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        <TableRow className="hover:bg-muted/10 transition-colors">
+                                        <TableRow className="transition-colors hover:bg-muted/10">
                                             <TableCell className="pl-6">
-                                                <div className="font-bold text-primary">Tuition Fee</div>
-                                                <div className="text-[10px] text-muted-foreground font-medium uppercase">Partial Payment</div>
+                                                <div className="font-bold text-primary">
+                                                    Tuition Fee
+                                                </div>
+                                                <div className="text-[10px] font-medium text-muted-foreground uppercase">
+                                                    Partial Payment
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <div className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black bg-indigo-50 text-indigo-700 border-indigo-200">FEES</div>
+                                                <div className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-700">
+                                                    FEES
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-right font-mono font-bold">
                                                 ₱ 5,000.00
@@ -235,29 +308,39 @@ export default function CashierPanel() {
                                 </Table>
                             </CardContent>
 
-                            <div className="space-y-4 border-t p-8 bg-muted/5">
+                            <div className="space-y-4 border-t bg-muted/5 p-8">
                                 <div className="flex items-end justify-between">
                                     <div>
-                                        <p className="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase">Total Payable</p>
+                                        <p className="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase">
+                                            Total Payable
+                                        </p>
                                         <p className="text-4xl font-black tracking-tighter text-primary">
                                             ₱ 5,000.00
                                         </p>
                                     </div>
-                                    <div className="text-right space-y-2">
-                                        <div className="flex items-center gap-2 justify-end mb-2">
-                                            <Label className="text-[10px] font-bold text-muted-foreground">PAYMENT MODE:</Label>
+                                    <div className="space-y-2 text-right">
+                                        <div className="mb-2 flex items-center justify-end gap-2">
+                                            <Label className="text-[10px] font-bold text-muted-foreground">
+                                                PAYMENT MODE:
+                                            </Label>
                                             <Select defaultValue="cash">
-                                                <SelectTrigger className="w-[120px] h-8 text-xs font-bold border-primary/20">
+                                                <SelectTrigger className="h-8 w-[120px] border-primary/20 text-xs font-bold">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="cash">Cash</SelectItem>
-                                                    <SelectItem value="gcash">GCash</SelectItem>
-                                                    <SelectItem value="bank">Bank Transfer</SelectItem>
+                                                    <SelectItem value="cash">
+                                                        Cash
+                                                    </SelectItem>
+                                                    <SelectItem value="gcash">
+                                                        GCash
+                                                    </SelectItem>
+                                                    <SelectItem value="bank">
+                                                        Bank Transfer
+                                                    </SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                        <Button className="h-14 w-64 bg-green-600 text-lg font-black shadow-lg hover:bg-green-700 transition-all active:scale-[0.98]">
+                                        <Button className="h-14 w-64 bg-green-600 text-lg font-black shadow-lg transition-all hover:bg-green-700 active:scale-[0.98]">
                                             COMPLETE PAYMENT
                                         </Button>
                                     </div>

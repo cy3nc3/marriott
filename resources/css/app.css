@@ -170,7 +170,13 @@
 }
 
 /* Aggressively hide all native scrollbars */
-html, body, div, section, main, aside, nav {
+html,
+body,
+div,
+section,
+main,
+aside,
+nav {
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
 }

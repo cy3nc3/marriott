@@ -1,10 +1,17 @@
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+    Line,
+    LineChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface TrendChartProps {
-    data: { 
-        year: string; 
-        enrollees: number | null; 
+    data: {
+        year: string;
+        enrollees: number | null;
         isProjected: boolean;
     }[];
 }
@@ -12,13 +19,15 @@ interface TrendChartProps {
 export function TrendChart({ data }: TrendChartProps) {
     // Process data to create two series that connect at the transition point
     const processedData = data.map((item, index) => {
-        const isLastActual = !item.isProjected && (data[index + 1]?.isProjected ?? false);
-        
+        const isLastActual =
+            !item.isProjected && (data[index + 1]?.isProjected ?? false);
+
         return {
             ...item,
             actual: item.isProjected ? null : item.enrollees,
             // Projection series includes the last actual point to ensure the line is connected
-            projection: (item.isProjected || isLastActual) ? item.enrollees : null,
+            projection:
+                item.isProjected || isLastActual ? item.enrollees : null,
         };
     });
 
@@ -46,17 +55,23 @@ export function TrendChart({ data }: TrendChartProps) {
                                 tickFormatter={(value) => `${value}`}
                             />
                             <Tooltip
-                                cursor={{ stroke: 'hsl(var(--muted))', strokeWidth: 2 }}
+                                cursor={{
+                                    stroke: 'hsl(var(--muted))',
+                                    strokeWidth: 2,
+                                }}
                                 content={({ active, payload }) => {
                                     if (active && payload && payload.length) {
                                         // Find the first payload that has a value (either actual or projection)
-                                        const activePayload = payload.find(p => p.value !== null) || payload[0];
+                                        const activePayload =
+                                            payload.find(
+                                                (p) => p.value !== null,
+                                            ) || payload[0];
                                         const item = activePayload.payload;
                                         return (
                                             <div className="rounded-lg border bg-background p-2 shadow-sm">
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <div className="flex flex-col">
-                                                        <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                                        <span className="text-[0.70rem] text-muted-foreground uppercase">
                                                             Year
                                                         </span>
                                                         <span className="font-bold text-muted-foreground">
@@ -64,13 +79,15 @@ export function TrendChart({ data }: TrendChartProps) {
                                                         </span>
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                                        <span className="text-[0.70rem] text-muted-foreground uppercase">
                                                             Enrollees
                                                         </span>
                                                         <span className="font-bold">
                                                             {item.enrollees}
                                                             {item.isProjected && (
-                                                                <span className="ml-1 text-[10px] text-amber-500">(Projected)</span>
+                                                                <span className="ml-1 text-[10px] text-amber-500">
+                                                                    (Projected)
+                                                                </span>
                                                             )}
                                                         </span>
                                                     </div>
@@ -87,7 +104,12 @@ export function TrendChart({ data }: TrendChartProps) {
                                 dataKey="actual"
                                 stroke="currentColor"
                                 strokeWidth={3}
-                                dot={{ r: 4, fill: 'currentColor', className: 'fill-primary', strokeWidth: 0 }}
+                                dot={{
+                                    r: 4,
+                                    fill: 'currentColor',
+                                    className: 'fill-primary',
+                                    strokeWidth: 0,
+                                }}
                                 className="stroke-primary"
                                 isAnimationActive={true}
                                 connectNulls={false}
@@ -104,7 +126,13 @@ export function TrendChart({ data }: TrendChartProps) {
                                     // Only draw dot for the actual projected year, not the connection point
                                     if (payload.isProjected) {
                                         return (
-                                            <circle cx={cx} cy={cy} r={4} fill="#f59e0b" stroke="none" />
+                                            <circle
+                                                cx={cx}
+                                                cy={cy}
+                                                r={4}
+                                                fill="#f59e0b"
+                                                stroke="none"
+                                            />
                                         );
                                     }
                                     return null;
