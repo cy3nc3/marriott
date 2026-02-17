@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
-import { Printer, CalendarDays } from 'lucide-react';
+import { Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import {
     Table,
     TableBody,
@@ -26,20 +26,15 @@ export default function Schedule() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My Schedule" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
-                
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-                    <div className="flex items-center gap-2">
-                        <CalendarDays className="size-6 text-primary" />
-                        <h1 className="text-2xl font-black tracking-tight">My Weekly Teaching Load</h1>
-                    </div>
-                    <Button variant="outline" className="gap-2 border-primary/20">
-                        <Printer className="size-4 text-primary" />
+            <div className="flex flex-col gap-4">
+                <div className="flex justify-end">
+                    <Button variant="outline" className="gap-2">
+                        <Printer className="size-4" />
                         Print My Schedule
                     </Button>
                 </div>
 
-                <Card className="shadow-md border-primary/10 overflow-hidden">
+                <Card>
                     <Table className="border-collapse">
                         <TableHeader>
                             <TableRow className="bg-muted/30">

@@ -2,8 +2,7 @@ import { Head } from '@inertiajs/react';
 import { Printer, Info, Lock, ShieldCheck, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
     Select,
     SelectContent,
@@ -34,33 +33,11 @@ export default function AdvisoryBoard() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Advisory Board" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
-                
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                            <ShieldCheck className="size-6 text-primary" />
-                            <h1 className="text-2xl font-black tracking-tight">Advisory: Grade 7 - Rizal</h1>
-                        </div>
-                        <p className="text-sm font-medium text-muted-foreground">Consolidated academic performance and character assessment.</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="gap-2 border-primary/20">
-                            <Printer className="size-4 text-primary" />
-                            Bulk Print SF9
-                        </Button>
-                        <Button size="sm" className="gap-2 bg-destructive/90 hover:bg-destructive shadow-sm">
-                            <Lock className="size-4" />
-                            Finalize & Lock Quarter
-                        </Button>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-xl border border-primary/5">
-                    <div className="flex items-center gap-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reporting Period:</Label>
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                    <div className="flex items-center gap-4">
                         <Select defaultValue="1st">
-                            <SelectTrigger className="h-8 w-28 font-bold">
+                            <SelectTrigger className="w-[180px]">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -68,16 +45,29 @@ export default function AdvisoryBoard() {
                                 <SelectItem value="2nd">2nd Quarter</SelectItem>
                             </SelectContent>
                         </Select>
+
+                        <div className="hidden h-4 w-px bg-border md:block" />
+
+                        <div className="flex items-center gap-2">
+                            <span className="hidden text-xs text-muted-foreground md:inline-block">Sync Status:</span>
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">All Subjects Finalized</Badge>
+                        </div>
                     </div>
-                    <div className="h-4 w-px bg-border" />
+
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">Sync Status:</span>
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px]">All Subjects Finalized</Badge>
+                        <Button variant="outline" size="sm" className="gap-2">
+                            <Printer className="size-4" />
+                            Bulk Print SF9
+                        </Button>
+                        <Button size="sm" variant="destructive" className="gap-2">
+                            <Lock className="size-4" />
+                            Finalize & Lock Quarter
+                        </Button>
                     </div>
                 </div>
 
                 <Tabs defaultValue="academic" className="w-full">
-                    <TabsList className="bg-muted/50 p-1 mb-4">
+                    <TabsList className="mb-4">
                         <TabsTrigger value="academic" className="gap-2">
                             <ShieldCheck className="size-4" />
                             Academic Summary
@@ -89,7 +79,7 @@ export default function AdvisoryBoard() {
                     </TabsList>
 
                     <TabsContent value="academic">
-                        <Card className="shadow-md border-primary/10 overflow-hidden">
+                        <Card>
                             <CardContent className="p-0">
                                 <Table>
                                     <TableHeader className="bg-muted/20">
@@ -126,7 +116,7 @@ export default function AdvisoryBoard() {
                     </TabsContent>
 
                     <TabsContent value="conduct">
-                        <Card className="shadow-md border-primary/10 overflow-hidden">
+                        <Card>
                             <CardHeader className="bg-muted/10 border-b py-4">
                                 <div className="flex items-center gap-2">
                                     <Info className="size-4 text-blue-600" />
@@ -166,7 +156,7 @@ export default function AdvisoryBoard() {
 function BehaviorSelect({ defaultValue }: { defaultValue: string }) {
     return (
         <Select defaultValue={defaultValue}>
-            <SelectTrigger className="mx-auto h-8 w-16 text-center text-xs font-black border-primary/10">
+            <SelectTrigger className="mx-auto h-8 w-20">
                 <SelectValue />
             </SelectTrigger>
             <SelectContent>
