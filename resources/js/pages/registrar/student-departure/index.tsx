@@ -59,7 +59,12 @@ export default function StudentDeparture() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Student Departure" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <div className="flex flex-col gap-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex flex-col">
+                        <h1 className="text-2xl font-black tracking-tight italic">Student <span className="text-primary not-italic">Departure</span></h1>
+                    </div>
+                </div>
                 <Card>
                     <CardContent className="space-y-6">
                         <Field>

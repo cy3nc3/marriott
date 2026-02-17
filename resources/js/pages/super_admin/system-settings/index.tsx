@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { Save, School, Cog, Image as ImageIcon, Database, Clock, RefreshCcw, UploadCloud, Settings2, History, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { useState } from 'react';
 import type { BreadcrumbItem } from '@/types';
+import { store } from '@/routes/super_admin/system_settings';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -54,9 +55,23 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function SystemSettings() {
-    const [logoPreview, setLogoPreview] = useState<string | null>(null);
-    const [headerPreview, setHeaderPreview] = useState<string | null>(null);
+interface Props {
+    settings: Record<string, string>;
+}
+
+export default function SystemSettings({ settings }: Props) {
+    const { data, setData, post, processing, isDirty } = useForm({
+        school_name: settings.school_name || 'Marriott School System',
+        school_id: settings.school_id || '',
+        address: settings.address || '',
+        maintenance_mode: settings.maintenance_mode === '1',
+        parent_portal: settings.parent_portal === '1',
+        logo: null as File | null,
+        header: null as File | null,
+    });
+
+    const [logoPreview, setLogoPreview] = useState<string | null>(settings.logo || null);
+    const [headerPreview, setHeaderPreview] = useState<string | null>(settings.header || null);
     const [isBackupConfigOpen, setIsBackupConfigOpen] = useState(false);
     const [isRestoreOpen, setIsRestoreOpen] = useState(false);
     const [backupInterval, setBackupInterval] = useState('week');
@@ -64,6 +79,7 @@ export default function SystemSettings() {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'header') => {
         const file = e.target.files?.[0];
         if (file) {
+            setData(type, file);
             const reader = new FileReader();
             reader.onloadend = () => {
                 if (type === 'logo') setLogoPreview(reader.result as string);
@@ -71,6 +87,13 @@ export default function SystemSettings() {
             };
             reader.readAsDataURL(file);
         }
+    };
+
+    const handleSave = () => {
+        post(store.url(), {
+            preserveScroll: true,
+            forceFormData: true,
+        });
     };
 
     return (
@@ -81,11 +104,11 @@ export default function SystemSettings() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex flex-col">
                         <h1 className="text-2xl font-black tracking-tight italic">System <span className="text-primary not-italic">Configuration</span></h1>
-                        <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest text-[10px]">Global school parameters and identity</p>
+
                     </div>
-                    <Button className="gap-2 h-9">
+                    <Button className="gap-2 h-9" onClick={handleSave} disabled={processing || !isDirty}>
                         <Save className="size-4" />
-                        <span className="text-xs font-bold">Save All Changes</span>
+                        <span className="text-xs font-bold">{processing ? 'Saving...' : 'Save All Changes'}</span>
                     </Button>
                 </div>
 
@@ -103,18 +126,31 @@ export default function SystemSettings() {
                             <FieldGroup className="gap-6">
                                 <Field>
                                     <FieldLabel className="text-[10px] font-black uppercase text-muted-foreground mb-1">School Name</FieldLabel>
-                                    <Input id="school-name" placeholder="Marriott School System" defaultValue="Marriott School System" className="font-bold" />
+                                    <Input 
+                                        id="school-name" 
+                                        placeholder="Marriott School System" 
+                                        value={data.school_name} 
+                                        onChange={e => setData('school_name', e.target.value)}
+                                        className="font-bold" 
+                                    />
                                 </Field>
                                 <Field>
                                     <FieldLabel className="text-[10px] font-black uppercase text-muted-foreground mb-1">School ID (DepEd)</FieldLabel>
-                                    <Input id="school-id" placeholder="123456" defaultValue="123456" className="font-bold" />
+                                    <Input 
+                                        id="school-id" 
+                                        placeholder="123456" 
+                                        value={data.school_id}
+                                        onChange={e => setData('school_id', e.target.value)}
+                                        className="font-bold" 
+                                    />
                                 </Field>
                                 <Field>
                                     <FieldLabel className="text-[10px] font-black uppercase text-muted-foreground mb-1">Official Address</FieldLabel>
                                     <Textarea 
                                         id="address" 
                                         placeholder="123 Tolentino Street, Quezon City" 
-                                        defaultValue="123 Tolentino Street, Quezon City"
+                                        value={data.address}
+                                        onChange={e => setData('address', e.target.value)}
                                         className="min-h-[100px] font-medium"
                                     />
                                 </Field>
@@ -197,14 +233,22 @@ export default function SystemSettings() {
                                         <p className="text-xs font-black uppercase tracking-wider">Maintenance Mode</p>
                                         <p className="text-[10px] text-muted-foreground font-medium italic">Disable access for all non-admin users</p>
                                     </div>
-                                    <Switch id="maintenance-mode" />
+                                    <Switch 
+                                        id="maintenance-mode" 
+                                        checked={data.maintenance_mode}
+                                        onCheckedChange={val => setData('maintenance_mode', val)}
+                                    />
                                 </div>
                                 <div className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-primary/5">
                                     <div className="space-y-0.5">
                                         <p className="text-xs font-black uppercase tracking-wider">Parent Portal</p>
                                         <p className="text-[10px] text-muted-foreground font-medium italic">Allow parents to view grades and billing</p>
                                     </div>
-                                    <Switch id="parent-access" checked={true} />
+                                    <Switch 
+                                        id="parent-access" 
+                                        checked={data.parent_portal}
+                                        onCheckedChange={val => setData('parent_portal', val)}
+                                    />
                                 </div>
                             </FieldGroup>
                         </CardContent>

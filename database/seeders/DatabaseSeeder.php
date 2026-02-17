@@ -21,7 +21,7 @@ class DatabaseSeeder extends Seeder
             TeacherSeeder::class,
             SectionSeeder::class,
             StudentSeeder::class,
-            SuperAdminSeeder::class,
+            StudentSeeder::class,
         ]);
 
         foreach (UserRole::cases() as $role) {
@@ -39,5 +39,9 @@ class DatabaseSeeder extends Seeder
                 ]
             );
         }
+
+        $this->call([
+            SuperAdminSeeder::class,
+        ]);
     }
 }

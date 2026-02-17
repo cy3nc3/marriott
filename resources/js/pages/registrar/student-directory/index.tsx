@@ -47,12 +47,11 @@ export default function StudentDirectory() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Student Directory" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4 lg:p-6">
+            <div className="flex flex-col gap-6">
                 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-                    <div className="flex items-center gap-2">
-                        <Users className="size-6 text-primary" />
-                        <h1 className="text-2xl font-black tracking-tight">Student Directory</h1>
+                    <div className="flex flex-col">
+                        <h1 className="text-2xl font-black tracking-tight italic">Student <span className="text-primary not-italic">Directory</span></h1>
                     </div>
                     <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5">
                         <UploadCloud className="size-4 text-primary" />

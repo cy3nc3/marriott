@@ -1,4 +1,5 @@
 import { Head, useForm, router } from '@inertiajs/react';
+import super_admin from '@/routes/super_admin';
 import { 
     Megaphone,
     Plus,
@@ -72,7 +73,7 @@ export default function Announcements({ announcements }: Props) {
     });
 
     const handlePost = () => {
-        form.post(route('super_admin.announcements.store'), {
+        form.post(super_admin.announcements.store.url(), {
             onSuccess: () => {
                 setIsAddOpen(false);
                 form.reset();
@@ -82,7 +83,7 @@ export default function Announcements({ announcements }: Props) {
 
     const handleDelete = (id: number) => {
         if (confirm('Delete this announcement?')) {
-            router.delete(route('super_admin.announcements.destroy', { announcement: id }));
+            router.delete(super_admin.announcements.destroy.url(id));
         }
     };
 
@@ -108,7 +109,7 @@ export default function Announcements({ announcements }: Props) {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex flex-col">
                         <h1 className="text-2xl font-black tracking-tight italic">System <span className="text-primary not-italic">Announcements</span></h1>
-                        <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest text-[10px]">Broadcast messages to all user dashboards</p>
+
                     </div>
                     <Button className="gap-2 h-9" onClick={() => setIsAddOpen(true)}>
                         <Plus className="size-4" />
