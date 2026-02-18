@@ -7,6 +7,7 @@ import {
     ShieldAlert
 } from 'lucide-react';
 import { useState } from 'react';
+import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +16,7 @@ import {
     CardHeader,
 } from '@/components/ui/card';
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker";
 import {
     Table,
     TableBody,
@@ -50,15 +52,29 @@ interface Props {
     };
     filters: {
         search?: string;
+        date?: string;
     };
 }
 
 export default function AuditLogs({ logs, filters }: Props) {
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
+    const [date, setDate] = useState<Date | undefined>(filters.date ? new Date(filters.date) : undefined);
 
     const handleSearch = (val: string) => {
         setSearchQuery(val);
-        router.get('/super-admin/audit-logs', { search: val }, { preserveState: true, replace: true });
+        updateParams(val, date);
+    };
+
+    const handleDateChange = (newDate: Date | undefined) => {
+        setDate(newDate);
+        updateParams(searchQuery, newDate);
+    };
+
+    const updateParams = (search: string, dateParam: Date | undefined) => {
+        router.get('/super-admin/audit-logs', { 
+            search: search || undefined,
+            date: dateParam ? format(dateParam, 'yyyy-MM-dd') : undefined
+        }, { preserveState: true, replace: true });
     };
 
     return (
@@ -77,6 +93,22 @@ export default function AuditLogs({ logs, filters }: Props) {
                                     onChange={(e) => handleSearch(e.target.value)}
                                 />
                             </div>
+                            <DatePicker 
+                                date={date} 
+                                setDate={handleDateChange} 
+                                className="h-9 w-[180px] text-xs"
+                                placeholder="Filter by date"
+                            />
+                            {date && (
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => handleDateChange(undefined)}
+                                    className="h-9 text-xs"
+                                >
+                                    Clear
+                                </Button>
+                            )}
                         </div>
                         
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/5 border border-primary/10">

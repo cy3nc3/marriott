@@ -40,6 +40,37 @@ class DatabaseSeeder extends Seeder
             );
         }
 
+        // Link Test Student and Test Parent
+        $testStudentUser = User::where('email', 'student@marriott.edu')->first();
+        $testParentUser = User::where('email', 'parent@marriott.edu')->first();
+
+        if ($testStudentUser && $testParentUser) {
+            $student = \App\Models\Student::firstOrCreate(
+                ['user_id' => $testStudentUser->id],
+                [
+                    'lrn' => 'TEST0001',
+                    'first_name' => 'Test',
+                    'last_name' => 'Student',
+                    'gender' => 'Male',
+                    'birthdate' => '2010-01-01',
+                ]
+            );
+
+            $exists = \Illuminate\Support\Facades\DB::table('parent_student')
+                ->where('parent_id', $testParentUser->id)
+                ->where('student_id', $student->id)
+                ->exists();
+
+            if (! $exists) {
+                \Illuminate\Support\Facades\DB::table('parent_student')->insert([
+                    'parent_id' => $testParentUser->id,
+                    'student_id' => $student->id,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+
         $this->call([
             SuperAdminSeeder::class,
         ]);

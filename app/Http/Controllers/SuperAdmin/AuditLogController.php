@@ -17,9 +17,12 @@ class AuditLogController extends Controller
             ->when($request->input('search'), function ($query, $search) {
                 $query->where('action', 'like', "%{$search}%")
                     ->orWhere('model_type', 'like', "%{$search}%")
-                    ->orWhereHas('user', function($q) use ($search) {
+                    ->orWhereHas('user', function ($q) use ($search) {
                         $q->where('name', 'like', "%{$search}%");
                     });
+            })
+            ->when($request->input('date'), function ($query, $date) {
+                $query->whereDate('created_at', $date);
             })
             ->latest()
             ->paginate(20)
@@ -27,7 +30,7 @@ class AuditLogController extends Controller
 
         return Inertia::render('super_admin/audit-logs/index', [
             'logs' => $logs,
-            'filters' => $request->only(['search']),
+            'filters' => $request->only(['search', 'date']),
         ]);
     }
 }

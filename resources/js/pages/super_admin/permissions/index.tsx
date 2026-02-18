@@ -45,18 +45,17 @@ export default function Permissions({ permissions, roles }: Props) {
             <Head title="Role Permissions" />
             <div className="flex flex-col gap-6">
                 
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex flex-col">
-                        <h1 className="text-2xl font-black tracking-tight italic">Access <span className="text-primary not-italic">Control Matrix</span></h1>
-                        <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest text-[10px]">Oversight of system-wide role permissions and module access</p>
-                    </div>
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                        <ShieldCheck className="size-3.5" />
-                        <span className="text-[10px] font-black uppercase tracking-tighter">Read-Only Oversight</span>
-                    </div>
-                </div>
-
                 <Card className="shadow-md border-primary/10 overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between py-4 border-b bg-muted/10">
+                         <div className="flex items-center gap-2">
+                             <ShieldCheck className="size-4 text-primary" />
+                             <CardTitle className="text-xs font-black uppercase tracking-widest text-primary">Permissions Matrix</CardTitle>
+                         </div>
+                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                            <ShieldCheck className="size-3.5" />
+                            <span className="text-[10px] font-black uppercase tracking-tighter">Read-Only Oversight</span>
+                        </div>
+                    </CardHeader>
                     <div className="overflow-x-auto">
                         <Table>
                             <TableHeader className="bg-muted/30">

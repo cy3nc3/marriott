@@ -18,8 +18,14 @@ class AnnouncementController extends Controller
             ->latest()
             ->get();
 
+        $roles = collect(\App\Enums\UserRole::cases())->map(fn ($role) => [
+            'value' => $role->value,
+            'label' => $role->label(),
+        ]);
+
         return Inertia::render('super_admin/announcements/index', [
             'announcements' => $announcements,
+            'roles' => $roles,
         ]);
     }
 
@@ -38,9 +44,25 @@ class AnnouncementController extends Controller
         return back()->with('success', 'Announcement posted successfully.');
     }
 
+    public function update(Request $request, Announcement $announcement): RedirectResponse
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
+            'priority' => 'required|string|in:low,normal,high,critical',
+            'target_roles' => 'nullable|array',
+            'expires_at' => 'nullable|date',
+        ]);
+
+        $announcement->update($validated);
+
+        return back()->with('success', 'Announcement updated successfully.');
+    }
+
     public function destroy(Announcement $announcement): RedirectResponse
     {
         $announcement->delete();
+
         return back()->with('success', 'Announcement removed successfully.');
     }
 }

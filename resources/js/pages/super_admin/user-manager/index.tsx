@@ -10,8 +10,11 @@ import {
     UserX,
     UserCheck,
     MoreHorizontal,
+    Users
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
+import { format } from "date-fns";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import {
@@ -374,13 +377,11 @@ export default function UserManager({ users, filters }: Props) {
 
                             <div className="grid gap-2">
                                 <Label htmlFor="birthday" className="text-[10px] font-black uppercase text-muted-foreground">Birthday</Label>
-                                <Input 
-                                    id="birthday" 
-                                    type="date" 
-                                    className="font-bold"
-                                    value={createForm.data.birthday}
-                                    onChange={e => createForm.setData('birthday', e.target.value)}
-                                    required
+                                <DatePicker 
+                                    date={createForm.data.birthday ? new Date(createForm.data.birthday) : undefined}
+                                    setDate={(date) => createForm.setData('birthday', date ? format(date, "yyyy-MM-dd") : '')}
+                                    className="w-full font-bold"
+                                    placeholder="Select birthday"
                                 />
                                 <p className="text-[9px] text-muted-foreground italic mt-1">
                                     Password will be auto-generated from this date (YYYYMMDD).
@@ -395,13 +396,13 @@ export default function UserManager({ users, filters }: Props) {
                                     required
                                 >
                                     <SelectTrigger className="font-bold">
-                                        <SelectValue placeholder="Select a role..." />
+                                        <SelectValue placeholder="Select Role" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="registrar">Registrar</SelectItem>
                                         <SelectItem value="finance">Finance</SelectItem>
                                         <SelectItem value="teacher">Teacher</SelectItem>
-                                        <SelectItem value="admin">Admin (Principal)</SelectItem>
+                                        <SelectItem value="admin">Admin</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -453,13 +454,11 @@ export default function UserManager({ users, filters }: Props) {
 
                             <div className="grid gap-2">
                                 <Label htmlFor="edit_birthday" className="text-[10px] font-black uppercase text-muted-foreground">Birthday</Label>
-                                <Input 
-                                    id="edit_birthday" 
-                                    type="date" 
-                                    className="font-bold"
-                                    value={editForm.data.birthday}
-                                    onChange={e => editForm.setData('birthday', e.target.value)}
-                                    required
+                                <DatePicker 
+                                    date={editForm.data.birthday ? new Date(editForm.data.birthday) : undefined}
+                                    setDate={(date) => editForm.setData('birthday', date ? format(date, "yyyy-MM-dd") : '')}
+                                    className="w-full font-bold"
+                                    placeholder="Select birthday"
                                 />
                             </div>
 
@@ -471,13 +470,13 @@ export default function UserManager({ users, filters }: Props) {
                                     required
                                 >
                                     <SelectTrigger className="font-bold">
-                                        <SelectValue placeholder="Select a role..." />
+                                        <SelectValue placeholder="Select Role" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="registrar">Registrar</SelectItem>
                                         <SelectItem value="finance">Finance</SelectItem>
                                         <SelectItem value="teacher">Teacher</SelectItem>
-                                        <SelectItem value="admin">Admin (Principal)</SelectItem>
+                                        <SelectItem value="admin">Admin</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

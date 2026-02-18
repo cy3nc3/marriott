@@ -6,10 +6,9 @@ use App\Http\Controllers\SuperAdmin\PermissionController;
 use App\Http\Controllers\SuperAdmin\SettingController;
 use App\Http\Controllers\SuperAdmin\UserManagerController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified', 'role:super_admin'])->prefix('super-admin')->name('super_admin.')->group(function () {
-    
+
     // User Manager (Available in previous view, restoring just in case)
     Route::get('/user-manager', [UserManagerController::class, 'index'])->name('user_manager');
     Route::post('/user-manager', [UserManagerController::class, 'store'])->name('user_manager.store');
@@ -19,10 +18,11 @@ Route::middleware(['auth', 'verified', 'role:super_admin'])->prefix('super-admin
 
     // Audit Logs
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit_logs');
-    
+
     // Announcements
     Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements');
     Route::post('/announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
+    Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
     Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
 
     // Permissions

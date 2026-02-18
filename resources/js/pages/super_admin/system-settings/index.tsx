@@ -100,17 +100,13 @@ export default function SystemSettings({ settings }: Props) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="System Settings" />
             <div className="flex flex-col gap-6">
-                
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex flex-col">
-                        <h1 className="text-2xl font-black tracking-tight italic">System <span className="text-primary not-italic">Configuration</span></h1>
-
-                    </div>
+                <div>
                     <Button className="gap-2 h-9" onClick={handleSave} disabled={processing || !isDirty}>
                         <Save className="size-4" />
                         <span className="text-xs font-bold">{processing ? 'Saving...' : 'Save All Changes'}</span>
                     </Button>
                 </div>
+
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* School Identity */}

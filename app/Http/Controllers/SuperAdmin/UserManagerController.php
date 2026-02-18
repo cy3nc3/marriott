@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\SuperAdmin;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -23,6 +22,17 @@ class UserManagerController extends Controller
             })
             ->when($request->input('role') && $request->input('role') !== 'all', function ($query, $role) {
                 $query->where('role', $role);
+            }, function ($query) {
+                $query->orderByRaw("CASE 
+                    WHEN role = 'super_admin' THEN 1
+                    WHEN role = 'admin' THEN 2
+                    WHEN role = 'registrar' THEN 3
+                    WHEN role = 'finance' THEN 4
+                    WHEN role = 'teacher' THEN 5
+                    WHEN role = 'student' THEN 6
+                    WHEN role = 'parent' THEN 7
+                    ELSE 8
+                END");
             })
             ->orderBy('name')
             ->get();
@@ -44,17 +54,17 @@ class UserManagerController extends Controller
 
         $firstName = strtolower(explode(' ', trim($validated['first_name']))[0]);
         $firstName = preg_replace('/[^a-z0-9]/', '', $firstName);
-        
+
         $lastName = strtolower(str_replace(' ', '', trim($validated['last_name'])));
         $lastName = preg_replace('/[^a-z0-9]/', '', $lastName);
-        
+
         $email = "{$firstName}.{$lastName}@marriott.edu";
 
         // Handle duplicate emails
         $originalEmail = $email;
         $count = 1;
         while (User::where('email', $email)->exists()) {
-            $email = Str::before($originalEmail, '@') . $count . '@marriott.edu';
+            $email = Str::before($originalEmail, '@').$count.'@marriott.edu';
             $count++;
         }
 
@@ -63,7 +73,7 @@ class UserManagerController extends Controller
         User::create([
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
-            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+            'name' => $validated['first_name'].' '.$validated['last_name'],
             'email' => $email,
             'birthday' => $validated['birthday'],
             'role' => $validated['role'],
@@ -85,7 +95,7 @@ class UserManagerController extends Controller
         $user->update([
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
-            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+            'name' => $validated['first_name'].' '.$validated['last_name'],
             'birthday' => $validated['birthday'],
             'role' => $validated['role'],
         ]);
@@ -95,7 +105,7 @@ class UserManagerController extends Controller
 
     public function resetPassword(User $user): RedirectResponse
     {
-        if (!$user->birthday) {
+        if (! $user->birthday) {
             return back()->with('error', 'User birthday is not set. Cannot auto-generate password.');
         }
 
@@ -110,10 +120,11 @@ class UserManagerController extends Controller
     public function toggleStatus(User $user): RedirectResponse
     {
         $user->update([
-            'is_active' => !$user->is_active,
+            'is_active' => ! $user->is_active,
         ]);
 
         $status = $user->is_active ? 'activated' : 'deactivated';
+
         return back()->with('success', "User account {$status} successfully.");
     }
 }
