@@ -3,21 +3,15 @@ name: developing-with-fortify
 description: Laravel Fortify headless authentication backend development. Activate when implementing authentication features including login, registration, password reset, email verification, two-factor authentication (2FA/TOTP), profile updates, headless auth, authentication scaffolding, or auth guards in Laravel applications.
 ---
 
-
 # Laravel Fortify Development
-
 
 Fortify is a headless authentication backend that provides authentication routes and controllers for Laravel applications.
 
-
 ## Documentation
-
 
 Use `search-docs` for detailed Laravel Fortify patterns and documentation.
 
-
 ## Usage
-
 
 - **Routes**: Use `list-routes` with `only_vendor: true` and `action: "Fortify"` to see all registered endpoints
 - **Actions**: Check `app/Actions/Fortify/` for customizable business logic (user creation, password validation, etc.)
@@ -25,9 +19,7 @@ Use `search-docs` for detailed Laravel Fortify patterns and documentation.
 - **Contracts**: Look in `Laravel\Fortify\Contracts\` for overridable response classes (`LoginResponse`, `LogoutResponse`, etc.)
 - **Views**: All view callbacks are set in `FortifyServiceProvider::boot()` using `Fortify::loginView()`, `Fortify::registerView()`, etc.
 
-
 ## Available Features
-
 
 Enable in `config/fortify.php` features array:
 
@@ -40,13 +32,9 @@ Enable in `config/fortify.php` features array:
 
 > Use `search-docs` for feature configuration options and customization patterns.
 
-
 ## Setup Workflows
 
-
-
 ### Two-Factor Authentication Setup
-
 
 ```
 - [ ] Add TwoFactorAuthenticatable trait to User model
@@ -59,9 +47,7 @@ Enable in `config/fortify.php` features array:
 
 > Use `search-docs` for TOTP implementation and recovery code handling patterns.
 
-
 ### Email Verification Setup
-
 
 ```
 - [ ] Enable emailVerification feature in config
@@ -73,9 +59,7 @@ Enable in `config/fortify.php` features array:
 
 > Use `search-docs` for MustVerifyEmail implementation patterns.
 
-
 ### Password Reset Setup
-
 
 ```
 - [ ] Enable resetPasswords feature in config
@@ -87,9 +71,7 @@ Enable in `config/fortify.php` features array:
 
 > Use `search-docs` for custom password reset flow patterns.
 
-
 ### SPA Authentication Setup
-
 
 ```
 - [ ] Set 'views' => false in config/fortify.php
@@ -101,31 +83,21 @@ Enable in `config/fortify.php` features array:
 
 > Use `search-docs` for integration and SPA authentication patterns.
 
-
 ## Best Practices
-
-
 
 ### Custom Authentication Logic
 
-
 Override authentication behavior using `Fortify::authenticateUsing()` for custom user retrieval or `Fortify::authenticateThrough()` to customize the authentication pipeline. Override response contracts in `AppServiceProvider` for custom redirects.
-
 
 ### Registration Customization
 
-
 Modify `app/Actions/Fortify/CreateNewUser.php` to customize user creation logic, validation rules, and additional fields.
-
 
 ### Rate Limiting
 
-
 Configure via `fortify.limiters.login` in config. Default configuration throttles by username + IP combination.
 
-
 ## Key Endpoints
-
 
 | Feature                | Method   | Endpoint                                    |
 |------------------------|----------|---------------------------------------------|

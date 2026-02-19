@@ -1,14 +1,11 @@
 import { Head } from '@inertiajs/react';
-import { Plus, RefreshCcw, Info } from 'lucide-react';
+import { CopyPlus, Plus } from 'lucide-react';
 import { useState } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -30,6 +27,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -40,169 +38,395 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-interface GradeCardProps {
-    grade: string;
-    total: string;
-    onAdd: () => void;
-}
+type FeeItem = {
+    label: string;
+    category: 'Tuition' | 'Miscellaneous' | 'Books and Modules';
+    amount: string;
+};
 
-const GradeCard = ({ grade, total, onAdd }: GradeCardProps) => (
-    <Card className="flex h-full flex-col shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/10">
-            <div className="space-y-1">
-                <CardTitle className="text-lg">Grade {grade}</CardTitle>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Base Assessment</p>
-            </div>
-            <Button
-                size="xs"
-                className="gap-1 h-7"
-                onClick={onAdd}
-            >
-                <Plus className="size-3" />
-                Add Item
-            </Button>
-        </CardHeader>
-        <CardContent className="flex-1 overflow-auto p-0">
-            <Table>
-                <TableHeader className="bg-muted/5">
-                    <TableRow>
-                        <TableHead className="pl-6">Description</TableHead>
-                        <TableHead className="text-center">Type</TableHead>
-                        <TableHead className="text-right pr-6">Amount</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <TableRow className="group">
-                        <TableCell className="pl-6 font-medium">
-                            Tuition Fee
-                        </TableCell>
-                        <TableCell className="text-center">
-                            <Badge
-                                variant="outline"
-                                className="border-blue-200 bg-blue-50 text-blue-700 text-[10px]"
-                            >
-                                Tuition
-                            </Badge>
-                        </TableCell>
-                        <TableCell className="text-right pr-6 font-mono font-bold">
-                            20,000.00
-                        </TableCell>
-                    </TableRow>
-                    <TableRow className="group">
-                        <TableCell className="pl-6 font-medium">
-                            Miscellaneous Fee
-                        </TableCell>
-                        <TableCell className="text-center">
-                            <Badge variant="secondary" className="text-[10px]">Misc</Badge>
-                        </TableCell>
-                        <TableCell className="text-right pr-6 font-mono font-bold">
-                            5,000.00
-                        </TableCell>
-                    </TableRow>
-                </TableBody>
-            </Table>
-        </CardContent>
-        <div className="flex items-center justify-between border-t p-4 px-6 bg-muted/5">
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">
-                Annual Total:
-            </span>
-            <span className="font-mono text-xl font-black text-primary">₱ {total}</span>
-        </div>
-    </Card>
-);
+type GradeLevelFee = {
+    gradeLevel: string;
+    feeItems: FeeItem[];
+};
 
 export default function FeeStructure() {
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isAddFeeDialogOpen, setIsAddFeeDialogOpen] = useState(false);
+
+    const gradeLevelFees: GradeLevelFee[] = [
+        {
+            gradeLevel: 'Grade 7',
+            feeItems: [
+                {
+                    label: 'Tuition Fee',
+                    category: 'Tuition',
+                    amount: '20,000.00',
+                },
+                {
+                    label: 'Laboratory Fee',
+                    category: 'Miscellaneous',
+                    amount: '2,000.00',
+                },
+                {
+                    label: 'ID and School Paper',
+                    category: 'Miscellaneous',
+                    amount: '3,000.00',
+                },
+                {
+                    label: 'Books and Modules',
+                    category: 'Books and Modules',
+                    amount: '2,000.00',
+                },
+            ],
+        },
+        {
+            gradeLevel: 'Grade 8',
+            feeItems: [
+                {
+                    label: 'Tuition Fee',
+                    category: 'Tuition',
+                    amount: '20,000.00',
+                },
+                {
+                    label: 'Laboratory Fee',
+                    category: 'Miscellaneous',
+                    amount: '2,200.00',
+                },
+                {
+                    label: 'ID and School Paper',
+                    category: 'Miscellaneous',
+                    amount: '3,000.00',
+                },
+                {
+                    label: 'Books and Modules',
+                    category: 'Books and Modules',
+                    amount: '2,000.00',
+                },
+            ],
+        },
+        {
+            gradeLevel: 'Grade 9',
+            feeItems: [
+                {
+                    label: 'Tuition Fee',
+                    category: 'Tuition',
+                    amount: '21,000.00',
+                },
+                {
+                    label: 'Laboratory Fee',
+                    category: 'Miscellaneous',
+                    amount: '2,300.00',
+                },
+                {
+                    label: 'ID and School Paper',
+                    category: 'Miscellaneous',
+                    amount: '3,000.00',
+                },
+                {
+                    label: 'Books and Modules',
+                    category: 'Books and Modules',
+                    amount: '2,300.00',
+                },
+            ],
+        },
+        {
+            gradeLevel: 'Grade 10',
+            feeItems: [
+                {
+                    label: 'Tuition Fee',
+                    category: 'Tuition',
+                    amount: '21,500.00',
+                },
+                {
+                    label: 'Laboratory Fee',
+                    category: 'Miscellaneous',
+                    amount: '2,300.00',
+                },
+                {
+                    label: 'ID and School Paper',
+                    category: 'Miscellaneous',
+                    amount: '3,000.00',
+                },
+                {
+                    label: 'Books and Modules',
+                    category: 'Books and Modules',
+                    amount: '2,500.00',
+                },
+            ],
+        },
+    ];
+
+    const toNumber = (value: string) =>
+        Number.parseFloat(value.replace(',', ''));
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Fee Structure" />
+
             <div className="flex flex-col gap-6">
-                
-                <div className="flex items-center justify-end gap-3">
-                    <Select defaultValue="2025-2026">
-                        <SelectTrigger className="w-[180px] h-9">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="2025-2026">SY 2025-2026</SelectItem>
-                            <SelectItem value="2024-2025">SY 2024-2025</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button variant="outline" size="sm" className="gap-2 border-primary/20">
-                        <RefreshCcw className="size-3.5 text-primary" />
-                        Sync from Previous
-                    </Button>
-                </div>
-
-                <Alert className="bg-primary/5 border-primary/10">
-                    <Info className="size-4 text-primary" />
-                    <AlertDescription className="text-xs font-medium text-primary/80">
-                        Fees are automatically carried over from the previous school year. Changes here only affect the selected academic cycle.
-                    </AlertDescription>
-                </Alert>
-
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                    <GradeCard grade="7" total="25,000.00" onAdd={() => setIsAddModalOpen(true)} />
-                    <GradeCard grade="8" total="22,000.00" onAdd={() => setIsAddModalOpen(true)} />
-                    <GradeCard grade="9" total="22,000.00" onAdd={() => setIsAddModalOpen(true)} />
-                    <GradeCard grade="10" total="23,000.00" onAdd={() => setIsAddModalOpen(true)} />
-                </div>
-
-                <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Add New Fee</DialogTitle>
-                            <DialogDescription>
-                                Enter the fee details for the selected grade
-                                level.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="description">
-                                    Fee Description
-                                </Label>
-                                <Input
-                                    id="description"
-                                    placeholder="e.g. Energy Fee"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="amount">Amount (₱)</Label>
-                                <Input
-                                    id="amount"
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="type">Type</Label>
-                                <Select defaultValue="Miscellaneous">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select Type..." />
+                <Card>
+                    <CardHeader className="border-b">
+                        <div className="flex items-center justify-between gap-3">
+                            <CardTitle>Fee Breakdown by Grade</CardTitle>
+                            <div className="flex items-center gap-2">
+                                <Select defaultValue="sy-2025-2026">
+                                    <SelectTrigger className="w-44">
+                                        <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Miscellaneous">
-                                            Miscellaneous
+                                        <SelectItem value="sy-2025-2026">
+                                            SY 2025-2026
                                         </SelectItem>
-                                        <SelectItem value="Tuition">
-                                            Tuition
+                                        <SelectItem value="sy-2024-2025">
+                                            SY 2024-2025
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <Button variant="outline">
+                                    <CopyPlus className="size-4" />
+                                    Use Previous Year
+                                </Button>
+                                <Button
+                                    onClick={() => setIsAddFeeDialogOpen(true)}
+                                >
+                                    <Plus className="size-4" />
+                                    Add Fee Item
+                                </Button>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <Tabs defaultValue="Grade 7" className="w-full">
+                            <TabsList className="mb-4">
+                                {gradeLevelFees.map((feeRow) => (
+                                    <TabsTrigger
+                                        key={feeRow.gradeLevel}
+                                        value={feeRow.gradeLevel}
+                                    >
+                                        {feeRow.gradeLevel}
+                                    </TabsTrigger>
+                                ))}
+                            </TabsList>
+
+                            {gradeLevelFees.map((feeRow) => {
+                                const tuitionTotal = feeRow.feeItems
+                                    .filter(
+                                        (item) => item.category === 'Tuition',
+                                    )
+                                    .reduce(
+                                        (sum, item) =>
+                                            sum + toNumber(item.amount),
+                                        0,
+                                    );
+                                const miscellaneousTotal = feeRow.feeItems
+                                    .filter(
+                                        (item) =>
+                                            item.category === 'Miscellaneous',
+                                    )
+                                    .reduce(
+                                        (sum, item) =>
+                                            sum + toNumber(item.amount),
+                                        0,
+                                    );
+                                const booksAndModulesTotal = feeRow.feeItems
+                                    .filter(
+                                        (item) =>
+                                            item.category ===
+                                            'Books and Modules',
+                                    )
+                                    .reduce(
+                                        (sum, item) =>
+                                            sum + toNumber(item.amount),
+                                        0,
+                                    );
+                                const annualTotal =
+                                    tuitionTotal +
+                                    miscellaneousTotal +
+                                    booksAndModulesTotal;
+
+                                return (
+                                    <TabsContent
+                                        key={feeRow.gradeLevel}
+                                        value={feeRow.gradeLevel}
+                                    >
+                                        <div className="overflow-hidden rounded-md border">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="pl-6">
+                                                            Fee Label
+                                                        </TableHead>
+                                                        <TableHead className="border-l">
+                                                            Category
+                                                        </TableHead>
+                                                        <TableHead className="border-l pr-6 text-right">
+                                                            Amount
+                                                        </TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {feeRow.feeItems.map(
+                                                        (item) => (
+                                                            <TableRow
+                                                                key={`${feeRow.gradeLevel}-${item.label}`}
+                                                            >
+                                                                <TableCell className="pl-6 font-medium">
+                                                                    {item.label}
+                                                                </TableCell>
+                                                                <TableCell className="border-l">
+                                                                    {
+                                                                        item.category
+                                                                    }
+                                                                </TableCell>
+                                                                <TableCell className="border-l pr-6 text-right">
+                                                                    PHP{' '}
+                                                                    {
+                                                                        item.amount
+                                                                    }
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ),
+                                                    )}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+
+                                        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                            <div className="rounded-md border px-3 py-2">
+                                                <p className="text-xs text-muted-foreground">
+                                                    Tuition Total
+                                                </p>
+                                                <p className="text-sm font-semibold">
+                                                    PHP{' '}
+                                                    {tuitionTotal.toLocaleString(
+                                                        'en-US',
+                                                        {
+                                                            minimumFractionDigits: 2,
+                                                        },
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-md border px-3 py-2">
+                                                <p className="text-xs text-muted-foreground">
+                                                    Miscellaneous Total
+                                                </p>
+                                                <p className="text-sm font-semibold">
+                                                    PHP{' '}
+                                                    {miscellaneousTotal.toLocaleString(
+                                                        'en-US',
+                                                        {
+                                                            minimumFractionDigits: 2,
+                                                        },
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-md border px-3 py-2">
+                                                <p className="text-xs text-muted-foreground">
+                                                    Books and Modules Total
+                                                </p>
+                                                <p className="text-sm font-semibold">
+                                                    PHP{' '}
+                                                    {booksAndModulesTotal.toLocaleString(
+                                                        'en-US',
+                                                        {
+                                                            minimumFractionDigits: 2,
+                                                        },
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-md border px-3 py-2">
+                                                <p className="text-xs text-muted-foreground">
+                                                    Annual Total
+                                                </p>
+                                                <p className="text-sm font-semibold">
+                                                    PHP{' '}
+                                                    {annualTotal.toLocaleString(
+                                                        'en-US',
+                                                        {
+                                                            minimumFractionDigits: 2,
+                                                        },
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </TabsContent>
+                                );
+                            })}
+                        </Tabs>
+                    </CardContent>
+                </Card>
+
+                <Dialog
+                    open={isAddFeeDialogOpen}
+                    onOpenChange={setIsAddFeeDialogOpen}
+                >
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Add Fee Item</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-2">
+                            <div className="space-y-2">
+                                <Label>Grade Level</Label>
+                                <Select defaultValue="grade-7">
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="grade-7">
+                                            Grade 7
+                                        </SelectItem>
+                                        <SelectItem value="grade-8">
+                                            Grade 8
+                                        </SelectItem>
+                                        <SelectItem value="grade-9">
+                                            Grade 9
+                                        </SelectItem>
+                                        <SelectItem value="grade-10">
+                                            Grade 10
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Fee Label</Label>
+                                <Input placeholder="e.g. Laboratory Fee" />
+                            </div>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>Category</Label>
+                                    <Select defaultValue="miscellaneous">
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="tuition">
+                                                Tuition
+                                            </SelectItem>
+                                            <SelectItem value="miscellaneous">
+                                                Miscellaneous
+                                            </SelectItem>
+                                            <SelectItem value="books-modules">
+                                                Books and Modules
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Amount</Label>
+                                    <Input type="number" placeholder="0.00" />
+                                </div>
                             </div>
                         </div>
                         <DialogFooter>
                             <Button
                                 variant="outline"
-                                onClick={() => setIsAddModalOpen(false)}
+                                onClick={() => setIsAddFeeDialogOpen(false)}
                             >
                                 Cancel
                             </Button>
-                            <Button onClick={() => setIsAddModalOpen(false)}>
-                                Add Fee
+                            <Button
+                                onClick={() => setIsAddFeeDialogOpen(false)}
+                            >
+                                Add Item
                             </Button>
                         </DialogFooter>
                     </DialogContent>

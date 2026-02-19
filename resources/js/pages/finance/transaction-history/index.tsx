@@ -1,8 +1,11 @@
 import { Head } from '@inertiajs/react';
-import { Receipt, Ban, Search } from 'lucide-react';
+import { useState } from 'react';
+import { Ban, Receipt, Search } from 'lucide-react';
+import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateRangePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -30,159 +33,196 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function TransactionHistory() {
+    const [dateRange, setDateRange] = useState<DateRange>();
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Transaction History" />
+
             <div className="flex flex-col gap-6">
                 <Card>
-                    <CardHeader className="flex flex-col items-start justify-between border-b md:flex-row md:items-center">
-                        <CardTitle className="text-lg">
-                            Financial Transactions
-                        </CardTitle>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Input type="date" className="h-8 w-35 text-xs" />
-                            <span className="text-xs text-muted-foreground">
-                                to
-                            </span>
-                            <Input type="date" className="h-8 w-35 text-xs" />
-                            <Select defaultValue="All">
-                                <SelectTrigger className="h-8 w-40 text-xs">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All">
-                                        All Modes
-                                    </SelectItem>
-                                    <SelectItem value="Cash">Cash</SelectItem>
-                                    <SelectItem value="GCash">GCash</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Button size="xs" variant="outline">
-                                <Search className="mr-1 size-3" />
-                                Filter
-                            </Button>
+                    <CardHeader className="border-b">
+                        <div className="flex items-center justify-between gap-3">
+                            <CardTitle>Transaction History</CardTitle>
+                            <Badge variant="outline">2 results</Badge>
                         </div>
                     </CardHeader>
-                    <CardContent className="">
+
+                    <CardContent className="border-b p-4">
+                        <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                                <div className="relative w-full sm:flex-1">
+                                    <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="OR number or student"
+                                        className="pl-10"
+                                    />
+                                </div>
+                                <Button>Apply</Button>
+                            </div>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                <DateRangePicker
+                                    dateRange={dateRange}
+                                    setDateRange={setDateRange}
+                                    className="w-fit max-w-full"
+                                />
+                                <Select defaultValue="all-modes">
+                                    <SelectTrigger className="w-full sm:w-44">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all-modes">
+                                            All Modes
+                                        </SelectItem>
+                                        <SelectItem value="cash">
+                                            Cash
+                                        </SelectItem>
+                                        <SelectItem value="gcash">
+                                            GCash
+                                        </SelectItem>
+                                        <SelectItem value="bank">
+                                            Bank Transfer
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select defaultValue="all-status">
+                                    <SelectTrigger className="w-full sm:w-40">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all-status">
+                                            All Status
+                                        </SelectItem>
+                                        <SelectItem value="posted">
+                                            Posted
+                                        </SelectItem>
+                                        <SelectItem value="voided">
+                                            Voided
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Button variant="outline">Reset</Button>
+                            </div>
+                        </div>
+                    </CardContent>
+
+                    <CardContent className="p-0">
                         <Table>
-                            <TableHeader className="">
+                            <TableHeader>
                                 <TableRow>
-                                    <TableHead className="">
+                                    <TableHead className="pl-6">
                                         OR Number
                                     </TableHead>
-                                    <TableHead>Student Name</TableHead>
-                                    <TableHead className="text-center">
-                                        Type
-                                    </TableHead>
+                                    <TableHead>Student</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Mode</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Date and Time</TableHead>
                                     <TableHead className="text-right">
                                         Amount
                                     </TableHead>
-                                    <TableHead className="text-center">
-                                        Mode
-                                    </TableHead>
-                                    <TableHead className="">
-                                        Timestamp
-                                    </TableHead>
-                                    <TableHead className="text-right">
+                                    <TableHead className="pr-6 text-right">
                                         Actions
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                <TableRow className="transition-colors hover:bg-muted/30">
-                                    <TableCell className="font-bold">
+                                <TableRow>
+                                    <TableCell className="pl-6">
                                         OR-00921
                                     </TableCell>
-                                    <TableCell className="font-medium">
-                                        Juan Dela Cruz
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        Downpayment
-                                    </TableCell>
-                                    <TableCell className="text-right font-mono font-bold">
-                                        5,000.00
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge
-                                            variant="outline"
-                                            className="border-green-200 bg-green-50 text-green-700"
-                                        >
-                                            Cash
+                                    <TableCell>Juan Dela Cruz</TableCell>
+                                    <TableCell>Downpayment</TableCell>
+                                    <TableCell>Cash</TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary">
+                                            Posted
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">
-                                        Aug 01, 2024 08:45 AM
+                                    <TableCell>08/01/2026 08:45 AM</TableCell>
+                                    <TableCell className="text-right">
+                                        PHP 5,000.00
                                     </TableCell>
-                                    <TableCell className="pr-0 text-right">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="size-8"
-                                            title="View Receipt"
-                                        >
-                                            <Receipt className="size-4" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="size-8 text-destructive"
-                                            title="Void"
-                                        >
-                                            <Ban className="size-4" />
-                                        </Button>
+                                    <TableCell className="pr-6 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="size-8"
+                                            >
+                                                <Receipt className="size-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="size-8"
+                                            >
+                                                <Ban className="size-4" />
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
-                                <TableRow className="transition-colors hover:bg-muted/30">
-                                    <TableCell className="font-bold text-primary">
+                                <TableRow>
+                                    <TableCell className="pl-6">
                                         OR-00922
                                     </TableCell>
-                                    <TableCell className="font-medium">
-                                        Maria Santos
+                                    <TableCell>Maria Santos</TableCell>
+                                    <TableCell>Uniform Purchase</TableCell>
+                                    <TableCell>GCash</TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline">Voided</Badge>
                                     </TableCell>
-                                    <TableCell className="text-center">
-                                        Uniform Purchase
+                                    <TableCell>08/01/2026 09:15 AM</TableCell>
+                                    <TableCell className="text-right">
+                                        PHP 1,350.00
                                     </TableCell>
-                                    <TableCell className="text-right font-mono font-bold">
-                                        1,350.00
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge
-                                            variant="outline"
-                                            className="border-blue-200 bg-blue-50 text-blue-700"
-                                        >
-                                            GCash
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">
-                                        Aug 01, 2024 09:15 AM
-                                    </TableCell>
-                                    <TableCell className="pr-0 text-right">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="size-8"
-                                            title="View Receipt"
-                                        >
-                                            <Receipt className="size-4" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="size-8 text-destructive"
-                                            title="Void"
-                                        >
-                                            <Ban className="size-4" />
-                                        </Button>
+                                    <TableCell className="pr-6 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="size-8"
+                                            >
+                                                <Receipt className="size-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="size-8"
+                                                disabled
+                                            >
+                                                <Ban className="size-4" />
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>
                     </CardContent>
-                    <div className="border-t p-4 text-center">
-                        <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
-                            Showing 2 transactions
-                        </p>
+
+                    <div className="grid gap-2 border-t p-4 text-sm sm:grid-cols-4">
+                        <div className="space-y-1">
+                            <p className="text-muted-foreground">
+                                Transactions
+                            </p>
+                            <p className="font-medium">2</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-muted-foreground">
+                                Posted Amount
+                            </p>
+                            <p className="font-medium">PHP 5,000.00</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-muted-foreground">
+                                Voided Amount
+                            </p>
+                            <p className="font-medium">PHP 1,350.00</p>
+                        </div>
+                        <div className="space-y-1 text-left sm:text-right">
+                            <p className="text-muted-foreground">Net Amount</p>
+                            <p className="font-semibold">PHP 3,650.00</p>
+                        </div>
                     </div>
                 </Card>
             </div>

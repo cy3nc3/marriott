@@ -1,14 +1,9 @@
 import { Head } from '@inertiajs/react';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { CalendarDays, Clock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -18,76 +13,249 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+const START_HOUR = 7;
+const END_HOUR = 17;
+const HOUR_HEIGHT = 72;
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
 export default function Schedule() {
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const scheduleItems = [
+        {
+            day: 'Monday',
+            start: '08:00',
+            end: '09:00',
+            title: 'Mathematics 7',
+            teacher: 'Mr. Arthur Santos',
+            type: 'class',
+        },
+        {
+            day: 'Tuesday',
+            start: '08:00',
+            end: '09:00',
+            title: 'Mathematics 7',
+            teacher: 'Mr. Arthur Santos',
+            type: 'class',
+        },
+        {
+            day: 'Wednesday',
+            start: '08:00',
+            end: '09:00',
+            title: 'Mathematics 7',
+            teacher: 'Mr. Arthur Santos',
+            type: 'class',
+        },
+        {
+            day: 'Thursday',
+            start: '08:00',
+            end: '09:00',
+            title: 'Mathematics 7',
+            teacher: 'Mr. Arthur Santos',
+            type: 'class',
+        },
+        {
+            day: 'Friday',
+            start: '08:00',
+            end: '09:00',
+            title: 'Values Education',
+            teacher: 'Ms. Venus Cruz',
+            type: 'advisory',
+        },
+        {
+            day: 'Monday',
+            start: '10:30',
+            end: '11:30',
+            title: 'Science 7',
+            teacher: 'Ms. Clara Oswald',
+            type: 'class',
+        },
+        {
+            day: 'Tuesday',
+            start: '10:30',
+            end: '11:30',
+            title: 'Science 7',
+            teacher: 'Ms. Clara Oswald',
+            type: 'class',
+        },
+        {
+            day: 'Wednesday',
+            start: '10:30',
+            end: '11:30',
+            title: 'Science 7',
+            teacher: 'Ms. Clara Oswald',
+            type: 'class',
+        },
+        {
+            day: 'Thursday',
+            start: '10:30',
+            end: '11:30',
+            title: 'Science 7',
+            teacher: 'Ms. Clara Oswald',
+            type: 'class',
+        },
+    ];
+
+    const breakItems = [
+        { label: 'Flag Ceremony', start: '07:00', end: '08:00' },
+        { label: 'Recess', start: '10:00', end: '10:30' },
+        { label: 'Lunch Break', start: '12:00', end: '13:00' },
+    ];
+
+    const timeToMinutes = (time: string) => {
+        const [hours, minutes] = time.split(':').map(Number);
+        return hours * 60 + minutes;
+    };
+
+    const getPosition = (time: string) =>
+        ((timeToMinutes(time) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+
+    const getHeight = (start: string, end: string) =>
+        ((timeToMinutes(end) - timeToMinutes(start)) / 60) * HOUR_HEIGHT;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My Schedule" />
-            <div className="flex flex-col gap-4">
+
+            <div className="flex flex-col gap-6">
                 <Card>
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-24 text-center">Time</TableHead>
-                                    {days.map(day => (
-                                        <TableHead key={day} className="text-center min-w-[120px]">{day}</TableHead>
-                                    ))}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {/* 7:00 AM Row */}
-                                <TableRow className="h-16">
-                                    <TableCell className="text-center font-medium text-muted-foreground align-top py-4">07:00 AM</TableCell>
-                                    <TableCell colSpan={5} className="p-2">
-                                        <div className="bg-primary/10 border-l-4 border-primary p-2 h-full rounded text-xs font-bold uppercase tracking-wider text-primary flex items-center justify-center">
-                                            Flag Ceremony
+                    <CardHeader className="border-b">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <CalendarDays className="size-4 text-muted-foreground" />
+                                <CardTitle>Weekly Class Schedule</CardTitle>
+                            </div>
+                            <Badge variant="outline">Read-only</Badge>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div
+                            className="relative flex w-full"
+                            style={{
+                                height:
+                                    (END_HOUR - START_HOUR) * HOUR_HEIGHT + 40,
+                            }}
+                        >
+                            <div className="sticky left-0 z-30 w-20 shrink-0 border-r bg-background pt-10 pl-0.5">
+                                {Array.from({
+                                    length: END_HOUR - START_HOUR + 1,
+                                }).map((_, index) => (
+                                    <div
+                                        key={index}
+                                        className="relative pr-2 text-right"
+                                        style={{
+                                            height:
+                                                index === END_HOUR - START_HOUR
+                                                    ? 0
+                                                    : HOUR_HEIGHT,
+                                        }}
+                                    >
+                                        <span className="absolute top-0 right-2 -translate-y-1/2 font-mono text-[10px] leading-none font-medium whitespace-nowrap text-muted-foreground uppercase">
+                                            {`${(START_HOUR + index) % 12 || 12}:00 ${START_HOUR + index >= 12 ? 'PM' : 'AM'}`}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="relative min-w-[800px] flex-1">
+                                <div className="sticky top-0 z-40 flex h-10 border-b bg-background">
+                                    {DAYS.map((day) => (
+                                        <div
+                                            key={day}
+                                            className="flex flex-1 items-center justify-center border-r text-xs font-semibold tracking-wider text-muted-foreground uppercase last:border-r-0"
+                                        >
+                                            {day}
                                         </div>
-                                    </TableCell>
-                                </TableRow>
-
-                                {/* 8:00 AM Row */}
-                                <TableRow className="h-32">
-                                    <TableCell className="text-center font-medium text-muted-foreground align-top py-4">08:00 AM</TableCell>
-                                    {[1, 2, 3, 4].map(i => (
-                                        <TableCell key={i} className="p-2 align-top">
-                                            <div className="bg-blue-50 border-l-4 border-blue-500 p-2 h-full rounded">
-                                                <p className="font-bold text-blue-700 text-xs">Mathematics 7</p>
-                                                <p className="text-[10px] font-medium text-blue-600/80">Teacher 1</p>
-                                            </div>
-                                        </TableCell>
                                     ))}
-                                    <TableCell className="p-2 align-top">
-                                        <div className="bg-amber-50 border-l-4 border-amber-500 p-2 h-full rounded">
-                                            <p className="font-bold text-amber-700 text-xs">Values Ed (EsP)</p>
-                                            <p className="text-[10px] font-medium text-amber-600/80">Teacher 2</p>
+                                </div>
+
+                                <div className="pointer-events-none absolute inset-0 z-0 pt-10">
+                                    {Array.from({
+                                        length: END_HOUR - START_HOUR,
+                                    }).map((_, index) => (
+                                        <div
+                                            key={index}
+                                            className="border-b border-dashed border-border/40"
+                                            style={{ height: HOUR_HEIGHT }}
+                                        />
+                                    ))}
+                                </div>
+
+                                <div className="absolute inset-0 z-10 flex pt-10">
+                                    {DAYS.map((day) => (
+                                        <div
+                                            key={day}
+                                            className="relative flex-1 border-r last:border-r-0"
+                                        >
+                                            {breakItems.map((breakItem) => (
+                                                <div
+                                                    key={`${day}-${breakItem.label}`}
+                                                    className="absolute inset-x-0 border-y bg-muted/40"
+                                                    style={{
+                                                        top: getPosition(
+                                                            breakItem.start,
+                                                        ),
+                                                        height: getHeight(
+                                                            breakItem.start,
+                                                            breakItem.end,
+                                                        ),
+                                                    }}
+                                                >
+                                                    <p className="px-1 pt-1 text-center text-[10px] font-semibold text-muted-foreground uppercase">
+                                                        {breakItem.label}
+                                                    </p>
+                                                </div>
+                                            ))}
+
+                                            {scheduleItems
+                                                .filter(
+                                                    (item) => item.day === day,
+                                                )
+                                                .map((item) => (
+                                                    <div
+                                                        key={`${day}-${item.start}-${item.title}`}
+                                                        className={cn(
+                                                            'absolute right-1 left-1 z-20 rounded-md border px-2 py-1.5 shadow-sm',
+                                                            item.type ===
+                                                                'advisory'
+                                                                ? 'border-amber-300 bg-amber-50'
+                                                                : 'border-primary/20 bg-background',
+                                                        )}
+                                                        style={{
+                                                            top: getPosition(
+                                                                item.start,
+                                                            ),
+                                                            height: getHeight(
+                                                                item.start,
+                                                                item.end,
+                                                            ),
+                                                        }}
+                                                    >
+                                                        <div className="flex h-full flex-col justify-between">
+                                                            <div className="space-y-0.5">
+                                                                <p className="truncate text-[11px] leading-tight font-semibold text-primary">
+                                                                    {item.title}
+                                                                </p>
+                                                                <p className="truncate text-[10px] leading-tight text-muted-foreground">
+                                                                    {
+                                                                        item.teacher
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                            <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                                                                <Clock className="size-3" />
+                                                                <span className="font-mono">
+                                                                    {item.start}{' '}
+                                                                    - {item.end}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                         </div>
-                                    </TableCell>
-                                </TableRow>
-
-                                {/* 10:00 AM Recess */}
-                                <TableRow className="h-12 bg-muted/20">
-                                    <TableCell className="text-center font-medium align-middle">10:00 AM</TableCell>
-                                    <TableCell colSpan={5} className="text-center text-xs font-bold tracking-widest text-muted-foreground uppercase align-middle">Recess</TableCell>
-                                </TableRow>
-
-                                {/* 10:30 AM Row */}
-                                <TableRow className="h-32">
-                                    <TableCell className="text-center font-medium text-muted-foreground align-top py-4">10:30 AM</TableCell>
-                                    {[1, 2, 3, 4].map(i => (
-                                        <TableCell key={i} className="p-2 align-top">
-                                            <div className="bg-green-50 border-l-4 border-green-500 p-2 h-full rounded">
-                                                <p className="font-bold text-green-700 text-xs">Science 7</p>
-                                                <p className="text-[10px] font-medium text-green-600/80">Teacher 3</p>
-                                            </div>
-                                        </TableCell>
                                     ))}
-                                    <TableCell className="p-2" />
-                                </TableRow>
-                            </TableBody>
-                        </Table>
-                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
                 </Card>
             </div>
         </AppLayout>

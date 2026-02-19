@@ -17,6 +17,7 @@
         "laravel/wayfinder": "^0.1.9"
     },
     "require-dev": {
+        "beyondcode/laravel-er-diagram-generator": "^5.0",
         "fakerphp/faker": "^1.23",
         "laravel/boost": "^2.1",
         "laravel/pail": "^1.2.2",
@@ -45,14 +46,13 @@
             "npm install",
             "@php artisan key:generate --ansi",
             "@php artisan boost:install --mcp",
-            "@echo ' '",
-            "@echo '✅ Initial setup complete.'",
-            "@echo ' '",
-            "@echo 'Next steps:'",
-            "@echo '  1. Configure your database credentials in the .env file.'",
-            "@echo '  2. Run 'composer run setup:finish' to build the database and assets.'"
+            "@php -r \"echo PHP_EOL . 'Initial setup complete.' . PHP_EOL;\"",
+            "@php -r \"echo 'Next steps:' . PHP_EOL;\"",
+            "@php -r \"echo '  1. Configure your database credentials in the .env file.' . PHP_EOL;\"",
+            "@php -r \"echo '  2. Run composer run setup:finish to build the database and assets.' . PHP_EOL;\""
         ],
         "setup:finish": [
+            "Composer\\Config::disableProcessTimeout",
             "@php artisan migrate --seed --force",
             "npm run build"
         ],

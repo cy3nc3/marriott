@@ -27,3 +27,23 @@ test('unauthenticated user is redirected to login', function () {
     $this->get('/super-admin/user-manager')
         ->assertRedirect('/login');
 });
+
+test('student cannot access finance cashier panel', function () {
+    $user = User::factory()->create([
+        'role' => UserRole::STUDENT,
+    ]);
+
+    $this->actingAs($user)
+        ->get('/finance/cashier-panel')
+        ->assertStatus(403);
+});
+
+test('finance can access finance cashier panel', function () {
+    $user = User::factory()->create([
+        'role' => UserRole::FINANCE,
+    ]);
+
+    $this->actingAs($user)
+        ->get('/finance/cashier-panel')
+        ->assertStatus(200);
+});

@@ -1,9 +1,21 @@
 import { Head } from '@inertiajs/react';
-import { Printer, Search } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useState } from 'react';
+import { Download, Printer, Search } from 'lucide-react';
+import type { DateRange } from 'react-day-picker';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateRangePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import {
     Table,
     TableBody,
@@ -22,43 +34,63 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+type PaymentPlan = 'monthly' | 'quarterly' | 'semi-annual' | 'cash';
+
+type DueItem = {
+    dueDate: string;
+    amount: string;
+    status: 'Paid' | 'Unpaid';
+};
+
+const duesByPlan: Record<PaymentPlan, DueItem[]> = {
+    monthly: [
+        { dueDate: 'Jun 15, 2026', amount: 'PHP 2,500.00', status: 'Paid' },
+        { dueDate: 'Jul 15, 2026', amount: 'PHP 2,500.00', status: 'Paid' },
+        { dueDate: 'Aug 15, 2026', amount: 'PHP 2,500.00', status: 'Unpaid' },
+        { dueDate: 'Sep 15, 2026', amount: 'PHP 2,500.00', status: 'Unpaid' },
+    ],
+    quarterly: [
+        { dueDate: 'Jun 15, 2026', amount: 'PHP 7,500.00', status: 'Paid' },
+        { dueDate: 'Sep 15, 2026', amount: 'PHP 7,500.00', status: 'Unpaid' },
+        { dueDate: 'Dec 15, 2026', amount: 'PHP 7,500.00', status: 'Unpaid' },
+    ],
+    'semi-annual': [
+        { dueDate: 'Jun 15, 2026', amount: 'PHP 12,500.00', status: 'Paid' },
+        { dueDate: 'Dec 15, 2026', amount: 'PHP 12,500.00', status: 'Unpaid' },
+    ],
+    cash: [
+        { dueDate: 'Jun 15, 2026', amount: 'PHP 25,000.00', status: 'Paid' },
+    ],
+};
+
 export default function StudentLedgers() {
+    const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>('monthly');
+    const [showPaidDues, setShowPaidDues] = useState(false);
+    const [entryDateRange, setEntryDateRange] = useState<DateRange>();
+    const visibleDues = duesByPlan[selectedPlan].filter((due) => {
+        if (showPaidDues) {
+            return true;
+        }
+
+        return due.status !== 'Paid';
+    });
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Student Ledger" />
-            <div className="flex flex-col gap-6">
-                {/* Print Header (Only visible on print) */}
-                <div className="mb-8 hidden space-y-2 text-center print:block">
-                    <h1 className="text-2xl font-bold uppercase">
-                        Marriott Connect School
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                        123 Education St, City, Country
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                        Tel: (02) 123-4567 | Email: finance@marriott.edu
-                    </p>
-                    <div className="pt-4">
-                        <h2 className="inline-block border-b-2 border-foreground pb-1 text-xl font-bold uppercase">
-                            Statement of Account
-                        </h2>
-                    </div>
-                </div>
+            <Head title="Student Ledgers" />
 
-                {/* Search Section (Hidden on Print) */}
-                <Card className="print:hidden">
-                    <CardHeader>
-                        <CardTitle className="text-lg">
-                            Search Student
-                        </CardTitle>
+            <div className="flex flex-col gap-6">
+                <Card>
+                    <CardHeader className="border-b">
+                        <CardTitle>Ledger Lookup</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex gap-4">
+                        <div className="flex flex-col gap-3 lg:flex-row">
                             <Input
-                                placeholder="Enter Student Name or LRN..."
-                                className="flex-1"
+                                placeholder="Search by student name or LRN"
+                                className="lg:flex-1"
                             />
-                            <Button className="gap-2">
+                            <Button className="lg:w-auto">
                                 <Search className="size-4" />
                                 Search
                             </Button>
@@ -66,195 +98,332 @@ export default function StudentLedgers() {
                     </CardContent>
                 </Card>
 
-                {/* Student Profile Card */}
-                <Card>
-                    <CardContent className="p-6">
-                        <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-6">
-                                <Avatar size="2xl" className="hidden sm:flex">
-                                    <AvatarImage src="" />
-                                    <AvatarFallback>J</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <h3 className="text-2xl font-bold">
-                                        Juan Dela Cruz
-                                    </h3>
-                                    <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-2 text-sm md:grid-cols-2">
-                                        <p>
-                                            <span className="font-medium text-muted-foreground">
-                                                LRN:
-                                            </span>{' '}
-                                            1234567890123
-                                        </p>
-                                        <p>
-                                            <span className="font-medium text-muted-foreground">
-                                                Grade & Section:
-                                            </span>{' '}
-                                            Grade 7 - Rizal
-                                        </p>
-                                        <p>
-                                            <span className="font-medium text-muted-foreground">
-                                                Guardian:
-                                            </span>{' '}
-                                            Maria Dela Cruz
-                                        </p>
-                                        <p>
-                                            <span className="font-medium text-muted-foreground">
-                                                Contact No:
-                                            </span>{' '}
-                                            09123456789
-                                        </p>
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <Card className="lg:col-span-1">
+                        <CardHeader className="border-b">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="space-y-2">
+                                    <CardTitle>
+                                        Student Ledger Profile
+                                    </CardTitle>
+                                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                                        <Badge variant="outline">
+                                            Plan: {selectedPlan}
+                                        </Badge>
                                     </div>
                                 </div>
                             </div>
-                            <div className="space-y-2 text-right">
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">
+                                        Student
+                                    </p>
+                                    <p className="text-sm font-medium">
+                                        Juan Dela Cruz
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">
+                                        LRN
+                                    </p>
+                                    <p className="text-sm font-medium">
+                                        123456789012
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">
+                                        Grade and Section
+                                    </p>
+                                    <p className="text-sm font-medium">
+                                        Grade 7 - Rizal
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">
+                                        Guardian
+                                    </p>
+                                    <p className="text-sm font-medium">
+                                        Maria Dela Cruz
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="mt-4 flex justify-end gap-2">
                                 <Button
                                     variant="outline"
-                                    className="gap-2 print:hidden"
                                     onClick={() => window.print()}
                                 >
                                     <Printer className="size-4" />
                                     Print SOA
                                 </Button>
-                                <p className="text-[10px] font-bold text-muted-foreground uppercase">
-                                    Date: Aug 01, 2024
-                                </p>
+                                <Button variant="outline">
+                                    <Download className="size-4" />
+                                    Export
+                                </Button>
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
 
-                {/* Financial Summary Cards */}
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                    <Card className="border-l-4 border-l-blue-500">
-                        <CardContent className="p-6">
-                            <p className="text-sm font-medium tracking-wider text-muted-foreground uppercase">
-                                Total Fees Assessed
-                            </p>
-                            <p className="mt-2 text-2xl font-bold">
-                                ₱ 25,000.00
-                            </p>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-l-4 border-l-green-500">
-                        <CardContent className="p-6">
-                            <p className="text-sm font-medium tracking-wider text-muted-foreground uppercase">
-                                Total Payments Made
-                            </p>
-                            <p className="mt-2 text-2xl font-bold">
-                                ₱ 10,000.00
-                            </p>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-l-4 border-l-red-500">
-                        <CardContent className="p-6">
-                            <p className="text-sm font-medium tracking-wider text-muted-foreground uppercase">
-                                Current Balance
-                            </p>
-                            <p className="mt-2 text-2xl font-bold text-destructive">
-                                ₱ 15,000.00
-                            </p>
+                    <Card className="lg:col-span-2">
+                        <CardHeader className="border-b">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <CardTitle>Dues Schedule</CardTitle>
+                                <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            id="show-paid-dues"
+                                            checked={showPaidDues}
+                                            onCheckedChange={setShowPaidDues}
+                                        />
+                                        <Label htmlFor="show-paid-dues">
+                                            Show Paid
+                                        </Label>
+                                    </div>
+                                    <Select
+                                        value={selectedPlan}
+                                        onValueChange={(value: PaymentPlan) =>
+                                            setSelectedPlan(value)
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full sm:w-48">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="monthly">
+                                                Monthly
+                                            </SelectItem>
+                                            <SelectItem value="quarterly">
+                                                Quarterly
+                                            </SelectItem>
+                                            <SelectItem value="semi-annual">
+                                                Semi-Annual
+                                            </SelectItem>
+                                            <SelectItem value="cash">
+                                                Cash
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="pl-6">
+                                            Due Date
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            Amount
+                                        </TableHead>
+                                        <TableHead className="pr-6 text-right">
+                                            Status
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {visibleDues.map((due) => (
+                                        <TableRow
+                                            key={`${selectedPlan}-${due.dueDate}`}
+                                        >
+                                            <TableCell className="pl-6">
+                                                {due.dueDate}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                {due.amount}
+                                            </TableCell>
+                                            <TableCell className="pr-6 text-right">
+                                                <Badge
+                                                    variant={
+                                                        due.status === 'Paid'
+                                                            ? 'secondary'
+                                                            : 'outline'
+                                                    }
+                                                >
+                                                    {due.status}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {visibleDues.length === 0 && (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={3}
+                                                className="py-8 text-center text-sm text-muted-foreground"
+                                            >
+                                                No unpaid dues for this plan.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
                         </CardContent>
                     </Card>
                 </div>
 
-                {/* Ledger Table */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">
-                            Transaction History
-                        </CardTitle>
+                    <CardHeader className="border-b">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <CardTitle>Ledger Entries</CardTitle>
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                                <Select defaultValue="all">
+                                    <SelectTrigger className="w-full sm:w-44">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            All Entry Types
+                                        </SelectItem>
+                                        <SelectItem value="charge">
+                                            Charges
+                                        </SelectItem>
+                                        <SelectItem value="payment">
+                                            Payments
+                                        </SelectItem>
+                                        <SelectItem value="discount">
+                                            Discounts
+                                        </SelectItem>
+                                        <SelectItem value="adjustment">
+                                            Adjustments
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <DateRangePicker
+                                    dateRange={entryDateRange}
+                                    setDateRange={setEntryDateRange}
+                                    className="w-fit max-w-full"
+                                />
+                            </div>
+                        </div>
                     </CardHeader>
-                    <CardContent className="">
+                    <CardContent className="p-0">
                         <Table>
                             <TableHeader>
-                                <TableRow className="">
-                                    <TableHead className="">Date</TableHead>
-                                    <TableHead>Description</TableHead>
-                                    <TableHead className="text-center">
-                                        Debit (+)
-                                    </TableHead>
-                                    <TableHead className="text-center">
-                                        Credit (-)
+                                <TableRow>
+                                    <TableHead className="pl-6">Date</TableHead>
+                                    <TableHead>Reference</TableHead>
+                                    <TableHead>Entry Type</TableHead>
+                                    <TableHead className="text-right">
+                                        Charge
                                     </TableHead>
                                     <TableHead className="text-right">
+                                        Payment
+                                    </TableHead>
+                                    <TableHead className="pr-6 text-right">
                                         Running Balance
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 <TableRow>
-                                    <TableCell>Aug 01, 2024</TableCell>
-                                    <TableCell className="font-medium">
+                                    <TableCell className="pl-6">
+                                        Jun 10, 2026
+                                    </TableCell>
+                                    <TableCell>
                                         Tuition Fee Assessment
                                     </TableCell>
-                                    <TableCell className="text-center">
-                                        20,000.00
+                                    <TableCell>
+                                        <Badge variant="outline">Charge</Badge>
                                     </TableCell>
-                                    <TableCell className="text-center">
+                                    <TableCell className="text-right">
+                                        PHP 20,000.00
+                                    </TableCell>
+                                    <TableCell className="text-right">
                                         -
                                     </TableCell>
-                                    <TableCell className="text-right font-bold text-destructive">
-                                        20,000.00
+                                    <TableCell className="pr-6 text-right">
+                                        PHP 20,000.00
                                     </TableCell>
                                 </TableRow>
                                 <TableRow>
-                                    <TableCell>Aug 01, 2024</TableCell>
-                                    <TableCell className="font-medium">
-                                        Misc Fee Assessment
+                                    <TableCell className="pl-6">
+                                        Jun 10, 2026
                                     </TableCell>
-                                    <TableCell className="text-center">
-                                        5,000.00
+                                    <TableCell>
+                                        Miscellaneous Fee Assessment
                                     </TableCell>
-                                    <TableCell className="text-center">
+                                    <TableCell>
+                                        <Badge variant="outline">Charge</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        PHP 5,000.00
+                                    </TableCell>
+                                    <TableCell className="text-right">
                                         -
                                     </TableCell>
-                                    <TableCell className="text-right font-bold text-destructive">
-                                        25,000.00
+                                    <TableCell className="pr-6 text-right">
+                                        PHP 25,000.00
                                     </TableCell>
                                 </TableRow>
                                 <TableRow>
-                                    <TableCell>Aug 01, 2024</TableCell>
-                                    <TableCell className="font-medium">
-                                        Downpayment (OR-00921)
+                                    <TableCell className="pl-6">
+                                        Jun 12, 2026
                                     </TableCell>
-                                    <TableCell className="text-center">
+                                    <TableCell>
+                                        Downpayment (OR-10221)
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary">
+                                            Payment
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
                                         -
                                     </TableCell>
-                                    <TableCell className="text-center font-bold text-green-600">
-                                        5,000.00
+                                    <TableCell className="text-right">
+                                        PHP 3,000.00
                                     </TableCell>
-                                    <TableCell className="text-right font-bold text-destructive">
-                                        20,000.00
+                                    <TableCell className="pr-6 text-right">
+                                        PHP 22,000.00
                                     </TableCell>
                                 </TableRow>
                                 <TableRow>
-                                    <TableCell>Sep 05, 2024</TableCell>
-                                    <TableCell className="font-medium">
-                                        Tuition Payment (OR-01054)
+                                    <TableCell className="pl-6">
+                                        Jul 05, 2026
                                     </TableCell>
-                                    <TableCell className="text-center">
+                                    <TableCell>
+                                        Monthly Payment (OR-10408)
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary">
+                                            Payment
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
                                         -
                                     </TableCell>
-                                    <TableCell className="text-center font-bold text-green-600">
-                                        5,000.00
+                                    <TableCell className="text-right">
+                                        PHP 5,000.00
                                     </TableCell>
-                                    <TableCell className="text-right font-bold text-destructive">
-                                        15,000.00
+                                    <TableCell className="pr-6 text-right">
+                                        PHP 17,000.00
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>
                     </CardContent>
+                    <div className="grid gap-2 border-t p-4 text-sm sm:grid-cols-3">
+                        <div className="space-y-1">
+                            <p className="text-muted-foreground">
+                                Total Charges
+                            </p>
+                            <p className="font-medium">PHP 25,000.00</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-muted-foreground">
+                                Total Payments
+                            </p>
+                            <p className="font-medium">PHP 8,000.00</p>
+                        </div>
+                        <div className="space-y-1 text-left sm:text-right">
+                            <p className="text-muted-foreground">
+                                Outstanding Balance
+                            </p>
+                            <p className="font-semibold">PHP 17,000.00</p>
+                        </div>
+                    </div>
                 </Card>
-
-                {/* Print Footer (Only visible on print) */}
-                <div className="mt-12 hidden text-center text-sm text-muted-foreground italic print:block">
-                    <p>
-                        This is a system generated report. No signature
-                        required.
-                    </p>
-                </div>
             </div>
         </AppLayout>
     );

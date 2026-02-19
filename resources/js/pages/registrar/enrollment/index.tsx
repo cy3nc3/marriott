@@ -1,13 +1,8 @@
 import { Head } from '@inertiajs/react';
-import { UserPlus, History } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -38,96 +33,175 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function Enrollment() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Quick Enrollment" />
+            <Head title="Enrollment" />
+
             <div className="flex flex-col gap-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Enrollment Form (Stub Entry) */}
-                    <Card className="lg:col-span-1 border-primary/20 shadow-sm h-fit">
-                        <CardHeader className="bg-primary/5 border-b">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <UserPlus className="size-5 text-primary" />
-                                Quick Enrollment
-                            </CardTitle>
-                            <CardDescription>Create a student stub to enable immediate collection.</CardDescription>
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <Card className="lg:col-span-1">
+                        <CardHeader className="border-b">
+                            <CardTitle>New Enrollment Intake</CardTitle>
                         </CardHeader>
-                        <CardContent className="pt-6 space-y-4">
+                        <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="lrn">LRN (Unique Anchor)</Label>
-                                <Input id="lrn" placeholder="12-digit LRN" className="font-mono" />
+                                <Label htmlFor="lrn">LRN</Label>
+                                <Input id="lrn" placeholder="12-digit LRN" />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+
+                            <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="first_name">First Name</Label>
-                                    <Input id="first_name" placeholder="Juan" />
+                                    <Label htmlFor="first-name">
+                                        First Name
+                                    </Label>
+                                    <Input id="first-name" placeholder="Juan" />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="last_name">Last Name</Label>
-                                    <Input id="last_name" placeholder="Dela Cruz" />
+                                    <Label htmlFor="last-name">Last Name</Label>
+                                    <Input
+                                        id="last-name"
+                                        placeholder="Dela Cruz"
+                                    />
                                 </div>
                             </div>
+
                             <div className="space-y-2">
-                                <Label htmlFor="grade">Grade Level</Label>
-                                <Select>
-                                    <SelectTrigger id="grade">
-                                        <SelectValue placeholder="Select Grade..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="7">Grade 7</SelectItem>
-                                        <SelectItem value="8">Grade 8</SelectItem>
-                                        <SelectItem value="9">Grade 9</SelectItem>
-                                        <SelectItem value="10">Grade 10</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="emergency-contact">
+                                    Emergency Contact
+                                </Label>
+                                <Input
+                                    id="emergency-contact"
+                                    placeholder="0917 123 4567"
+                                />
                             </div>
+
                             <div className="space-y-2">
-                                <Label htmlFor="term">Payment Term</Label>
+                                <Label>Payment Plan</Label>
                                 <Select defaultValue="monthly">
-                                    <SelectTrigger id="term">
+                                    <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="full">Cash / Full Payment</SelectItem>
-                                        <SelectItem value="monthly">Monthly</SelectItem>
-                                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                                        <SelectItem value="semi">Semi-Annual</SelectItem>
+                                        <SelectItem value="cash">
+                                            Cash
+                                        </SelectItem>
+                                        <SelectItem value="monthly">
+                                            Monthly
+                                        </SelectItem>
+                                        <SelectItem value="quarterly">
+                                            Quarterly
+                                        </SelectItem>
+                                        <SelectItem value="semi-annual">
+                                            Semi-Annual
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button className="w-full h-11 font-bold tracking-wide mt-2">
-                                Initialize Enrollment
+
+                            <div className="space-y-2">
+                                <Label htmlFor="downpayment">Downpayment</Label>
+                                <Input
+                                    id="downpayment"
+                                    type="number"
+                                    placeholder="0.00"
+                                />
+                            </div>
+
+                            <Button className="w-full">
+                                Save Enrollment Intake
                             </Button>
                         </CardContent>
                     </Card>
 
-                    {/* Recent Stubs Table */}
                     <Card className="lg:col-span-2">
-                        <CardHeader className="flex flex-row items-center justify-between bg-muted/30 border-b space-y-0 py-4">
-                            <div className="flex items-center gap-2">
-                                <History className="size-5 text-muted-foreground" />
-                                <CardTitle className="text-lg">Recent Enrollment Stubs</CardTitle>
+                        <CardHeader className="border-b">
+                            <CardTitle>Enrollment Queue</CardTitle>
+                            <div className="flex flex-wrap items-center gap-2 text-sm">
+                                <Badge variant="outline">
+                                    Pending Intake: 38
+                                </Badge>
+                                <Badge variant="outline">
+                                    For Cashier Payment: 21
+                                </Badge>
+                                <Badge variant="outline">
+                                    Partial Payment: 9
+                                </Badge>
                             </div>
                         </CardHeader>
                         <CardContent className="p-0">
                             <Table>
-                                <TableHeader className="bg-muted/20">
+                                <TableHeader>
                                     <TableRow>
-                                        <TableHead className="pl-6">LRN</TableHead>
-                                        <TableHead>Student Name</TableHead>
-                                        <TableHead>Grade</TableHead>
-                                        <TableHead>Term</TableHead>
-                                        <TableHead className="text-center pr-6">Status</TableHead>
+                                        <TableHead className="pl-6">
+                                            LRN
+                                        </TableHead>
+                                        <TableHead>Student</TableHead>
+                                        <TableHead>Plan</TableHead>
+                                        <TableHead>Downpayment</TableHead>
+                                        <TableHead>Cashier Status</TableHead>
+                                        <TableHead className="pr-6 text-right">
+                                            Actions
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    <TableRow className="hover:bg-muted/30 transition-colors">
-                                        <TableCell className="pl-6 font-mono text-xs">123456789012</TableCell>
-                                        <TableCell className="font-bold tracking-tight text-primary">Juan Dela Cruz</TableCell>
-                                        <TableCell className="font-medium">Grade 7</TableCell>
-                                        <TableCell className="text-xs uppercase font-bold text-muted-foreground">Monthly</TableCell>
-                                        <TableCell className="text-center pr-6">
-                                            <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-orange-600 uppercase tracking-tighter">
-                                                <div className="size-1.5 rounded-full bg-orange-600 animate-pulse" />
-                                                Pending Sync
+                                    <TableRow>
+                                        <TableCell className="pl-6">
+                                            123456789012
+                                        </TableCell>
+                                        <TableCell>Juan Dela Cruz</TableCell>
+                                        <TableCell>Monthly</TableCell>
+                                        <TableCell>PHP 3,000.00</TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline">
+                                                Unpaid
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="pr-6">
+                                            <div className="flex justify-end gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="size-8"
+                                                >
+                                                    <Pencil className="size-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="size-8"
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell className="pl-6">
+                                            987654321098
+                                        </TableCell>
+                                        <TableCell>Maria Santos</TableCell>
+                                        <TableCell>Quarterly</TableCell>
+                                        <TableCell>PHP 2,500.00</TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline">
+                                                Partial
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="pr-6">
+                                            <div className="flex justify-end gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="size-8"
+                                                >
+                                                    <Pencil className="size-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="size-8"
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -136,7 +210,6 @@ export default function Enrollment() {
                         </CardContent>
                     </Card>
                 </div>
-
             </div>
         </AppLayout>
     );

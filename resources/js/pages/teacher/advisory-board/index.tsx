@@ -1,8 +1,17 @@
 import { Head } from '@inertiajs/react';
-import { Printer, Info, Lock, ShieldCheck, Heart } from 'lucide-react';
+import { Info, Lock, Save } from 'lucide-react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
@@ -30,85 +39,201 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function AdvisoryBoard() {
+    const [isFinalizeDialogOpen, setIsFinalizeDialogOpen] = useState(false);
+    const valueCriteria = [
+        'Maka-Diyos',
+        'Makatao',
+        'Makakalikasan',
+        'Makabansa',
+    ];
+    const students = [
+        {
+            name: 'Dela Cruz, Juan',
+            ratings: {
+                maka_diyos: 'AO',
+                makatao: 'AO',
+                makakalikasan: 'SO',
+                makabansa: 'AO',
+            },
+            remarks: 'Consistent participation in class activities.',
+        },
+        {
+            name: 'Santos, Maria',
+            ratings: {
+                maka_diyos: 'AO',
+                makatao: 'AO',
+                makakalikasan: 'AO',
+                makabansa: 'AO',
+            },
+            remarks: 'Positive leadership and peer support.',
+        },
+        {
+            name: 'Reyes, Carlo',
+            ratings: {
+                maka_diyos: 'SO',
+                makatao: 'SO',
+                makakalikasan: 'AO',
+                makabansa: 'SO',
+            },
+            remarks: 'Needs closer monitoring on classroom behavior.',
+        },
+    ];
+    const advisoryGrades = [
+        {
+            studentName: 'Dela Cruz, Juan',
+            math: 85,
+            science: 82,
+            english: 88,
+            filipino: 86,
+            average: '85.25',
+        },
+        {
+            studentName: 'Santos, Maria',
+            math: 92,
+            science: 90,
+            english: 91,
+            filipino: 93,
+            average: '91.50',
+        },
+        {
+            studentName: 'Reyes, Carlo',
+            math: 78,
+            science: 80,
+            english: 79,
+            filipino: 81,
+            average: '79.50',
+        },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Advisory Board" />
-            <div className="flex flex-col gap-4">
-                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-                    <div className="flex items-center gap-4">
-                        <Select defaultValue="1st">
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="1st">1st Quarter</SelectItem>
-                                <SelectItem value="2nd">2nd Quarter</SelectItem>
-                            </SelectContent>
-                        </Select>
-
-                        <div className="hidden h-4 w-px bg-border md:block" />
-
-                        <div className="flex items-center gap-2">
-                            <span className="hidden text-xs text-muted-foreground md:inline-block">Sync Status:</span>
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">All Subjects Finalized</Badge>
+            <div className="flex flex-col gap-6">
+                <Card>
+                    <CardHeader className="border-b">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <CardTitle>Advisory Context</CardTitle>
+                            <Badge variant="outline">Status: Draft</Badge>
                         </div>
-                    </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                                <Select defaultValue="section-rizal">
+                                    <SelectTrigger className="w-full sm:w-52">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="section-rizal">
+                                            Grade 7 - Rizal
+                                        </SelectItem>
+                                        <SelectItem value="section-bonifacio">
+                                            Grade 7 - Bonifacio
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select defaultValue="first-quarter">
+                                    <SelectTrigger className="w-full sm:w-40">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="first-quarter">
+                                            1st Quarter
+                                        </SelectItem>
+                                        <SelectItem value="second-quarter">
+                                            2nd Quarter
+                                        </SelectItem>
+                                        <SelectItem value="third-quarter">
+                                            3rd Quarter
+                                        </SelectItem>
+                                        <SelectItem value="fourth-quarter">
+                                            4th Quarter
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <Button variant="outline">
+                                    <Save className="size-4" />
+                                    Save Draft
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={() =>
+                                        setIsFinalizeDialogOpen(true)
+                                    }
+                                >
+                                    <Lock className="size-4" />
+                                    Finalize and Lock
+                                </Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="gap-2">
-                            <Printer className="size-4" />
-                            Bulk Print SF9
-                        </Button>
-                        <Button size="sm" variant="destructive" className="gap-2">
-                            <Lock className="size-4" />
-                            Finalize & Lock Quarter
-                        </Button>
-                    </div>
-                </div>
-
-                <Tabs defaultValue="academic" className="w-full">
-                    <TabsList className="mb-4">
-                        <TabsTrigger value="academic" className="gap-2">
-                            <ShieldCheck className="size-4" />
-                            Academic Summary
-                        </TabsTrigger>
-                        <TabsTrigger value="conduct" className="gap-2">
-                            <Heart className="size-4" />
-                            Character & Conduct
-                        </TabsTrigger>
+                <Tabs defaultValue="grades" className="w-full">
+                    <TabsList>
+                        <TabsTrigger value="grades">Grades</TabsTrigger>
+                        <TabsTrigger value="conduct">Conduct</TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="academic">
+                    <TabsContent value="grades">
                         <Card>
+                            <CardHeader className="border-b">
+                                <div className="flex items-center justify-between gap-3">
+                                    <CardTitle>Advisory Class Grades</CardTitle>
+                                    <Badge variant="secondary">Read-only</Badge>
+                                </div>
+                            </CardHeader>
                             <CardContent className="p-0">
                                 <Table>
-                                    <TableHeader className="bg-muted/20">
+                                    <TableHeader>
                                         <TableRow>
-                                            <TableHead className="sticky left-0 z-20 min-w-64 border-r pl-6 font-black text-[10px] uppercase">Student Name</TableHead>
-                                            <TableHead className="text-center font-bold text-[10px] uppercase">Math</TableHead>
-                                            <TableHead className="text-center font-bold text-[10px] uppercase">Science</TableHead>
-                                            <TableHead className="text-center font-bold text-[10px] uppercase">English</TableHead>
-                                            <TableHead className="text-center font-bold text-[10px] uppercase">Filipino</TableHead>
-                                            <TableHead className="text-center font-black text-[10px] uppercase bg-primary/5 text-primary">Gen. Avg</TableHead>
+                                            <TableHead className="pl-6">
+                                                Student
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Math
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Science
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                English
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Filipino
+                                            </TableHead>
+                                            <TableHead className="border-l pr-6 text-right">
+                                                General Average
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        <TableRow className="hover:bg-muted/30 transition-colors">
-                                            <TableCell className="sticky left-0 z-10 border-r bg-background pl-6 font-bold">Dela Cruz, Juan</TableCell>
-                                            <TableCell className="text-center font-medium">85</TableCell>
-                                            <TableCell className="text-center font-medium text-destructive font-black">72</TableCell>
-                                            <TableCell className="text-center font-medium">88</TableCell>
-                                            <TableCell className="text-center font-medium">89</TableCell>
-                                            <TableCell className="text-center font-black bg-primary/[0.02] text-primary text-base">83.5</TableCell>
-                                        </TableRow>
-                                        <TableRow className="hover:bg-muted/30 transition-colors">
-                                            <TableCell className="sticky left-0 z-10 border-r bg-background pl-6 font-bold">Santos, Maria</TableCell>
-                                            <TableCell className="text-center font-medium">92</TableCell>
-                                            <TableCell className="text-center font-medium">90</TableCell>
-                                            <TableCell className="text-center font-medium">91</TableCell>
-                                            <TableCell className="text-center font-medium">93</TableCell>
-                                            <TableCell className="text-center font-black bg-primary/[0.02] text-primary text-base">91.5</TableCell>
-                                        </TableRow>
+                                        {advisoryGrades.map((gradeRow) => (
+                                            <TableRow
+                                                key={gradeRow.studentName}
+                                            >
+                                                <TableCell className="pl-6 font-medium">
+                                                    {gradeRow.studentName}
+                                                </TableCell>
+                                                <TableCell className="border-l text-center">
+                                                    {gradeRow.math}
+                                                </TableCell>
+                                                <TableCell className="border-l text-center">
+                                                    {gradeRow.science}
+                                                </TableCell>
+                                                <TableCell className="border-l text-center">
+                                                    {gradeRow.english}
+                                                </TableCell>
+                                                <TableCell className="border-l text-center">
+                                                    {gradeRow.filipino}
+                                                </TableCell>
+                                                <TableCell className="border-l pr-6 text-right font-medium">
+                                                    {gradeRow.average}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
                                     </TableBody>
                                 </Table>
                             </CardContent>
@@ -117,38 +242,136 @@ export default function AdvisoryBoard() {
 
                     <TabsContent value="conduct">
                         <Card>
-                            <CardHeader className="bg-muted/10 border-b py-4">
-                                <div className="flex items-center gap-2">
-                                    <Info className="size-4 text-blue-600" />
-                                    <p className="text-xs font-medium text-blue-800">Use DepEd scale: <strong>AO</strong> (Always), <strong>SO</strong> (Sometimes), <strong>RO</strong> (Rarely), <strong>NO</strong> (Not Observed)</p>
+                            <CardHeader className="border-b">
+                                <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                                    <CardTitle>Conduct and Values</CardTitle>
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <Info className="size-4" />
+                                        <p>
+                                            Legend: AO (Always), SO (Sometimes),
+                                            RO (Rarely), NO (Not Observed)
+                                        </p>
+                                    </div>
                                 </div>
                             </CardHeader>
                             <CardContent className="p-0">
                                 <Table>
-                                    <TableHeader className="bg-muted/20">
+                                    <TableHeader>
                                         <TableRow>
-                                            <TableHead className="pl-6 font-black text-[10px] uppercase">Student Name</TableHead>
-                                            <TableHead className="text-center font-bold text-[10px] uppercase">Maka-Diyos</TableHead>
-                                            <TableHead className="text-center font-bold text-[10px] uppercase">Makatao</TableHead>
-                                            <TableHead className="text-center font-bold text-[10px] uppercase">Makakalikasan</TableHead>
-                                            <TableHead className="text-center font-bold text-[10px] uppercase">Makabansa</TableHead>
+                                            <TableHead className="pl-6">
+                                                Student
+                                            </TableHead>
+                                            {valueCriteria.map((criterion) => (
+                                                <TableHead
+                                                    key={criterion}
+                                                    className="border-l text-center"
+                                                >
+                                                    {criterion}
+                                                </TableHead>
+                                            ))}
+                                            <TableHead className="border-l pr-6">
+                                                Adviser Remarks
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        <TableRow className="hover:bg-muted/30 transition-colors">
-                                            <TableCell className="pl-6 font-bold">Dela Cruz, Juan</TableCell>
-                                            <TableCell className="text-center"><BehaviorSelect defaultValue="AO" /></TableCell>
-                                            <TableCell className="text-center"><BehaviorSelect defaultValue="AO" /></TableCell>
-                                            <TableCell className="text-center"><BehaviorSelect defaultValue="SO" /></TableCell>
-                                            <TableCell className="text-center"><BehaviorSelect defaultValue="AO" /></TableCell>
-                                        </TableRow>
+                                        {students.map((student) => (
+                                            <TableRow key={student.name}>
+                                                <TableCell className="pl-6 font-medium">
+                                                    {student.name}
+                                                </TableCell>
+                                                <TableCell className="border-l text-center">
+                                                    <BehaviorSelect
+                                                        defaultValue={
+                                                            student.ratings
+                                                                .maka_diyos
+                                                        }
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="border-l text-center">
+                                                    <BehaviorSelect
+                                                        defaultValue={
+                                                            student.ratings
+                                                                .makatao
+                                                        }
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="border-l text-center">
+                                                    <BehaviorSelect
+                                                        defaultValue={
+                                                            student.ratings
+                                                                .makakalikasan
+                                                        }
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="border-l text-center">
+                                                    <BehaviorSelect
+                                                        defaultValue={
+                                                            student.ratings
+                                                                .makabansa
+                                                        }
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="border-l pr-6">
+                                                    <Input
+                                                        defaultValue={
+                                                            student.remarks
+                                                        }
+                                                        className="min-w-64"
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
                                     </TableBody>
                                 </Table>
                             </CardContent>
+                            <div className="flex items-center justify-between border-t px-4 py-3">
+                                <p className="text-sm text-muted-foreground">
+                                    {students.length} students
+                                </p>
+                                <Button
+                                    variant="destructive"
+                                    onClick={() =>
+                                        setIsFinalizeDialogOpen(true)
+                                    }
+                                >
+                                    <Lock className="size-4" />
+                                    Finalize and Lock Quarter
+                                </Button>
+                            </div>
                         </Card>
                     </TabsContent>
                 </Tabs>
             </div>
+
+            <Dialog
+                open={isFinalizeDialogOpen}
+                onOpenChange={setIsFinalizeDialogOpen}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Finalize Conduct and Values</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        This will lock all conduct ratings and adviser remarks
+                        for the selected quarter.
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsFinalizeDialogOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => setIsFinalizeDialogOpen(false)}
+                        >
+                            Confirm Lock
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

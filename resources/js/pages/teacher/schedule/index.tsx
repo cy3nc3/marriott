@@ -1,16 +1,9 @@
 import { Head } from '@inertiajs/react';
-import { Printer } from 'lucide-react';
+import { CalendarDays, Clock, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -21,92 +14,231 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function Schedule() {
+    const START_HOUR = 7;
+    const END_HOUR = 17;
+    const HOUR_HEIGHT = 72;
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const scheduleItems = [
+        {
+            day: 'Monday',
+            start: '08:00',
+            end: '09:00',
+            title: 'Mathematics 7',
+            section: 'Grade 7 - Rizal',
+            type: 'class',
+        },
+        {
+            day: 'Tuesday',
+            start: '08:00',
+            end: '09:00',
+            title: 'Mathematics 8',
+            section: 'Grade 8 - Gusion',
+            type: 'class',
+        },
+        {
+            day: 'Wednesday',
+            start: '08:00',
+            end: '09:00',
+            title: 'Mathematics 7',
+            section: 'Grade 7 - Rizal',
+            type: 'class',
+        },
+        {
+            day: 'Thursday',
+            start: '08:00',
+            end: '09:00',
+            title: 'Mathematics 8',
+            section: 'Grade 8 - Gusion',
+            type: 'class',
+        },
+        {
+            day: 'Friday',
+            start: '08:00',
+            end: '09:00',
+            title: 'Advisory',
+            section: 'Grade 7 - Rizal',
+            type: 'advisory',
+        },
+        {
+            day: 'Tuesday',
+            start: '10:30',
+            end: '11:30',
+            title: 'Mathematics 7',
+            section: 'Grade 7 - Bonifacio',
+            type: 'class',
+        },
+        {
+            day: 'Thursday',
+            start: '10:30',
+            end: '11:30',
+            title: 'Mathematics 7',
+            section: 'Grade 7 - Bonifacio',
+            type: 'class',
+        },
+    ];
+    const breakItems = [
+        { label: 'Recess Break', start: '10:00', end: '10:30' },
+        { label: 'Lunch Break', start: '12:00', end: '13:00' },
+    ];
+
+    const timeToMinutes = (time: string) => {
+        const [hours, minutes] = time.split(':').map(Number);
+        return hours * 60 + minutes;
+    };
+
+    const getPosition = (time: string) =>
+        ((timeToMinutes(time) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+
+    const getHeight = (start: string, end: string) =>
+        ((timeToMinutes(end) - timeToMinutes(start)) / 60) * HOUR_HEIGHT;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My Schedule" />
-            <div className="flex flex-col gap-4">
-                <div className="flex justify-end">
-                    <Button variant="outline" className="gap-2">
-                        <Printer className="size-4" />
-                        Print My Schedule
-                    </Button>
-                </div>
-
+            <div className="flex flex-col gap-6">
                 <Card>
-                    <Table className="border-collapse">
-                        <TableHeader>
-                            <TableRow className="bg-muted/30">
-                                <TableHead className="w-28 border-r text-center font-black text-[10px] uppercase">Time</TableHead>
-                                {days.map(day => (
-                                    <TableHead key={day} className="text-center font-black text-[10px] uppercase border-r">{day}</TableHead>
+                    <CardHeader className="border-b">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <CalendarDays className="size-4 text-muted-foreground" />
+                                <CardTitle>Weekly Schedule</CardTitle>
+                            </div>
+                            <Button variant="outline">
+                                <Printer className="size-4" />
+                                Print Schedule
+                            </Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div
+                            className="relative flex w-full"
+                            style={{
+                                height:
+                                    (END_HOUR - START_HOUR) * HOUR_HEIGHT + 40,
+                            }}
+                        >
+                            <div className="sticky left-0 z-30 w-20 shrink-0 border-r bg-background pt-10 pl-0.5">
+                                {Array.from({
+                                    length: END_HOUR - START_HOUR + 1,
+                                }).map((_, index) => (
+                                    <div
+                                        key={index}
+                                        className="relative pr-2 text-right"
+                                        style={{
+                                            height:
+                                                index === END_HOUR - START_HOUR
+                                                    ? 0
+                                                    : HOUR_HEIGHT,
+                                        }}
+                                    >
+                                        <span className="absolute top-0 right-2 -translate-y-1/2 font-mono text-[10px] leading-none font-medium whitespace-nowrap text-muted-foreground uppercase">
+                                            {`${(START_HOUR + index) % 12 || 12}:00 ${START_HOUR + index >= 12 ? 'PM' : 'AM'}`}
+                                        </span>
+                                    </div>
                                 ))}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {/* 8:00 AM Row */}
-                            <TableRow className="h-24">
-                                <TableCell className="text-center font-mono text-[11px] font-bold text-muted-foreground border-r bg-muted/5">08:00 AM</TableCell>
-                                <TableCell className="border-r p-1.5">
-                                    <div className="bg-blue-50 border-l-4 border-blue-500 p-2 h-full rounded shadow-sm">
-                                        <p className="font-black text-blue-700 text-xs">MATH 7</p>
-                                        <p className="text-[9px] font-bold text-blue-600/80 uppercase">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border-r p-1.5">
-                                    <div className="bg-purple-50 border-l-4 border-purple-500 p-2 h-full rounded shadow-sm">
-                                        <p className="font-black text-purple-700 text-xs">MATH 8</p>
-                                        <p className="text-[9px] font-bold text-purple-600/80 uppercase">Grade 8 - Gusion</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border-r p-1.5">
-                                    <div className="bg-blue-50 border-l-4 border-blue-500 p-2 h-full rounded shadow-sm">
-                                        <p className="font-black text-blue-700 text-xs">MATH 7</p>
-                                        <p className="text-[9px] font-bold text-blue-600/80 uppercase">Grade 7 - Rizal</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border-r p-1.5">
-                                    <div className="bg-purple-50 border-l-4 border-purple-500 p-2 h-full rounded shadow-sm">
-                                        <p className="font-black text-purple-700 text-xs">MATH 8</p>
-                                        <p className="text-[9px] font-bold text-purple-600/80 uppercase">Grade 8 - Gusion</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="p-1.5">
-                                    <div className="bg-amber-50 border-l-4 border-amber-500 p-2 h-full rounded shadow-sm">
-                                        <p className="font-black text-amber-700 text-xs">ADVISORY</p>
-                                        <p className="text-[9px] font-bold text-amber-600/80 uppercase">Rizal</p>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
+                            </div>
 
-                            {/* 10:00 AM Recess */}
-                            <TableRow className="h-10 bg-muted/20">
-                                <TableCell className="text-center font-mono text-[10px] font-black border-r">10:00 AM</TableCell>
-                                <TableCell colSpan={5} className="text-center text-[10px] font-black tracking-[0.3em] text-muted-foreground/50 uppercase">Recess Break</TableCell>
-                            </TableRow>
+                            <div className="relative min-w-[800px] flex-1">
+                                <div className="sticky top-0 z-40 flex h-10 border-b bg-background">
+                                    {days.map((day) => (
+                                        <div
+                                            key={day}
+                                            className="flex flex-1 items-center justify-center border-r text-xs font-semibold tracking-wider text-muted-foreground uppercase last:border-r-0"
+                                        >
+                                            {day}
+                                        </div>
+                                    ))}
+                                </div>
 
-                            {/* 10:30 AM Row */}
-                            <TableRow className="h-24">
-                                <TableCell className="text-center font-mono text-[11px] font-bold text-muted-foreground border-r bg-muted/5">10:30 AM</TableCell>
-                                <TableCell className="border-r p-1.5" />
-                                <TableCell className="border-r p-1.5">
-                                    <div className="bg-blue-50 border-l-4 border-blue-500 p-2 h-full rounded shadow-sm">
-                                        <p className="font-black text-blue-700 text-xs">MATH 7</p>
-                                        <p className="text-[9px] font-bold text-blue-600/80 uppercase">Grade 7 - Bonifacio</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="border-r p-1.5" />
-                                <TableCell className="border-r p-1.5">
-                                    <div className="bg-blue-50 border-l-4 border-blue-500 p-2 h-full rounded shadow-sm">
-                                        <p className="font-black text-blue-700 text-xs">MATH 7</p>
-                                        <p className="text-[9px] font-bold text-blue-600/80 uppercase">Grade 7 - Bonifacio</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="p-1.5" />
-                            </TableRow>
-                        </TableBody>
-                    </Table>
+                                <div className="pointer-events-none absolute inset-0 z-0 pt-10">
+                                    {Array.from({
+                                        length: END_HOUR - START_HOUR,
+                                    }).map((_, index) => (
+                                        <div
+                                            key={index}
+                                            className="border-b border-dashed border-border/40"
+                                            style={{ height: HOUR_HEIGHT }}
+                                        />
+                                    ))}
+                                </div>
+
+                                <div className="absolute inset-0 z-10 flex pt-10">
+                                    {days.map((day) => (
+                                        <div
+                                            key={day}
+                                            className="relative flex-1 border-r last:border-r-0"
+                                        >
+                                            {breakItems.map((breakItem) => (
+                                                <div
+                                                    key={`${day}-${breakItem.label}`}
+                                                    className="absolute inset-x-0 border-y bg-muted/40"
+                                                    style={{
+                                                        top: getPosition(
+                                                            breakItem.start,
+                                                        ),
+                                                        height: getHeight(
+                                                            breakItem.start,
+                                                            breakItem.end,
+                                                        ),
+                                                    }}
+                                                >
+                                                    <p className="px-1 pt-1 text-center text-[10px] font-semibold text-muted-foreground uppercase">
+                                                        {breakItem.label}
+                                                    </p>
+                                                </div>
+                                            ))}
+
+                                            {scheduleItems
+                                                .filter(
+                                                    (item) => item.day === day,
+                                                )
+                                                .map((item) => (
+                                                    <div
+                                                        key={`${day}-${item.start}-${item.title}`}
+                                                        className={cn(
+                                                            'absolute right-1 left-1 z-20 rounded-md border px-2 py-1.5 shadow-sm',
+                                                            item.type ===
+                                                                'advisory'
+                                                                ? 'border-amber-300 bg-amber-50'
+                                                                : 'border-primary/20 bg-background',
+                                                        )}
+                                                        style={{
+                                                            top: getPosition(
+                                                                item.start,
+                                                            ),
+                                                            height: getHeight(
+                                                                item.start,
+                                                                item.end,
+                                                            ),
+                                                        }}
+                                                    >
+                                                        <div className="flex h-full flex-col justify-between">
+                                                            <div className="space-y-0.5">
+                                                                <p className="truncate text-[11px] leading-tight font-semibold text-primary">
+                                                                    {item.title}
+                                                                </p>
+                                                                <p className="truncate text-[10px] leading-tight text-muted-foreground">
+                                                                    {
+                                                                        item.section
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                            <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                                                                <Clock className="size-3" />
+                                                                <span className="font-mono">
+                                                                    {item.start}{' '}
+                                                                    - {item.end}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
                 </Card>
             </div>
         </AppLayout>

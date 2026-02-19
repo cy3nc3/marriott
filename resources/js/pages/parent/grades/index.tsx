@@ -1,9 +1,15 @@
 import { Head } from '@inertiajs/react';
-import { Printer, Info, TrendingUp } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Heart, Info, Printer, ShieldCheck, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -12,6 +18,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -23,96 +30,246 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function Grades() {
+    const subjectRows = [
+        {
+            subject: 'Mathematics 7',
+            q1: '86',
+            q2: '88',
+            q3: '-',
+            q4: '-',
+            final: '-',
+        },
+        {
+            subject: 'English 7',
+            q1: '85',
+            q2: '87',
+            q3: '-',
+            q4: '-',
+            final: '-',
+        },
+        {
+            subject: 'Science 7',
+            q1: '84',
+            q2: '85',
+            q3: '-',
+            q4: '-',
+            final: '-',
+        },
+        {
+            subject: 'Filipino 7',
+            q1: '88',
+            q2: '89',
+            q3: '-',
+            q4: '-',
+            final: '-',
+        },
+        {
+            subject: 'Araling Panlipunan 7',
+            q1: '87',
+            q2: '88',
+            q3: '-',
+            q4: '-',
+            final: '-',
+        },
+    ];
+
+    const conductRows = [
+        { coreValue: 'Maka-Diyos', q1: 'AO', q2: 'AO', q3: '-', q4: '-' },
+        { coreValue: 'Makatao', q1: 'AO', q2: 'AO', q3: '-', q4: '-' },
+        { coreValue: 'Makakalikasan', q1: 'SO', q2: 'AO', q3: '-', q4: '-' },
+        { coreValue: 'Makabansa', q1: 'AO', q2: 'AO', q3: '-', q4: '-' },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Report Card" />
-            <div className="flex flex-col gap-6">
-                
-                <div className="flex justify-end">
-                    <Button variant="outline">
-                        <Printer className="mr-2 h-4 w-4" />
-                        Print Certified Copy
-                    </Button>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    {/* General Average Summary */}
-                    <Card className="md:col-span-1">
-                        <CardHeader>
-                            <CardTitle>Average</CardTitle>
-                            <CardDescription>SY 2025-2026</CardDescription>
+            <div className="flex flex-col gap-6">
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <Card>
+                        <CardHeader className="border-b">
+                            <CardTitle>General Average</CardTitle>
                         </CardHeader>
-                        <CardContent className="flex flex-col items-center justify-center pt-6">
-                            <div className="text-5xl font-bold mb-4">83.5</div>
-                            <div className="flex items-center gap-2">
-                                <TrendingUp className="h-4 w-4 text-green-600" />
-                                <Badge variant="secondary" className="text-green-600 bg-green-50 hover:bg-green-100">
-                                    Above Passing
-                                </Badge>
+                        <CardContent className="space-y-2">
+                            <p className="text-3xl font-semibold">87.40</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <TrendingUp className="size-4 text-green-600" />
+                                <span>Above passing mark</span>
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Message from Adviser */}
-                    <Card className="md:col-span-3">
-                        <CardHeader>
-                            <CardTitle>Adviser's Message</CardTitle>
+                    <Card className="lg:col-span-2">
+                        <CardHeader className="border-b">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <CardTitle>Report Context</CardTitle>
+                                <div className="flex items-center gap-2">
+                                    <Select defaultValue="sy-2025-2026">
+                                        <SelectTrigger className="w-full sm:w-40">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="sy-2025-2026">
+                                                SY 2025-2026
+                                            </SelectItem>
+                                            <SelectItem value="sy-2024-2025">
+                                                SY 2024-2025
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Button variant="outline">
+                                        <Printer className="size-4" />
+                                        Print Copy
+                                    </Button>
+                                </div>
+                            </div>
                         </CardHeader>
-                        <CardContent>
-                            <blockquote className="border-l-4 border-primary/20 pl-4 italic text-muted-foreground">
-                                "Juan is showing significant improvement in Mathematics this quarter. He is more active in class discussions and completes his performance tasks on time. Keep up the good work!"
+                        <CardContent className="space-y-3">
+                            <Badge variant="outline">
+                                Verified by Registrar
+                            </Badge>
+                            <blockquote className="border-l-2 pl-3 text-sm text-muted-foreground italic">
+                                Juan is showing consistent improvement in
+                                Mathematics and participation in class
+                                activities.
                             </blockquote>
-                            <p className="mt-4 font-bold text-sm">— Mr. Arthur Santos</p>
+                            <p className="text-sm font-medium">
+                                Adviser: Mr. Arthur Santos
+                            </p>
                         </CardContent>
                     </Card>
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Subject Grades</CardTitle>
-                        <CardDescription>Quarterly performance breakdown</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Subject</TableHead>
-                                    <TableHead className="text-center">Q1</TableHead>
-                                    <TableHead className="text-center">Q2</TableHead>
-                                    <TableHead className="text-center">Q3</TableHead>
-                                    <TableHead className="text-center">Q4</TableHead>
-                                    <TableHead className="text-right">Final</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {[
-                                    { sub: 'Mathematics 7', q1: '86', q2: '88' },
-                                    { sub: 'English 7', q1: '85', q2: '87' },
-                                    { sub: 'Science 7', q1: '84', q2: '85' },
-                                    { sub: 'Filipino 7', q1: '88', q2: '89' },
-                                ].map((r, i) => (
-                                    <TableRow key={i}>
-                                        <TableCell className="font-medium">{r.sub}</TableCell>
-                                        <TableCell className="text-center">{r.q1}</TableCell>
-                                        <TableCell className="text-center">{r.q2}</TableCell>
-                                        <TableCell className="text-center text-muted-foreground">-</TableCell>
-                                        <TableCell className="text-center text-muted-foreground">-</TableCell>
-                                        <TableCell className="text-right font-bold text-muted-foreground">-</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                <Tabs defaultValue="academic" className="w-full">
+                    <TabsList>
+                        <TabsTrigger value="academic" className="gap-2">
+                            <ShieldCheck className="size-4" />
+                            Quarterly Grades
+                        </TabsTrigger>
+                        <TabsTrigger value="conduct" className="gap-2">
+                            <Heart className="size-4" />
+                            Character Ratings
+                        </TabsTrigger>
+                    </TabsList>
 
-                <Alert>
-                    <Info className="h-4 w-4" />
-                    <AlertTitle>Note</AlertTitle>
-                    <AlertDescription>
-                        Character ratings and core values are accessible via the student portal or by requesting a full SF9 printed copy. Final grades are subject to registrar verification.
-                    </AlertDescription>
-                </Alert>
+                    <TabsContent value="academic">
+                        <Card>
+                            <CardHeader className="border-b">
+                                <CardTitle>Subjects</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="pl-6">
+                                                Subject
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Q1
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Q2
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Q3
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Q4
+                                            </TableHead>
+                                            <TableHead className="border-l pr-6 text-right">
+                                                Final
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {subjectRows.map((row) => (
+                                            <TableRow key={row.subject}>
+                                                <TableCell className="pl-6 font-medium">
+                                                    {row.subject}
+                                                </TableCell>
+                                                <TableCell className="border-l text-center">
+                                                    {row.q1}
+                                                </TableCell>
+                                                <TableCell className="border-l text-center">
+                                                    {row.q2}
+                                                </TableCell>
+                                                <TableCell className="border-l text-center text-muted-foreground">
+                                                    {row.q3}
+                                                </TableCell>
+                                                <TableCell className="border-l text-center text-muted-foreground">
+                                                    {row.q4}
+                                                </TableCell>
+                                                <TableCell className="border-l pr-6 text-right text-muted-foreground">
+                                                    {row.final}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
+                    <TabsContent value="conduct">
+                        <Card>
+                            <CardHeader className="border-b">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Info className="size-4" />
+                                    <p>
+                                        Legend: <strong>AO</strong> (Always),{' '}
+                                        <strong>SO</strong> (Sometimes),{' '}
+                                        <strong>RO</strong> (Rarely),{' '}
+                                        <strong>NO</strong> (Not Observed)
+                                    </p>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="pl-6">
+                                                Core Value
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Q1
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Q2
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Q3
+                                            </TableHead>
+                                            <TableHead className="border-l pr-6 text-center">
+                                                Q4
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {conductRows.map((row) => (
+                                            <TableRow key={row.coreValue}>
+                                                <TableCell className="pl-6 font-medium">
+                                                    {row.coreValue}
+                                                </TableCell>
+                                                <TableCell className="border-l text-center">
+                                                    {row.q1}
+                                                </TableCell>
+                                                <TableCell className="border-l text-center">
+                                                    {row.q2}
+                                                </TableCell>
+                                                <TableCell className="border-l text-center text-muted-foreground">
+                                                    {row.q3}
+                                                </TableCell>
+                                                <TableCell className="border-l pr-6 text-center text-muted-foreground">
+                                                    {row.q4}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
             </div>
         </AppLayout>
     );
