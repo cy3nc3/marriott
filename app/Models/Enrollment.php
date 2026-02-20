@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Enrollment extends Model
 {
@@ -13,7 +14,12 @@ class Enrollment extends Model
         'grade_level_id',
         'section_id',
         'payment_term',
+        'downpayment',
         'status',
+    ];
+
+    protected $casts = [
+        'downpayment' => 'decimal:2',
     ];
 
     public function student(): BelongsTo
@@ -34,5 +40,10 @@ class Enrollment extends Model
     public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);
+    }
+
+    public function finalGrades(): HasMany
+    {
+        return $this->hasMany(FinalGrade::class);
     }
 }

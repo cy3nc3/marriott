@@ -1,5 +1,6 @@
-import { Head } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { CheckCircle2, Clock3, TriangleAlert, UploadCloud } from 'lucide-react';
+import type { ChangeEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
+import { sf1_upload } from '@/routes/registrar/student_directory';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -21,7 +23,93 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function StudentDirectory() {
+interface StudentRow {
+    id: number;
+    lrn: string;
+    student_name: string;
+    grade_section: string;
+    lis_status: 'matched' | 'pending' | 'discrepancy';
+}
+
+interface Props {
+    students: StudentRow[];
+    summary: {
+        matched: number;
+        pending: number;
+        discrepancy: number;
+    };
+    last_upload: {
+        at: string | null;
+        file_name: string | null;
+    };
+}
+
+export default function StudentDirectory({
+    students,
+    summary,
+    last_upload,
+}: Props) {
+    const uploadForm = useForm<{
+        sf1_file: File | null;
+    }>({
+        sf1_file: null,
+    });
+
+    const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        uploadForm.setData('sf1_file', file);
+        uploadForm.post(sf1_upload().url, {
+            forceFormData: true,
+            preserveScroll: true,
+            onFinish: () => {
+                uploadForm.reset('sf1_file');
+                event.target.value = '';
+            },
+        });
+    };
+
+    const lastUploadLabel = () => {
+        if (!last_upload.at) {
+            return 'No SF1 upload yet.';
+        }
+
+        const formattedDate = new Date(last_upload.at).toLocaleString();
+        if (last_upload.file_name) {
+            return `Last SF1 upload: ${formattedDate} (${last_upload.file_name})`;
+        }
+
+        return `Last SF1 upload: ${formattedDate}`;
+    };
+
+    const statusBadge = (status: StudentRow['lis_status']) => {
+        if (status === 'matched') {
+            return (
+                <Badge variant="secondary">
+                    <CheckCircle2 className="size-3" />
+                    Matched
+                </Badge>
+            );
+        }
+
+        if (status === 'discrepancy') {
+            return (
+                <Badge variant="destructive">
+                    <TriangleAlert className="size-3" />
+                    Discrepancy
+                </Badge>
+            );
+        }
+
+        return (
+            <Badge variant="outline">
+                <Clock3 className="size-3" />
+                Pending
+            </Badge>
+        );
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Student Directory" />
@@ -33,13 +121,13 @@ export default function StudentDirectory() {
                             <CardTitle>Student Directory</CardTitle>
                             <div className="flex flex-wrap items-center gap-2 text-sm">
                                 <Badge variant="secondary">
-                                    Matched: 1,214
+                                    Matched: {summary.matched}
                                 </Badge>
                                 <Badge variant="outline">
-                                    Pending Match: 19
+                                    Pending Match: {summary.pending}
                                 </Badge>
                                 <Badge variant="destructive">
-                                    Discrepancy: 4
+                                    Discrepancy: {summary.discrepancy}
                                 </Badge>
                             </div>
                         </div>
@@ -49,7 +137,9 @@ export default function StudentDirectory() {
                                 <input
                                     id="sf1-upload-file"
                                     type="file"
+                                    accept=".csv,.txt"
                                     className="hidden"
+                                    onChange={handleFileChange}
                                 />
                                 <Button asChild>
                                     <label
@@ -57,12 +147,14 @@ export default function StudentDirectory() {
                                         className="cursor-pointer"
                                     >
                                         <UploadCloud className="size-4" />
-                                        Upload SF1
+                                        {uploadForm.processing
+                                            ? 'Uploading...'
+                                            : 'Upload SF1'}
                                     </label>
                                 </Button>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Last SF1 upload: June 10, 2026 at 7:30 AM.
+                                {lastUploadLabel()}
                             </p>
                         </div>
                     </CardHeader>
@@ -80,45 +172,32 @@ export default function StudentDirectory() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                <TableRow>
-                                    <TableCell className="pl-6">
-                                        123456789012
-                                    </TableCell>
-                                    <TableCell>Juan Dela Cruz</TableCell>
-                                    <TableCell>Grade 7 - Rizal</TableCell>
-                                    <TableCell className="pr-6">
-                                        <Badge variant="secondary">
-                                            <CheckCircle2 className="size-3" />
-                                            Matched
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell className="pl-6">
-                                        987654321098
-                                    </TableCell>
-                                    <TableCell>Maria Santos</TableCell>
-                                    <TableCell>Unassigned</TableCell>
-                                    <TableCell className="pr-6">
-                                        <Badge variant="outline">
-                                            <Clock3 className="size-3" />
-                                            Pending
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell className="pl-6">
-                                        555555555555
-                                    </TableCell>
-                                    <TableCell>Mark Typo</TableCell>
-                                    <TableCell>Unassigned</TableCell>
-                                    <TableCell className="pr-6">
-                                        <Badge variant="destructive">
-                                            <TriangleAlert className="size-3" />
-                                            Discrepancy
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
+                                {students.map((student) => (
+                                    <TableRow key={student.id}>
+                                        <TableCell className="pl-6">
+                                            {student.lrn}
+                                        </TableCell>
+                                        <TableCell>
+                                            {student.student_name}
+                                        </TableCell>
+                                        <TableCell>
+                                            {student.grade_section}
+                                        </TableCell>
+                                        <TableCell className="pr-6">
+                                            {statusBadge(student.lis_status)}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {students.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={4}
+                                            className="h-24 text-center text-sm text-muted-foreground"
+                                        >
+                                            No students found.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>

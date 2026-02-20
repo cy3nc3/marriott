@@ -18,7 +18,17 @@ class Student extends Model
         'contact_number',
         'address',
         'guardian_name',
+        'is_lis_synced',
+        'sync_error_flag',
+        'sync_error_notes',
         'is_for_remedial',
+    ];
+
+    protected $casts = [
+        'birthdate' => 'date',
+        'is_lis_synced' => 'boolean',
+        'sync_error_flag' => 'boolean',
+        'is_for_remedial' => 'boolean',
     ];
 
     public function user(): BelongsTo
@@ -34,5 +44,10 @@ class Student extends Model
     public function currentEnrollment()
     {
         return $this->hasOne(Enrollment::class)->latestOfMany();
+    }
+
+    public function remedialRecords(): HasMany
+    {
+        return $this->hasMany(RemedialRecord::class);
     }
 }

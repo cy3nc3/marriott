@@ -17,6 +17,12 @@ class RemedialRecord extends Model
         'status',
     ];
 
+    protected $casts = [
+        'final_rating' => 'decimal:2',
+        'remedial_class_mark' => 'decimal:2',
+        'recomputed_final_grade' => 'decimal:2',
+    ];
+
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
