@@ -19,6 +19,14 @@ interface DatePickerProps {
   className?: string
 }
 
+interface DateOfBirthPickerProps {
+  date?: Date
+  setDate: (date?: Date) => void
+  placeholder?: string
+  className?: string
+  minYear?: number
+}
+
 interface DateRangePickerProps {
   dateRange?: DateRange
   setDateRange: (dateRange?: DateRange) => void
@@ -52,6 +60,47 @@ export function DatePicker({
           mode="single"
           selected={date}
           onSelect={setDate}
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+export function DateOfBirthPicker({
+  date,
+  setDate,
+  placeholder = "Select date",
+  className,
+  minYear = 1900,
+}: DateOfBirthPickerProps) {
+  const today = new Date()
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant={"outline"}
+          data-empty={!date}
+          className={cn(
+            "data-[empty=true]:text-muted-foreground w-[240px] justify-start text-left font-normal",
+            className
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {date ? format(date, "PPP") : <span>{placeholder}</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={setDate}
+          captionLayout="dropdown"
+          startMonth={new Date(minYear, 0)}
+          endMonth={today}
+          defaultMonth={date ?? new Date(today.getFullYear() - 18, 0)}
+          disabled={(selectedDate) => selectedDate > today}
           initialFocus
         />
       </PopoverContent>

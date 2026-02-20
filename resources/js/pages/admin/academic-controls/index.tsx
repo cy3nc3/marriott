@@ -1,33 +1,21 @@
 import { Head, useForm, router, Link } from '@inertiajs/react';
 import {
-    CalendarDays,
     ArrowRightCircle,
     Archive,
     PlayCircle,
-    Edit2,
     Calendar,
     Clock,
-    ShieldCheck,
-    Info,
     FlaskConical,
     RefreshCcw,
     Zap,
-    HelpCircle,
     BookOpen,
     Layers,
     CalendarRange,
-    Settings2,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -39,7 +27,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 import type { AcademicYear } from '@/types/academic-year';
 import {
@@ -229,61 +216,27 @@ export default function AcademicControls({
             <div className="flex flex-col gap-6">
                 <Card className="max-h-fit">
                     <CardContent className="pt-6">
-                        <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-4">
+                        <div className="mb-4 grid grid-cols-1 gap-8 md:grid-cols-4">
                             <div className="space-y-1">
                                 <Label className="text-xs text-muted-foreground">
                                     Active School Year
                                 </Label>
-                                <p className="text-2xl font-bold">
-                                    {currentYear?.status === 'completed'
-                                        ? nextYearName
-                                        : currentYear?.name || '---- - ----'}
-                                </p>
-                            </div>
-                            <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">
-                                    Start & End Date
-                                </Label>
-                                <div
-                                    className="group flex cursor-pointer items-center justify-between transition-colors hover:text-primary"
-                                    onClick={() =>
-                                        currentYear?.status !== 'completed' &&
-                                        setIsEditDatesOpen(true)
-                                    }
-                                >
-                                    <div className="space-y-1">
-                                        <p className="flex items-center gap-2 text-sm font-medium">
-                                            <Calendar className="size-3.5 opacity-50" />
-                                            {currentYear?.status === 'completed'
-                                                ? 'Not Set'
-                                                : currentYear?.start_date ||
-                                                  '---'}
-                                        </p>
-                                        <p className="flex items-center gap-2 pl-5 text-sm font-medium">
-                                            {currentYear?.status === 'completed'
-                                                ? 'Not Set'
-                                                : currentYear?.end_date ||
-                                                  '---'}
-                                        </p>
-                                    </div>
-                                    {currentYear?.status !== 'completed' &&
-                                        currentYear && (
-                                            <Edit2 className="size-4 opacity-0 transition-opacity group-hover:opacity-100" />
-                                        )}
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-2xl font-bold">
+                                        {currentYear?.status === 'completed'
+                                            ? nextYearName
+                                            : currentYear?.name ||
+                                              '---- - ----'}
+                                    </p>
+                                    {getStatusBadge()}
                                 </div>
-                            </div>
-                            <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">
-                                    Status
-                                </Label>
-                                <div className="pt-1">{getStatusBadge()}</div>
                             </div>
                             <div className="space-y-1">
                                 <Label className="text-xs text-muted-foreground">
                                     Current Quarter
                                 </Label>
                                 <div className="flex items-center gap-3">
-                                    <p className="text-sm font-semibold">
+                                    <p className="text-2xl font-bold">
                                         {currentYear?.status === 'completed' ||
                                         !currentYear
                                             ? 'Awaiting Setup'
@@ -293,10 +246,71 @@ export default function AcademicControls({
                                     </p>
                                 </div>
                             </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">
+                                    Start Date
+                                </Label>
+                                <p className="flex items-center gap-2 text-2xl font-bold">
+                                    <Calendar className="size-3.5 opacity-50" />
+                                    {currentYear?.status === 'completed'
+                                        ? 'Not Set'
+                                        : currentYear?.start_date || '---'}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">
+                                    End Date
+                                </Label>
+                                <p className="flex items-center gap-2 text-2xl font-bold">
+                                    <Calendar className="size-3.5 opacity-50" />
+                                    {currentYear?.status === 'completed'
+                                        ? 'Not Set'
+                                        : currentYear?.end_date || '---'}
+                                </p>
+                            </div>
                         </div>
+                        {currentYear?.status !== 'completed' && currentYear && (
+                            <div className="mt-2 mb-4 grid grid-cols-1 gap-2 md:grid-cols-4">
+                                <div className="hidden md:col-span-2 md:block" />
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 w-full text-xs font-semibold md:col-span-2 md:col-start-3"
+                                    onClick={() => setIsEditDatesOpen(true)}
+                                >
+                                    Edit Dates
+                                </Button>
+                            </div>
+                        )}
 
                         <div className="space-y-4">
                             {getSmartButton()}
+
+                            <div className="grid gap-3 rounded-lg border bg-background p-3 sm:grid-cols-3">
+                                {[
+                                    {
+                                        label: 'Sections',
+                                        value: '--',
+                                    },
+                                    {
+                                        label: 'Enrolled Students',
+                                        value: '--',
+                                    },
+                                    {
+                                        label: 'Advisers Assigned',
+                                        value: '--',
+                                    },
+                                ].map((item) => (
+                                    <div key={item.label} className="space-y-1">
+                                        <p className="text-xs text-muted-foreground">
+                                            {item.label}
+                                        </p>
+                                        <p className="text-sm font-semibold">
+                                            {item.value}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
 
                             <div className="flex items-center justify-between border-t border-dashed pt-4">
                                 <div className="flex items-center gap-4">

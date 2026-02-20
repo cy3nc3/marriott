@@ -1,19 +1,10 @@
 import { Head, useForm, router } from '@inertiajs/react';
-import {
-    Plus,
-    Layers,
-    Edit2,
-    Trash2,
-    Search,
-    User,
-    X,
-    AlertCircle,
-} from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, AlertCircle } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -117,7 +108,12 @@ export default function SectionManager({
             ? editForm.data.adviser_id
             : addForm.data.adviser_id;
         return teachers.find((t) => t.id === adviserId);
-    }, [teachers, editForm.data.adviser_id, addForm.data.adviser_id, isEditOpen]);
+    }, [
+        teachers,
+        editForm.data.adviser_id,
+        addForm.data.adviser_id,
+        isEditOpen,
+    ]);
 
     const filteredTeachers = useMemo(() => {
         if (!searchQuery) return [];
@@ -180,7 +176,6 @@ export default function SectionManager({
                     </div>
                     <Button
                         variant="outline"
-                        className="text-xs"
                         onClick={() => router.get('/admin/academic-controls')}
                     >
                         Go to Academic Controls
@@ -195,7 +190,7 @@ export default function SectionManager({
             <Head title="Section Manager" />
             <TooltipProvider>
                 <div className="flex flex-col gap-6">
-                    <Card className="flex flex-col pt-0">
+                    <Card>
                         <Tabs
                             value={activeTab}
                             onValueChange={(val) => {
@@ -204,182 +199,172 @@ export default function SectionManager({
                             }}
                             className="flex w-full flex-1 flex-col gap-0"
                         >
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b">
-                                <TabsList className="h-9">
-                                    {gradeLevels.map((grade) => (
-                                        <TabsTrigger
-                                            key={grade.id}
-                                            value={grade.id.toString()}
-                                        >
-                                            {grade.name}
-                                        </TabsTrigger>
-                                    ))}
-                                </TabsList>
-                                <Button
-                                    size="sm"
-                                    className="gap-2"
-                                    onClick={() => {
-                                        addForm.reset();
-                                        addForm.setData(
-                                            'grade_level_id',
-                                            activeTab,
-                                        );
-                                        setIsAddOpen(true);
-                                    }}
-                                >
-                                    <Plus className="size-4" />
-                                    New Section
-                                </Button>
-                            </CardHeader>
-
-                            <CardContent className="p-6 pb-0">
+                            <CardContent className="p-0">
+                                <div className="flex flex-col gap-4 border-b p-6 lg:flex-row lg:items-center lg:justify-between">
+                                    <TabsList>
+                                        {gradeLevels.map((grade) => (
+                                            <TabsTrigger
+                                                key={grade.id}
+                                                value={grade.id.toString()}
+                                            >
+                                                {grade.name}
+                                            </TabsTrigger>
+                                        ))}
+                                    </TabsList>
+                                    <Button
+                                        size="sm"
+                                        className="gap-2"
+                                        onClick={() => {
+                                            addForm.reset();
+                                            addForm.setData(
+                                                'grade_level_id',
+                                                activeTab,
+                                            );
+                                            setIsAddOpen(true);
+                                        }}
+                                    >
+                                        <Plus className="size-4" />
+                                        New Section
+                                    </Button>
+                                </div>
                                 {gradeLevels.map((grade) => (
                                     <TabsContent
                                         key={grade.id}
                                         value={grade.id.toString()}
                                         className="m-0 outline-none"
                                     >
-                                        <div className="overflow-hidden rounded-md border">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead className="pl-6">
-                                                            Section Name
-                                                        </TableHead>
-                                                        <TableHead>
-                                                            Class Adviser
-                                                        </TableHead>
-                                                        <TableHead className="text-center">
-                                                            Students
-                                                        </TableHead>
-                                                        <TableHead className="pr-6 text-right">
-                                                            Actions
-                                                        </TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {grade.sections.map(
-                                                        (sec) => (
-                                                            <TableRow
-                                                                key={sec.id}
-                                                            >
-                                                                <TableCell className="pl-6 font-semibold">
-                                                                    {sec.name}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    {sec.adviser ? (
-                                                                        <div className="flex items-center gap-2">
-                                                                            <Avatar className="size-7 border">
-                                                                                <AvatarFallback className="text-[10px] font-bold">
-                                                                                    {
-                                                                                        sec
-                                                                                            .adviser
-                                                                                            .initial
-                                                                                    }
-                                                                                </AvatarFallback>
-                                                                            </Avatar>
-                                                                            <span className="text-sm">
-                                                                                {
-                                                                                    sec
-                                                                                        .adviser
-                                                                                        .name
-                                                                                }
-                                                                            </span>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <span className="text-xs text-muted-foreground italic">
-                                                                            No
-                                                                            Adviser
-                                                                        </span>
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    <Badge variant="secondary">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead className="pl-6">
+                                                        Section Name
+                                                    </TableHead>
+                                                    <TableHead>
+                                                        Class Adviser
+                                                    </TableHead>
+                                                    <TableHead className="text-center">
+                                                        Students
+                                                    </TableHead>
+                                                    <TableHead className="pr-6 text-right">
+                                                        Actions
+                                                    </TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {grade.sections.map((sec) => (
+                                                    <TableRow key={sec.id}>
+                                                        <TableCell className="pl-6 font-semibold">
+                                                            {sec.name}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {sec.adviser ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <Avatar className="size-7">
+                                                                        <AvatarFallback>
+                                                                            {
+                                                                                sec
+                                                                                    .adviser
+                                                                                    .initial
+                                                                            }
+                                                                        </AvatarFallback>
+                                                                    </Avatar>
+                                                                    <span className="text-sm">
                                                                         {
-                                                                            sec.students_count
+                                                                            sec
+                                                                                .adviser
+                                                                                .name
                                                                         }
-                                                                    </Badge>
-                                                                </TableCell>
-                                                                <TableCell className="pr-6 text-right">
-                                                                    <div className="flex justify-end gap-2">
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger
-                                                                                asChild
-                                                                            >
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="icon"
-                                                                                    className="size-8 text-muted-foreground hover:text-primary"
-                                                                                    onClick={() => {
-                                                                                        setSelectedSection(
-                                                                                            sec,
-                                                                                        );
-                                                                                        editForm.setData(
-                                                                                            {
-                                                                                                name: sec.name,
-                                                                                                adviser_id:
-                                                                                                    sec.adviser_id,
-                                                                                            },
-                                                                                        );
-                                                                                        setIsEditOpen(
-                                                                                            true,
-                                                                                        );
-                                                                                    }}
-                                                                                >
-                                                                                    <Edit2 className="size-4" />
-                                                                                </Button>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                Edit
-                                                                                Section
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
+                                                                    </span>
+                                                                </div>
+                                                            ) : (
+                                                                <Badge variant="outline">
+                                                                    No Adviser
+                                                                </Badge>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Badge variant="secondary">
+                                                                {
+                                                                    sec.students_count
+                                                                }
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="pr-6 text-right">
+                                                            <div className="flex justify-end gap-2">
+                                                                <Tooltip>
+                                                                    <TooltipTrigger
+                                                                        asChild
+                                                                    >
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            onClick={() => {
+                                                                                setSelectedSection(
+                                                                                    sec,
+                                                                                );
+                                                                                editForm.setData(
+                                                                                    {
+                                                                                        name: sec.name,
+                                                                                        adviser_id:
+                                                                                            sec.adviser_id,
+                                                                                    },
+                                                                                );
+                                                                                setIsEditOpen(
+                                                                                    true,
+                                                                                );
+                                                                            }}
+                                                                        >
+                                                                            <Edit2 className="size-4" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        Edit
+                                                                        Section
+                                                                    </TooltipContent>
+                                                                </Tooltip>
 
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger
-                                                                                asChild
-                                                                            >
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="icon"
-                                                                                    className="size-8 text-muted-foreground hover:text-destructive"
-                                                                                    onClick={() =>
-                                                                                        handleDelete(
-                                                                                            sec.id,
-                                                                                        )
-                                                                                    }
-                                                                                >
-                                                                                    <Trash2 className="size-4" />
-                                                                                </Button>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                Remove
-                                                                                Section
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    </div>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ),
-                                                    )}
-                                                    {grade.sections.length ===
-                                                        0 && (
-                                                        <TableRow>
-                                                            <TableCell
-                                                                colSpan={4}
-                                                                className="h-24 text-center"
-                                                            >
-                                                                <p className="text-sm text-muted-foreground">
-                                                                    No sections
-                                                                    defined for
-                                                                    this level
-                                                                </p>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    )}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger
+                                                                        asChild
+                                                                    >
+                                                                        <Button
+                                                                            variant="destructive"
+                                                                            size="icon"
+                                                                            onClick={() =>
+                                                                                handleDelete(
+                                                                                    sec.id,
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            <Trash2 className="size-4" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        Remove
+                                                                        Section
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                                {grade.sections.length ===
+                                                    0 && (
+                                                    <TableRow>
+                                                        <TableCell
+                                                            colSpan={4}
+                                                            className="h-24 text-center"
+                                                        >
+                                                            <p className="text-sm text-muted-foreground">
+                                                                No sections
+                                                                defined for this
+                                                                level
+                                                            </p>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
                                     </TabsContent>
                                 ))}
                             </CardContent>
@@ -401,9 +386,7 @@ export default function SectionManager({
                             </DialogHeader>
                             <div className="grid gap-6 py-4">
                                 <div className="grid gap-2">
-                                    <Label className="text-xs text-muted-foreground">
-                                        Section Name
-                                    </Label>
+                                    <Label>Section Name</Label>
                                     <Input
                                         placeholder="e.g. Diamond, Apollo, etc."
                                         value={addForm.data.name}
@@ -417,18 +400,14 @@ export default function SectionManager({
                                 </div>
 
                                 <div className="grid gap-4">
-                                    <Label className="text-xs text-muted-foreground">
-                                        Class Adviser
-                                    </Label>
+                                    <Label>Class Adviser</Label>
 
                                     {currentAdviser ? (
                                         <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
                                             <div className="flex items-center gap-3">
-                                                <Avatar className="size-10 border-2 border-background shadow-sm">
-                                                    <AvatarFallback className="text-xs font-semibold">
-                                                        {
-                                                            currentAdviser.initial
-                                                        }
+                                                <Avatar className="size-10">
+                                                    <AvatarFallback>
+                                                        {currentAdviser.initial}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div>
@@ -443,7 +422,6 @@ export default function SectionManager({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="size-8 text-muted-foreground hover:text-destructive"
                                                 onClick={() =>
                                                     addForm.setData(
                                                         'adviser_id',
@@ -468,11 +446,11 @@ export default function SectionManager({
                                                         )
                                                     }
                                                 />
-                                                {searchQuery &&
-                                                    filteredTeachers.length >
-                                                        0 && (
-                                                        <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-auto rounded-md border bg-popover p-1 shadow-md">
-                                                            {filteredTeachers.map(
+                                                {searchQuery && (
+                                                    <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-auto rounded-md border bg-popover p-1 shadow-md">
+                                                        {filteredTeachers.length >
+                                                        0 ? (
+                                                            filteredTeachers.map(
                                                                 (teacher) => (
                                                                     <button
                                                                         key={
@@ -487,7 +465,7 @@ export default function SectionManager({
                                                                         }
                                                                     >
                                                                         <Avatar className="size-6">
-                                                                            <AvatarFallback className="text-[8px] font-bold">
+                                                                            <AvatarFallback>
                                                                                 {
                                                                                     teacher.initial
                                                                                 }
@@ -501,9 +479,15 @@ export default function SectionManager({
                                                                         <Plus className="ml-auto size-3 opacity-50" />
                                                                     </button>
                                                                 ),
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                            )
+                                                        ) : (
+                                                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                                                No matches
+                                                                found.
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                             <p className="text-center text-xs text-muted-foreground italic">
                                                 Search and select a teacher to
@@ -541,9 +525,7 @@ export default function SectionManager({
                             </DialogHeader>
                             <div className="grid gap-6 py-4">
                                 <div className="grid gap-2">
-                                    <Label className="text-xs text-muted-foreground">
-                                        Section Name
-                                    </Label>
+                                    <Label>Section Name</Label>
                                     <Input
                                         value={editForm.data.name}
                                         onChange={(e) =>
@@ -556,18 +538,14 @@ export default function SectionManager({
                                 </div>
 
                                 <div className="grid gap-4">
-                                    <Label className="text-xs text-muted-foreground">
-                                        Class Adviser
-                                    </Label>
+                                    <Label>Class Adviser</Label>
 
                                     {currentAdviser ? (
                                         <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
                                             <div className="flex items-center gap-3">
-                                                <Avatar className="size-10 border-2 border-background shadow-sm">
-                                                    <AvatarFallback className="text-xs font-semibold">
-                                                        {
-                                                            currentAdviser.initial
-                                                        }
+                                                <Avatar className="size-10">
+                                                    <AvatarFallback>
+                                                        {currentAdviser.initial}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div>
@@ -582,7 +560,6 @@ export default function SectionManager({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="size-8 text-muted-foreground hover:text-destructive"
                                                 onClick={() =>
                                                     editForm.setData(
                                                         'adviser_id',
@@ -607,11 +584,11 @@ export default function SectionManager({
                                                         )
                                                     }
                                                 />
-                                                {searchQuery &&
-                                                    filteredTeachers.length >
-                                                        0 && (
-                                                        <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-auto rounded-md border bg-popover p-1 shadow-md">
-                                                            {filteredTeachers.map(
+                                                {searchQuery && (
+                                                    <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-auto rounded-md border bg-popover p-1 shadow-md">
+                                                        {filteredTeachers.length >
+                                                        0 ? (
+                                                            filteredTeachers.map(
                                                                 (teacher) => (
                                                                     <button
                                                                         key={
@@ -626,7 +603,7 @@ export default function SectionManager({
                                                                         }
                                                                     >
                                                                         <Avatar className="size-6">
-                                                                            <AvatarFallback className="text-[8px] font-bold">
+                                                                            <AvatarFallback>
                                                                                 {
                                                                                     teacher.initial
                                                                                 }
@@ -640,9 +617,15 @@ export default function SectionManager({
                                                                         <Plus className="ml-auto size-3 opacity-50" />
                                                                     </button>
                                                                 ),
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                            )
+                                                        ) : (
+                                                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                                                No matches
+                                                                found.
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     )}

@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
+use App\Models\Setting;
+use App\Services\AuditLogService;
+use App\Services\SystemBackupService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -67,14 +70,46 @@ class SchoolYearController extends Controller
         return back();
     }
 
-    public function advanceQuarter(AcademicYear $academicYear)
-    {
+    public function advanceQuarter(
+        AcademicYear $academicYear,
+        SystemBackupService $backupService,
+        AuditLogService $auditLogService,
+    ) {
         $next = (int) $academicYear->current_quarter + 1;
 
         if ($next <= 4) {
             $academicYear->update(['current_quarter' => (string) $next]);
+
+            if (Setting::enabled('backup_on_quarter', true)) {
+                $backup = $backupService->createBackup('quarter_advance', [
+                    'academic_year_id' => $academicYear->id,
+                    'academic_year' => $academicYear->name,
+                    'new_quarter' => (string) $next,
+                ]);
+
+                $auditLogService->log('backup.created', $academicYear, null, [
+                    'reason' => 'quarter_advance',
+                    'file_name' => $backup['file_name'],
+                    'academic_year' => $academicYear->name,
+                    'new_quarter' => (string) $next,
+                ]);
+            }
         } else {
             $academicYear->update(['status' => 'completed']);
+
+            if (Setting::enabled('backup_on_year_end', true)) {
+                $backup = $backupService->createBackup('year_end', [
+                    'academic_year_id' => $academicYear->id,
+                    'academic_year' => $academicYear->name,
+                    'completed_at' => now()->toIso8601String(),
+                ]);
+
+                $auditLogService->log('backup.created', $academicYear, null, [
+                    'reason' => 'year_end',
+                    'file_name' => $backup['file_name'],
+                    'academic_year' => $academicYear->name,
+                ]);
+            }
         }
 
         return back();

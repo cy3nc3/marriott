@@ -2,6 +2,7 @@
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -11,6 +12,10 @@ Route::get('/', function () {
 
 Route::get('dashboard', function () {
     $user = auth()->user();
+
+    if ($user->role === UserRole::SUPER_ADMIN) {
+        return app(SuperAdminDashboardController::class)->index();
+    }
 
     if ($user->role === UserRole::ADMIN) {
         return app(AdminDashboardController::class)->index();

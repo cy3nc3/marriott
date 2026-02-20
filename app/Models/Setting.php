@@ -15,6 +15,7 @@ class Setting extends Model
     public static function get(string $key, $default = null)
     {
         $setting = static::where('key', $key)->first();
+
         return $setting ? $setting->value : $default;
     }
 
@@ -24,5 +25,20 @@ class Setting extends Model
             ['key' => $key],
             ['value' => $value, 'group' => $group]
         );
+    }
+
+    public static function enabled(string $key, bool $default = false): bool
+    {
+        $value = static::get($key);
+
+        if ($value === null) {
+            return $default;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return in_array(strtolower((string) $value), ['1', 'true', 'yes', 'on'], true);
     }
 }
