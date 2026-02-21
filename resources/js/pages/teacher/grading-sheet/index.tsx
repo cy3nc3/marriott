@@ -1,6 +1,6 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { CheckCircle2, Plus, Settings2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +29,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import teacher from '@/routes/teacher';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -38,50 +39,311 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function GradingSheet() {
+type SectionOption = {
+    id: number;
+    label: string;
+};
+
+type SubjectOption = {
+    id: number;
+    name: string;
+};
+
+type Context = {
+    section_options: SectionOption[];
+    subject_options: SubjectOption[];
+    selected_section_id: number | null;
+    selected_subject_id: number | null;
+    selected_assignment_id: number | null;
+    selected_quarter: '1' | '2' | '3' | '4';
+    has_assignment: boolean;
+};
+
+type RubricWeights = {
+    ww_weight: number;
+    pt_weight: number;
+    qa_weight: number;
+};
+
+type Assessment = {
+    id: number;
+    title: string;
+    max_points: number;
+};
+
+type AssessmentGroup = {
+    component: string;
+    weight: number;
+    assessments: Assessment[];
+};
+
+type StudentRow = {
+    id: number;
+    enrollment_id: number;
+    name: string;
+    scores: Record<string, number | null>;
+    computed_grade: string;
+};
+
+interface Props {
+    context: Context;
+    rubric_weights: RubricWeights;
+    grouped_assessments: AssessmentGroup[];
+    quarterly_exam_assessment: Assessment | null;
+    students: StudentRow[];
+    status: 'draft' | 'submitted';
+}
+
+const quarterLabels: Record<string, string> = {
+    '1': '1st Quarter',
+    '2': '2nd Quarter',
+    '3': '3rd Quarter',
+    '4': '4th Quarter',
+};
+
+const asNumber = (value: string): number => {
+    const parsedValue = Number(value);
+
+    if (Number.isNaN(parsedValue)) {
+        return 0;
+    }
+
+    return parsedValue;
+};
+
+export default function GradingSheet({
+    context,
+    rubric_weights,
+    grouped_assessments,
+    quarterly_exam_assessment,
+    students,
+    status,
+}: Props) {
+    const gradingSheetRoute = teacher.grading_sheet;
+
     const [isAssessmentModalOpen, setIsAssessmentModalOpen] = useState(false);
     const [isRubricModalOpen, setIsRubricModalOpen] = useState(false);
-    const rubricWeights = [
-        { label: 'Written Works', value: 40 },
-        { label: 'Performance Tasks', value: 40 },
-        { label: 'Quarterly Exam', value: 20 },
-    ];
-    const groupedAssessments = [
-        {
-            component: 'Written Works',
-            weight: 40,
-            assessments: [
-                { id: 'ww1', title: 'Quiz 1', maxPoints: 20 },
-                { id: 'ww2', title: 'Seatwork 1', maxPoints: 15 },
-                { id: 'ww3', title: 'Assignment 1', maxPoints: 25 },
-            ],
-        },
-        {
-            component: 'Performance Tasks',
-            weight: 40,
-            assessments: [
-                { id: 'pt1', title: 'Project 1', maxPoints: 50 },
-                { id: 'pt2', title: 'Lab Activity 1', maxPoints: 40 },
-            ],
-        },
-    ];
-    const quarterlyExamAssessment = {
-        id: 'exam',
-        title: 'Quarterly Exam',
-        maxPoints: 100,
+
+    const [assessmentTitle, setAssessmentTitle] = useState('');
+    const [assessmentComponent, setAssessmentComponent] = useState<
+        'WW' | 'PT' | 'QA'
+    >('WW');
+    const [assessmentMaxPoints, setAssessmentMaxPoints] = useState('10');
+
+    const [rubricForm, setRubricForm] = useState({
+        ww_weight: String(rubric_weights.ww_weight),
+        pt_weight: String(rubric_weights.pt_weight),
+        qa_weight: String(rubric_weights.qa_weight),
+    });
+
+    useEffect(() => {
+        setRubricForm({
+            ww_weight: String(rubric_weights.ww_weight),
+            pt_weight: String(rubric_weights.pt_weight),
+            qa_weight: String(rubric_weights.qa_weight),
+        });
+    }, [rubric_weights]);
+
+    const visibleAssessmentGroups = grouped_assessments.filter(
+        (group) => group.assessments.length > 0,
+    );
+
+    const allAssessments = useMemo(() => {
+        const grouped = visibleAssessmentGroups.flatMap(
+            (group) => group.assessments,
+        );
+
+        if (quarterly_exam_assessment) {
+            return [...grouped, quarterly_exam_assessment];
+        }
+
+        return grouped;
+    }, [visibleAssessmentGroups, quarterly_exam_assessment]);
+
+    const initialScoreValues = useMemo(() => {
+        const values: Record<string, string> = {};
+
+        students.forEach((student) => {
+            allAssessments.forEach((assessment) => {
+                const scoreValue = student.scores[String(assessment.id)];
+                values[`${student.id}-${assessment.id}`] =
+                    scoreValue === null || scoreValue === undefined
+                        ? ''
+                        : String(scoreValue);
+            });
+        });
+
+        return values;
+    }, [students, allAssessments]);
+
+    const [scoreValues, setScoreValues] = useState<Record<string, string>>(
+        initialScoreValues,
+    );
+
+    useEffect(() => {
+        setScoreValues(initialScoreValues);
+    }, [initialScoreValues]);
+
+    const selectedSectionValue = context.selected_section_id
+        ? String(context.selected_section_id)
+        : 'section-none';
+
+    const selectedSubjectValue = context.selected_subject_id
+        ? String(context.selected_subject_id)
+        : 'subject-none';
+
+    const goToFilters = (
+        sectionId: number | null,
+        subjectId: number | null,
+        quarter: string,
+    ) => {
+        router.get(
+            gradingSheetRoute.url({
+                query: {
+                    section_id: sectionId || undefined,
+                    subject_id: subjectId || undefined,
+                    quarter,
+                },
+            }),
+            {},
+            {
+                preserveScroll: true,
+                replace: true,
+            },
+        );
     };
-    const students = [
-        {
-            name: 'Dela Cruz, Juan',
-            scores: { ww1: 18, ww2: 13, ww3: 22, pt1: 45, pt2: 36, exam: 85 },
-            computedGrade: '86.60',
-        },
-        {
-            name: 'Santos, Maria',
-            scores: { ww1: 19, ww2: 14, ww3: 24, pt1: 48, pt2: 38, exam: 91 },
-            computedGrade: '91.10',
-        },
-    ];
+
+    const handleSectionChange = (value: string) => {
+        if (value === 'section-none') {
+            return;
+        }
+
+        goToFilters(Number(value), null, context.selected_quarter);
+    };
+
+    const handleSubjectChange = (value: string) => {
+        if (value === 'subject-none') {
+            return;
+        }
+
+        goToFilters(
+            context.selected_section_id,
+            Number(value),
+            context.selected_quarter,
+        );
+    };
+
+    const handleQuarterChange = (value: string) => {
+        goToFilters(
+            context.selected_section_id,
+            context.selected_subject_id,
+            value,
+        );
+    };
+
+    const handleScoreChange = (
+        studentId: number,
+        assessmentId: number,
+        value: string,
+    ) => {
+        if (value !== '' && !/^\d*\.?\d{0,2}$/.test(value)) {
+            return;
+        }
+
+        setScoreValues((previousValues) => ({
+            ...previousValues,
+            [`${studentId}-${assessmentId}`]: value,
+        }));
+    };
+
+    const submitRubric = () => {
+        if (!context.selected_subject_id) {
+            return;
+        }
+
+        router.post(
+            gradingSheetRoute.update_rubric.url(),
+            {
+                subject_id: context.selected_subject_id,
+                ww_weight: asNumber(rubricForm.ww_weight),
+                pt_weight: asNumber(rubricForm.pt_weight),
+                qa_weight: asNumber(rubricForm.qa_weight),
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setIsRubricModalOpen(false);
+                },
+            },
+        );
+    };
+
+    const submitAssessment = () => {
+        if (!context.selected_assignment_id) {
+            return;
+        }
+
+        const normalizedTitle = assessmentTitle.trim();
+        if (normalizedTitle === '') {
+            return;
+        }
+
+        router.post(
+            gradingSheetRoute.store_assessment.url(),
+            {
+                subject_assignment_id: context.selected_assignment_id,
+                quarter: context.selected_quarter,
+                type: assessmentComponent,
+                title: normalizedTitle,
+                max_score: asNumber(assessmentMaxPoints),
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setIsAssessmentModalOpen(false);
+                    setAssessmentTitle('');
+                    setAssessmentComponent('WW');
+                    setAssessmentMaxPoints('10');
+                },
+            },
+        );
+    };
+
+    const submitScores = (saveMode: 'draft' | 'submitted') => {
+        if (!context.selected_assignment_id) {
+            return;
+        }
+
+        if (students.length === 0 || allAssessments.length === 0) {
+            return;
+        }
+
+        const scoresPayload = students.flatMap((student) => {
+            return allAssessments.map((assessment) => {
+                const rowKey = `${student.id}-${assessment.id}`;
+                const scoreValue = scoreValues[rowKey];
+
+                return {
+                    student_id: student.id,
+                    graded_activity_id: assessment.id,
+                    score: scoreValue === '' ? null : asNumber(scoreValue),
+                };
+            });
+        });
+
+        router.post(
+            gradingSheetRoute.store_scores.url(),
+            {
+                subject_assignment_id: context.selected_assignment_id,
+                quarter: context.selected_quarter,
+                save_mode: saveMode,
+                scores: scoresPayload,
+            },
+            {
+                preserveScroll: true,
+            },
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -92,53 +354,95 @@ export default function GradingSheet() {
                     <CardHeader className="border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Class and Subject</CardTitle>
-                            <Badge variant="outline">Status: Draft</Badge>
+                            <Badge
+                                variant={
+                                    status === 'submitted' ? 'secondary' : 'outline'
+                                }
+                            >
+                                Status:{' '}
+                                {status === 'submitted' ? 'Submitted' : 'Draft'}
+                            </Badge>
                         </div>
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex flex-col gap-3 sm:flex-row">
-                                <Select defaultValue="rizal">
+                                <Select
+                                    value={selectedSectionValue}
+                                    onValueChange={handleSectionChange}
+                                >
+                                    <SelectTrigger className="w-full sm:w-56">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {context.section_options.length > 0 ? (
+                                            context.section_options.map(
+                                                (sectionOption) => (
+                                                    <SelectItem
+                                                        key={sectionOption.id}
+                                                        value={String(
+                                                            sectionOption.id,
+                                                        )}
+                                                    >
+                                                        {sectionOption.label}
+                                                    </SelectItem>
+                                                ),
+                                            )
+                                        ) : (
+                                            <SelectItem value="section-none">
+                                                No sections
+                                            </SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={selectedSubjectValue}
+                                    onValueChange={handleSubjectChange}
+                                >
                                     <SelectTrigger className="w-full sm:w-48">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="rizal">
-                                            Grade 7 - Rizal
-                                        </SelectItem>
-                                        <SelectItem value="bonifacio">
-                                            Grade 7 - Bonifacio
-                                        </SelectItem>
+                                        {context.subject_options.length > 0 ? (
+                                            context.subject_options.map(
+                                                (subjectOption) => (
+                                                    <SelectItem
+                                                        key={subjectOption.id}
+                                                        value={String(
+                                                            subjectOption.id,
+                                                        )}
+                                                    >
+                                                        {subjectOption.name}
+                                                    </SelectItem>
+                                                ),
+                                            )
+                                        ) : (
+                                            <SelectItem value="subject-none">
+                                                No subjects
+                                            </SelectItem>
+                                        )}
                                     </SelectContent>
                                 </Select>
-                                <Select defaultValue="math">
-                                    <SelectTrigger className="w-full sm:w-48">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="math">
-                                            Mathematics 7
-                                        </SelectItem>
-                                        <SelectItem value="science">
-                                            Science 7
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Select defaultValue="first">
+
+                                <Select
+                                    value={context.selected_quarter}
+                                    onValueChange={handleQuarterChange}
+                                >
                                     <SelectTrigger className="w-full sm:w-36">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="first">
+                                        <SelectItem value="1">
                                             1st Quarter
                                         </SelectItem>
-                                        <SelectItem value="second">
+                                        <SelectItem value="2">
                                             2nd Quarter
                                         </SelectItem>
-                                        <SelectItem value="third">
+                                        <SelectItem value="3">
                                             3rd Quarter
                                         </SelectItem>
-                                        <SelectItem value="fourth">
+                                        <SelectItem value="4">
                                             4th Quarter
                                         </SelectItem>
                                     </SelectContent>
@@ -149,11 +453,19 @@ export default function GradingSheet() {
                                 <Button
                                     variant="outline"
                                     onClick={() => setIsRubricModalOpen(true)}
+                                    disabled={!context.selected_subject_id}
                                 >
                                     <Settings2 className="size-4" />
                                     Configure Rubric
                                 </Button>
-                                <Button>
+                                <Button
+                                    onClick={() => submitScores('submitted')}
+                                    disabled={
+                                        !context.has_assignment ||
+                                        students.length === 0 ||
+                                        allAssessments.length === 0
+                                    }
+                                >
                                     <CheckCircle2 className="size-4" />
                                     Submit Final Grades
                                 </Button>
@@ -169,6 +481,7 @@ export default function GradingSheet() {
                             <Button
                                 size="sm"
                                 onClick={() => setIsAssessmentModalOpen(true)}
+                                disabled={!context.has_assignment}
                             >
                                 <Plus className="size-4" />
                                 Add Assessment
@@ -176,96 +489,174 @@ export default function GradingSheet() {
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="pl-6"></TableHead>
-                                    {groupedAssessments.map((group) => (
-                                        <TableHead
-                                            key={group.component}
-                                            colSpan={group.assessments.length}
-                                            className="border-l text-center"
-                                        >
-                                            {group.component} ({group.weight}%)
-                                        </TableHead>
-                                    ))}
-                                    <TableHead className="border-l text-center"></TableHead>
-                                    <TableHead className="border-l pr-6"></TableHead>
-                                </TableRow>
-                                <TableRow>
-                                    <TableHead className="pl-6">
-                                        Student
-                                    </TableHead>
-                                    {groupedAssessments.flatMap((group) =>
-                                        group.assessments.map((assessment) => (
+                        {!context.has_assignment ? (
+                            <p className="px-4 py-5 text-sm text-muted-foreground">
+                                Select section and subject to load grading data.
+                            </p>
+                        ) : allAssessments.length === 0 ? (
+                            <p className="px-4 py-5 text-sm text-muted-foreground">
+                                No assessments for{' '}
+                                {quarterLabels[context.selected_quarter]} yet.
+                            </p>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="pl-6"></TableHead>
+                                        {visibleAssessmentGroups.map((group) => (
                                             <TableHead
-                                                key={assessment.id}
+                                                key={group.component}
+                                                colSpan={
+                                                    group.assessments.length
+                                                }
                                                 className="border-l text-center"
                                             >
-                                                {assessment.title} (
-                                                {assessment.maxPoints})
+                                                {group.component} ({group.weight}
+                                                %)
                                             </TableHead>
-                                        )),
-                                    )}
-                                    <TableHead className="border-l text-center">
-                                        {quarterlyExamAssessment.title} (
-                                        {quarterlyExamAssessment.maxPoints})
-                                    </TableHead>
-                                    <TableHead className="border-l pr-6 text-right">
-                                        Computed Grade
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {students.map((student) => (
-                                    <TableRow key={student.name}>
-                                        <TableCell className="pl-6">
-                                            {student.name}
-                                        </TableCell>
-                                        {groupedAssessments.flatMap((group) =>
-                                            group.assessments.map(
-                                                (assessment) => (
-                                                    <TableCell
-                                                        key={`${student.name}-${assessment.id}`}
-                                                        className="border-l text-center"
-                                                    >
-                                                        <Input
-                                                            type="number"
-                                                            defaultValue={
-                                                                student.scores[
-                                                                    assessment.id as keyof typeof student.scores
-                                                                ]
-                                                            }
-                                                            className="mx-auto w-20"
-                                                        />
-                                                    </TableCell>
-                                                ),
-                                            ),
-                                        )}
-                                        <TableCell className="border-l text-center">
-                                            <Input
-                                                type="number"
-                                                defaultValue={
-                                                    student.scores.exam
-                                                }
-                                                className="mx-auto w-20"
-                                            />
-                                        </TableCell>
-                                        <TableCell className="border-l pr-6 text-right font-medium">
-                                            {student.computedGrade}
-                                        </TableCell>
+                                        ))}
+                                        {quarterly_exam_assessment ? (
+                                            <TableHead className="border-l text-center"></TableHead>
+                                        ) : null}
+                                        <TableHead className="border-l pr-6"></TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                    <TableRow>
+                                        <TableHead className="pl-6">
+                                            Student
+                                        </TableHead>
+                                        {visibleAssessmentGroups.flatMap(
+                                            (group) =>
+                                                group.assessments.map(
+                                                    (assessment) => (
+                                                        <TableHead
+                                                            key={assessment.id}
+                                                            className="border-l text-center"
+                                                        >
+                                                            {assessment.title} ({' '}
+                                                            {
+                                                                assessment.max_points
+                                                            }
+                                                            )
+                                                        </TableHead>
+                                                    ),
+                                                ),
+                                        )}
+                                        {quarterly_exam_assessment ? (
+                                            <TableHead className="border-l text-center">
+                                                {quarterly_exam_assessment.title}{' '}
+                                                (
+                                                {
+                                                    quarterly_exam_assessment.max_points
+                                                }
+                                                )
+                                            </TableHead>
+                                        ) : null}
+                                        <TableHead className="border-l pr-6 text-right">
+                                            Computed Grade
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {students.map((student) => (
+                                        <TableRow key={student.id}>
+                                            <TableCell className="pl-6">
+                                                {student.name}
+                                            </TableCell>
+                                            {visibleAssessmentGroups.flatMap(
+                                                (group) =>
+                                                    group.assessments.map(
+                                                        (assessment) => {
+                                                            const scoreKey = `${student.id}-${assessment.id}`;
+
+                                                            return (
+                                                                <TableCell
+                                                                    key={
+                                                                        scoreKey
+                                                                    }
+                                                                    className="border-l text-center"
+                                                                >
+                                                                    <Input
+                                                                        type="text"
+                                                                        value={
+                                                                            scoreValues[
+                                                                                scoreKey
+                                                                            ] ??
+                                                                            ''
+                                                                        }
+                                                                        onChange={(
+                                                                            event,
+                                                                        ) =>
+                                                                            handleScoreChange(
+                                                                                student.id,
+                                                                                assessment.id,
+                                                                                event
+                                                                                    .target
+                                                                                    .value,
+                                                                            )
+                                                                        }
+                                                                        className="mx-auto w-20"
+                                                                    />
+                                                                </TableCell>
+                                                            );
+                                                        },
+                                                    ),
+                                            )}
+                                            {quarterly_exam_assessment ? (
+                                                <TableCell className="border-l text-center">
+                                                    <Input
+                                                        type="text"
+                                                        value={
+                                                            scoreValues[
+                                                                `${student.id}-${quarterly_exam_assessment.id}`
+                                                            ] ?? ''
+                                                        }
+                                                        onChange={(event) =>
+                                                            handleScoreChange(
+                                                                student.id,
+                                                                quarterly_exam_assessment.id,
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className="mx-auto w-20"
+                                                    />
+                                                </TableCell>
+                                            ) : null}
+                                            <TableCell className="border-l pr-6 text-right font-medium">
+                                                {student.computed_grade}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
                     </CardContent>
                     <div className="flex items-center justify-between border-t px-4 py-3">
                         <p className="text-sm text-muted-foreground">
                             {students.length} students
                         </p>
                         <div className="flex gap-2">
-                            <Button variant="outline">Save Draft</Button>
-                            <Button>Submit Quarter Grades</Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => submitScores('draft')}
+                                disabled={
+                                    !context.has_assignment ||
+                                    students.length === 0 ||
+                                    allAssessments.length === 0
+                                }
+                            >
+                                Save Draft
+                            </Button>
+                            <Button
+                                onClick={() => submitScores('submitted')}
+                                disabled={
+                                    !context.has_assignment ||
+                                    students.length === 0 ||
+                                    allAssessments.length === 0
+                                }
+                            >
+                                Submit Quarter Grades
+                            </Button>
                         </div>
                     </div>
                 </Card>
@@ -285,24 +676,35 @@ export default function GradingSheet() {
                                 </Label>
                                 <Input
                                     id="assessment-title"
+                                    value={assessmentTitle}
+                                    onChange={(event) =>
+                                        setAssessmentTitle(event.target.value)
+                                    }
                                     placeholder="e.g. Unit Quiz 2"
                                 />
                             </div>
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label>Component</Label>
-                                    <Select defaultValue="written">
+                                    <Select
+                                        value={assessmentComponent}
+                                        onValueChange={(value) =>
+                                            setAssessmentComponent(
+                                                value as 'WW' | 'PT' | 'QA',
+                                            )
+                                        }
+                                    >
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="written">
+                                            <SelectItem value="WW">
                                                 Written Works
                                             </SelectItem>
-                                            <SelectItem value="performance">
+                                            <SelectItem value="PT">
                                                 Performance Tasks
                                             </SelectItem>
-                                            <SelectItem value="exam">
+                                            <SelectItem value="QA">
                                                 Quarterly Exam
                                             </SelectItem>
                                         </SelectContent>
@@ -314,8 +716,13 @@ export default function GradingSheet() {
                                     </Label>
                                     <Input
                                         id="assessment-max"
-                                        type="number"
-                                        defaultValue="10"
+                                        type="text"
+                                        value={assessmentMaxPoints}
+                                        onChange={(event) =>
+                                            setAssessmentMaxPoints(
+                                                event.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                             </div>
@@ -327,11 +734,7 @@ export default function GradingSheet() {
                             >
                                 Cancel
                             </Button>
-                            <Button
-                                onClick={() => setIsAssessmentModalOpen(false)}
-                            >
-                                Add
-                            </Button>
+                            <Button onClick={submitAssessment}>Add</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -352,8 +755,14 @@ export default function GradingSheet() {
                                     </Label>
                                     <Input
                                         id="rubric-written"
-                                        type="number"
-                                        defaultValue={rubricWeights[0].value}
+                                        type="text"
+                                        value={rubricForm.ww_weight}
+                                        onChange={(event) =>
+                                            setRubricForm((previousForm) => ({
+                                                ...previousForm,
+                                                ww_weight: event.target.value,
+                                            }))
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -362,16 +771,28 @@ export default function GradingSheet() {
                                     </Label>
                                     <Input
                                         id="rubric-performance"
-                                        type="number"
-                                        defaultValue={rubricWeights[1].value}
+                                        type="text"
+                                        value={rubricForm.pt_weight}
+                                        onChange={(event) =>
+                                            setRubricForm((previousForm) => ({
+                                                ...previousForm,
+                                                pt_weight: event.target.value,
+                                            }))
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="rubric-exam">Exam</Label>
                                     <Input
                                         id="rubric-exam"
-                                        type="number"
-                                        defaultValue={rubricWeights[2].value}
+                                        type="text"
+                                        value={rubricForm.qa_weight}
+                                        onChange={(event) =>
+                                            setRubricForm((previousForm) => ({
+                                                ...previousForm,
+                                                qa_weight: event.target.value,
+                                            }))
+                                        }
                                     />
                                 </div>
                             </div>
@@ -383,9 +804,7 @@ export default function GradingSheet() {
                             >
                                 Cancel
                             </Button>
-                            <Button onClick={() => setIsRubricModalOpen(false)}>
-                                Apply
-                            </Button>
+                            <Button onClick={submitRubric}>Apply</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>

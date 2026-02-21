@@ -1,4 +1,5 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import { format } from 'date-fns';
 import { Download, Printer } from 'lucide-react';
 import { useState } from 'react';
 import type { DateRange } from 'react-day-picker';
@@ -22,6 +23,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { daily_reports } from '@/routes/finance';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -31,56 +33,156 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function DailyReports() {
-    const [reportDateRange, setReportDateRange] = useState<DateRange>();
+type CashierOption = {
+    id: number;
+    name: string;
+};
 
-    const breakdownRows = [
-        {
-            category: 'Tuition Fees',
-            transactionCount: 12,
-            totalAmount: '45,000.00',
-        },
-        {
-            category: 'Enrollment Downpayment',
-            transactionCount: 9,
-            totalAmount: '32,500.00',
-        },
-        {
-            category: 'Products (Uniform/Books)',
-            transactionCount: 15,
-            totalAmount: '18,350.00',
-        },
-    ];
+type BreakdownRow = {
+    category: string;
+    transaction_count: number;
+    total_amount: number;
+};
 
-    const transactionRows = [
-        {
-            orNumber: 'OR-01021',
-            student: 'Juan Dela Cruz',
-            paymentType: 'Downpayment',
-            paymentMode: 'Cash',
-            amount: '5,000.00',
-            cashier: 'Cashier A',
-            dateTime: '02/20/2026 08:25 AM',
-        },
-        {
-            orNumber: 'OR-01022',
-            student: 'Maria Santos',
-            paymentType: 'Tuition',
-            paymentMode: 'GCash',
-            amount: '7,500.00',
-            cashier: 'Cashier B',
-            dateTime: '02/20/2026 08:44 AM',
-        },
-        {
-            orNumber: 'OR-01023',
-            student: 'Carlo Reyes',
-            paymentType: 'Uniform Purchase',
-            paymentMode: 'Cash',
-            amount: '1,350.00',
-            cashier: 'Cashier A',
-            dateTime: '02/20/2026 09:02 AM',
-        },
-    ];
+type TransactionRow = {
+    id: number;
+    or_number: string;
+    student_name: string;
+    payment_type: string;
+    payment_mode: string;
+    payment_mode_label: string;
+    amount: number;
+    cashier_name: string;
+    posted_at: string | null;
+};
+
+type Summary = {
+    transaction_count: number;
+    gross_collection: number;
+    cash_on_hand: number;
+    digital_collection: number;
+    void_adjustments: number;
+};
+
+type Filters = {
+    cashier_id: number | null;
+    payment_mode: 'cash' | 'gcash' | 'bank_transfer' | null;
+    date_from: string | null;
+    date_to: string | null;
+};
+
+interface Props {
+    cashiers: CashierOption[];
+    breakdown_rows: BreakdownRow[];
+    transaction_rows: TransactionRow[];
+    summary: Summary;
+    filters: Filters;
+}
+
+const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+    }).format(amount || 0);
+
+const parseDateInput = (value: string | null) => {
+    if (!value) {
+        return undefined;
+    }
+
+    const parsedDate = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsedDate.getTime())) {
+        return undefined;
+    }
+
+    return parsedDate;
+};
+
+const formatPostedAt = (value: string | null) => {
+    if (!value) {
+        return '-';
+    }
+
+    return new Date(value).toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+    });
+};
+
+export default function DailyReports({
+    cashiers,
+    breakdown_rows,
+    transaction_rows,
+    summary,
+    filters,
+}: Props) {
+    const initialFromDate = parseDateInput(filters.date_from);
+    const initialToDate = parseDateInput(filters.date_to);
+    const initialDateRange =
+        initialFromDate || initialToDate
+            ? {
+                  from: initialFromDate,
+                  to: initialToDate,
+              }
+            : undefined;
+
+    const [reportDateRange, setReportDateRange] =
+        useState<DateRange | undefined>(initialDateRange);
+    const [cashierFilter, setCashierFilter] = useState(
+        filters.cashier_id ? String(filters.cashier_id) : 'cashier-all',
+    );
+    const [paymentModeFilter, setPaymentModeFilter] = useState(
+        filters.payment_mode ?? 'mode-all',
+    );
+
+    const applyFilters = () => {
+        router.get(
+            daily_reports.url({
+                query: {
+                    cashier_id:
+                        cashierFilter === 'cashier-all'
+                            ? undefined
+                            : Number(cashierFilter),
+                    payment_mode:
+                        paymentModeFilter === 'mode-all'
+                            ? undefined
+                            : paymentModeFilter,
+                    date_from: reportDateRange?.from
+                        ? format(reportDateRange.from, 'yyyy-MM-dd')
+                        : undefined,
+                    date_to: reportDateRange?.to
+                        ? format(reportDateRange.to, 'yyyy-MM-dd')
+                        : undefined,
+                },
+            }),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const resetFilters = () => {
+        setReportDateRange(undefined);
+        setCashierFilter('cashier-all');
+        setPaymentModeFilter('mode-all');
+
+        router.get(
+            daily_reports.url(),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -94,12 +196,13 @@ export default function DailyReports() {
                             <div className="flex items-center gap-2">
                                 <Button
                                     variant="outline"
+                                    type="button"
                                     onClick={() => window.print()}
                                 >
                                     <Printer className="size-4" />
                                     Print Z-Reading
                                 </Button>
-                                <Button variant="outline">
+                                <Button variant="outline" type="button">
                                     <Download className="size-4" />
                                     Export CSV
                                 </Button>
@@ -113,7 +216,10 @@ export default function DailyReports() {
                                 setDateRange={setReportDateRange}
                                 className="w-fit max-w-full"
                             />
-                            <Select defaultValue="cashier-all">
+                            <Select
+                                value={cashierFilter}
+                                onValueChange={setCashierFilter}
+                            >
                                 <SelectTrigger className="w-full sm:w-44">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -121,15 +227,20 @@ export default function DailyReports() {
                                     <SelectItem value="cashier-all">
                                         All Cashiers
                                     </SelectItem>
-                                    <SelectItem value="cashier-a">
-                                        Cashier A
-                                    </SelectItem>
-                                    <SelectItem value="cashier-b">
-                                        Cashier B
-                                    </SelectItem>
+                                    {cashiers.map((cashier) => (
+                                        <SelectItem
+                                            key={cashier.id}
+                                            value={String(cashier.id)}
+                                        >
+                                            {cashier.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
-                            <Select defaultValue="mode-all">
+                            <Select
+                                value={paymentModeFilter}
+                                onValueChange={setPaymentModeFilter}
+                            >
                                 <SelectTrigger className="w-full sm:w-44">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -139,12 +250,24 @@ export default function DailyReports() {
                                     </SelectItem>
                                     <SelectItem value="cash">Cash</SelectItem>
                                     <SelectItem value="gcash">GCash</SelectItem>
-                                    <SelectItem value="bank">
+                                    <SelectItem value="bank_transfer">
                                         Bank Transfer
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Badge variant="outline">36 transactions</Badge>
+                            <Button type="button" onClick={applyFilters}>
+                                Apply
+                            </Button>
+                            <Button
+                                variant="outline"
+                                type="button"
+                                onClick={resetFilters}
+                            >
+                                Reset
+                            </Button>
+                            <Badge variant="outline">
+                                {summary.transaction_count} transactions
+                            </Badge>
                         </div>
                     </CardContent>
 
@@ -154,7 +277,7 @@ export default function DailyReports() {
                                 Gross Collection
                             </p>
                             <p className="text-sm font-semibold">
-                                PHP 95,850.00
+                                {formatCurrency(summary.gross_collection)}
                             </p>
                         </div>
                         <div className="rounded-md border px-3 py-2">
@@ -162,7 +285,7 @@ export default function DailyReports() {
                                 Cash on Hand
                             </p>
                             <p className="text-sm font-semibold">
-                                PHP 61,350.00
+                                {formatCurrency(summary.cash_on_hand)}
                             </p>
                         </div>
                         <div className="rounded-md border px-3 py-2">
@@ -170,14 +293,16 @@ export default function DailyReports() {
                                 Digital Collection
                             </p>
                             <p className="text-sm font-semibold">
-                                PHP 34,500.00
+                                {formatCurrency(summary.digital_collection)}
                             </p>
                         </div>
                         <div className="rounded-md border px-3 py-2">
                             <p className="text-xs text-muted-foreground">
                                 Void/Adjustments
                             </p>
-                            <p className="text-sm font-semibold">PHP 0.00</p>
+                            <p className="text-sm font-semibold">
+                                {formatCurrency(summary.void_adjustments)}
+                            </p>
                         </div>
                     </div>
 
@@ -197,19 +322,29 @@ export default function DailyReports() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {breakdownRows.map((row) => (
+                                {breakdown_rows.map((row) => (
                                     <TableRow key={row.category}>
                                         <TableCell className="pl-6 font-medium">
                                             {row.category}
                                         </TableCell>
                                         <TableCell className="border-l text-center">
-                                            {row.transactionCount}
+                                            {row.transaction_count}
                                         </TableCell>
                                         <TableCell className="border-l pr-6 text-right">
-                                            PHP {row.totalAmount}
+                                            {formatCurrency(row.total_amount)}
                                         </TableCell>
                                     </TableRow>
                                 ))}
+                                {breakdown_rows.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={3}
+                                            className="py-8 text-center text-sm text-muted-foreground"
+                                        >
+                                            No category breakdown available.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>
@@ -240,29 +375,39 @@ export default function DailyReports() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {transactionRows.map((row) => (
-                                    <TableRow key={row.orNumber}>
+                                {transaction_rows.map((row) => (
+                                    <TableRow key={row.id}>
                                         <TableCell className="pl-6">
-                                            {row.orNumber}
+                                            {row.or_number}
                                         </TableCell>
-                                        <TableCell>{row.student}</TableCell>
+                                        <TableCell>{row.student_name}</TableCell>
                                         <TableCell className="border-l">
-                                            {row.paymentType}
+                                            {row.payment_type}
                                         </TableCell>
                                         <TableCell className="border-l">
-                                            {row.paymentMode}
+                                            {row.payment_mode_label}
                                         </TableCell>
                                         <TableCell className="border-l text-right">
-                                            PHP {row.amount}
+                                            {formatCurrency(row.amount)}
                                         </TableCell>
                                         <TableCell className="border-l">
-                                            {row.cashier}
+                                            {row.cashier_name}
                                         </TableCell>
                                         <TableCell className="border-l pr-6">
-                                            {row.dateTime}
+                                            {formatPostedAt(row.posted_at)}
                                         </TableCell>
                                     </TableRow>
                                 ))}
+                                {transaction_rows.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={7}
+                                            className="py-8 text-center text-sm text-muted-foreground"
+                                        >
+                                            No transactions found.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>

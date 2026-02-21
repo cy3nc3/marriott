@@ -50,4 +50,29 @@ class Student extends Model
     {
         return $this->hasMany(RemedialRecord::class);
     }
+
+    public function studentDiscounts(): HasMany
+    {
+        return $this->hasMany(StudentDiscount::class);
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    public function ledgerEntries(): HasMany
+    {
+        return $this->hasMany(LedgerEntry::class);
+    }
+
+    public function billingSchedules(): HasMany
+    {
+        return $this->hasMany(BillingSchedule::class);
+    }
+
+    public function studentScores(): HasMany
+    {
+        return $this->hasMany(StudentScore::class);
+    }
 }

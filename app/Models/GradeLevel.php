@@ -21,4 +21,9 @@ class GradeLevel extends Model
     {
         return $this->hasMany(Section::class);
     }
+
+    public function fees(): HasMany
+    {
+        return $this->hasMany(Fee::class);
+    }
 }

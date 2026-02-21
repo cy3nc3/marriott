@@ -13,73 +13,33 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Schedule() {
+type ScheduleItem = {
+    day: string;
+    start: string;
+    end: string;
+    title: string;
+    section: string;
+    type: 'class' | 'advisory';
+};
+
+type BreakItem = {
+    label: string;
+    start: string;
+    end: string;
+};
+
+interface Props {
+    schedule_items: ScheduleItem[];
+    break_items: BreakItem[];
+}
+
+export default function Schedule({ schedule_items, break_items }: Props) {
     const START_HOUR = 7;
     const END_HOUR = 17;
     const HOUR_HEIGHT = 72;
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const scheduleItems = [
-        {
-            day: 'Monday',
-            start: '08:00',
-            end: '09:00',
-            title: 'Mathematics 7',
-            section: 'Grade 7 - Rizal',
-            type: 'class',
-        },
-        {
-            day: 'Tuesday',
-            start: '08:00',
-            end: '09:00',
-            title: 'Mathematics 8',
-            section: 'Grade 8 - Gusion',
-            type: 'class',
-        },
-        {
-            day: 'Wednesday',
-            start: '08:00',
-            end: '09:00',
-            title: 'Mathematics 7',
-            section: 'Grade 7 - Rizal',
-            type: 'class',
-        },
-        {
-            day: 'Thursday',
-            start: '08:00',
-            end: '09:00',
-            title: 'Mathematics 8',
-            section: 'Grade 8 - Gusion',
-            type: 'class',
-        },
-        {
-            day: 'Friday',
-            start: '08:00',
-            end: '09:00',
-            title: 'Advisory',
-            section: 'Grade 7 - Rizal',
-            type: 'advisory',
-        },
-        {
-            day: 'Tuesday',
-            start: '10:30',
-            end: '11:30',
-            title: 'Mathematics 7',
-            section: 'Grade 7 - Bonifacio',
-            type: 'class',
-        },
-        {
-            day: 'Thursday',
-            start: '10:30',
-            end: '11:30',
-            title: 'Mathematics 7',
-            section: 'Grade 7 - Bonifacio',
-            type: 'class',
-        },
-    ];
-    const breakItems = [
-        { label: 'Recess Break', start: '10:00', end: '10:30' },
-        { label: 'Lunch Break', start: '12:00', end: '13:00' },
-    ];
+    const scheduleItems = schedule_items;
+    const breakItems = break_items;
 
     const timeToMinutes = (time: string) => {
         const [hours, minutes] = time.split(':').map(Number);

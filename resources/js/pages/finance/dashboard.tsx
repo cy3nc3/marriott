@@ -11,13 +11,38 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Dashboard() {
+type Metrics = {
+    collection_efficiency_percent: number;
+    total_charges: number;
+    total_payments: number;
+    outstanding_balance: number;
+    cash_in_drawer_today: number;
+    revenue_forecast_next_month: number;
+    forecast_month_label: string;
+};
+
+interface Props {
+    metrics: Metrics;
+}
+
+const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+    }).format(amount || 0);
+
+export default function Dashboard({ metrics }: Props) {
+    const boundedEfficiency = Math.min(
+        Math.max(metrics.collection_efficiency_percent, 0),
+        100,
+    );
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Finance Dashboard" />
+
             <div className="flex flex-col gap-6">
                 <div className="grid gap-6 md:grid-cols-3">
-                    {/* Card 1: Collection Efficiency */}
                     <Card>
                         <CardHeader>
                             <CardTitle>Collection Efficiency</CardTitle>
@@ -25,41 +50,49 @@ export default function Dashboard() {
                         <CardContent>
                             <div className="mb-2 flex items-center justify-between">
                                 <span className="text-sm font-semibold">
-                                    85% Collected
+                                    {metrics.collection_efficiency_percent.toFixed(
+                                        2,
+                                    )}
+                                    % Collected
                                 </span>
                             </div>
                             <div className="h-4 w-full rounded-full bg-muted">
-                                <div className="h-4 w-[85%] rounded-full bg-primary"></div>
+                                <div
+                                    className="h-4 rounded-full bg-primary"
+                                    style={{ width: `${boundedEfficiency}%` }}
+                                />
                             </div>
                             <p className="mt-4 text-center text-sm text-muted-foreground">
-                                85% Paid / 15% Outstanding
+                                {formatCurrency(metrics.total_payments)} Paid /{' '}
+                                {formatCurrency(metrics.outstanding_balance)}{' '}
+                                Outstanding
                             </p>
                         </CardContent>
                     </Card>
 
-                    {/* Card 2: Cash in Drawer */}
                     <Card className="flex flex-col items-center justify-center text-center">
                         <CardContent className="p-6">
                             <div className="mb-4 text-sm text-muted-foreground">
                                 Cash in Drawer (Today)
                             </div>
                             <div className="text-4xl font-semibold">
-                                PHP 45,200.00
+                                {formatCurrency(metrics.cash_in_drawer_today)}
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Card 3: Revenue Forecast */}
                     <Card className="flex flex-col items-center justify-center text-center">
                         <CardContent className="p-6">
                             <div className="mb-4 text-sm text-muted-foreground">
-                                Revenue Forecast (Next Month)
+                                Revenue Forecast ({metrics.forecast_month_label})
                             </div>
                             <div className="text-3xl font-semibold">
-                                PHP 1,250,000
+                                {formatCurrency(
+                                    metrics.revenue_forecast_next_month,
+                                )}
                             </div>
                             <p className="mt-2 text-sm text-muted-foreground">
-                                Based on upcoming due dates
+                                Based on unpaid and partially paid dues
                             </p>
                         </CardContent>
                     </Card>

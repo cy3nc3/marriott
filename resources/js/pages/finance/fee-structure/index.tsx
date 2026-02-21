@@ -1,6 +1,6 @@
-import { Head } from '@inertiajs/react';
-import { CopyPlus, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
+import { destroy, store, update } from '@/routes/finance/fee_structure';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -38,125 +39,134 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+type FeeType = 'tuition' | 'miscellaneous' | 'books_modules';
+
 type FeeItem = {
+    id: number;
+    grade_level_id: number;
     label: string;
-    category: 'Tuition' | 'Miscellaneous' | 'Books and Modules';
-    amount: string;
+    type: FeeType;
+    category: string;
+    amount: number;
 };
 
 type GradeLevelFee = {
-    gradeLevel: string;
-    feeItems: FeeItem[];
+    id: number;
+    name: string;
+    fee_items: FeeItem[];
 };
 
-export default function FeeStructure() {
+interface Props {
+    grade_level_fees: GradeLevelFee[];
+}
+
+const feeTypeOptions: { value: FeeType; label: string }[] = [
+    { value: 'tuition', label: 'Tuition' },
+    { value: 'miscellaneous', label: 'Miscellaneous' },
+    { value: 'books_modules', label: 'Books and Modules' },
+];
+
+const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+    }).format(amount || 0);
+
+export default function FeeStructure({ grade_level_fees }: Props) {
     const [isAddFeeDialogOpen, setIsAddFeeDialogOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState<FeeItem | null>(null);
+    const [activeTab, setActiveTab] = useState<string>(
+        String(grade_level_fees[0]?.id ?? ''),
+    );
 
-    const gradeLevelFees: GradeLevelFee[] = [
-        {
-            gradeLevel: 'Grade 7',
-            feeItems: [
-                {
-                    label: 'Tuition Fee',
-                    category: 'Tuition',
-                    amount: '20,000.00',
-                },
-                {
-                    label: 'Laboratory Fee',
-                    category: 'Miscellaneous',
-                    amount: '2,000.00',
-                },
-                {
-                    label: 'ID and School Paper',
-                    category: 'Miscellaneous',
-                    amount: '3,000.00',
-                },
-                {
-                    label: 'Books and Modules',
-                    category: 'Books and Modules',
-                    amount: '2,000.00',
-                },
-            ],
-        },
-        {
-            gradeLevel: 'Grade 8',
-            feeItems: [
-                {
-                    label: 'Tuition Fee',
-                    category: 'Tuition',
-                    amount: '20,000.00',
-                },
-                {
-                    label: 'Laboratory Fee',
-                    category: 'Miscellaneous',
-                    amount: '2,200.00',
-                },
-                {
-                    label: 'ID and School Paper',
-                    category: 'Miscellaneous',
-                    amount: '3,000.00',
-                },
-                {
-                    label: 'Books and Modules',
-                    category: 'Books and Modules',
-                    amount: '2,000.00',
-                },
-            ],
-        },
-        {
-            gradeLevel: 'Grade 9',
-            feeItems: [
-                {
-                    label: 'Tuition Fee',
-                    category: 'Tuition',
-                    amount: '21,000.00',
-                },
-                {
-                    label: 'Laboratory Fee',
-                    category: 'Miscellaneous',
-                    amount: '2,300.00',
-                },
-                {
-                    label: 'ID and School Paper',
-                    category: 'Miscellaneous',
-                    amount: '3,000.00',
-                },
-                {
-                    label: 'Books and Modules',
-                    category: 'Books and Modules',
-                    amount: '2,300.00',
-                },
-            ],
-        },
-        {
-            gradeLevel: 'Grade 10',
-            feeItems: [
-                {
-                    label: 'Tuition Fee',
-                    category: 'Tuition',
-                    amount: '21,500.00',
-                },
-                {
-                    label: 'Laboratory Fee',
-                    category: 'Miscellaneous',
-                    amount: '2,300.00',
-                },
-                {
-                    label: 'ID and School Paper',
-                    category: 'Miscellaneous',
-                    amount: '3,000.00',
-                },
-                {
-                    label: 'Books and Modules',
-                    category: 'Books and Modules',
-                    amount: '2,500.00',
-                },
-            ],
-        },
-    ];
+    const createForm = useForm({
+        grade_level_id: String(grade_level_fees[0]?.id ?? ''),
+        type: 'miscellaneous' as FeeType,
+        name: '',
+        amount: '',
+    });
 
-    const toNumber = (value: string) =>
-        Number.parseFloat(value.replace(',', ''));
+    const editForm = useForm({
+        grade_level_id: '',
+        type: 'miscellaneous' as FeeType,
+        name: '',
+        amount: '',
+    });
+
+    const selectedGradeLevel = useMemo(
+        () =>
+            grade_level_fees.find(
+                (gradeLevel) => String(gradeLevel.id) === activeTab,
+            ),
+        [grade_level_fees, activeTab],
+    );
+
+    const openAddDialog = () => {
+        const defaultGradeLevelId = selectedGradeLevel
+            ? selectedGradeLevel.id
+            : grade_level_fees[0]?.id;
+
+        createForm.setData({
+            grade_level_id: String(defaultGradeLevelId ?? ''),
+            type: 'miscellaneous',
+            name: '',
+            amount: '',
+        });
+        createForm.clearErrors();
+        setIsAddFeeDialogOpen(true);
+    };
+
+    const submitCreate = () => {
+        createForm.submit(store(), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsAddFeeDialogOpen(false);
+                createForm.reset();
+                createForm.setData('type', 'miscellaneous');
+                if (selectedGradeLevel) {
+                    createForm.setData(
+                        'grade_level_id',
+                        String(selectedGradeLevel.id),
+                    );
+                }
+            },
+        });
+    };
+
+    const openEditDialog = (feeItem: FeeItem) => {
+        setEditingItem(feeItem);
+        editForm.setData({
+            grade_level_id: String(feeItem.grade_level_id),
+            type: feeItem.type,
+            name: feeItem.label,
+            amount: String(feeItem.amount),
+        });
+        editForm.clearErrors();
+    };
+
+    const submitEdit = () => {
+        if (!editingItem) {
+            return;
+        }
+
+        editForm.submit(update({ fee: editingItem.id }), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setEditingItem(null);
+                editForm.reset();
+            },
+        });
+    };
+
+    const removeItem = (feeItem: FeeItem) => {
+        if (!confirm(`Remove "${feeItem.label}"?`)) {
+            return;
+        }
+
+        router.delete(destroy({ fee: feeItem.id }).url, {
+            preserveScroll: true,
+        });
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -167,191 +177,212 @@ export default function FeeStructure() {
                     <CardHeader className="border-b">
                         <div className="flex items-center justify-between gap-3">
                             <CardTitle>Fee Breakdown by Grade</CardTitle>
-                            <div className="flex items-center gap-2">
-                                <Select defaultValue="sy-2025-2026">
-                                    <SelectTrigger className="w-44">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="sy-2025-2026">
-                                            SY 2025-2026
-                                        </SelectItem>
-                                        <SelectItem value="sy-2024-2025">
-                                            SY 2024-2025
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Button variant="outline">
-                                    <CopyPlus className="size-4" />
-                                    Use Previous Year
-                                </Button>
-                                <Button
-                                    onClick={() => setIsAddFeeDialogOpen(true)}
-                                >
-                                    <Plus className="size-4" />
-                                    Add Fee Item
-                                </Button>
-                            </div>
+                            <Button
+                                onClick={openAddDialog}
+                                disabled={grade_level_fees.length === 0}
+                            >
+                                <Plus className="size-4" />
+                                Add Fee Item
+                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <Tabs defaultValue="Grade 7" className="w-full">
-                            <TabsList className="mb-4">
-                                {gradeLevelFees.map((feeRow) => (
-                                    <TabsTrigger
-                                        key={feeRow.gradeLevel}
-                                        value={feeRow.gradeLevel}
-                                    >
-                                        {feeRow.gradeLevel}
-                                    </TabsTrigger>
-                                ))}
-                            </TabsList>
+                        {grade_level_fees.length > 0 ? (
+                            <Tabs
+                                value={activeTab}
+                                onValueChange={setActiveTab}
+                                className="w-full"
+                            >
+                                <TabsList className="mb-4">
+                                    {grade_level_fees.map((feeRow) => (
+                                        <TabsTrigger
+                                            key={feeRow.id}
+                                            value={String(feeRow.id)}
+                                        >
+                                            {feeRow.name}
+                                        </TabsTrigger>
+                                    ))}
+                                </TabsList>
 
-                            {gradeLevelFees.map((feeRow) => {
-                                const tuitionTotal = feeRow.feeItems
-                                    .filter(
-                                        (item) => item.category === 'Tuition',
-                                    )
-                                    .reduce(
-                                        (sum, item) =>
-                                            sum + toNumber(item.amount),
-                                        0,
-                                    );
-                                const miscellaneousTotal = feeRow.feeItems
-                                    .filter(
-                                        (item) =>
-                                            item.category === 'Miscellaneous',
-                                    )
-                                    .reduce(
-                                        (sum, item) =>
-                                            sum + toNumber(item.amount),
-                                        0,
-                                    );
-                                const booksAndModulesTotal = feeRow.feeItems
-                                    .filter(
-                                        (item) =>
-                                            item.category ===
-                                            'Books and Modules',
-                                    )
-                                    .reduce(
-                                        (sum, item) =>
-                                            sum + toNumber(item.amount),
-                                        0,
-                                    );
-                                const annualTotal =
-                                    tuitionTotal +
-                                    miscellaneousTotal +
-                                    booksAndModulesTotal;
+                                {grade_level_fees.map((feeRow) => {
+                                    const tuitionTotal = feeRow.fee_items
+                                        .filter((item) => item.type === 'tuition')
+                                        .reduce(
+                                            (sum, item) => sum + item.amount,
+                                            0,
+                                        );
+                                    const miscellaneousTotal = feeRow.fee_items
+                                        .filter(
+                                            (item) =>
+                                                item.type === 'miscellaneous',
+                                        )
+                                        .reduce(
+                                            (sum, item) => sum + item.amount,
+                                            0,
+                                        );
+                                    const booksAndModulesTotal =
+                                        feeRow.fee_items
+                                            .filter(
+                                                (item) =>
+                                                    item.type ===
+                                                    'books_modules',
+                                            )
+                                            .reduce(
+                                                (sum, item) =>
+                                                    sum + item.amount,
+                                                0,
+                                            );
+                                    const annualTotal =
+                                        tuitionTotal +
+                                        miscellaneousTotal +
+                                        booksAndModulesTotal;
 
-                                return (
-                                    <TabsContent
-                                        key={feeRow.gradeLevel}
-                                        value={feeRow.gradeLevel}
-                                    >
-                                        <div className="overflow-hidden rounded-md border">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead className="pl-6">
-                                                            Fee Label
-                                                        </TableHead>
-                                                        <TableHead className="border-l">
-                                                            Category
-                                                        </TableHead>
-                                                        <TableHead className="border-l pr-6 text-right">
-                                                            Amount
-                                                        </TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {feeRow.feeItems.map(
-                                                        (item) => (
-                                                            <TableRow
-                                                                key={`${feeRow.gradeLevel}-${item.label}`}
-                                                            >
-                                                                <TableCell className="pl-6 font-medium">
-                                                                    {item.label}
-                                                                </TableCell>
-                                                                <TableCell className="border-l">
-                                                                    {
-                                                                        item.category
+                                    return (
+                                        <TabsContent
+                                            key={feeRow.id}
+                                            value={String(feeRow.id)}
+                                        >
+                                            <div className="overflow-hidden rounded-md border">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead className="pl-6">
+                                                                Fee Label
+                                                            </TableHead>
+                                                            <TableHead className="border-l">
+                                                                Category
+                                                            </TableHead>
+                                                            <TableHead className="border-l text-right">
+                                                                Amount
+                                                            </TableHead>
+                                                            <TableHead className="border-l pr-6 text-right">
+                                                                Actions
+                                                            </TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {feeRow.fee_items.map(
+                                                            (item) => (
+                                                                <TableRow
+                                                                    key={
+                                                                        item.id
                                                                     }
-                                                                </TableCell>
-                                                                <TableCell className="border-l pr-6 text-right">
-                                                                    PHP{' '}
-                                                                    {
-                                                                        item.amount
-                                                                    }
+                                                                >
+                                                                    <TableCell className="pl-6 font-medium">
+                                                                        {
+                                                                            item.label
+                                                                        }
+                                                                    </TableCell>
+                                                                    <TableCell className="border-l">
+                                                                        {
+                                                                            item.category
+                                                                        }
+                                                                    </TableCell>
+                                                                    <TableCell className="border-l text-right">
+                                                                        {formatCurrency(
+                                                                            item.amount,
+                                                                        )}
+                                                                    </TableCell>
+                                                                    <TableCell className="border-l pr-6 text-right">
+                                                                        <div className="flex justify-end gap-2">
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="size-8"
+                                                                                onClick={() =>
+                                                                                    openEditDialog(
+                                                                                        item,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                <Pencil className="size-4" />
+                                                                            </Button>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="size-8"
+                                                                                onClick={() =>
+                                                                                    removeItem(
+                                                                                        item,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                <Trash2 className="size-4" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ),
+                                                        )}
+                                                        {feeRow.fee_items
+                                                            .length === 0 && (
+                                                            <TableRow>
+                                                                <TableCell
+                                                                    colSpan={4}
+                                                                    className="py-8 text-center text-sm text-muted-foreground"
+                                                                >
+                                                                    No fee items
+                                                                    yet for this
+                                                                    grade level.
                                                                 </TableCell>
                                                             </TableRow>
-                                                        ),
-                                                    )}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
+                                                        )}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
 
-                                        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                            <div className="rounded-md border px-3 py-2">
-                                                <p className="text-xs text-muted-foreground">
-                                                    Tuition Total
-                                                </p>
-                                                <p className="text-sm font-semibold">
-                                                    PHP{' '}
-                                                    {tuitionTotal.toLocaleString(
-                                                        'en-US',
-                                                        {
-                                                            minimumFractionDigits: 2,
-                                                        },
-                                                    )}
-                                                </p>
+                                            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                                <div className="rounded-md border px-3 py-2">
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Tuition Total
+                                                    </p>
+                                                    <p className="text-sm font-semibold">
+                                                        {formatCurrency(
+                                                            tuitionTotal,
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <div className="rounded-md border px-3 py-2">
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Miscellaneous Total
+                                                    </p>
+                                                    <p className="text-sm font-semibold">
+                                                        {formatCurrency(
+                                                            miscellaneousTotal,
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <div className="rounded-md border px-3 py-2">
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Books and Modules Total
+                                                    </p>
+                                                    <p className="text-sm font-semibold">
+                                                        {formatCurrency(
+                                                            booksAndModulesTotal,
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <div className="rounded-md border px-3 py-2">
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Annual Total
+                                                    </p>
+                                                    <p className="text-sm font-semibold">
+                                                        {formatCurrency(
+                                                            annualTotal,
+                                                        )}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="rounded-md border px-3 py-2">
-                                                <p className="text-xs text-muted-foreground">
-                                                    Miscellaneous Total
-                                                </p>
-                                                <p className="text-sm font-semibold">
-                                                    PHP{' '}
-                                                    {miscellaneousTotal.toLocaleString(
-                                                        'en-US',
-                                                        {
-                                                            minimumFractionDigits: 2,
-                                                        },
-                                                    )}
-                                                </p>
-                                            </div>
-                                            <div className="rounded-md border px-3 py-2">
-                                                <p className="text-xs text-muted-foreground">
-                                                    Books and Modules Total
-                                                </p>
-                                                <p className="text-sm font-semibold">
-                                                    PHP{' '}
-                                                    {booksAndModulesTotal.toLocaleString(
-                                                        'en-US',
-                                                        {
-                                                            minimumFractionDigits: 2,
-                                                        },
-                                                    )}
-                                                </p>
-                                            </div>
-                                            <div className="rounded-md border px-3 py-2">
-                                                <p className="text-xs text-muted-foreground">
-                                                    Annual Total
-                                                </p>
-                                                <p className="text-sm font-semibold">
-                                                    PHP{' '}
-                                                    {annualTotal.toLocaleString(
-                                                        'en-US',
-                                                        {
-                                                            minimumFractionDigits: 2,
-                                                        },
-                                                    )}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </TabsContent>
-                                );
-                            })}
-                        </Tabs>
+                                        </TabsContent>
+                                    );
+                                })}
+                            </Tabs>
+                        ) : (
+                            <div className="py-8 text-center text-sm text-muted-foreground">
+                                No grade levels found. Please set up grade
+                                levels first.
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -366,53 +397,104 @@ export default function FeeStructure() {
                         <div className="grid gap-4 py-2">
                             <div className="space-y-2">
                                 <Label>Grade Level</Label>
-                                <Select defaultValue="grade-7">
+                                <Select
+                                    value={createForm.data.grade_level_id}
+                                    onValueChange={(value) =>
+                                        createForm.setData(
+                                            'grade_level_id',
+                                            value,
+                                        )
+                                    }
+                                >
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="grade-7">
-                                            Grade 7
-                                        </SelectItem>
-                                        <SelectItem value="grade-8">
-                                            Grade 8
-                                        </SelectItem>
-                                        <SelectItem value="grade-9">
-                                            Grade 9
-                                        </SelectItem>
-                                        <SelectItem value="grade-10">
-                                            Grade 10
-                                        </SelectItem>
+                                        {grade_level_fees.map((gradeLevel) => (
+                                            <SelectItem
+                                                key={gradeLevel.id}
+                                                value={String(gradeLevel.id)}
+                                            >
+                                                {gradeLevel.name}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
+                                {createForm.errors.grade_level_id && (
+                                    <p className="text-sm text-destructive">
+                                        {createForm.errors.grade_level_id}
+                                    </p>
+                                )}
                             </div>
+
                             <div className="space-y-2">
                                 <Label>Fee Label</Label>
-                                <Input placeholder="e.g. Laboratory Fee" />
+                                <Input
+                                    placeholder="e.g. Laboratory Fee"
+                                    value={createForm.data.name}
+                                    onChange={(event) =>
+                                        createForm.setData(
+                                            'name',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                {createForm.errors.name && (
+                                    <p className="text-sm text-destructive">
+                                        {createForm.errors.name}
+                                    </p>
+                                )}
                             </div>
+
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label>Category</Label>
-                                    <Select defaultValue="miscellaneous">
+                                    <Select
+                                        value={createForm.data.type}
+                                        onValueChange={(value: FeeType) =>
+                                            createForm.setData('type', value)
+                                        }
+                                    >
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="tuition">
-                                                Tuition
-                                            </SelectItem>
-                                            <SelectItem value="miscellaneous">
-                                                Miscellaneous
-                                            </SelectItem>
-                                            <SelectItem value="books-modules">
-                                                Books and Modules
-                                            </SelectItem>
+                                            {feeTypeOptions.map((option) => (
+                                                <SelectItem
+                                                    key={option.value}
+                                                    value={option.value}
+                                                >
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
+                                    {createForm.errors.type && (
+                                        <p className="text-sm text-destructive">
+                                            {createForm.errors.type}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Amount</Label>
-                                    <Input type="number" placeholder="0.00" />
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                        value={createForm.data.amount}
+                                        onChange={(event) =>
+                                            createForm.setData(
+                                                'amount',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {createForm.errors.amount && (
+                                        <p className="text-sm text-destructive">
+                                            {createForm.errors.amount}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -424,9 +506,138 @@ export default function FeeStructure() {
                                 Cancel
                             </Button>
                             <Button
-                                onClick={() => setIsAddFeeDialogOpen(false)}
+                                onClick={submitCreate}
+                                disabled={createForm.processing}
                             >
                                 Add Item
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog
+                    open={editingItem !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setEditingItem(null);
+                        }
+                    }}
+                >
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Edit Fee Item</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-2">
+                            <div className="space-y-2">
+                                <Label>Grade Level</Label>
+                                <Select
+                                    value={editForm.data.grade_level_id}
+                                    onValueChange={(value) =>
+                                        editForm.setData('grade_level_id', value)
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {grade_level_fees.map((gradeLevel) => (
+                                            <SelectItem
+                                                key={gradeLevel.id}
+                                                value={String(gradeLevel.id)}
+                                            >
+                                                {gradeLevel.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {editForm.errors.grade_level_id && (
+                                    <p className="text-sm text-destructive">
+                                        {editForm.errors.grade_level_id}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Fee Label</Label>
+                                <Input
+                                    value={editForm.data.name}
+                                    onChange={(event) =>
+                                        editForm.setData(
+                                            'name',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                {editForm.errors.name && (
+                                    <p className="text-sm text-destructive">
+                                        {editForm.errors.name}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>Category</Label>
+                                    <Select
+                                        value={editForm.data.type}
+                                        onValueChange={(value: FeeType) =>
+                                            editForm.setData('type', value)
+                                        }
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {feeTypeOptions.map((option) => (
+                                                <SelectItem
+                                                    key={option.value}
+                                                    value={option.value}
+                                                >
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {editForm.errors.type && (
+                                        <p className="text-sm text-destructive">
+                                            {editForm.errors.type}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Amount</Label>
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={editForm.data.amount}
+                                        onChange={(event) =>
+                                            editForm.setData(
+                                                'amount',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {editForm.errors.amount && (
+                                        <p className="text-sm text-destructive">
+                                            {editForm.errors.amount}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => setEditingItem(null)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={submitEdit}
+                                disabled={editForm.processing}
+                            >
+                                Save Changes
                             </Button>
                         </DialogFooter>
                     </DialogContent>

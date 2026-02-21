@@ -23,4 +23,19 @@ class AcademicYear extends Model
     {
         return $this->hasMany(Section::class);
     }
+
+    public function studentDiscounts(): HasMany
+    {
+        return $this->hasMany(StudentDiscount::class);
+    }
+
+    public function ledgerEntries(): HasMany
+    {
+        return $this->hasMany(LedgerEntry::class);
+    }
+
+    public function billingSchedules(): HasMany
+    {
+        return $this->hasMany(BillingSchedule::class);
+    }
 }

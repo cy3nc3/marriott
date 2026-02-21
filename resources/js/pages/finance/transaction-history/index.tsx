@@ -1,6 +1,7 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import { format } from 'date-fns';
+import { Search } from 'lucide-react';
 import { useState } from 'react';
-import { Ban, Receipt, Search } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { transaction_history } from '@/routes/finance';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -32,8 +34,138 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function TransactionHistory() {
-    const [dateRange, setDateRange] = useState<DateRange>();
+type TransactionRow = {
+    id: number;
+    or_number: string;
+    student_name: string;
+    student_lrn: string | null;
+    entry_label: string;
+    payment_mode: string;
+    payment_mode_label: string;
+    status: string;
+    status_label: string;
+    cashier_name: string;
+    amount: number;
+    posted_at: string | null;
+};
+
+type Summary = {
+    count: number;
+    posted_amount: number;
+    voided_amount: number;
+    net_amount: number;
+};
+
+type Filters = {
+    search: string | null;
+    payment_mode: 'cash' | 'gcash' | 'bank_transfer' | null;
+    date_from: string | null;
+    date_to: string | null;
+};
+
+interface Props {
+    transactions: TransactionRow[];
+    summary: Summary;
+    filters: Filters;
+}
+
+const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+    }).format(amount || 0);
+
+const parseDateInput = (value: string | null) => {
+    if (!value) {
+        return undefined;
+    }
+
+    const parsedDate = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsedDate.getTime())) {
+        return undefined;
+    }
+
+    return parsedDate;
+};
+
+const formatPostedAt = (value: string | null) => {
+    if (!value) {
+        return '-';
+    }
+
+    return new Date(value).toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+    });
+};
+
+export default function TransactionHistory({
+    transactions,
+    summary,
+    filters,
+}: Props) {
+    const initialFromDate = parseDateInput(filters.date_from);
+    const initialToDate = parseDateInput(filters.date_to);
+    const initialDateRange =
+        initialFromDate || initialToDate
+            ? {
+                  from: initialFromDate,
+                  to: initialToDate,
+              }
+            : undefined;
+
+    const [searchQuery, setSearchQuery] = useState(filters.search ?? '');
+    const [paymentModeFilter, setPaymentModeFilter] = useState(
+        filters.payment_mode ?? 'all-modes',
+    );
+    const [dateRange, setDateRange] =
+        useState<DateRange | undefined>(initialDateRange);
+
+    const applyFilters = () => {
+        router.get(
+            transaction_history.url({
+                query: {
+                    search: searchQuery || undefined,
+                    payment_mode:
+                        paymentModeFilter === 'all-modes'
+                            ? undefined
+                            : paymentModeFilter,
+                    date_from: dateRange?.from
+                        ? format(dateRange.from, 'yyyy-MM-dd')
+                        : undefined,
+                    date_to: dateRange?.to
+                        ? format(dateRange.to, 'yyyy-MM-dd')
+                        : undefined,
+                },
+            }),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const resetFilters = () => {
+        setSearchQuery('');
+        setPaymentModeFilter('all-modes');
+        setDateRange(undefined);
+
+        router.get(
+            transaction_history.url(),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -44,7 +176,9 @@ export default function TransactionHistory() {
                     <CardHeader className="border-b">
                         <div className="flex items-center justify-between gap-3">
                             <CardTitle>Transaction History</CardTitle>
-                            <Badge variant="outline">2 results</Badge>
+                            <Badge variant="outline">
+                                {summary.count} results
+                            </Badge>
                         </div>
                     </CardHeader>
 
@@ -56,9 +190,21 @@ export default function TransactionHistory() {
                                     <Input
                                         placeholder="OR number or student"
                                         className="pl-10"
+                                        value={searchQuery}
+                                        onChange={(event) =>
+                                            setSearchQuery(event.target.value)
+                                        }
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter') {
+                                                event.preventDefault();
+                                                applyFilters();
+                                            }
+                                        }}
                                     />
                                 </div>
-                                <Button>Apply</Button>
+                                <Button type="button" onClick={applyFilters}>
+                                    Apply
+                                </Button>
                             </div>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                                 <DateRangePicker
@@ -66,7 +212,12 @@ export default function TransactionHistory() {
                                     setDateRange={setDateRange}
                                     className="w-fit max-w-full"
                                 />
-                                <Select defaultValue="all-modes">
+                                <Select
+                                    value={paymentModeFilter}
+                                    onValueChange={(value) =>
+                                        setPaymentModeFilter(value)
+                                    }
+                                >
                                     <SelectTrigger className="w-full sm:w-44">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -80,28 +231,18 @@ export default function TransactionHistory() {
                                         <SelectItem value="gcash">
                                             GCash
                                         </SelectItem>
-                                        <SelectItem value="bank">
+                                        <SelectItem value="bank_transfer">
                                             Bank Transfer
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <Select defaultValue="all-status">
-                                    <SelectTrigger className="w-full sm:w-40">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all-status">
-                                            All Status
-                                        </SelectItem>
-                                        <SelectItem value="posted">
-                                            Posted
-                                        </SelectItem>
-                                        <SelectItem value="voided">
-                                            Voided
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Button variant="outline">Reset</Button>
+                                <Button
+                                    variant="outline"
+                                    type="button"
+                                    onClick={resetFilters}
+                                >
+                                    Reset
+                                </Button>
                             </div>
                         </div>
                     </CardContent>
@@ -113,89 +254,68 @@ export default function TransactionHistory() {
                                     <TableHead className="pl-6">
                                         OR Number
                                     </TableHead>
-                                    <TableHead>Student</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Mode</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Date and Time</TableHead>
-                                    <TableHead className="text-right">
-                                        Amount
+                                    <TableHead className="border-l">
+                                        Student
                                     </TableHead>
-                                    <TableHead className="pr-6 text-right">
-                                        Actions
+                                    <TableHead className="border-l">
+                                        Entry
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        Mode
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        Status
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        Posted On
+                                    </TableHead>
+                                    <TableHead className="border-l pr-6 text-right">
+                                        Amount
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                <TableRow>
-                                    <TableCell className="pl-6">
-                                        OR-00921
-                                    </TableCell>
-                                    <TableCell>Juan Dela Cruz</TableCell>
-                                    <TableCell>Downpayment</TableCell>
-                                    <TableCell>Cash</TableCell>
-                                    <TableCell>
-                                        <Badge variant="secondary">
-                                            Posted
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>08/01/2026 08:45 AM</TableCell>
-                                    <TableCell className="text-right">
-                                        PHP 5,000.00
-                                    </TableCell>
-                                    <TableCell className="pr-6 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="size-8"
-                                            >
-                                                <Receipt className="size-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="size-8"
-                                            >
-                                                <Ban className="size-4" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell className="pl-6">
-                                        OR-00922
-                                    </TableCell>
-                                    <TableCell>Maria Santos</TableCell>
-                                    <TableCell>Uniform Purchase</TableCell>
-                                    <TableCell>GCash</TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline">Voided</Badge>
-                                    </TableCell>
-                                    <TableCell>08/01/2026 09:15 AM</TableCell>
-                                    <TableCell className="text-right">
-                                        PHP 1,350.00
-                                    </TableCell>
-                                    <TableCell className="pr-6 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="size-8"
-                                            >
-                                                <Receipt className="size-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="size-8"
-                                                disabled
-                                            >
-                                                <Ban className="size-4" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
+                                {transactions.map((transaction) => (
+                                    <TableRow key={transaction.id}>
+                                        <TableCell className="pl-6 font-medium">
+                                            {transaction.or_number}
+                                        </TableCell>
+                                        <TableCell className="border-l">
+                                            {transaction.student_name}
+                                        </TableCell>
+                                        <TableCell className="border-l">
+                                            {transaction.entry_label}
+                                        </TableCell>
+                                        <TableCell className="border-l">
+                                            {transaction.payment_mode_label}
+                                        </TableCell>
+                                        <TableCell className="border-l">
+                                            <Badge variant="secondary">
+                                                {transaction.status_label}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="border-l">
+                                            {formatPostedAt(
+                                                transaction.posted_at,
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="border-l pr-6 text-right">
+                                            {formatCurrency(
+                                                transaction.amount,
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {transactions.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={7}
+                                            className="py-10 text-center text-sm text-muted-foreground"
+                                        >
+                                            No transactions found.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>
@@ -205,23 +325,29 @@ export default function TransactionHistory() {
                             <p className="text-muted-foreground">
                                 Transactions
                             </p>
-                            <p className="font-medium">2</p>
+                            <p className="font-medium">{summary.count}</p>
                         </div>
                         <div className="space-y-1">
                             <p className="text-muted-foreground">
                                 Posted Amount
                             </p>
-                            <p className="font-medium">PHP 5,000.00</p>
+                            <p className="font-medium">
+                                {formatCurrency(summary.posted_amount)}
+                            </p>
                         </div>
                         <div className="space-y-1">
                             <p className="text-muted-foreground">
                                 Voided Amount
                             </p>
-                            <p className="font-medium">PHP 1,350.00</p>
+                            <p className="font-medium">
+                                {formatCurrency(summary.voided_amount)}
+                            </p>
                         </div>
                         <div className="space-y-1 text-left sm:text-right">
                             <p className="text-muted-foreground">Net Amount</p>
-                            <p className="font-semibold">PHP 3,650.00</p>
+                            <p className="font-semibold">
+                                {formatCurrency(summary.net_amount)}
+                            </p>
                         </div>
                     </div>
                 </Card>

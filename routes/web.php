@@ -2,7 +2,9 @@
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Finance\DashboardController as FinanceDashboardController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -19,6 +21,14 @@ Route::get('dashboard', function () {
 
     if ($user->role === UserRole::ADMIN) {
         return app(AdminDashboardController::class)->index();
+    }
+
+    if ($user->role === UserRole::FINANCE) {
+        return app(FinanceDashboardController::class)->index();
+    }
+
+    if ($user->role === UserRole::TEACHER) {
+        return app(TeacherDashboardController::class)->index();
     }
 
     return Inertia::render("{$user->role->value}/dashboard");

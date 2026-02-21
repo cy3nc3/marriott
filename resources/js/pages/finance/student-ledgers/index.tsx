@@ -1,6 +1,7 @@
-import { Head } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { format } from 'date-fns';
 import { Download, Printer, Search } from 'lucide-react';
+import { useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { student_ledgers } from '@/routes/finance';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -34,46 +36,230 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-type PaymentPlan = 'monthly' | 'quarterly' | 'semi-annual' | 'cash';
-
-type DueItem = {
-    dueDate: string;
-    amount: string;
-    status: 'Paid' | 'Unpaid';
+type StudentOption = {
+    id: number;
+    lrn: string;
+    name: string;
 };
 
-const duesByPlan: Record<PaymentPlan, DueItem[]> = {
-    monthly: [
-        { dueDate: 'Jun 15, 2026', amount: 'PHP 2,500.00', status: 'Paid' },
-        { dueDate: 'Jul 15, 2026', amount: 'PHP 2,500.00', status: 'Paid' },
-        { dueDate: 'Aug 15, 2026', amount: 'PHP 2,500.00', status: 'Unpaid' },
-        { dueDate: 'Sep 15, 2026', amount: 'PHP 2,500.00', status: 'Unpaid' },
-    ],
-    quarterly: [
-        { dueDate: 'Jun 15, 2026', amount: 'PHP 7,500.00', status: 'Paid' },
-        { dueDate: 'Sep 15, 2026', amount: 'PHP 7,500.00', status: 'Unpaid' },
-        { dueDate: 'Dec 15, 2026', amount: 'PHP 7,500.00', status: 'Unpaid' },
-    ],
-    'semi-annual': [
-        { dueDate: 'Jun 15, 2026', amount: 'PHP 12,500.00', status: 'Paid' },
-        { dueDate: 'Dec 15, 2026', amount: 'PHP 12,500.00', status: 'Unpaid' },
-    ],
-    cash: [
-        { dueDate: 'Jun 15, 2026', amount: 'PHP 25,000.00', status: 'Paid' },
-    ],
+type SelectedStudent = {
+    id: number;
+    name: string;
+    lrn: string;
+    grade_and_section: string;
+    guardian_name: string | null;
+    payment_plan: string | null;
+    payment_plan_label: string;
+    outstanding_balance: number;
 };
 
-export default function StudentLedgers() {
-    const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>('monthly');
-    const [showPaidDues, setShowPaidDues] = useState(false);
-    const [entryDateRange, setEntryDateRange] = useState<DateRange>();
-    const visibleDues = duesByPlan[selectedPlan].filter((due) => {
-        if (showPaidDues) {
-            return true;
+type DueScheduleRow = {
+    id: number;
+    description: string;
+    due_date: string | null;
+    due_date_label: string | null;
+    amount_due: number;
+    amount_paid: number;
+    status: string;
+    status_label: string;
+};
+
+type LedgerEntryRow = {
+    id: number;
+    date: string | null;
+    date_label: string | null;
+    reference: string;
+    entry_type: 'charge' | 'payment' | 'discount' | 'adjustment';
+    entry_type_label: string;
+    charge: number;
+    payment: number;
+    running_balance: number;
+};
+
+type Summary = {
+    total_charges: number;
+    total_payments: number;
+    outstanding_balance: number;
+};
+
+type Filters = {
+    search: string | null;
+    student_id: number | null;
+    entry_type: 'all' | 'charge' | 'payment' | 'discount' | 'adjustment';
+    date_from: string | null;
+    date_to: string | null;
+    show_paid_dues: boolean;
+};
+
+interface Props {
+    students: StudentOption[];
+    selected_student: SelectedStudent | null;
+    dues_schedule: DueScheduleRow[];
+    ledger_entries: LedgerEntryRow[];
+    summary: Summary;
+    filters: Filters;
+}
+
+const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+    }).format(amount || 0);
+
+const parseDateInput = (value: string | null) => {
+    if (!value) {
+        return undefined;
+    }
+
+    const parsedDate = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsedDate.getTime())) {
+        return undefined;
+    }
+
+    return parsedDate;
+};
+
+export default function StudentLedgers({
+    students,
+    selected_student,
+    dues_schedule,
+    ledger_entries,
+    summary,
+    filters,
+}: Props) {
+    const initialFromDate = parseDateInput(filters.date_from);
+    const initialToDate = parseDateInput(filters.date_to);
+    const initialDateRange =
+        initialFromDate || initialToDate
+            ? {
+                  from: initialFromDate,
+                  to: initialToDate,
+              }
+            : undefined;
+
+    const [searchQuery, setSearchQuery] = useState(filters.search ?? '');
+    const [selectedStudentId, setSelectedStudentId] = useState(
+        selected_student?.id
+            ? String(selected_student.id)
+            : filters.student_id
+              ? String(filters.student_id)
+              : '',
+    );
+    const [showPaidDues, setShowPaidDues] = useState(filters.show_paid_dues);
+    const [entryTypeFilter, setEntryTypeFilter] = useState(filters.entry_type);
+    const [entryDateRange, setEntryDateRange] =
+        useState<DateRange | undefined>(initialDateRange);
+
+    const applyFilters = (studentId = selectedStudentId, paidFlag = showPaidDues) => {
+        router.get(
+            student_ledgers.url({
+                query: {
+                    search: searchQuery || undefined,
+                    student_id: studentId || undefined,
+                    show_paid_dues: paidFlag ? 1 : undefined,
+                    entry_type:
+                        entryTypeFilter === 'all'
+                            ? undefined
+                            : entryTypeFilter,
+                    date_from: entryDateRange?.from
+                        ? format(entryDateRange.from, 'yyyy-MM-dd')
+                        : undefined,
+                    date_to: entryDateRange?.to
+                        ? format(entryDateRange.to, 'yyyy-MM-dd')
+                        : undefined,
+                },
+            }),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const handleSelectStudent = (value: string) => {
+        setSelectedStudentId(value);
+        applyFilters(value);
+    };
+
+    const handleToggleShowPaid = (checked: boolean) => {
+        setShowPaidDues(checked);
+        applyFilters(selectedStudentId, checked);
+    };
+
+    const handleEntryTypeChange = (
+        value: 'all' | 'charge' | 'payment' | 'discount' | 'adjustment',
+    ) => {
+        setEntryTypeFilter(value);
+        router.get(
+            student_ledgers.url({
+                query: {
+                    search: searchQuery || undefined,
+                    student_id: selectedStudentId || undefined,
+                    show_paid_dues: showPaidDues ? 1 : undefined,
+                    entry_type: value === 'all' ? undefined : value,
+                    date_from: entryDateRange?.from
+                        ? format(entryDateRange.from, 'yyyy-MM-dd')
+                        : undefined,
+                    date_to: entryDateRange?.to
+                        ? format(entryDateRange.to, 'yyyy-MM-dd')
+                        : undefined,
+                },
+            }),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const resetEntryFilters = () => {
+        setEntryTypeFilter('all');
+        setEntryDateRange(undefined);
+
+        router.get(
+            student_ledgers.url({
+                query: {
+                    search: searchQuery || undefined,
+                    student_id: selectedStudentId || undefined,
+                    show_paid_dues: showPaidDues ? 1 : undefined,
+                },
+            }),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const dueBadgeVariant = (status: string) => {
+        if (status === 'paid') {
+            return 'secondary';
         }
 
-        return due.status !== 'Paid';
-    });
+        if (status === 'partially_paid') {
+            return 'default';
+        }
+
+        return 'outline';
+    };
+
+    const ledgerBadgeVariant = (entryType: string) => {
+        if (entryType === 'payment') {
+            return 'secondary';
+        }
+
+        if (entryType === 'discount') {
+            return 'default';
+        }
+
+        return 'outline';
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -85,13 +271,43 @@ export default function StudentLedgers() {
                         <CardTitle>Ledger Lookup</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-col gap-3 lg:flex-row">
-                            <Input
-                                placeholder="Search by student name or LRN"
-                                className="lg:flex-1"
-                            />
-                            <Button className="lg:w-auto">
-                                <Search className="size-4" />
+                        <div className="grid gap-3 lg:grid-cols-[1fr_20rem_auto]">
+                            <div className="relative">
+                                <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search by student name or LRN"
+                                    className="pl-9"
+                                    value={searchQuery}
+                                    onChange={(event) =>
+                                        setSearchQuery(event.target.value)
+                                    }
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter') {
+                                            event.preventDefault();
+                                            applyFilters();
+                                        }
+                                    }}
+                                />
+                            </div>
+                            <Select
+                                value={selectedStudentId}
+                                onValueChange={handleSelectStudent}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select student" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {students.map((student) => (
+                                        <SelectItem
+                                            key={student.id}
+                                            value={String(student.id)}
+                                        >
+                                            {student.name} ({student.lrn})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button type="button" onClick={() => applyFilters()}>
                                 Search
                             </Button>
                         </div>
@@ -101,109 +317,113 @@ export default function StudentLedgers() {
                 <div className="grid gap-6 lg:grid-cols-3">
                     <Card className="lg:col-span-1">
                         <CardHeader className="border-b">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div className="space-y-2">
-                                    <CardTitle>
-                                        Student Ledger Profile
-                                    </CardTitle>
-                                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                                        <Badge variant="outline">
-                                            Plan: {selectedPlan}
-                                        </Badge>
-                                    </div>
-                                </div>
-                            </div>
+                            <CardTitle>Student Ledger Profile</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="space-y-1">
-                                    <p className="text-sm text-muted-foreground">
-                                        Student
-                                    </p>
-                                    <p className="text-sm font-medium">
-                                        Juan Dela Cruz
-                                    </p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm text-muted-foreground">
-                                        LRN
-                                    </p>
-                                    <p className="text-sm font-medium">
-                                        123456789012
-                                    </p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm text-muted-foreground">
-                                        Grade and Section
-                                    </p>
-                                    <p className="text-sm font-medium">
-                                        Grade 7 - Rizal
-                                    </p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm text-muted-foreground">
-                                        Guardian
-                                    </p>
-                                    <p className="text-sm font-medium">
-                                        Maria Dela Cruz
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="mt-4 flex justify-end gap-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => window.print()}
-                                >
-                                    <Printer className="size-4" />
-                                    Print SOA
-                                </Button>
-                                <Button variant="outline">
-                                    <Download className="size-4" />
-                                    Export
-                                </Button>
-                            </div>
+                            {selected_student ? (
+                                <>
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">
+                                                Student
+                                            </p>
+                                            <p className="text-sm font-medium">
+                                                {selected_student.name}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">
+                                                LRN
+                                            </p>
+                                            <p className="text-sm font-medium">
+                                                {selected_student.lrn}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">
+                                                Grade and Section
+                                            </p>
+                                            <p className="text-sm font-medium">
+                                                {
+                                                    selected_student.grade_and_section
+                                                }
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">
+                                                Guardian
+                                            </p>
+                                            <p className="text-sm font-medium">
+                                                {selected_student.guardian_name ||
+                                                    '-'}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">
+                                                Payment Plan
+                                            </p>
+                                            <p className="text-sm font-medium">
+                                                {
+                                                    selected_student.payment_plan_label
+                                                }
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">
+                                                Outstanding Balance
+                                            </p>
+                                            <p className="text-sm font-semibold">
+                                                {formatCurrency(
+                                                    selected_student.outstanding_balance,
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 flex justify-end gap-2">
+                                        <Button
+                                            variant="outline"
+                                            type="button"
+                                            onClick={() => window.print()}
+                                        >
+                                            <Printer className="size-4" />
+                                            Print SOA
+                                        </Button>
+                                        <Button variant="outline" type="button">
+                                            <Download className="size-4" />
+                                            Export
+                                        </Button>
+                                    </div>
+                                </>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    Search and select a student to view ledger
+                                    details.
+                                </p>
+                            )}
                         </CardContent>
                     </Card>
 
                     <Card className="lg:col-span-2">
                         <CardHeader className="border-b">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <CardTitle>Dues Schedule</CardTitle>
-                                <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-                                    <div className="flex items-center gap-2">
-                                        <Switch
-                                            id="show-paid-dues"
-                                            checked={showPaidDues}
-                                            onCheckedChange={setShowPaidDues}
-                                        />
-                                        <Label htmlFor="show-paid-dues">
-                                            Show Paid
-                                        </Label>
-                                    </div>
-                                    <Select
-                                        value={selectedPlan}
-                                        onValueChange={(value: PaymentPlan) =>
-                                            setSelectedPlan(value)
-                                        }
-                                    >
-                                        <SelectTrigger className="w-full sm:w-48">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="monthly">
-                                                Monthly
-                                            </SelectItem>
-                                            <SelectItem value="quarterly">
-                                                Quarterly
-                                            </SelectItem>
-                                            <SelectItem value="semi-annual">
-                                                Semi-Annual
-                                            </SelectItem>
-                                            <SelectItem value="cash">
-                                                Cash
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                <div className="flex items-center gap-2">
+                                    <CardTitle>Dues Schedule</CardTitle>
+                                    {selected_student && (
+                                        <Badge variant="outline">
+                                            Plan:{' '}
+                                            {selected_student.payment_plan_label}
+                                        </Badge>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Switch
+                                        id="show-paid-dues"
+                                        checked={showPaidDues}
+                                        onCheckedChange={handleToggleShowPaid}
+                                    />
+                                    <Label htmlFor="show-paid-dues">
+                                        Show Paid
+                                    </Label>
                                 </div>
                             </div>
                         </CardHeader>
@@ -214,45 +434,47 @@ export default function StudentLedgers() {
                                         <TableHead className="pl-6">
                                             Due Date
                                         </TableHead>
-                                        <TableHead className="text-right">
+                                        <TableHead className="border-l">
+                                            Description
+                                        </TableHead>
+                                        <TableHead className="border-l text-right">
                                             Amount
                                         </TableHead>
-                                        <TableHead className="pr-6 text-right">
+                                        <TableHead className="border-l pr-6 text-right">
                                             Status
                                         </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {visibleDues.map((due) => (
-                                        <TableRow
-                                            key={`${selectedPlan}-${due.dueDate}`}
-                                        >
+                                    {dues_schedule.map((due) => (
+                                        <TableRow key={due.id}>
                                             <TableCell className="pl-6">
-                                                {due.dueDate}
+                                                {due.due_date_label || '-'}
                                             </TableCell>
-                                            <TableCell className="text-right">
-                                                {due.amount}
+                                            <TableCell className="border-l">
+                                                {due.description}
                                             </TableCell>
-                                            <TableCell className="pr-6 text-right">
+                                            <TableCell className="border-l text-right">
+                                                {formatCurrency(due.amount_due)}
+                                            </TableCell>
+                                            <TableCell className="border-l pr-6 text-right">
                                                 <Badge
-                                                    variant={
-                                                        due.status === 'Paid'
-                                                            ? 'secondary'
-                                                            : 'outline'
-                                                    }
+                                                    variant={dueBadgeVariant(
+                                                        due.status,
+                                                    )}
                                                 >
-                                                    {due.status}
+                                                    {due.status_label}
                                                 </Badge>
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {visibleDues.length === 0 && (
+                                    {dues_schedule.length === 0 && (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={3}
+                                                colSpan={4}
                                                 className="py-8 text-center text-sm text-muted-foreground"
                                             >
-                                                No unpaid dues for this plan.
+                                                No dues found for this student.
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -267,7 +489,10 @@ export default function StudentLedgers() {
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Ledger Entries</CardTitle>
                             <div className="flex flex-col gap-3 sm:flex-row">
-                                <Select defaultValue="all">
+                                <Select
+                                    value={entryTypeFilter}
+                                    onValueChange={handleEntryTypeChange}
+                                >
                                     <SelectTrigger className="w-full sm:w-44">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -294,6 +519,19 @@ export default function StudentLedgers() {
                                     setDateRange={setEntryDateRange}
                                     className="w-fit max-w-full"
                                 />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={resetEntryFilters}
+                                >
+                                    Reset
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={() => applyFilters()}
+                                >
+                                    Apply
+                                </Button>
                             </div>
                         </div>
                     </CardHeader>
@@ -302,104 +540,68 @@ export default function StudentLedgers() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="pl-6">Date</TableHead>
-                                    <TableHead>Reference</TableHead>
-                                    <TableHead>Entry Type</TableHead>
-                                    <TableHead className="text-right">
+                                    <TableHead className="border-l">
+                                        Reference
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        Entry Type
+                                    </TableHead>
+                                    <TableHead className="border-l text-right">
                                         Charge
                                     </TableHead>
-                                    <TableHead className="text-right">
+                                    <TableHead className="border-l text-right">
                                         Payment
                                     </TableHead>
-                                    <TableHead className="pr-6 text-right">
+                                    <TableHead className="border-l pr-6 text-right">
                                         Running Balance
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                <TableRow>
-                                    <TableCell className="pl-6">
-                                        Jun 10, 2026
-                                    </TableCell>
-                                    <TableCell>
-                                        Tuition Fee Assessment
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline">Charge</Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        PHP 20,000.00
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        -
-                                    </TableCell>
-                                    <TableCell className="pr-6 text-right">
-                                        PHP 20,000.00
-                                    </TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell className="pl-6">
-                                        Jun 10, 2026
-                                    </TableCell>
-                                    <TableCell>
-                                        Miscellaneous Fee Assessment
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline">Charge</Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        PHP 5,000.00
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        -
-                                    </TableCell>
-                                    <TableCell className="pr-6 text-right">
-                                        PHP 25,000.00
-                                    </TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell className="pl-6">
-                                        Jun 12, 2026
-                                    </TableCell>
-                                    <TableCell>
-                                        Downpayment (OR-10221)
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="secondary">
-                                            Payment
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        -
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        PHP 3,000.00
-                                    </TableCell>
-                                    <TableCell className="pr-6 text-right">
-                                        PHP 22,000.00
-                                    </TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell className="pl-6">
-                                        Jul 05, 2026
-                                    </TableCell>
-                                    <TableCell>
-                                        Monthly Payment (OR-10408)
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="secondary">
-                                            Payment
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        -
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        PHP 5,000.00
-                                    </TableCell>
-                                    <TableCell className="pr-6 text-right">
-                                        PHP 17,000.00
-                                    </TableCell>
-                                </TableRow>
+                                {ledger_entries.map((entry) => (
+                                    <TableRow key={entry.id}>
+                                        <TableCell className="pl-6">
+                                            {entry.date_label || '-'}
+                                        </TableCell>
+                                        <TableCell className="border-l">
+                                            {entry.reference}
+                                        </TableCell>
+                                        <TableCell className="border-l">
+                                            <Badge
+                                                variant={ledgerBadgeVariant(
+                                                    entry.entry_type,
+                                                )}
+                                            >
+                                                {entry.entry_type_label}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="border-l text-right">
+                                            {entry.charge > 0
+                                                ? formatCurrency(entry.charge)
+                                                : '-'}
+                                        </TableCell>
+                                        <TableCell className="border-l text-right">
+                                            {entry.payment > 0
+                                                ? formatCurrency(entry.payment)
+                                                : '-'}
+                                        </TableCell>
+                                        <TableCell className="border-l pr-6 text-right">
+                                            {formatCurrency(
+                                                entry.running_balance,
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {ledger_entries.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={6}
+                                            className="py-8 text-center text-sm text-muted-foreground"
+                                        >
+                                            No ledger entries found.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>
@@ -408,19 +610,25 @@ export default function StudentLedgers() {
                             <p className="text-muted-foreground">
                                 Total Charges
                             </p>
-                            <p className="font-medium">PHP 25,000.00</p>
+                            <p className="font-medium">
+                                {formatCurrency(summary.total_charges)}
+                            </p>
                         </div>
                         <div className="space-y-1">
                             <p className="text-muted-foreground">
                                 Total Payments
                             </p>
-                            <p className="font-medium">PHP 8,000.00</p>
+                            <p className="font-medium">
+                                {formatCurrency(summary.total_payments)}
+                            </p>
                         </div>
                         <div className="space-y-1 text-left sm:text-right">
                             <p className="text-muted-foreground">
                                 Outstanding Balance
                             </p>
-                            <p className="font-semibold">PHP 17,000.00</p>
+                            <p className="font-semibold">
+                                {formatCurrency(summary.outstanding_balance)}
+                            </p>
                         </div>
                     </div>
                 </Card>
