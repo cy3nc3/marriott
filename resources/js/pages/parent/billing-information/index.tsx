@@ -32,33 +32,50 @@ const breadcrumbs: BreadcrumbItem[] = [
 type PaymentPlan = 'monthly' | 'quarterly' | 'semi-annual' | 'cash';
 
 type DueItem = {
-    dueDate: string;
+    due_date: string | null;
     amount: string;
     status: 'Paid' | 'Unpaid';
 };
 
-const duesByPlan: Record<PaymentPlan, DueItem[]> = {
-    monthly: [
-        { dueDate: '06/15/2026', amount: 'PHP 2,500.00', status: 'Paid' },
-        { dueDate: '07/15/2026', amount: 'PHP 2,500.00', status: 'Paid' },
-        { dueDate: '08/15/2026', amount: 'PHP 2,500.00', status: 'Unpaid' },
-        { dueDate: '09/15/2026', amount: 'PHP 2,500.00', status: 'Unpaid' },
-    ],
-    quarterly: [
-        { dueDate: '06/15/2026', amount: 'PHP 7,500.00', status: 'Paid' },
-        { dueDate: '09/15/2026', amount: 'PHP 7,500.00', status: 'Unpaid' },
-        { dueDate: '12/15/2026', amount: 'PHP 7,500.00', status: 'Unpaid' },
-    ],
-    'semi-annual': [
-        { dueDate: '06/15/2026', amount: 'PHP 12,500.00', status: 'Paid' },
-        { dueDate: '12/15/2026', amount: 'PHP 12,500.00', status: 'Unpaid' },
-    ],
-    cash: [{ dueDate: '06/15/2026', amount: 'PHP 25,000.00', status: 'Paid' }],
+type PaymentRow = {
+    date: string | null;
+    or_number: string | null;
+    payment_mode: string;
+    amount: string;
+    status: string;
 };
 
-export default function BillingInformation() {
-    const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>('monthly');
+interface Props {
+    account_summary: {
+        student_name: string;
+        lrn: string;
+        payment_plan: PaymentPlan;
+        payment_plan_label: string;
+        outstanding_balance: string;
+    };
+    dues_by_plan: Record<PaymentPlan, DueItem[]>;
+    default_plan: PaymentPlan;
+    recent_payments: PaymentRow[];
+}
+
+export default function BillingInformation({
+    account_summary,
+    dues_by_plan,
+    default_plan,
+    recent_payments,
+}: Props) {
+    const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>(default_plan);
     const [paymentDateRange, setPaymentDateRange] = useState<DateRange>();
+
+    const visiblePayments = recent_payments.filter((paymentRow) => {
+        if (!paymentDateRange?.from || !paymentDateRange?.to || !paymentRow.date) {
+            return true;
+        }
+
+        const paymentDate = new Date(paymentRow.date);
+
+        return paymentDate >= paymentDateRange.from && paymentDate <= paymentDateRange.to;
+    });
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -76,7 +93,7 @@ export default function BillingInformation() {
                                     Student
                                 </p>
                                 <p className="text-sm font-medium">
-                                    Juan Dela Cruz
+                                    {account_summary.student_name}
                                 </p>
                             </div>
                             <div className="space-y-1">
@@ -84,7 +101,7 @@ export default function BillingInformation() {
                                     LRN
                                 </p>
                                 <p className="text-sm font-medium">
-                                    123456789012
+                                    {account_summary.lrn}
                                 </p>
                             </div>
                             <div className="space-y-1">
@@ -92,7 +109,7 @@ export default function BillingInformation() {
                                     Payment Plan
                                 </p>
                                 <p className="text-sm font-medium">
-                                    {selectedPlan}
+                                    {account_summary.payment_plan_label}
                                 </p>
                             </div>
                             <div className="space-y-1">
@@ -100,7 +117,7 @@ export default function BillingInformation() {
                                     Outstanding Balance
                                 </p>
                                 <p className="text-sm font-semibold">
-                                    PHP 17,000.00
+                                    {account_summary.outstanding_balance}
                                 </p>
                             </div>
                         </div>
@@ -151,29 +168,40 @@ export default function BillingInformation() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {duesByPlan[selectedPlan].map((due) => (
-                                    <TableRow
-                                        key={`${selectedPlan}-${due.dueDate}`}
-                                    >
-                                        <TableCell className="pl-6">
-                                            {due.dueDate}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {due.amount}
-                                        </TableCell>
-                                        <TableCell className="pr-6 text-right">
-                                            <Badge
-                                                variant={
-                                                    due.status === 'Paid'
-                                                        ? 'secondary'
-                                                        : 'outline'
-                                                }
-                                            >
-                                                {due.status}
-                                            </Badge>
+                                {dues_by_plan[selectedPlan]?.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            className="py-8 text-center text-sm text-muted-foreground"
+                                            colSpan={3}
+                                        >
+                                            No dues for the selected plan.
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                ) : (
+                                    dues_by_plan[selectedPlan]?.map((due) => (
+                                        <TableRow
+                                            key={`${selectedPlan}-${due.due_date}-${due.amount}`}
+                                        >
+                                            <TableCell className="pl-6">
+                                                {due.due_date ?? '-'}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                {due.amount}
+                                            </TableCell>
+                                            <TableCell className="pr-6 text-right">
+                                                <Badge
+                                                    variant={
+                                                        due.status === 'Paid'
+                                                            ? 'secondary'
+                                                            : 'outline'
+                                                    }
+                                                >
+                                                    {due.status}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>
@@ -206,36 +234,40 @@ export default function BillingInformation() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                <TableRow>
-                                    <TableCell className="pl-6">
-                                        07/05/2026
-                                    </TableCell>
-                                    <TableCell>OR-10408</TableCell>
-                                    <TableCell>Cash</TableCell>
-                                    <TableCell className="text-right">
-                                        PHP 5,000.00
-                                    </TableCell>
-                                    <TableCell className="pr-6 text-right">
-                                        <Badge variant="secondary">
-                                            Posted
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell className="pl-6">
-                                        06/12/2026
-                                    </TableCell>
-                                    <TableCell>OR-10221</TableCell>
-                                    <TableCell>GCash</TableCell>
-                                    <TableCell className="text-right">
-                                        PHP 3,000.00
-                                    </TableCell>
-                                    <TableCell className="pr-6 text-right">
-                                        <Badge variant="secondary">
-                                            Posted
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
+                                {visiblePayments.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            className="py-8 text-center text-sm text-muted-foreground"
+                                            colSpan={5}
+                                        >
+                                            No payments for the selected date range.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    visiblePayments.map((paymentRow) => (
+                                        <TableRow
+                                            key={`${paymentRow.date}-${paymentRow.or_number}-${paymentRow.amount}`}
+                                        >
+                                            <TableCell className="pl-6">
+                                                {paymentRow.date ?? '-'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {paymentRow.or_number ?? '-'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {paymentRow.payment_mode}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                {paymentRow.amount}
+                                            </TableCell>
+                                            <TableCell className="pr-6 text-right">
+                                                <Badge variant="secondary">
+                                                    {paymentRow.status}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>

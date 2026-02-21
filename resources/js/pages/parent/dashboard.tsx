@@ -1,15 +1,15 @@
-import { Head, Link } from '@inertiajs/react';
-import { ShieldCheck, Wallet, GraduationCap, ArrowRight, User } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Head } from '@inertiajs/react';
+import { DashboardAnalyticsPanel } from '@/components/dashboard/analytics-panel';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
 import { dashboard } from '@/routes';
+import type {
+    BreadcrumbItem,
+    DashboardActionLink,
+    DashboardAlert,
+    DashboardKpi,
+    DashboardTrend,
+} from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -18,82 +18,80 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Dashboard() {
+type ChildContext = {
+    student_name: string | null;
+    section_label: string;
+    adviser_name: string;
+    next_due_label: string;
+    due_risk_level: string;
+    due_risk_rate: string;
+};
+
+interface Props {
+    kpis: DashboardKpi[];
+    alerts: DashboardAlert[];
+    trends: DashboardTrend[];
+    action_links: DashboardActionLink[];
+    child_context: ChildContext;
+}
+
+export default function Dashboard({
+    kpis,
+    alerts,
+    trends,
+    action_links,
+    child_context,
+}: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Parent Dashboard" />
-            <div className="flex flex-col gap-4">
-                
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    
-                    {/* Enrollment Status */}
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Enrollment Status</CardTitle>
-                            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="text-2xl font-bold">Enrolled</div>
-                                <Badge variant="secondary">SY 2025-2026</Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                Grade 7 - Rizal
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    {/* Financial Summary */}
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Outstanding Balance</CardTitle>
-                            <Wallet className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold mb-2">₱ 15,000.00</div>
-                            <Link href="/parent/billing-information" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
-                                View Billing Details
-                                <ArrowRight className="h-3 w-3" />
-                            </Link>
-                        </CardContent>
-                    </Card>
-
-                    {/* Academic Performance */}
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Academic Standing</CardTitle>
-                            <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold mb-2">83.5</div>
-                            <p className="text-xs text-muted-foreground mb-2">General Average</p>
-                            <Link href="/parent/grades" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
-                                View Progress Report
-                                <ArrowRight className="h-3 w-3" />
-                            </Link>
-                        </CardContent>
-                    </Card>
-
-                </div>
-
+            <DashboardAnalyticsPanel
+                kpis={kpis}
+                alerts={alerts}
+                trends={trends}
+                actionLinks={action_links}
+            >
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <CardTitle className="text-sm font-medium">Class Adviser</CardTitle>
-                        </div>
+                    <CardHeader className="border-b py-4">
+                        <CardTitle className="text-base">
+                            Child Context
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="flex items-center justify-between">
-                        <div>
-                            <div className="text-xl font-bold">Mr. Arthur Santos</div>
-                            <p className="text-xs text-muted-foreground">Class Adviser</p>
+                    <CardContent className="grid gap-4 pt-4 md:grid-cols-2">
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">
+                                Student
+                            </p>
+                            <p className="text-sm font-semibold">
+                                {child_context.student_name ?? 'No linked student'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {child_context.section_label}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Adviser: {child_context.adviser_name}
+                            </p>
                         </div>
-                        <Link href="/parent/schedule" className="text-sm font-medium hover:underline">
-                            View Class Schedule
-                        </Link>
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">
+                                Next Due
+                            </p>
+                            <p className="text-sm font-semibold">
+                                {child_context.next_due_label}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Due Risk
+                            </p>
+                            <p className="text-sm font-semibold">
+                                {child_context.due_risk_level}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {child_context.due_risk_rate}
+                            </p>
+                        </div>
                     </CardContent>
                 </Card>
-            </div>
+            </DashboardAnalyticsPanel>
         </AppLayout>
     );
 }

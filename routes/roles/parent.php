@@ -1,18 +1,14 @@
 <?php
 
+use App\Http\Controllers\ParentPortal\BillingInformationController;
+use App\Http\Controllers\ParentPortal\GradesController;
+use App\Http\Controllers\ParentPortal\ScheduleController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified', 'role:parent'])->prefix('parent')->name('parent.')->group(function () {
-    Route::get('/schedule', function () {
-        return Inertia::render('parent/schedule/index');
-    })->name('schedule');
+    Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule');
 
-    Route::get('/grades', function () {
-        return Inertia::render('parent/grades/index');
-    })->name('grades');
+    Route::get('/grades', [GradesController::class, 'index'])->name('grades');
 
-    Route::get('/billing-information', function () {
-        return Inertia::render('parent/billing-information/index');
-    })->name('billing_information');
+    Route::get('/billing-information', [BillingInformationController::class, 'index'])->name('billing_information');
 });

@@ -1,6 +1,6 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { Info, Lock, Save } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
+import teacher from '@/routes/teacher';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -38,72 +39,185 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function AdvisoryBoard() {
+type RatingOption = 'AO' | 'SO' | 'RO' | 'NO';
+
+type SectionOption = {
+    id: number;
+    label: string;
+};
+
+type Context = {
+    section_options: SectionOption[];
+    selected_section_id: number | null;
+    selected_quarter: '1' | '2' | '3' | '4';
+};
+
+type GradeColumn = {
+    id: number;
+    name: string;
+};
+
+type GradeRow = {
+    enrollment_id: number;
+    student_name: string;
+    subject_grades: Record<string, string | null>;
+    general_average: string | null;
+};
+
+type ConductRow = {
+    enrollment_id: number;
+    student_name: string;
+    ratings: {
+        maka_diyos: RatingOption;
+        makatao: RatingOption;
+        makakalikasan: RatingOption;
+        makabansa: RatingOption;
+    };
+    remarks: string;
+};
+
+interface Props {
+    context: Context;
+    grade_columns: GradeColumn[];
+    grade_rows: GradeRow[];
+    conduct_rows: ConductRow[];
+    status: 'draft' | 'locked';
+}
+
+const quarterLabels: Record<string, string> = {
+    '1': '1st Quarter',
+    '2': '2nd Quarter',
+    '3': '3rd Quarter',
+    '4': '4th Quarter',
+};
+
+export default function AdvisoryBoard({
+    context,
+    grade_columns,
+    grade_rows,
+    conduct_rows,
+    status,
+}: Props) {
+    const advisoryBoardRoute = teacher.advisory_board;
     const [isFinalizeDialogOpen, setIsFinalizeDialogOpen] = useState(false);
-    const valueCriteria = [
-        'Maka-Diyos',
-        'Makatao',
-        'Makakalikasan',
-        'Makabansa',
-    ];
-    const students = [
-        {
-            name: 'Dela Cruz, Juan',
-            ratings: {
-                maka_diyos: 'AO',
-                makatao: 'AO',
-                makakalikasan: 'SO',
-                makabansa: 'AO',
+    const [conductRows, setConductRows] = useState<ConductRow[]>(conduct_rows);
+
+    useEffect(() => {
+        setConductRows(conduct_rows);
+    }, [conduct_rows]);
+
+    const selectedSectionValue = context.selected_section_id
+        ? String(context.selected_section_id)
+        : 'section-none';
+
+    const handleSectionChange = (value: string) => {
+        if (value === 'section-none') {
+            return;
+        }
+
+        router.get(
+            advisoryBoardRoute.url({
+                query: {
+                    section_id: Number(value),
+                    quarter: context.selected_quarter,
+                },
+            }),
+            {},
+            {
+                preserveScroll: true,
+                replace: true,
             },
-            remarks: 'Consistent participation in class activities.',
-        },
-        {
-            name: 'Santos, Maria',
-            ratings: {
-                maka_diyos: 'AO',
-                makatao: 'AO',
-                makakalikasan: 'AO',
-                makabansa: 'AO',
+        );
+    };
+
+    const handleQuarterChange = (value: string) => {
+        router.get(
+            advisoryBoardRoute.url({
+                query: {
+                    section_id: context.selected_section_id || undefined,
+                    quarter: value,
+                },
+            }),
+            {},
+            {
+                preserveScroll: true,
+                replace: true,
             },
-            remarks: 'Positive leadership and peer support.',
-        },
-        {
-            name: 'Reyes, Carlo',
-            ratings: {
-                maka_diyos: 'SO',
-                makatao: 'SO',
-                makakalikasan: 'AO',
-                makabansa: 'SO',
+        );
+    };
+
+    const updateRating = (
+        enrollmentId: number,
+        ratingKey: keyof ConductRow['ratings'],
+        value: RatingOption,
+    ) => {
+        setConductRows((currentRows) =>
+            currentRows.map((row) =>
+                row.enrollment_id === enrollmentId
+                    ? {
+                          ...row,
+                          ratings: {
+                              ...row.ratings,
+                              [ratingKey]: value,
+                          },
+                      }
+                    : row,
+            ),
+        );
+    };
+
+    const updateRemarks = (enrollmentId: number, value: string) => {
+        setConductRows((currentRows) =>
+            currentRows.map((row) =>
+                row.enrollment_id === enrollmentId
+                    ? {
+                          ...row,
+                          remarks: value,
+                      }
+                    : row,
+            ),
+        );
+    };
+
+    const submitConduct = (saveMode: 'draft' | 'locked') => {
+        if (!context.selected_section_id || conductRows.length === 0) {
+            return;
+        }
+
+        if (status === 'locked') {
+            return;
+        }
+
+        router.post(
+            advisoryBoardRoute.store_conduct.url(),
+            {
+                section_id: context.selected_section_id,
+                quarter: context.selected_quarter,
+                save_mode: saveMode,
+                rows: conductRows.map((row) => ({
+                    enrollment_id: row.enrollment_id,
+                    maka_diyos: row.ratings.maka_diyos,
+                    makatao: row.ratings.makatao,
+                    makakalikasan: row.ratings.makakalikasan,
+                    makabansa: row.ratings.makabansa,
+                    remarks: row.remarks.trim(),
+                })),
             },
-            remarks: 'Needs closer monitoring on classroom behavior.',
-        },
-    ];
-    const advisoryGrades = [
-        {
-            studentName: 'Dela Cruz, Juan',
-            math: 85,
-            science: 82,
-            english: 88,
-            filipino: 86,
-            average: '85.25',
-        },
-        {
-            studentName: 'Santos, Maria',
-            math: 92,
-            science: 90,
-            english: 91,
-            filipino: 93,
-            average: '91.50',
-        },
-        {
-            studentName: 'Reyes, Carlo',
-            math: 78,
-            science: 80,
-            english: 79,
-            filipino: 81,
-            average: '79.50',
-        },
-    ];
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    if (saveMode === 'locked') {
+                        setIsFinalizeDialogOpen(false);
+                    }
+                },
+            },
+        );
+    };
+
+    const actionDisabled =
+        status === 'locked' ||
+        !context.selected_section_id ||
+        conductRows.length === 0;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -113,55 +227,68 @@ export default function AdvisoryBoard() {
                     <CardHeader className="border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Advisory Context</CardTitle>
-                            <Badge variant="outline">Status: Draft</Badge>
+                            <Badge variant={status === 'locked' ? 'secondary' : 'outline'}>
+                                Status: {status === 'locked' ? 'Locked' : 'Draft'}
+                            </Badge>
                         </div>
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex flex-col gap-3 sm:flex-row">
-                                <Select defaultValue="section-rizal">
-                                    <SelectTrigger className="w-full sm:w-52">
+                                <Select
+                                    value={selectedSectionValue}
+                                    onValueChange={handleSectionChange}
+                                    disabled={context.section_options.length === 0}
+                                >
+                                    <SelectTrigger className="w-full sm:w-56">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="section-rizal">
-                                            Grade 7 - Rizal
-                                        </SelectItem>
-                                        <SelectItem value="section-bonifacio">
-                                            Grade 7 - Bonifacio
-                                        </SelectItem>
+                                        {context.section_options.length === 0 ? (
+                                            <SelectItem value="section-none" disabled>
+                                                No advisory section
+                                            </SelectItem>
+                                        ) : (
+                                            context.section_options.map((sectionOption) => (
+                                                <SelectItem
+                                                    key={sectionOption.id}
+                                                    value={String(sectionOption.id)}
+                                                >
+                                                    {sectionOption.label}
+                                                </SelectItem>
+                                            ))
+                                        )}
                                     </SelectContent>
                                 </Select>
-                                <Select defaultValue="first-quarter">
+                                <Select
+                                    value={context.selected_quarter}
+                                    onValueChange={handleQuarterChange}
+                                >
                                     <SelectTrigger className="w-full sm:w-40">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="first-quarter">
-                                            1st Quarter
-                                        </SelectItem>
-                                        <SelectItem value="second-quarter">
-                                            2nd Quarter
-                                        </SelectItem>
-                                        <SelectItem value="third-quarter">
-                                            3rd Quarter
-                                        </SelectItem>
-                                        <SelectItem value="fourth-quarter">
-                                            4th Quarter
-                                        </SelectItem>
+                                        {Object.entries(quarterLabels).map(([value, label]) => (
+                                            <SelectItem key={value} value={value}>
+                                                {label}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="flex flex-col gap-2 sm:flex-row">
-                                <Button variant="outline">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => submitConduct('draft')}
+                                    disabled={actionDisabled}
+                                >
                                     <Save className="size-4" />
                                     Save Draft
                                 </Button>
                                 <Button
                                     variant="destructive"
-                                    onClick={() =>
-                                        setIsFinalizeDialogOpen(true)
-                                    }
+                                    onClick={() => setIsFinalizeDialogOpen(true)}
+                                    disabled={actionDisabled}
                                 >
                                     <Lock className="size-4" />
                                     Finalize and Lock
@@ -185,55 +312,58 @@ export default function AdvisoryBoard() {
                                     <Badge variant="secondary">Read-only</Badge>
                                 </div>
                             </CardHeader>
-                            <CardContent className="p-0">
+                            <CardContent className="overflow-x-auto p-0">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="pl-6">
                                                 Student
                                             </TableHead>
-                                            <TableHead className="border-l text-center">
-                                                Math
-                                            </TableHead>
-                                            <TableHead className="border-l text-center">
-                                                Science
-                                            </TableHead>
-                                            <TableHead className="border-l text-center">
-                                                English
-                                            </TableHead>
-                                            <TableHead className="border-l text-center">
-                                                Filipino
-                                            </TableHead>
-                                            <TableHead className="border-l pr-6 text-right">
+                                            {grade_columns.map((subjectColumn) => (
+                                                <TableHead
+                                                    key={subjectColumn.id}
+                                                    className="border-l text-center whitespace-nowrap"
+                                                >
+                                                    {subjectColumn.name}
+                                                </TableHead>
+                                            ))}
+                                            <TableHead className="border-l pr-6 text-right whitespace-nowrap">
                                                 General Average
                                             </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {advisoryGrades.map((gradeRow) => (
-                                            <TableRow
-                                                key={gradeRow.studentName}
-                                            >
-                                                <TableCell className="pl-6 font-medium">
-                                                    {gradeRow.studentName}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    {gradeRow.math}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    {gradeRow.science}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    {gradeRow.english}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    {gradeRow.filipino}
-                                                </TableCell>
-                                                <TableCell className="border-l pr-6 text-right font-medium">
-                                                    {gradeRow.average}
+                                        {grade_rows.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell
+                                                    className="py-8 text-center text-sm text-muted-foreground"
+                                                    colSpan={grade_columns.length + 2}
+                                                >
+                                                    No grades available for the selected quarter.
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                        ) : (
+                                            grade_rows.map((gradeRow) => (
+                                                <TableRow key={gradeRow.enrollment_id}>
+                                                    <TableCell className="pl-6 font-medium whitespace-nowrap">
+                                                        {gradeRow.student_name}
+                                                    </TableCell>
+                                                    {grade_columns.map((subjectColumn) => (
+                                                        <TableCell
+                                                            key={subjectColumn.id}
+                                                            className="border-l text-center"
+                                                        >
+                                                            {gradeRow.subject_grades[
+                                                                String(subjectColumn.id)
+                                                            ] ?? '-'}
+                                                        </TableCell>
+                                                    ))}
+                                                    <TableCell className="border-l pr-6 text-right font-medium">
+                                                        {gradeRow.general_average ?? '-'}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </CardContent>
@@ -248,97 +378,127 @@ export default function AdvisoryBoard() {
                                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                         <Info className="size-4" />
                                         <p>
-                                            Legend: AO (Always), SO (Sometimes),
-                                            RO (Rarely), NO (Not Observed)
+                                            Legend: AO (Always), SO (Sometimes), RO (Rarely),
+                                            NO (Not Observed)
                                         </p>
                                     </div>
                                 </div>
                             </CardHeader>
-                            <CardContent className="p-0">
+                            <CardContent className="overflow-x-auto p-0">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="pl-6">
                                                 Student
                                             </TableHead>
-                                            {valueCriteria.map((criterion) => (
-                                                <TableHead
-                                                    key={criterion}
-                                                    className="border-l text-center"
-                                                >
-                                                    {criterion}
-                                                </TableHead>
-                                            ))}
+                                            <TableHead className="border-l text-center">
+                                                Maka-Diyos
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Makatao
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Makakalikasan
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Makabansa
+                                            </TableHead>
                                             <TableHead className="border-l pr-6">
                                                 Adviser Remarks
                                             </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {students.map((student) => (
-                                            <TableRow key={student.name}>
-                                                <TableCell className="pl-6 font-medium">
-                                                    {student.name}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    <BehaviorSelect
-                                                        defaultValue={
-                                                            student.ratings
-                                                                .maka_diyos
-                                                        }
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    <BehaviorSelect
-                                                        defaultValue={
-                                                            student.ratings
-                                                                .makatao
-                                                        }
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    <BehaviorSelect
-                                                        defaultValue={
-                                                            student.ratings
-                                                                .makakalikasan
-                                                        }
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    <BehaviorSelect
-                                                        defaultValue={
-                                                            student.ratings
-                                                                .makabansa
-                                                        }
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="border-l pr-6">
-                                                    <Input
-                                                        defaultValue={
-                                                            student.remarks
-                                                        }
-                                                        className="min-w-64"
-                                                    />
+                                        {conductRows.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell
+                                                    className="py-8 text-center text-sm text-muted-foreground"
+                                                    colSpan={6}
+                                                >
+                                                    No enrolled students found for the selected advisory class.
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                        ) : (
+                                            conductRows.map((studentRow) => (
+                                                <TableRow key={studentRow.enrollment_id}>
+                                                    <TableCell className="pl-6 font-medium whitespace-nowrap">
+                                                        {studentRow.student_name}
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center">
+                                                        <BehaviorSelect
+                                                            value={
+                                                                studentRow.ratings.maka_diyos
+                                                            }
+                                                            onChange={(value) =>
+                                                                updateRating(
+                                                                    studentRow.enrollment_id,
+                                                                    'maka_diyos',
+                                                                    value,
+                                                                )
+                                                            }
+                                                            disabled={status === 'locked'}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center">
+                                                        <BehaviorSelect
+                                                            value={studentRow.ratings.makatao}
+                                                            onChange={(value) =>
+                                                                updateRating(
+                                                                    studentRow.enrollment_id,
+                                                                    'makatao',
+                                                                    value,
+                                                                )
+                                                            }
+                                                            disabled={status === 'locked'}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center">
+                                                        <BehaviorSelect
+                                                            value={
+                                                                studentRow.ratings.makakalikasan
+                                                            }
+                                                            onChange={(value) =>
+                                                                updateRating(
+                                                                    studentRow.enrollment_id,
+                                                                    'makakalikasan',
+                                                                    value,
+                                                                )
+                                                            }
+                                                            disabled={status === 'locked'}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center">
+                                                        <BehaviorSelect
+                                                            value={studentRow.ratings.makabansa}
+                                                            onChange={(value) =>
+                                                                updateRating(
+                                                                    studentRow.enrollment_id,
+                                                                    'makabansa',
+                                                                    value,
+                                                                )
+                                                            }
+                                                            disabled={status === 'locked'}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="border-l pr-6">
+                                                        <Input
+                                                            value={studentRow.remarks}
+                                                            onChange={(event) =>
+                                                                updateRemarks(
+                                                                    studentRow.enrollment_id,
+                                                                    event.target.value,
+                                                                )
+                                                            }
+                                                            className="min-w-64"
+                                                            disabled={status === 'locked'}
+                                                        />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </CardContent>
-                            <div className="flex items-center justify-between border-t px-4 py-3">
-                                <p className="text-sm text-muted-foreground">
-                                    {students.length} students
-                                </p>
-                                <Button
-                                    variant="destructive"
-                                    onClick={() =>
-                                        setIsFinalizeDialogOpen(true)
-                                    }
-                                >
-                                    <Lock className="size-4" />
-                                    Finalize and Lock Quarter
-                                </Button>
-                            </div>
                         </Card>
                     </TabsContent>
                 </Tabs>
@@ -353,8 +513,8 @@ export default function AdvisoryBoard() {
                         <DialogTitle>Finalize Conduct and Values</DialogTitle>
                     </DialogHeader>
                     <p className="text-sm text-muted-foreground">
-                        This will lock all conduct ratings and adviser remarks
-                        for the selected quarter.
+                        This action will lock all conduct ratings and adviser remarks for
+                        the selected quarter.
                     </p>
                     <DialogFooter>
                         <Button
@@ -365,7 +525,8 @@ export default function AdvisoryBoard() {
                         </Button>
                         <Button
                             variant="destructive"
-                            onClick={() => setIsFinalizeDialogOpen(false)}
+                            onClick={() => submitConduct('locked')}
+                            disabled={actionDisabled}
                         >
                             Confirm Lock
                         </Button>
@@ -376,9 +537,17 @@ export default function AdvisoryBoard() {
     );
 }
 
-function BehaviorSelect({ defaultValue }: { defaultValue: string }) {
+function BehaviorSelect({
+    value,
+    onChange,
+    disabled,
+}: {
+    value: RatingOption;
+    onChange: (value: RatingOption) => void;
+    disabled: boolean;
+}) {
     return (
-        <Select defaultValue={defaultValue}>
+        <Select value={value} onValueChange={(newValue) => onChange(newValue as RatingOption)} disabled={disabled}>
             <SelectTrigger className="mx-auto h-8 w-20">
                 <SelectValue />
             </SelectTrigger>

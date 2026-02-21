@@ -10,7 +10,9 @@ export default function AppHeaderLayout({
     return (
         <AppShell>
             <AppHeader breadcrumbs={breadcrumbs} />
-            <AppContent>{children}</AppContent>
+            <AppContent className="[&_[data-slot=card]]:pt-0! [&_[data-slot=card]]:gap-0! [&_[data-slot=card-header].border-b]:pb-4! [&_[data-slot=card-header]:not(:has([data-slot=card-description])):not(:has(p)):not(:has(svg))]:gap-0!">
+                {children}
+            </AppContent>
         </AppShell>
     );
 }

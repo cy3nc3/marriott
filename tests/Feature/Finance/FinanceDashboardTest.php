@@ -174,12 +174,92 @@ test('finance dashboard renders metrics from ledger transactions and billing sch
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('finance/dashboard')
-            ->where('metrics.collection_efficiency_percent', 33.33)
-            ->where('metrics.total_charges', 30000)
-            ->where('metrics.total_payments', 10000)
-            ->where('metrics.outstanding_balance', 20000)
-            ->where('metrics.cash_in_drawer_today', 3200)
-            ->where('metrics.revenue_forecast_next_month', 10000)
-            ->where('metrics.forecast_month_label', 'March 2026')
+            ->has('kpis', 4)
+            ->has('alerts')
+            ->has('trends', 2)
+            ->has('action_links', 3)
+            ->where('kpis.0.value', '33.33%')
+            ->where('kpis.1.value', 'PHP 20,000.00')
+            ->where('kpis.2.value', '0.00%')
+            ->where('kpis.3.value', 'PHP 10,000.00')
+            ->where('alerts.0.severity', 'critical')
+        );
+});
+
+test('finance dashboard emits warning alerts when thresholds are in warning range', function () {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '3',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '121234567890',
+        'first_name' => 'Mia',
+        'last_name' => 'Lopez',
+    ]);
+
+    LedgerEntry::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'date' => '2026-02-01',
+        'description' => 'Tuition Assessment',
+        'debit' => 10000,
+        'credit' => 0,
+        'running_balance' => 10000,
+        'reference_id' => null,
+    ]);
+
+    LedgerEntry::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'date' => '2026-02-12',
+        'description' => 'Payment',
+        'debit' => 0,
+        'credit' => 7000,
+        'running_balance' => 3000,
+        'reference_id' => null,
+    ]);
+
+    BillingSchedule::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'description' => 'Past Due Installment',
+        'due_date' => '2026-02-10',
+        'amount_due' => 1200,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    BillingSchedule::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'description' => 'Future Installment',
+        'due_date' => '2026-03-15',
+        'amount_due' => 1800,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    Transaction::query()->create([
+        'or_number' => 'OR-60001',
+        'student_id' => $student->id,
+        'cashier_id' => $this->finance->id,
+        'total_amount' => 2500,
+        'payment_mode' => 'cash',
+        'reference_no' => null,
+        'remarks' => null,
+    ]);
+
+    $this->get('/dashboard')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/dashboard')
+            ->where('kpis.0.value', '70.00%')
+            ->where('kpis.2.value', '40.00%')
+            ->where('alerts.0.severity', 'warning')
+            ->where('alerts.1.severity', 'warning')
         );
 });

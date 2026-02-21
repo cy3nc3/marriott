@@ -1,287 +1,374 @@
-# Project Handoff Summary
+# HANDOFF SUMMARY
 
-## 1. Product Context and Core Flow
+Last updated: 2026-02-21
+Project path: `/home/lomonol/projects/marriott`
+Primary branch target: `main`
 
-This project is a school management system for a DepEd-recognized school in the Philippines.
+---
 
-### 1.1 Enrollment + LIS Strategy
+## 1. Product Context (Must Preserve)
 
-1. DepEd LIS remains the primary enrollment source of truth.
-2. Staff should avoid double encoding.
-3. During enrollment period:
-   - Registrar collects only minimal intake fields:
-     - `LRN`
-     - `First Name`
-     - `Last Name`
-     - `Emergency Contact`
-     - `Payment Plan` (`cash`, `monthly`, `quarterly`, `semi-annual`)
-     - `Downpayment` (if not cash)
-   - System creates/updates:
-     - student account
-     - parent account (linked)
-     - floating/queue enrollment transaction
-4. Cashier processes payment by searching student/LRN.
-5. Later, SF1 upload auto-enriches student records by matching `LRN`.
-6. SF1 already includes school year context; upload flow should not ask school year manually.
-7. LIS reconciliation is automatic; no manual matching queue input.
+This is a school system for a DepEd-recognized school in the Philippines.
 
-## 2. Non-Negotiable Instructions Set by User
+Core constraint: avoid double encoding because DepEd LIS remains the primary enrollment source.
 
-## 2.1 UI and Component Rules
+### Enrollment/LIS model in this project
 
-1. Use shadcn components throughout the project.
-2. Do not override/hack shadcn internals.
-3. Use Tailwind CSS primarily for layout/positioning.
-4. Keep production-style UI, not process/demo/stepper style mockups.
-5. Remove unnecessary card-header descriptions in production views.
-6. Prefer simple, low-scroll workflows for staff-heavy pages.
-7. Keep code readable/basic (student-friendly syntax style).
-8. Keep visual and interaction consistency across modules.
+1. Registrar encodes a minimal enrollment intake first (queue/floating transaction model).
+2. Cashier processes payment after registrar intake.
+3. SF1 upload later auto-enriches student records by `LRN`.
+4. SF1 contains school year; uploader should not ask for school year manually.
+5. LIS reconciliation should be automatic, not manual row-by-row matching.
 
-### 2.2 Specific Product Decisions Confirmed
+---
+
+## 2. Non-Negotiable Product/UX Instructions From User
+
+These must be followed in future development unless user changes direction.
+
+1. Use shadcn components across the project.
+2. Avoid custom CSS hacks against shadcn internals.
+3. Use Tailwind utilities mainly for layout/positioning and page-level styling.
+4. Keep production-style pages (not step-by-step visualization UIs).
+5. Keep UI simple, low-scroll, and staff-efficient.
+6. Keep code syntax beginner-friendly/readable.
+7. Remove unnecessary card header descriptions in production pages.
+8. Keep visual consistency across all modules.
+
+### Confirmed functional decisions
 
 1. Enrollment queue removes entries once payment is completed.
-2. LIS matching concerns belong in Student Directory flow, not enrollment queue.
-3. SF1 upload should be a direct file trigger/button pattern.
-4. Cashier panel should be one-page flow.
-5. Transaction processing should be done through a confirmation dialog.
-6. Finance product inventory is for pricing only (no stock management).
-7. Discount programs table should use actions (`Edit`, `Delete`) instead of status.
-8. Date range display format should be `MM/DD/YYYY`.
+2. LIS-match concern sits in Student Directory flow.
+3. SF1 upload is a direct file-selection button pattern.
+4. Cashier panel is one-page flow.
+5. Transaction processing uses a confirmation dialog.
+6. Product inventory is pricing-only (no stock management).
+7. Discount programs table uses actions (`Edit`, `Delete`) instead of status.
+8. Date-range display is `MM/DD/YYYY`.
 
-### 2.3 Deferred/Skipped by Direction
+### Explicitly deferred/ignored for now
 
-1. Skip finance print/export work for now (keep for backlog).
-2. Ignore/defer these modules for now:
-   - registrar batch promotion
-   - registrar permanent records
-   - registrar student departure
-   - admin DepEd reports
-   - admin SF9 generator
+1. Registrar batch promotion
+2. Registrar permanent records
+3. Registrar student departure
+4. Admin DepEd reports
+5. Admin SF9 generator
+6. Finance print/export workflows (deferred backlog)
 
-## 3. What Has Been Implemented
+---
 
-## 3.1 Registrar (Backend + Frontend Wiring Completed)
+## 3. Tech Stack + Structure Snapshot
 
-### Backend
+- Laravel 12 + Inertia React + TypeScript + Tailwind v4 + shadcn + Radix + Lucide
+- Backend: role controllers under `app/Http/Controllers/...`
+- Frontend pages: `resources/js/pages/...`
+- Shared UI: `resources/js/components/ui/...`
+- Layout wrappers (global UI behavior):
+  - `resources/js/layouts/app/app-sidebar-layout.tsx`
+  - `resources/js/layouts/app/app-header-layout.tsx`
+  - `resources/js/layouts/auth/auth-simple-layout.tsx`
+  - `resources/js/layouts/auth/auth-split-layout.tsx`
+  - `resources/js/layouts/auth/auth-card-layout.tsx`
+- Theme tokens and global CSS: `resources/css/app.css`
+- shadcn project config: `components.json`
+
+---
+
+## 4. Major Implemented Work (Functional)
+
+## 4.1 Registrar
+
+Implemented core flows (backend + frontend wiring):
+
+- Student Directory + SF1 upload + auto LRN reconciliation
+- Enrollment queue intake (minimal fields), edit/delete actions
+- Remedial entry workflows
+
+Primary touched areas include:
 
 - `app/Http/Controllers/Registrar/StudentDirectoryController.php`
-  - SF1 upload + automatic LRN reconciliation
-  - LIS sync status mapping and summary counters
-  - upload metadata persistence
 - `app/Http/Controllers/Registrar/EnrollmentController.php`
-  - enrollment queue listing + filters
-  - create/update/delete intake queue records
-  - linked student/parent account handling
 - `app/Http/Controllers/Registrar/RemedialEntryController.php`
-  - context filters + existing records loading
-  - draft/submitted remedial save flow
-  - recomputed grade/status logic
-
-### Routes
-
-- `routes/roles/registrar.php`
-  - registrar endpoints wired for SF1 upload, enrollment CRUD, remedial save
-
-### Models/Migration
-
-- `database/migrations/2026_02_20_140842_add_downpayment_to_enrollments_table.php`
-- Enrollment/Student/Remedial model updates for fields and relationships
-
-### Frontend
-
 - `resources/js/pages/registrar/student-directory/index.tsx`
 - `resources/js/pages/registrar/enrollment/index.tsx`
 - `resources/js/pages/registrar/remedial-entry/index.tsx`
+- `routes/roles/registrar.php`
 
-## 3.2 Finance (Core Scope Wired and Functional)
+## 4.2 Finance
 
-### Implemented Pages and Flows
+Implemented and wired core finance modules:
 
 1. Cashier Panel
-   - `resources/js/pages/finance/cashier-panel/index.tsx`
-   - one-page processing flow and transaction dialog
 2. Student Ledgers
-   - `resources/js/pages/finance/student-ledgers/index.tsx`
-   - dues-by-plan, ledger filtering, profile + dues side-by-side
 3. Transaction History
-   - `resources/js/pages/finance/transaction-history/index.tsx`
 4. Fee Structure
-   - `resources/js/pages/finance/fee-structure/index.tsx`
-   - tabs by grade with detailed breakdown
-5. Product Inventory (Pricing only)
-   - `resources/js/pages/finance/product-inventory/index.tsx`
+5. Product Inventory (pricing only)
 6. Discount Manager
-   - `resources/js/pages/finance/discount-manager/index.tsx`
-   - actions-based management + tagging
 7. Daily Reports
-   - `resources/js/pages/finance/daily-reports/index.tsx`
-8. Finance Dashboard (now data-driven)
-   - `app/Http/Controllers/Finance/DashboardController.php`
-   - `resources/js/pages/finance/dashboard.tsx`
-   - `/dashboard` role switch wired in `routes/web.php`
+8. Finance Dashboard
 
-### Finance Backend Surface
+Primary touched areas include:
 
-- Controllers under `app/Http/Controllers/Finance/`
-- Form Requests under `app/Http/Requests/Finance/`
-- Models under `app/Models/`:
-  - `Fee`, `Discount`, `InventoryItem`, `StudentDiscount`
-  - `BillingSchedule`, `Transaction`, `TransactionItem`, `LedgerEntry`
+- `resources/js/pages/finance/cashier-panel/index.tsx`
+- `resources/js/pages/finance/student-ledgers/index.tsx`
+- `resources/js/pages/finance/transaction-history/index.tsx`
+- `resources/js/pages/finance/fee-structure/index.tsx`
+- `resources/js/pages/finance/product-inventory/index.tsx`
+- `resources/js/pages/finance/discount-manager/index.tsx`
+- `resources/js/pages/finance/daily-reports/index.tsx`
+- `resources/js/pages/finance/dashboard.tsx`
+- finance controllers + requests + models under `app/Http/Controllers/Finance`, `app/Http/Requests/Finance`, `app/Models`
 
-### Finance Current Deferred Backlog
+## 4.3 Teacher
 
-1. Void/refund workflow + real void adjustments in reports
-2. Large dataset pagination/performance hardening
-3. Edge-case test expansion (concurrency, OR duplication, etc.)
-4. Print/export implementation (explicitly deferred)
+Implemented significant teacher backend wiring:
 
-## 3.3 Teacher (Now Partially Backend-Wired)
+1. Teacher Dashboard (data-driven)
+2. Teacher Schedule (data-driven)
+3. Teacher Grading Sheet (rubrics/assessments/scores/finalization)
+4. Advisory Board progression with conduct-related data support (in progress/refined over sessions)
 
-### Completed in Current Progress
+Primary touched areas include:
 
-1. Teacher Dashboard backend wiring
-   - `app/Http/Controllers/Teacher/DashboardController.php`
-   - `/dashboard` teacher role now uses controller in `routes/web.php`
-   - page now uses live schedule + pending submission metrics:
-     - `resources/js/pages/teacher/dashboard.tsx`
-2. Teacher Schedule backend wiring
-   - `app/Http/Controllers/Teacher/ScheduleController.php`
-   - route wiring in `routes/roles/teacher.php`
-   - page now uses live schedule/break data:
-     - `resources/js/pages/teacher/schedule/index.tsx`
-3. Teacher Grading Sheet full backend wiring
-   - controller:
-     - `app/Http/Controllers/Teacher/GradingSheetController.php`
-   - requests:
-     - `app/Http/Requests/Teacher/IndexGradingSheetRequest.php`
-     - `app/Http/Requests/Teacher/UpdateGradingRubricRequest.php`
-     - `app/Http/Requests/Teacher/StoreGradedActivityRequest.php`
-     - `app/Http/Requests/Teacher/StoreGradingScoresRequest.php`
-   - models:
-     - `app/Models/GradingRubric.php`
-     - `app/Models/GradedActivity.php`
-     - `app/Models/StudentScore.php`
-   - relationships added to existing models:
-     - `Subject`, `SubjectAssignment`, `Student`
-   - routes:
-     - `GET /teacher/grading-sheet`
-     - `POST /teacher/grading-sheet/rubric`
-     - `POST /teacher/grading-sheet/assessments`
-     - `POST /teacher/grading-sheet/scores`
-   - frontend bound to live data + actions:
-     - `resources/js/pages/teacher/grading-sheet/index.tsx`
+- `app/Http/Controllers/Teacher/DashboardController.php`
+- `app/Http/Controllers/Teacher/ScheduleController.php`
+- `app/Http/Controllers/Teacher/GradingSheetController.php`
+- `app/Http/Controllers/Teacher/AdvisoryBoardController.php`
+- `app/Http/Requests/Teacher/*`
+- `app/Models/ConductRating.php`
+- `database/migrations/2026_02_21_163605_create_conduct_ratings_table.php`
+- `resources/js/pages/teacher/dashboard.tsx`
+- `resources/js/pages/teacher/schedule/index.tsx`
+- `resources/js/pages/teacher/grading-sheet/index.tsx`
+- `resources/js/pages/teacher/advisory-board/index.tsx`
+- `routes/roles/teacher.php`
 
-### Teacher Still Pending
+## 4.4 Student + Parent
 
-1. Advisory Board backend wiring (conduct encoding + lock workflow)
-   - currently still a closure-rendered page route
+Implemented visualization/wiring for:
 
-## 3.4 Student + Parent (Frontend Visualization Done Earlier)
+- Student schedule + grades + dashboard
+- Parent schedule + grades + billing information + dashboard
 
-- Student:
-  - `resources/js/pages/student/schedule/index.tsx`
-  - `resources/js/pages/student/grades/index.tsx`
-- Parent:
-  - `resources/js/pages/parent/schedule/index.tsx`
-  - `resources/js/pages/parent/grades/index.tsx`
-  - `resources/js/pages/parent/billing-information/index.tsx`
+Primary touched areas include:
 
-## 4. Cross-Cutting Technical Changes
+- `resources/js/pages/student/*`
+- `resources/js/pages/parent/*`
+- Role routes in:
+  - `routes/roles/student.php`
+  - `routes/roles/parent.php`
 
-## 4.1 Wayfinder Route Generation and Compatibility Fix
+## 4.5 Dashboard Analytics (Decision-support direction)
 
-After route/controller expansion, `php artisan wayfinder:generate --no-interaction` updated generated route helpers.
+Implemented/iterated role dashboards with decision-support analytics structures and chart support.
 
-Because of generated helper changes, non-GET `.form()` usage became incompatible in several auth/settings pages. These were updated to explicit `action={route().url}` and `method={route().method}` patterns.
+Key shared file:
 
-Updated files include:
+- `resources/js/components/dashboard/analytics-panel.tsx`
+- `resources/js/types/dashboard.ts`
 
-- `resources/js/components/delete-user.tsx`
-- `resources/js/components/two-factor-recovery-codes.tsx`
-- `resources/js/components/two-factor-setup-modal.tsx`
-- `resources/js/pages/auth/confirm-password.tsx`
-- `resources/js/pages/auth/forgot-password.tsx`
-- `resources/js/pages/auth/login.tsx`
-- `resources/js/pages/auth/reset-password.tsx`
-- `resources/js/pages/auth/two-factor-challenge.tsx`
-- `resources/js/pages/auth/verify-email.tsx`
-- `resources/js/pages/settings/password.tsx`
-- `resources/js/pages/settings/profile.tsx`
-- `resources/js/pages/settings/two-factor.tsx`
+Role dashboard files touched include:
 
-## 4.2 Shared UI Utility
+- `resources/js/pages/super_admin/dashboard.tsx`
+- `resources/js/pages/admin/dashboard.tsx`
+- `resources/js/pages/registrar/dashboard.tsx`
+- `resources/js/pages/finance/dashboard.tsx`
+- `resources/js/pages/teacher/dashboard.tsx`
+- `resources/js/pages/student/dashboard.tsx`
+- `resources/js/pages/parent/dashboard.tsx`
 
-- `resources/js/components/ui/date-picker.tsx`
-  - date range formatting standardized to `MM/DD/YYYY`
+Backend role controllers touched include:
 
-## 5. Test Coverage Added/Run
+- `app/Http/Controllers/SuperAdmin/DashboardController.php`
+- `app/Http/Controllers/Admin/DashboardController.php`
+- `app/Http/Controllers/Registrar/DashboardController.php`
+- `app/Http/Controllers/Finance/DashboardController.php`
+- `app/Http/Controllers/Teacher/DashboardController.php`
+- `app/Http/Controllers/Student/*`
+- `app/Http/Controllers/ParentPortal/*`
 
-## 5.1 Finance
+---
 
-- `tests/Feature/Finance/`
-  - cashier, student ledgers, transaction history, fee structure, product inventory, discount manager, daily reports, finance dashboard
+## 5. UI System Refinements Already Implemented
 
-## 5.2 Teacher
+## 5.1 Global card spacing behavior (without editing shadcn base card)
 
+Implemented via layout-level selectors (not by editing `resources/js/components/ui/card.tsx`):
+
+- card top padding removed globally
+- card internal gap reduced
+- card header border-bottom spacing refined
+- conditional header gap behavior (depends on presence of description/`<p>`/icon)
+
+Applied in app/auth layout wrappers listed above.
+
+## 5.2 Theme migration to shadcn Create settings (global token-driven)
+
+User-provided Create settings applied:
+
+- Component Library: Radix UI
+- Style: Nova
+- Base Color: Gray
+- Theme: Blue
+- Icon Library: Lucide
+- Font: Figtree
+- Radius: Default
+- Menu Color: Default
+- Menu Accent: Subtle
+
+Actual project updates:
+
+1. `components.json`
+   - `style: "radix-nova"`
+   - `tailwind.baseColor: "gray"`
+2. `resources/css/app.css`
+   - Added Figtree import
+   - Set `--font-sans` to Figtree
+   - Replaced root + dark color tokens with Nova/Blue token set from shadcn create/init response
+
+Important: this project should now prefer token-driven theming and avoid one-off hardcoded color overrides when possible.
+
+---
+
+## 6. Routes and Role Access Notes
+
+Role dashboard routing and role-specific pages are wired in:
+
+- `routes/web.php`
+- `routes/roles/*.php`
+
+Wayfinder route generation is part of the workflow; some auth/settings form usage was adjusted previously to stay compatible with generated methods/URLs.
+
+---
+
+## 7. Testing and Quality Status
+
+Frequent validation commands used throughout implementation:
+
+1. `npm run -s types`
+2. `npm run build`
+3. `php artisan test --compact <target tests>`
+4. `vendor/bin/pint --dirty --format agent`
+
+Role and module tests touched include:
+
+- `tests/Feature/DashboardTest.php`
+- `tests/Feature/Auth/AuthenticationTest.php`
+- `tests/Feature/RoleAccessTest.php`
+- `tests/Feature/Admin/AdminFeaturesTest.php`
+- `tests/Feature/Finance/FinanceDashboardTest.php`
+- `tests/Feature/Registrar/RegistrarFeaturesTest.php`
 - `tests/Feature/Teacher/TeacherFeaturesTest.php`
-  - schedule render from real assignments
-  - dashboard live schedule + pending submission summary
-  - grading sheet render with rubric/assessments/computed grades
-  - grading actions: rubric update, assessment create, score submit + final grade lock
+- `tests/Feature/Parent/*`
+- `tests/Feature/Student/*`
 
-## 5.3 Additional Validation Commands Repeatedly Used
+Current smoke status during latest theming/config updates:
 
-1. `php artisan test --compact <target-file-or-dir>`
-2. `npm run types`
-3. `vendor/bin/pint --dirty --format agent`
-4. `php artisan route:list --path=<module>` for route verification
+- Types: pass
+- Build: pass
+- Targeted feature tests: pass
+- Pint: pass
 
-## 6. Current Project State (Functional Summary)
+---
 
-1. Registrar core enrollment + SF1 sync + remedial flows are wired.
-2. Finance core workflows are wired and tested for current scope.
-3. Teacher dashboard, schedule, and grading sheet are now backend-driven.
-4. Teacher advisory board remains the key unfinished teacher workflow.
-5. Several deferred modules remain intentionally untouched per directive.
+## 8. Explicit Permission for Future AI on Another Device
 
-## 7. Recommended Next Steps (Priority Order)
+This is an explicit operational authorization:
 
-1. Teacher Advisory Board backend wiring
-   - Implement controller + requests + routes for conduct/values save and lock flow.
-   - Persist and load advisory class read-only grades from real data.
-2. Role-level workflow completion pass
-   - Verify all teacher flows (dashboard, schedule, grading sheet, advisory board) end-to-end.
-3. Deferred registrar/admin modules (only when resumed)
-   - batch promotion
-   - permanent records
-   - student departure
-   - DepEd reports
-   - SF9 generator
-4. Finance hardening backlog (when resumed)
-   - void/refund processing
-   - print/export
-   - performance and edge-case hardening
-5. Final consistency QA pass
-   - cross-role UI consistency
-   - route generation consistency
-   - regression tests and smoke checks
+**The next AI is allowed to run required setup/install/build/test commands needed to make the project work on that device.**
 
-## 8. Startup Instruction for New Device/Session
+Allowed and expected commands (as needed):
 
-Use this exact working pattern when continuing development on another device:
+1. `composer install`
+2. `npm install`
+3. `composer run setup`
+4. Update `.env` database credentials
+5. `composer run setup:finish`
+6. `php artisan migrate --seed --force` (if needed)
+7. `php artisan key:generate`
+8. `npm run dev` or `npm run build`
+9. `php artisan wayfinder:generate --no-interaction` (if route helpers are stale)
+10. `vendor/bin/pint --dirty --format agent`
+11. `php artisan test --compact ...`
 
-1. First scan and study codebase structure before changing code.
-2. Map role routes and corresponding Inertia pages.
-3. Review existing shared shadcn components/layout patterns.
-4. Summarize findings first, then implement.
-5. Follow shadcn-first + Tailwind layout-only rule.
-6. Keep production-style UI consistency from existing modules.
-7. Continue from highest-priority pending feature list above.
+Also allowed:
 
-## 9. Notes for Continuity
+- installing OS/runtime dependencies required for PHP extensions, Composer, Node/NPM, and database client connectivity
+- clearing caches if needed (`php artisan optimize:clear`, etc.)
 
-1. Print/export remains intentionally deferred.
-2. Finance scope is considered complete for current agreed scope.
-3. Teacher implementation is in progress; advisory board is next major target.
-4. Keep this file updated after every substantial module wiring session.
+---
+
+## 9. Setup Instructions for Another Device (Recommended Sequence)
+
+## 9.1 Prerequisites
+
+1. PHP 8.2+
+2. Composer
+3. Node + NPM
+4. PostgreSQL (or configured DB engine matching `.env`)
+5. Git
+
+## 9.2 First-time bootstrap
+
+1. Clone repo and checkout latest `main`.
+2. Run:
+   - `composer install`
+   - `npm install`
+3. Initialize env:
+   - copy `.env.example` to `.env` (if missing)
+   - configure DB credentials
+4. Run setup scripts:
+   - `composer run setup`
+   - `composer run setup:finish`
+5. Start development:
+   - `composer run dev`
+
+## 9.3 If frontend changes do not appear
+
+1. Run `npm run dev` (or restart it).
+2. If still stale, run `npm run build`.
+
+## 9.4 If route helpers mismatch
+
+Run:
+
+- `php artisan wayfinder:generate --no-interaction`
+
+Then rebuild or rerun type-check.
+
+---
+
+## 10. Required First Actions for Next AI Session
+
+Before coding, next AI must:
+
+1. Scan codebase structure first (routes/controllers/pages/components).
+2. Identify current conventions from nearby files.
+3. Reuse existing shadcn/UI patterns before creating new structures.
+4. Summarize findings briefly before implementing.
+
+This instruction is mandatory for continuity.
+
+---
+
+## 11. Recommended Next Work (Priority Order)
+
+1. Complete/verify teacher advisory lifecycle end-to-end
+   - conduct/values encode, lock/finalization behavior, tests
+2. Hardening pass for dashboards
+   - verify role payload isolation and alert threshold behavior in edge cases
+3. Resume deferred finance backlog when requested
+   - print/export + void/refund workflows
+4. Resume deferred registrar/admin modules only when explicitly re-opened
+5. Perform a cross-role UX polish pass under Nova theme tokens
+   - remove remaining page-level hardcoded color overrides where token classes are sufficient
+
+---
+
+## 12. Important Continuity Notes
+
+1. Theming should now be token-first (Nova/Blue/Gray/Figtree).
+2. Avoid reintroducing hardcoded color overrides unless specifically requested.
+3. Keep production layout consistency and low-scroll operator workflows.
+4. Keep this handoff updated at every major module completion.
+

@@ -46,4 +46,9 @@ class Enrollment extends Model
     {
         return $this->hasMany(FinalGrade::class);
     }
+
+    public function conductRatings(): HasMany
+    {
+        return $this->hasMany(ConductRating::class);
+    }
 }

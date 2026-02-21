@@ -3,9 +3,11 @@
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
 use App\Models\ClassSchedule;
+use App\Models\Enrollment;
 use App\Models\GradeLevel;
 use App\Models\Section;
 use App\Models\Setting;
+use App\Models\Student;
 use App\Models\Subject;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -56,6 +58,92 @@ test('admin pages render successfully', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/sf9-generator/index')
+        );
+});
+
+test('admin dashboard shows enrollment yoy growth and enrollment forecast trend', function () {
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $yearDefinitions = [
+        ['name' => '2020-2021', 'status' => 'archived', 'start_date' => '2020-06-01', 'end_date' => '2021-03-31', 'count' => 8],
+        ['name' => '2021-2022', 'status' => 'archived', 'start_date' => '2021-06-01', 'end_date' => '2022-03-31', 'count' => 9],
+        ['name' => '2022-2023', 'status' => 'archived', 'start_date' => '2022-06-01', 'end_date' => '2023-03-31', 'count' => 10],
+        ['name' => '2023-2024', 'status' => 'archived', 'start_date' => '2023-06-01', 'end_date' => '2024-03-31', 'count' => 11],
+        ['name' => '2024-2025', 'status' => 'archived', 'start_date' => '2024-06-01', 'end_date' => '2025-03-31', 'count' => 12],
+        ['name' => '2025-2026', 'status' => 'ongoing', 'start_date' => '2025-06-01', 'end_date' => '2026-03-31', 'count' => 13],
+    ];
+
+    $sequence = 0;
+    foreach ($yearDefinitions as $definition) {
+        $year = AcademicYear::query()->create([
+            'name' => $definition['name'],
+            'start_date' => $definition['start_date'],
+            'end_date' => $definition['end_date'],
+            'status' => $definition['status'],
+            'current_quarter' => '1',
+        ]);
+
+        $section = Section::query()->create([
+            'academic_year_id' => $year->id,
+            'grade_level_id' => $gradeLevel->id,
+            'name' => "Section {$definition['name']}",
+            'adviser_id' => null,
+        ]);
+
+        for ($index = 0; $index < $definition['count']; $index++) {
+            $sequence++;
+
+            $student = Student::query()->create([
+                'lrn' => str_pad((string) (910000000000 + $sequence), 12, '0', STR_PAD_LEFT),
+                'first_name' => "Student{$sequence}",
+                'last_name' => 'Admin',
+            ]);
+
+            Enrollment::query()->create([
+                'student_id' => $student->id,
+                'academic_year_id' => $year->id,
+                'grade_level_id' => $gradeLevel->id,
+                'section_id' => $section->id,
+                'payment_term' => 'cash',
+                'downpayment' => 0,
+                'status' => 'enrolled',
+            ]);
+        }
+    }
+
+    Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'TLE7',
+        'subject_name' => 'TLE 7',
+    ]);
+
+    $this->get('/dashboard')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/dashboard')
+            ->where('kpis.0.id', 'enrollment-yoy-growth')
+            ->where('kpis.0.value', '+8.33%')
+            ->where('kpis', function ($kpis): bool {
+                return ! collect($kpis)->contains(function (array $kpi): bool {
+                    return $kpi['id'] === 'enrollment-capacity';
+                });
+            })
+            ->where('trends.1.id', 'enrollment-forecast')
+            ->where('trends.1.display', 'line')
+            ->where('trends.1.chart.rows', function ($rows): bool {
+                if (count($rows) !== 7) {
+                    return false;
+                }
+
+                $forecastRow = collect($rows)->last();
+
+                return is_array($forecastRow)
+                    && ($forecastRow['is_forecast'] ?? false) === true
+                    && ($forecastRow['forecast'] ?? null) !== null;
+            })
         );
 });
 

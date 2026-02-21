@@ -31,7 +31,7 @@ export default function AuthCardLayout({
                     </div>
                 </Link>
 
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-6 [&_[data-slot=card]]:pt-0! [&_[data-slot=card]]:gap-0! [&_[data-slot=card-header].border-b]:pb-4! [&_[data-slot=card-header]:not(:has([data-slot=card-description])):not(:has(p)):not(:has(svg))]:gap-0!">
                     <Card className="rounded-xl">
                         <CardHeader className="px-10 pt-8 pb-0 text-center">
                             <CardTitle className="text-xl">{title}</CardTitle>

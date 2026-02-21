@@ -1,32 +1,14 @@
 import { Head } from '@inertiajs/react';
-import {
-    BookOpen, GraduationCap, School, Users
-} from 'lucide-react';
-import { EnrollmentChart } from '@/components/dashboard/enrollment-chart';
-import { StatCard } from '@/components/dashboard/stat-card';
-import { TrendChart } from '@/components/dashboard/trend-chart';
-import { WorkloadChart } from '@/components/dashboard/workload-chart';
+import { DashboardAnalyticsPanel } from '@/components/dashboard/analytics-panel';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
 import { dashboard } from '@/routes';
-
-interface DashboardProps {
-    stats: {
-        totalStudents: number;
-        totalTeachers: number;
-        activeSections: number;
-        unassignedSubjects: number;
-    };
-    charts: {
-        enrollmentByGrade: { name: string; count: number }[];
-        teacherWorkload: { name: string; full_name: string; count: number }[];
-        enrollmentForecast: { year: string; enrollees: number | null; isProjected: boolean }[];
-    };
-    currentYear?: {
-        name: string;
-        status: string;
-    };
-}
+import type {
+    BreadcrumbItem,
+    DashboardActionLink,
+    DashboardAlert,
+    DashboardKpi,
+    DashboardTrend,
+} from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -35,54 +17,23 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Dashboard({ stats, charts, currentYear }: DashboardProps) {
+interface Props {
+    kpis: DashboardKpi[];
+    alerts: DashboardAlert[];
+    trends: DashboardTrend[];
+    action_links: DashboardActionLink[];
+}
+
+export default function Dashboard({ kpis, alerts, trends, action_links }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Admin Dashboard" />
-            <div className="flex flex-col gap-4">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <StatCard
-                        title="Total Students"
-                        value={stats.totalStudents}
-                        description={currentYear ? `Active in ${currentYear.name}` : 'No active year'}
-                        icon={GraduationCap}
-                    />
-                    <StatCard
-                        title="Total Teachers"
-                        value={stats.totalTeachers}
-                        description="Active faculty members"
-                        icon={Users}
-                    />
-                    <StatCard
-                        title="Active Sections"
-                        value={stats.activeSections}
-                        description="Currently running sections"
-                        icon={School}
-                    />
-                    <StatCard
-                        title="Unassigned Subjects"
-                        value={stats.unassignedSubjects}
-                        description="Subjects without teachers"
-                        icon={BookOpen}
-                        className={stats.unassignedSubjects > 0 ? "border-destructive/50 bg-destructive/10" : ""}
-                    />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                    <div className="col-span-4">
-                        <TrendChart data={charts.enrollmentForecast} />
-                    </div>
-                    <div className="col-span-3">
-                        <EnrollmentChart data={charts.enrollmentByGrade} />
-                    </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                     <div className="col-span-3">
-                        <WorkloadChart data={charts.teacherWorkload} />
-                     </div>
-                </div>
-            </div>
+            <DashboardAnalyticsPanel
+                kpis={kpis}
+                alerts={alerts}
+                trends={trends}
+                actionLinks={action_links}
+            />
         </AppLayout>
     );
 }

@@ -1,9 +1,15 @@
 import { Head } from '@inertiajs/react';
-import { AlertCircle, Clock } from 'lucide-react';
+import { DashboardAnalyticsPanel } from '@/components/dashboard/analytics-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
 import { dashboard } from '@/routes';
+import type {
+    BreadcrumbItem,
+    DashboardActionLink,
+    DashboardAlert,
+    DashboardKpi,
+    DashboardTrend,
+} from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -12,102 +18,70 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-type TodayScheduleItem = {
-    id: number;
-    start: string;
-    end: string;
-    time_label: string;
-    title: string;
-    section: string;
-};
-
-type PendingSummary = {
-    pending_subjects_count: number;
-    total_subjects_count: number;
-    completed_subjects_count: number;
+type QuarterGradeCompletion = {
+    total_classes: number;
+    finalized_classes: number;
+    unfinalized_classes: number;
 };
 
 interface Props {
-    today_schedule: TodayScheduleItem[];
-    pending_summary: PendingSummary;
+    kpis: DashboardKpi[];
+    alerts: DashboardAlert[];
+    trends: DashboardTrend[];
+    action_links: DashboardActionLink[];
+    quarter_grade_completion: QuarterGradeCompletion;
 }
 
-export default function Dashboard({ today_schedule, pending_summary }: Props) {
+export default function Dashboard({
+    kpis,
+    alerts,
+    trends,
+    action_links,
+    quarter_grade_completion,
+}: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Teacher Dashboard" />
-            <div className="flex flex-col gap-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center gap-2 border-b py-4">
-                            <Clock className="size-5 text-muted-foreground" />
-                            <CardTitle className="text-lg">
-                                My Schedule Today
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            {today_schedule.length > 0 ? (
-                                <ul className="divide-y">
-                                    {today_schedule.map((scheduleItem) => (
-                                        <li
-                                            key={scheduleItem.id}
-                                            className="flex items-center justify-between px-6 py-4"
-                                        >
-                                            <span className="text-sm text-muted-foreground">
-                                                {scheduleItem.time_label}
-                                            </span>
-                                            <span className="text-sm font-medium">
-                                                {scheduleItem.title}
-                                                <span className="ml-2 text-xs text-muted-foreground">
-                                                    {scheduleItem.section}
-                                                </span>
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="px-6 py-5 text-sm text-muted-foreground">
-                                    No schedule for today.
-                                </p>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Card className="h-fit">
-                        <CardContent className="p-6">
-                            <div className="flex items-start gap-4">
-                                <div className="rounded-full border p-2">
-                                    <AlertCircle className="size-6 text-muted-foreground" />
-                                </div>
-                                <div className="space-y-1">
-                                    <h3 className="text-lg font-semibold">
-                                        Action Required
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        You have{' '}
-                                        <span className="font-semibold">
-                                            {
-                                                pending_summary.pending_subjects_count
-                                            }
-                                        </span>{' '}
-                                        subject
-                                        {pending_summary.pending_subjects_count ===
-                                        1
-                                            ? ''
-                                            : 's'}{' '}
-                                        pending grade submission.
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {pending_summary.completed_subjects_count}{' '}
-                                        of {pending_summary.total_subjects_count}{' '}
-                                        subjects complete.
-                                    </p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
+            <DashboardAnalyticsPanel
+                kpis={kpis}
+                alerts={alerts}
+                trends={trends}
+                actionLinks={action_links}
+            >
+                <Card>
+                    <CardHeader className="border-b py-4">
+                        <CardTitle className="text-base">
+                            Quarter Grade Completion
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 pt-4 md:grid-cols-3">
+                        <div>
+                            <p className="text-xs text-muted-foreground">
+                                Total Classes
+                            </p>
+                            <p className="text-2xl font-semibold">
+                                {quarter_grade_completion.total_classes}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">
+                                Finalized Classes
+                            </p>
+                            <p className="text-2xl font-semibold">
+                                {quarter_grade_completion.finalized_classes}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">
+                                Unfinalized Classes
+                            </p>
+                            <p className="text-2xl font-semibold">
+                                {quarter_grade_completion.unfinalized_classes}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </DashboardAnalyticsPanel>
         </AppLayout>
     );
 }

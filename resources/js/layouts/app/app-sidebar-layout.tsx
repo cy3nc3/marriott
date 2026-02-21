@@ -23,7 +23,9 @@ export default function AppSidebarLayout({
                         style={{ position: 'absolute', inset: 0 }}
                         className="overflow-x-hidden"
                     >
-                        <div className="flex flex-col p-4">{children}</div>
+                        <div className="flex flex-col p-4 [&_[data-slot=card]]:pt-0! [&_[data-slot=card]]:gap-0! [&_[data-slot=card-header].border-b]:pb-4! [&_[data-slot=card-header]:not(:has([data-slot=card-description])):not(:has(p)):not(:has(svg))]:gap-0!">
+                            {children}
+                        </div>
                     </SimpleBar>
                 </div>
             </AppContent>

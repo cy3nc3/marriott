@@ -11,7 +11,7 @@ export default function AuthSimpleLayout({
     return (
         <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
             <div className="w-full max-w-sm">
-                <div className="flex flex-col gap-8">
+                <div className="flex flex-col gap-8 [&_[data-slot=card]]:pt-0! [&_[data-slot=card]]:gap-0! [&_[data-slot=card-header].border-b]:pb-4! [&_[data-slot=card-header]:not(:has([data-slot=card-description])):not(:has(p)):not(:has(svg))]:gap-0!">
                     <div className="flex flex-col items-center gap-4">
                         <Link
                             href={home()}

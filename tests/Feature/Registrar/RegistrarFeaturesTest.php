@@ -82,6 +82,87 @@ test('registrar sf1 upload reconciles student directory by lrn', function () {
         );
 });
 
+test('registrar dashboard shows queue aging buckets and lis sync bar distribution', function () {
+    $section = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Mabini',
+    ]);
+
+    $queueDefinitions = [
+        ['status' => 'pending', 'days_ago' => 1, 'is_lis_synced' => true, 'sync_error_flag' => false],
+        ['status' => 'pending_intake', 'days_ago' => 4, 'is_lis_synced' => false, 'sync_error_flag' => false],
+        ['status' => 'for_cashier_payment', 'days_ago' => 10, 'is_lis_synced' => false, 'sync_error_flag' => true],
+        ['status' => 'partial_payment', 'days_ago' => 20, 'is_lis_synced' => false, 'sync_error_flag' => false],
+    ];
+
+    $counter = 0;
+    foreach ($queueDefinitions as $definition) {
+        $counter++;
+        $student = Student::query()->create([
+            'lrn' => str_pad((string) (930000000000 + $counter), 12, '0', STR_PAD_LEFT),
+            'first_name' => "Queue{$counter}",
+            'last_name' => 'Student',
+            'is_lis_synced' => $definition['is_lis_synced'],
+            'sync_error_flag' => $definition['sync_error_flag'],
+        ]);
+
+        $enrollment = Enrollment::query()->create([
+            'student_id' => $student->id,
+            'academic_year_id' => $this->academicYear->id,
+            'grade_level_id' => $this->gradeLevel->id,
+            'section_id' => $section->id,
+            'payment_term' => 'monthly',
+            'downpayment' => 1000,
+            'status' => $definition['status'],
+        ]);
+
+        $enrollment->created_at = now()->subDays($definition['days_ago']);
+        $enrollment->updated_at = now()->subDays($definition['days_ago']);
+        $enrollment->save();
+    }
+
+    $enrolledStudent = Student::query()->create([
+        'lrn' => '930000000099',
+        'first_name' => 'Synced',
+        'last_name' => 'Learner',
+        'is_lis_synced' => true,
+        'sync_error_flag' => false,
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $enrolledStudent->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $this->get('/dashboard')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/dashboard')
+            ->where('trends.0.id', 'queue-aging-buckets')
+            ->where('trends.0.display', 'bar')
+            ->where('trends.0.chart.rows', function ($rows): bool {
+                $rowsByBucket = collect($rows)->keyBy('bucket');
+
+                return count($rows) === 4
+                    && (int) ($rowsByBucket['0-2 days']['records'] ?? -1) === 1
+                    && (int) ($rowsByBucket['3-7 days']['records'] ?? -1) === 1
+                    && (int) ($rowsByBucket['8-14 days']['records'] ?? -1) === 1
+                    && (int) ($rowsByBucket['15+ days']['records'] ?? -1) === 1
+                    && (int) collect($rows)->sum('records') === 4;
+            })
+            ->where('trends.1.id', 'lis-sync-distribution')
+            ->where('trends.1.display', 'bar')
+            ->where('kpis.2.id', 'lis-sync-rate')
+            ->where('kpis.2.value', '40.00%')
+        );
+});
+
 test('registrar enrollment intake supports create update and delete', function () {
     $lrn = '123123123123';
 

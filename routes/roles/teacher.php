@@ -1,9 +1,9 @@
 <?php
 
+use App\Http\Controllers\Teacher\AdvisoryBoardController;
 use App\Http\Controllers\Teacher\GradingSheetController;
 use App\Http\Controllers\Teacher\ScheduleController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
     Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule');
@@ -13,7 +13,6 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
     Route::post('/grading-sheet/assessments', [GradingSheetController::class, 'storeAssessment'])->name('grading_sheet.store_assessment');
     Route::post('/grading-sheet/scores', [GradingSheetController::class, 'storeScores'])->name('grading_sheet.store_scores');
 
-    Route::get('/advisory-board', function () {
-        return Inertia::render('teacher/advisory-board/index');
-    })->name('advisory_board');
+    Route::get('/advisory-board', [AdvisoryBoardController::class, 'index'])->name('advisory_board');
+    Route::post('/advisory-board/conduct', [AdvisoryBoardController::class, 'storeConduct'])->name('advisory_board.store_conduct');
 });

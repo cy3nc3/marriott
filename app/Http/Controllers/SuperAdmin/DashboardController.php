@@ -4,10 +4,10 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
-use App\Models\Announcement;
 use App\Models\AuditLog;
 use App\Models\Setting;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,34 +20,9 @@ class DashboardController extends Controller
             ->groupBy('role')
             ->pluck('total', 'role');
 
-        $staffRoles = [
-            UserRole::SUPER_ADMIN->value,
-            UserRole::ADMIN->value,
-            UserRole::REGISTRAR->value,
-            UserRole::FINANCE->value,
-            UserRole::TEACHER->value,
-        ];
-
-        $recentLogs = AuditLog::query()
-            ->with('user:id,name')
-            ->latest()
-            ->limit(8)
-            ->get()
-            ->map(function (AuditLog $log) {
-                return [
-                    'id' => $log->id,
-                    'action' => $log->action,
-                    'target' => $this->targetLabel($log->model_type, $log->model_id),
-                    'user' => $log->user?->name ?? 'System',
-                    'created_at' => $log->created_at?->toIso8601String(),
-                ];
-            })
-            ->all();
-
-        $roleDistribution = collect(UserRole::cases())
+        $roleDistributionPoints = collect(UserRole::cases())
             ->map(function (UserRole $role) use ($roleTotals) {
                 return [
-                    'role' => $role->value,
                     'label' => $role->label(),
                     'count' => (int) ($roleTotals[$role->value] ?? 0),
                 ];
@@ -55,27 +30,181 @@ class DashboardController extends Controller
             ->values()
             ->all();
 
+        $totalUsers = (int) User::query()->count();
+        $activeUsers = (int) User::query()->where('is_active', true)->count();
+        $inactiveUsers = max($totalUsers - $activeUsers, 0);
+
+        $today = now()->toDateString();
+        $auditLogsToday = (int) AuditLog::query()->whereDate('created_at', $today)->count();
+        $riskAuditLogsToday = (int) AuditLog::query()
+            ->whereDate('created_at', $today)
+            ->where(function ($query) {
+                $query
+                    ->whereRaw('LOWER(action) like ?', ['%delete%'])
+                    ->orWhereRaw('LOWER(action) like ?', ['%reset%'])
+                    ->orWhereRaw('LOWER(action) like ?', ['%toggle%']);
+            })
+            ->count();
+
+        $maintenanceMode = Setting::enabled('maintenance_mode');
+        $parentPortalEnabled = Setting::enabled('parent_portal', true);
+
+        $backupAgeHours = null;
+        $latestBackupAt = Setting::get('latest_backup_at');
+        if ($latestBackupAt) {
+            try {
+                $backupAgeHours = Carbon::parse((string) $latestBackupAt)->diffInHours(now());
+            } catch (\Throwable) {
+                $backupAgeHours = null;
+            }
+        }
+
+        $alerts = [];
+
+        if ($backupAgeHours === null || $backupAgeHours >= 72) {
+            $alerts[] = [
+                'id' => 'backup-stale',
+                'title' => 'Backup freshness is critical',
+                'message' => $backupAgeHours === null
+                    ? 'No valid backup timestamp was found in system settings.'
+                    : "Last backup is {$backupAgeHours} hours old.",
+                'severity' => 'critical',
+            ];
+        } elseif ($backupAgeHours >= 24) {
+            $alerts[] = [
+                'id' => 'backup-warning',
+                'title' => 'Backup freshness requires attention',
+                'message' => "Last backup is {$backupAgeHours} hours old.",
+                'severity' => 'warning',
+            ];
+        }
+
+        if ($riskAuditLogsToday >= 10) {
+            $alerts[] = [
+                'id' => 'audit-risk',
+                'title' => 'High audit risk activity today',
+                'message' => "{$riskAuditLogsToday} high-risk audit events were detected.",
+                'severity' => 'critical',
+            ];
+        } elseif ($riskAuditLogsToday >= 4) {
+            $alerts[] = [
+                'id' => 'audit-risk',
+                'title' => 'Audit risk activity needs review',
+                'message' => "{$riskAuditLogsToday} high-risk audit events were detected.",
+                'severity' => 'warning',
+            ];
+        }
+
+        if ($inactiveUsers >= 20) {
+            $alerts[] = [
+                'id' => 'inactive-users',
+                'title' => 'Inactive account backlog is high',
+                'message' => "{$inactiveUsers} accounts are currently inactive.",
+                'severity' => 'warning',
+            ];
+        }
+
+        if ($maintenanceMode) {
+            $alerts[] = [
+                'id' => 'maintenance',
+                'title' => 'System is currently in maintenance mode',
+                'message' => 'Only authorized users should be making configuration changes.',
+                'severity' => 'warning',
+            ];
+        }
+
+        if ($alerts === []) {
+            $alerts[] = [
+                'id' => 'super-admin-stable',
+                'title' => 'System governance is stable',
+                'message' => 'Backups, account governance, and audit risk are within target thresholds.',
+                'severity' => 'info',
+            ];
+        }
+
+        $auditTrendByDay = AuditLog::query()
+            ->whereDate('created_at', '>=', now()->subDays(6)->toDateString())
+            ->selectRaw('DATE(created_at) as day, count(*) as total')
+            ->groupBy('day')
+            ->orderBy('day')
+            ->pluck('total', 'day');
+
+        $auditTrendPoints = collect(range(6, 0, -1))
+            ->map(function (int $daysAgo) use ($auditTrendByDay): array {
+                $day = now()->subDays($daysAgo)->toDateString();
+
+                return [
+                    'label' => now()->subDays($daysAgo)->format('M d'),
+                    'value' => (int) ($auditTrendByDay[$day] ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
+
         return Inertia::render('super_admin/dashboard', [
-            'metrics' => [
-                'total_users' => (int) User::count(),
-                'staff_users' => (int) collect($roleTotals)->only($staffRoles)->sum(),
-                'active_users' => (int) User::query()->where('is_active', true)->count(),
-                'announcements' => (int) Announcement::count(),
-                'audit_logs_today' => (int) AuditLog::query()->whereDate('created_at', now()->toDateString())->count(),
-                'maintenance_mode' => Setting::enabled('maintenance_mode'),
-                'parent_portal_enabled' => Setting::enabled('parent_portal', true),
-                'latest_backup_at' => Setting::get('latest_backup_at'),
+            'kpis' => [
+                [
+                    'id' => 'system-health',
+                    'label' => 'System Health',
+                    'value' => $maintenanceMode ? 'Maintenance Mode' : 'Operational',
+                    'meta' => $parentPortalEnabled ? 'Parent portal enabled' : 'Parent portal disabled',
+                ],
+                [
+                    'id' => 'account-governance',
+                    'label' => 'Account Governance',
+                    'value' => "{$activeUsers} / {$totalUsers}",
+                    'meta' => 'Active user accounts',
+                ],
+                [
+                    'id' => 'audit-risk',
+                    'label' => 'Audit Risk (Today)',
+                    'value' => $riskAuditLogsToday,
+                    'meta' => "{$auditLogsToday} total audit events",
+                ],
+                [
+                    'id' => 'backup-freshness',
+                    'label' => 'Backup Freshness',
+                    'value' => $backupAgeHours === null ? 'Unknown' : "{$backupAgeHours}h",
+                    'meta' => $latestBackupAt ? (string) $latestBackupAt : 'No backup timestamp',
+                ],
             ],
-            'role_distribution' => $roleDistribution,
-            'recent_logs' => $recentLogs,
+            'alerts' => array_values($alerts),
+            'trends' => [
+                [
+                    'id' => 'role-distribution',
+                    'label' => 'Role Distribution',
+                    'summary' => 'Current user count by role',
+                    'points' => array_map(function (array $point): array {
+                        return [
+                            'label' => $point['label'],
+                            'value' => $point['count'],
+                        ];
+                    }, $roleDistributionPoints),
+                ],
+                [
+                    'id' => 'audit-activity',
+                    'label' => 'Audit Activity (Last 7 Days)',
+                    'summary' => 'Daily volume of recorded audit events',
+                    'points' => $auditTrendPoints,
+                ],
+            ],
+            'action_links' => [
+                [
+                    'id' => 'manage-users',
+                    'label' => 'Open User Manager',
+                    'href' => route('super_admin.user_manager'),
+                ],
+                [
+                    'id' => 'view-audit-logs',
+                    'label' => 'Review Audit Logs',
+                    'href' => route('super_admin.audit_logs'),
+                ],
+                [
+                    'id' => 'open-system-settings',
+                    'label' => 'Open System Settings',
+                    'href' => route('super_admin.system_settings'),
+                ],
+            ],
         ]);
-    }
-
-    private function targetLabel(?string $modelType, ?int $modelId): string
-    {
-        $modelName = $modelType ? class_basename($modelType) : 'System';
-        $suffix = $modelId ? " #{$modelId}" : '';
-
-        return "{$modelName}{$suffix}";
     }
 }

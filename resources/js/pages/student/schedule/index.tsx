@@ -18,87 +18,27 @@ const END_HOUR = 17;
 const HOUR_HEIGHT = 72;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-export default function Schedule() {
-    const scheduleItems = [
-        {
-            day: 'Monday',
-            start: '08:00',
-            end: '09:00',
-            title: 'Mathematics 7',
-            teacher: 'Mr. Arthur Santos',
-            type: 'class',
-        },
-        {
-            day: 'Tuesday',
-            start: '08:00',
-            end: '09:00',
-            title: 'Mathematics 7',
-            teacher: 'Mr. Arthur Santos',
-            type: 'class',
-        },
-        {
-            day: 'Wednesday',
-            start: '08:00',
-            end: '09:00',
-            title: 'Mathematics 7',
-            teacher: 'Mr. Arthur Santos',
-            type: 'class',
-        },
-        {
-            day: 'Thursday',
-            start: '08:00',
-            end: '09:00',
-            title: 'Mathematics 7',
-            teacher: 'Mr. Arthur Santos',
-            type: 'class',
-        },
-        {
-            day: 'Friday',
-            start: '08:00',
-            end: '09:00',
-            title: 'Values Education',
-            teacher: 'Ms. Venus Cruz',
-            type: 'advisory',
-        },
-        {
-            day: 'Monday',
-            start: '10:30',
-            end: '11:30',
-            title: 'Science 7',
-            teacher: 'Ms. Clara Oswald',
-            type: 'class',
-        },
-        {
-            day: 'Tuesday',
-            start: '10:30',
-            end: '11:30',
-            title: 'Science 7',
-            teacher: 'Ms. Clara Oswald',
-            type: 'class',
-        },
-        {
-            day: 'Wednesday',
-            start: '10:30',
-            end: '11:30',
-            title: 'Science 7',
-            teacher: 'Ms. Clara Oswald',
-            type: 'class',
-        },
-        {
-            day: 'Thursday',
-            start: '10:30',
-            end: '11:30',
-            title: 'Science 7',
-            teacher: 'Ms. Clara Oswald',
-            type: 'class',
-        },
-    ];
+type ScheduleItem = {
+    day: string;
+    start: string;
+    end: string;
+    title: string;
+    teacher: string;
+    type: 'class' | 'advisory';
+};
 
-    const breakItems = [
-        { label: 'Flag Ceremony', start: '07:00', end: '08:00' },
-        { label: 'Recess', start: '10:00', end: '10:30' },
-        { label: 'Lunch Break', start: '12:00', end: '13:00' },
-    ];
+type BreakItem = {
+    label: string;
+    start: string;
+    end: string;
+};
+
+interface Props {
+    schedule_items: ScheduleItem[];
+    break_items: BreakItem[];
+}
+
+export default function Schedule({ schedule_items, break_items }: Props) {
 
     const timeToMinutes = (time: string) => {
         const [hours, minutes] = time.split(':').map(Number);
@@ -185,7 +125,7 @@ export default function Schedule() {
                                             key={day}
                                             className="relative flex-1 border-r last:border-r-0"
                                         >
-                                            {breakItems.map((breakItem) => (
+                                            {break_items.map((breakItem) => (
                                                 <div
                                                     key={`${day}-${breakItem.label}`}
                                                     className="absolute inset-x-0 border-y bg-muted/40"
@@ -205,13 +145,13 @@ export default function Schedule() {
                                                 </div>
                                             ))}
 
-                                            {scheduleItems
+                                            {schedule_items
                                                 .filter(
                                                     (item) => item.day === day,
                                                 )
                                                 .map((item) => (
                                                     <div
-                                                        key={`${day}-${item.start}-${item.title}`}
+                                                        key={`${day}-${item.start}-${item.title}-${item.teacher}`}
                                                         className={cn(
                                                             'absolute right-1 left-1 z-20 rounded-md border px-2 py-1.5 shadow-sm',
                                                             item.type ===

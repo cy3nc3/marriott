@@ -3,13 +3,6 @@ import { Heart, Info, ShieldCheck, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
     Table,
     TableBody,
     TableCell,
@@ -28,56 +21,43 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Grades() {
-    const subjectRows = [
-        {
-            subject: 'Mathematics 7',
-            q1: '86',
-            q2: '88',
-            q3: '-',
-            q4: '-',
-            final: '-',
-        },
-        {
-            subject: 'English 7',
-            q1: '85',
-            q2: '87',
-            q3: '-',
-            q4: '-',
-            final: '-',
-        },
-        {
-            subject: 'Science 7',
-            q1: '84',
-            q2: '85',
-            q3: '-',
-            q4: '-',
-            final: '-',
-        },
-        {
-            subject: 'Filipino 7',
-            q1: '88',
-            q2: '89',
-            q3: '-',
-            q4: '-',
-            final: '-',
-        },
-        {
-            subject: 'Araling Panlipunan 7',
-            q1: '87',
-            q2: '88',
-            q3: '-',
-            q4: '-',
-            final: '-',
-        },
-    ];
+type SubjectRow = {
+    subject: string;
+    q1: string;
+    q2: string;
+    q3: string;
+    q4: string;
+    final: string;
+};
 
-    const conductRows = [
-        { coreValue: 'Maka-Diyos', q1: 'AO', q2: 'AO', q3: '-', q4: '-' },
-        { coreValue: 'Makatao', q1: 'AO', q2: 'AO', q3: '-', q4: '-' },
-        { coreValue: 'Makakalikasan', q1: 'SO', q2: 'AO', q3: '-', q4: '-' },
-        { coreValue: 'Makabansa', q1: 'AO', q2: 'AO', q3: '-', q4: '-' },
-    ];
+type ConductRow = {
+    core_value: string;
+    q1: string;
+    q2: string;
+    q3: string;
+    q4: string;
+};
+
+interface Props {
+    summary: {
+        general_average: string | null;
+        trend_text: string;
+    };
+    context: {
+        school_year: string | null;
+        adviser_name: string | null;
+        adviser_remarks: string | null;
+    };
+    subject_rows: SubjectRow[];
+    conduct_rows: ConductRow[];
+}
+
+export default function Grades({
+    summary,
+    context,
+    subject_rows,
+    conduct_rows,
+}: Props) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -90,10 +70,12 @@ export default function Grades() {
                             <CardTitle>Current General Average</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <p className="text-3xl font-semibold">87.40</p>
+                            <p className="text-3xl font-semibold">
+                                {summary.general_average ?? '-'}
+                            </p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <TrendingUp className="size-4 text-green-600" />
-                                <span>+1.2 compared to last quarter</span>
+                                <span>{summary.trend_text}</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -103,20 +85,9 @@ export default function Grades() {
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <CardTitle>Report Context</CardTitle>
                                 <div className="flex items-center gap-2">
-                                    <Select defaultValue="sy-2025-2026">
-                                        <SelectTrigger className="w-full sm:w-40">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="sy-2025-2026">
-                                                SY 2025-2026
-                                            </SelectItem>
-                                            <SelectItem value="sy-2024-2025">
-                                                SY 2024-2025
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <Badge variant="outline">Live</Badge>
+                                    <Badge variant="outline">
+                                        {context.school_year ?? 'No school year'}
+                                    </Badge>
                                 </div>
                             </div>
                         </CardHeader>
@@ -124,6 +95,9 @@ export default function Grades() {
                             <p className="text-sm text-muted-foreground">
                                 Grades are shown as released by subject teachers
                                 and verified by the registrar.
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Adviser: {context.adviser_name ?? '-'}
                             </p>
                         </CardContent>
                     </Card>
@@ -171,7 +145,17 @@ export default function Grades() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {subjectRows.map((row) => (
+                                        {subject_rows.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell
+                                                    className="py-8 text-center text-sm text-muted-foreground"
+                                                    colSpan={6}
+                                                >
+                                                    No grade records available.
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            subject_rows.map((row) => (
                                             <TableRow key={row.subject}>
                                                 <TableCell className="pl-6 font-medium">
                                                     {row.subject}
@@ -192,7 +176,8 @@ export default function Grades() {
                                                     {row.final}
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </CardContent>
@@ -234,10 +219,10 @@ export default function Grades() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {conductRows.map((row) => (
-                                            <TableRow key={row.coreValue}>
+                                        {conduct_rows.map((row) => (
+                                            <TableRow key={row.core_value}>
                                                 <TableCell className="pl-6 font-medium">
-                                                    {row.coreValue}
+                                                    {row.core_value}
                                                 </TableCell>
                                                 <TableCell className="border-l text-center">
                                                     {row.q1}
