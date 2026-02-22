@@ -1,374 +1,565 @@
 # HANDOFF SUMMARY
 
-Last updated: 2026-02-21
-Project path: `/home/lomonol/projects/marriott`
+Last updated: 2026-02-22
+Project path: `C:\Users\jadeg\Documents\Capstone\marriott`
 Primary branch target: `main`
+Latest pushed commit: `d9d96d5`
 
 ---
 
-## 1. Product Context (Must Preserve)
+## 1. Current System State (Executive Snapshot)
 
-This is a school system for a DepEd-recognized school in the Philippines.
+This repository is now a role-based Laravel + Inertia school operations system with:
 
-Core constraint: avoid double encoding because DepEd LIS remains the primary enrollment source.
+1. Full role dashboards wired to chart-based trend payloads.
+2. Core backend wiring completed for Super Admin, Admin, Finance, Registrar, Teacher, Student, and Parent active modules.
+3. Strong UI consistency pass across role pages using shadcn components and common layout patterns.
+4. Operationally tested core flows for super admin governance, registrar intake, finance cashiering, and teacher grading.
 
-### Enrollment/LIS model in this project
+High-confidence areas:
 
-1. Registrar encodes a minimal enrollment intake first (queue/floating transaction model).
-2. Cashier processes payment after registrar intake.
-3. SF1 upload later auto-enriches student records by `LRN`.
-4. SF1 contains school year; uploader should not ask for school year manually.
-5. LIS reconciliation should be automatic, not manual row-by-row matching.
+1. Super admin governance modules are functionally wired.
+2. Registrar core workflow (directory + SF1 + intake + remedial) is wired.
+3. Finance operational modules are wired.
+4. Teacher grading/advisory/schedule modules are wired.
+5. Student and Parent feature pages are consistent and wired.
 
----
-
-## 2. Non-Negotiable Product/UX Instructions From User
-
-These must be followed in future development unless user changes direction.
-
-1. Use shadcn components across the project.
-2. Avoid custom CSS hacks against shadcn internals.
-3. Use Tailwind utilities mainly for layout/positioning and page-level styling.
-4. Keep production-style pages (not step-by-step visualization UIs).
-5. Keep UI simple, low-scroll, and staff-efficient.
-6. Keep code syntax beginner-friendly/readable.
-7. Remove unnecessary card header descriptions in production pages.
-8. Keep visual consistency across all modules.
-
-### Confirmed functional decisions
-
-1. Enrollment queue removes entries once payment is completed.
-2. LIS-match concern sits in Student Directory flow.
-3. SF1 upload is a direct file-selection button pattern.
-4. Cashier panel is one-page flow.
-5. Transaction processing uses a confirmation dialog.
-6. Product inventory is pricing-only (no stock management).
-7. Discount programs table uses actions (`Edit`, `Delete`) instead of status.
-8. Date-range display is `MM/DD/YYYY`.
-
-### Explicitly deferred/ignored for now
-
-1. Registrar batch promotion
-2. Registrar permanent records
-3. Registrar student departure
-4. Admin DepEd reports
-5. Admin SF9 generator
-6. Finance print/export workflows (deferred backlog)
+Deferred areas remain intentionally out of active scope (see Section 15).
 
 ---
 
-## 3. Tech Stack + Structure Snapshot
+## 2. Product Constraints and Decisions to Preserve
 
-- Laravel 12 + Inertia React + TypeScript + Tailwind v4 + shadcn + Radix + Lucide
-- Backend: role controllers under `app/Http/Controllers/...`
-- Frontend pages: `resources/js/pages/...`
-- Shared UI: `resources/js/components/ui/...`
-- Layout wrappers (global UI behavior):
-  - `resources/js/layouts/app/app-sidebar-layout.tsx`
-  - `resources/js/layouts/app/app-header-layout.tsx`
-  - `resources/js/layouts/auth/auth-simple-layout.tsx`
-  - `resources/js/layouts/auth/auth-split-layout.tsx`
-  - `resources/js/layouts/auth/auth-card-layout.tsx`
-- Theme tokens and global CSS: `resources/css/app.css`
-- shadcn project config: `components.json`
+### 2.1 Core Product Constraint
 
----
+Avoid duplicate encoding because DepEd LIS is the primary external source.
 
-## 4. Major Implemented Work (Functional)
+### 2.2 Enrollment/LIS Workflow Model
 
-## 4.1 Registrar
+1. Registrar performs minimal intake first.
+2. Cashier handles payment after intake.
+3. SF1 upload enriches student data via `LRN` matching.
+4. SF1 carries school-year context; uploader should not prompt for separate school-year selection.
+5. Reconciliation should be system-driven, not manual one-by-one matching.
 
-Implemented core flows (backend + frontend wiring):
+### 2.3 UX/Engineering Directives
 
-- Student Directory + SF1 upload + auto LRN reconciliation
-- Enrollment queue intake (minimal fields), edit/delete actions
-- Remedial entry workflows
+1. Use shadcn components as the default UI building blocks.
+2. Avoid custom style overrides of shadcn internals unless required.
+3. Keep layouts operational, simple, and low-scroll for staff usage.
+4. Keep role modules visually consistent.
+5. Keep implementation syntax readable and beginner-friendly when possible.
 
-Primary touched areas include:
+### 2.4 Confirmed Behavioral Decisions
 
-- `app/Http/Controllers/Registrar/StudentDirectoryController.php`
-- `app/Http/Controllers/Registrar/EnrollmentController.php`
-- `app/Http/Controllers/Registrar/RemedialEntryController.php`
-- `resources/js/pages/registrar/student-directory/index.tsx`
-- `resources/js/pages/registrar/enrollment/index.tsx`
-- `resources/js/pages/registrar/remedial-entry/index.tsx`
-- `routes/roles/registrar.php`
-
-## 4.2 Finance
-
-Implemented and wired core finance modules:
-
-1. Cashier Panel
-2. Student Ledgers
-3. Transaction History
-4. Fee Structure
-5. Product Inventory (pricing only)
-6. Discount Manager
-7. Daily Reports
-8. Finance Dashboard
-
-Primary touched areas include:
-
-- `resources/js/pages/finance/cashier-panel/index.tsx`
-- `resources/js/pages/finance/student-ledgers/index.tsx`
-- `resources/js/pages/finance/transaction-history/index.tsx`
-- `resources/js/pages/finance/fee-structure/index.tsx`
-- `resources/js/pages/finance/product-inventory/index.tsx`
-- `resources/js/pages/finance/discount-manager/index.tsx`
-- `resources/js/pages/finance/daily-reports/index.tsx`
-- `resources/js/pages/finance/dashboard.tsx`
-- finance controllers + requests + models under `app/Http/Controllers/Finance`, `app/Http/Requests/Finance`, `app/Models`
-
-## 4.3 Teacher
-
-Implemented significant teacher backend wiring:
-
-1. Teacher Dashboard (data-driven)
-2. Teacher Schedule (data-driven)
-3. Teacher Grading Sheet (rubrics/assessments/scores/finalization)
-4. Advisory Board progression with conduct-related data support (in progress/refined over sessions)
-
-Primary touched areas include:
-
-- `app/Http/Controllers/Teacher/DashboardController.php`
-- `app/Http/Controllers/Teacher/ScheduleController.php`
-- `app/Http/Controllers/Teacher/GradingSheetController.php`
-- `app/Http/Controllers/Teacher/AdvisoryBoardController.php`
-- `app/Http/Requests/Teacher/*`
-- `app/Models/ConductRating.php`
-- `database/migrations/2026_02_21_163605_create_conduct_ratings_table.php`
-- `resources/js/pages/teacher/dashboard.tsx`
-- `resources/js/pages/teacher/schedule/index.tsx`
-- `resources/js/pages/teacher/grading-sheet/index.tsx`
-- `resources/js/pages/teacher/advisory-board/index.tsx`
-- `routes/roles/teacher.php`
-
-## 4.4 Student + Parent
-
-Implemented visualization/wiring for:
-
-- Student schedule + grades + dashboard
-- Parent schedule + grades + billing information + dashboard
-
-Primary touched areas include:
-
-- `resources/js/pages/student/*`
-- `resources/js/pages/parent/*`
-- Role routes in:
-  - `routes/roles/student.php`
-  - `routes/roles/parent.php`
-
-## 4.5 Dashboard Analytics (Decision-support direction)
-
-Implemented/iterated role dashboards with decision-support analytics structures and chart support.
-
-Key shared file:
-
-- `resources/js/components/dashboard/analytics-panel.tsx`
-- `resources/js/types/dashboard.ts`
-
-Role dashboard files touched include:
-
-- `resources/js/pages/super_admin/dashboard.tsx`
-- `resources/js/pages/admin/dashboard.tsx`
-- `resources/js/pages/registrar/dashboard.tsx`
-- `resources/js/pages/finance/dashboard.tsx`
-- `resources/js/pages/teacher/dashboard.tsx`
-- `resources/js/pages/student/dashboard.tsx`
-- `resources/js/pages/parent/dashboard.tsx`
-
-Backend role controllers touched include:
-
-- `app/Http/Controllers/SuperAdmin/DashboardController.php`
-- `app/Http/Controllers/Admin/DashboardController.php`
-- `app/Http/Controllers/Registrar/DashboardController.php`
-- `app/Http/Controllers/Finance/DashboardController.php`
-- `app/Http/Controllers/Teacher/DashboardController.php`
-- `app/Http/Controllers/Student/*`
-- `app/Http/Controllers/ParentPortal/*`
+1. Enrollment queue entries clear out after successful payment progression.
+2. SF1 upload uses direct file selection workflow.
+3. Cashier panel uses single-page flow with explicit action confirmation.
+4. Product inventory is pricing-focused (no stock management in current scope).
+5. Discount registry uses edit/delete actions rather than complex state machine UI.
+6. Date range displays use `MM/DD/YYYY` presentation in relevant pages.
 
 ---
 
-## 5. UI System Refinements Already Implemented
+## 3. Stack and Architecture Snapshot
 
-## 5.1 Global card spacing behavior (without editing shadcn base card)
+### 3.1 Backend
 
-Implemented via layout-level selectors (not by editing `resources/js/components/ui/card.tsx`):
+1. Laravel 12 (`laravel/framework` 12.x)
+2. PHP 8.x
+3. Fortify auth (`laravel/fortify`)
+4. Wayfinder route generation (`laravel/wayfinder`)
+5. PostgreSQL as current configured DB engine
 
-- card top padding removed globally
-- card internal gap reduced
-- card header border-bottom spacing refined
-- conditional header gap behavior (depends on presence of description/`<p>`/icon)
+### 3.2 Frontend
 
-Applied in app/auth layout wrappers listed above.
+1. Inertia v2 (`inertiajs/inertia-laravel`, `@inertiajs/react`)
+2. React 19 + TypeScript
+3. Tailwind CSS v4
+4. shadcn + Radix UI component composition
+5. Recharts-backed chart rendering via shared chart wrapper components
 
-## 5.2 Theme migration to shadcn Create settings (global token-driven)
+### 3.3 Testing/Quality
 
-User-provided Create settings applied:
+1. Pest/PHPUnit feature tests
+2. TypeScript check via `npm run types`
+3. Formatting via Prettier and Pint
 
-- Component Library: Radix UI
-- Style: Nova
-- Base Color: Gray
-- Theme: Blue
-- Icon Library: Lucide
-- Font: Figtree
-- Radius: Default
-- Menu Color: Default
-- Menu Accent: Subtle
+### 3.4 Routing Pattern
 
-Actual project updates:
-
-1. `components.json`
-   - `style: "radix-nova"`
-   - `tailwind.baseColor: "gray"`
-2. `resources/css/app.css`
-   - Added Figtree import
-   - Set `--font-sans` to Figtree
-   - Replaced root + dark color tokens with Nova/Blue token set from shadcn create/init response
-
-Important: this project should now prefer token-driven theming and avoid one-off hardcoded color overrides when possible.
+1. `/dashboard` dispatches by role in `routes/web.php`.
+2. Role modules are split in `routes/roles/*.php`.
+3. Middleware aliases/guards are configured in `bootstrap/app.php`.
 
 ---
 
-## 6. Routes and Role Access Notes
+## 4. Role Coverage Matrix
 
-Role dashboard routing and role-specific pages are wired in:
+### 4.1 Super Admin
 
-- `routes/web.php`
-- `routes/roles/*.php`
+Implemented modules:
 
-Wayfinder route generation is part of the workflow; some auth/settings form usage was adjusted previously to stay compatible with generated methods/URLs.
+1. `user-manager`
+2. `audit-logs`
+3. `announcements`
+4. `permissions`
+5. `system-settings`
+6. dashboard
 
----
+### 4.2 Admin
 
-## 7. Testing and Quality Status
+Implemented modules:
 
-Frequent validation commands used throughout implementation:
+1. `academic-controls`
+2. `curriculum-manager`
+3. `section-manager`
+4. `schedule-builder`
+5. `class-lists`
+6. dashboard
 
-1. `npm run -s types`
-2. `npm run build`
-3. `php artisan test --compact <target tests>`
-4. `vendor/bin/pint --dirty --format agent`
+Deferred admin modules:
 
-Role and module tests touched include:
+1. `deped-reports`
+2. `sf9-generator`
 
-- `tests/Feature/DashboardTest.php`
-- `tests/Feature/Auth/AuthenticationTest.php`
-- `tests/Feature/RoleAccessTest.php`
-- `tests/Feature/Admin/AdminFeaturesTest.php`
-- `tests/Feature/Finance/FinanceDashboardTest.php`
-- `tests/Feature/Registrar/RegistrarFeaturesTest.php`
-- `tests/Feature/Teacher/TeacherFeaturesTest.php`
-- `tests/Feature/Parent/*`
-- `tests/Feature/Student/*`
+### 4.3 Registrar
 
-Current smoke status during latest theming/config updates:
+Implemented modules:
 
-- Types: pass
-- Build: pass
-- Targeted feature tests: pass
-- Pint: pass
+1. `student-directory` (+ SF1 upload)
+2. `enrollment`
+3. `remedial-entry`
+4. dashboard
 
----
+Deferred registrar modules:
 
-## 8. Explicit Permission for Future AI on Another Device
+1. `student-departure`
+2. `permanent-records`
+3. `batch-promotion`
 
-This is an explicit operational authorization:
+### 4.4 Finance
 
-**The next AI is allowed to run required setup/install/build/test commands needed to make the project work on that device.**
+Implemented modules:
 
-Allowed and expected commands (as needed):
+1. `cashier-panel`
+2. `student-ledgers`
+3. `transaction-history`
+4. `fee-structure`
+5. `product-inventory`
+6. `discount-manager`
+7. `daily-reports`
+8. dashboard
 
-1. `composer install`
-2. `npm install`
-3. `composer run setup`
-4. Update `.env` database credentials
-5. `composer run setup:finish`
-6. `php artisan migrate --seed --force` (if needed)
-7. `php artisan key:generate`
-8. `npm run dev` or `npm run build`
-9. `php artisan wayfinder:generate --no-interaction` (if route helpers are stale)
-10. `vendor/bin/pint --dirty --format agent`
-11. `php artisan test --compact ...`
+### 4.5 Teacher
 
-Also allowed:
+Implemented modules:
 
-- installing OS/runtime dependencies required for PHP extensions, Composer, Node/NPM, and database client connectivity
-- clearing caches if needed (`php artisan optimize:clear`, etc.)
+1. `schedule`
+2. `grading-sheet`
+3. `advisory-board`
+4. dashboard
 
----
+### 4.6 Student
 
-## 9. Setup Instructions for Another Device (Recommended Sequence)
+Implemented modules:
 
-## 9.1 Prerequisites
+1. `schedule`
+2. `grades`
+3. dashboard
 
-1. PHP 8.2+
-2. Composer
-3. Node + NPM
-4. PostgreSQL (or configured DB engine matching `.env`)
-5. Git
+### 4.7 Parent
 
-## 9.2 First-time bootstrap
+Implemented modules:
 
-1. Clone repo and checkout latest `main`.
-2. Run:
-   - `composer install`
-   - `npm install`
-3. Initialize env:
-   - copy `.env.example` to `.env` (if missing)
-   - configure DB credentials
-4. Run setup scripts:
-   - `composer run setup`
-   - `composer run setup:finish`
-5. Start development:
-   - `composer run dev`
-
-## 9.3 If frontend changes do not appear
-
-1. Run `npm run dev` (or restart it).
-2. If still stale, run `npm run build`.
-
-## 9.4 If route helpers mismatch
-
-Run:
-
-- `php artisan wayfinder:generate --no-interaction`
-
-Then rebuild or rerun type-check.
+1. `schedule`
+2. `grades`
+3. `billing-information`
+4. dashboard
 
 ---
 
-## 10. Required First Actions for Next AI Session
+## 5. Super Admin Work Completed
 
-Before coding, next AI must:
+### 5.1 User Manager
 
-1. Scan codebase structure first (routes/controllers/pages/components).
-2. Identify current conventions from nearby files.
-3. Reuse existing shadcn/UI patterns before creating new structures.
-4. Summarize findings briefly before implementing.
+1. Backend wiring for create/edit/toggle/reset actions.
+2. Pagination adjusted to 15 rows per page.
+3. Footer text pattern standardized to range format (`X-X out of XX`).
+4. Role filter header simplified (removed extra label text).
+5. Edit dialog role selector fixed to show current selected role.
+6. Create/Edit date picker updated to shadcn DOB-style date picker variant.
 
-This instruction is mandatory for continuity.
+### 5.2 Announcements
+
+1. List page refactored to common layout pattern.
+2. Search + priority + roles filter aligned in one row.
+3. Filters and create action moved outside heavy card header usage where applicable.
+4. Added target-role badges per announcement row/card.
+5. Implemented fallback behavior: no selected roles implies announcement targets all roles.
+6. Backend wiring for create/edit/delete and filtering validated.
+
+### 5.3 Audit Logs
+
+1. Refactored listing layout for consistency.
+2. `target` column output made more understandable and concise.
+3. Added details action behavior.
+4. Enhanced details visibility for change context (including change-oriented action descriptions).
+5. Search/filter controls aligned on same row.
+6. Date filtering improved to date-range picker style behavior.
+
+### 5.4 Permissions
+
+1. Refactored page to system-wide common layout patterns.
+2. Maintained functional behavior while improving consistency.
+
+### 5.5 System Settings
+
+1. Backend wired for settings save + toggles + backup actions.
+2. Maintenance mode and parent portal switches are functional.
+3. Backup and restore actions confirmed working.
+4. Actions are logged in audit layer.
+5. UI polished to match role standards:
+    - card header border usage standardized
+    - subtitle clutter removed from main card headers
+    - backup action presentation improved (`Configure` action button)
+
+### 5.6 Dashboard
+
+1. Super admin dashboard trends fully chart-backed.
+2. `role-distribution` set to bar chart.
+3. `audit-activity` set to line chart.
 
 ---
 
-## 11. Recommended Next Work (Priority Order)
+## 6. Admin Work Completed
 
-1. Complete/verify teacher advisory lifecycle end-to-end
-   - conduct/values encode, lock/finalization behavior, tests
-2. Hardening pass for dashboards
-   - verify role payload isolation and alert threshold behavior in edge cases
-3. Resume deferred finance backlog when requested
-   - print/export + void/refund workflows
-4. Resume deferred registrar/admin modules only when explicitly re-opened
-5. Perform a cross-role UX polish pass under Nova theme tokens
-   - remove remaining page-level hardcoded color overrides where token classes are sufficient
+### 6.1 Academic Controls
+
+UI/UX iterations completed:
+
+1. Start date/end date split clearly.
+2. Hover-only edit actions removed in favor of explicit edit button pattern.
+3. Edit dates button repositioned multiple times for clarity and consistency.
+4. Current quarter display moved beside active school year based on user direction.
+5. Action placement revised to avoid collision with simulation controls.
+6. Quarter timeline card removed when deemed unnecessary.
+7. Status badge placement updated to sit next to active school year label.
+
+### 6.2 Curriculum Manager
+
+1. Refactored toward common role layout.
+2. Header bar removed per direction.
+3. Tabs/actions placement aligned with requested positions.
+4. Avoided wrapping primary table in extra unnecessary card as directed.
+
+### 6.3 Section Manager and Class Lists
+
+1. Refactored to follow curriculum manager/common layout patterns.
+2. Admin class list page standardized.
+
+### 6.4 Schedule Builder
+
+1. Preserved Google Calendar-like timeline interaction and duration-based block heights.
+2. Aesthetic refinement aligned to system visual language.
+3. Protected core scheduling behavior while refactoring UI.
+4. Runtime break (`CardHeader is not defined`) encountered during iterations and resolved.
+
+### 6.5 Dashboard
+
+1. Admin trend charts migrated to shadcn/recharts-driven unified renderer.
+2. Enrollment forecast changed to area chart with clearer forecast visualization.
+3. Grade-level enrollment chart upgraded to male/female grouped bars with total context.
 
 ---
 
-## 12. Important Continuity Notes
+## 7. Registrar Work Completed
 
-1. Theming should now be token-first (Nova/Blue/Gray/Figtree).
-2. Avoid reintroducing hardcoded color overrides unless specifically requested.
-3. Keep production layout consistency and low-scroll operator workflows.
-4. Keep this handoff updated at every major module completion.
+### 7.1 Student Directory
 
+1. Backend wiring for directory data retrieval.
+2. SF1 upload handling integrated.
+3. Auto-enrichment/reconciliation via LRN flow implemented.
+4. Page layout aligned with common role pattern.
+
+### 7.2 Enrollment
+
+1. Queue/intake create/edit/delete wired.
+2. Flow aligned with registrar -> cashier handoff model.
+3. Layout and controls standardized.
+
+### 7.3 Remedial Entry
+
+1. Remedial encoding workflow wired end-to-end.
+2. Input, context selection, and table interactions standardized.
+3. UI spacing and card consistency updates applied.
+
+### 7.4 Dashboard
+
+1. Removed queue aging bucket trend as requested.
+2. LIS Sync Distribution retained and charted as pie.
+3. Replaced secondary trend with payment method usage mix.
+4. LIS legend color semantics refined:
+    - synced = main blue
+    - pending = lighter tone
+    - errors = red
+
+---
+
+## 8. Finance Work Completed
+
+### 8.1 Cashier Panel
+
+1. Backend transaction posting wired.
+2. Confirmation action behavior retained.
+3. Ledger and transaction integration validated.
+
+### 8.2 Student Ledgers / Transaction History / Daily Reports
+
+1. Core listing and filtering workflows wired.
+2. Data displayed from backend rather than mock UI.
+3. Layout consistency refactor applied.
+
+### 8.3 Fee Structure / Product Inventory / Discount Manager
+
+1. CRUD and page wiring integrated.
+2. Discount manager registry actions standardized.
+3. Product inventory remains pricing-only by product decision.
+
+### 8.4 Dashboard
+
+1. `daily-collection` trend now line chart with chart payload.
+2. `payment-mode-mix` trend now pie chart with chart payload.
+3. Trend rendering now consistent with shared chart system.
+
+---
+
+## 9. Teacher Work Completed
+
+### 9.1 Schedule
+
+1. Teacher schedule page aligned with admin schedule-view styling pattern.
+2. Preserved schedule behavior and data model.
+
+### 9.2 Grading Sheet
+
+1. Rubric update, assessment creation, and score submission workflows wired.
+2. Submission/finalization actions operational.
+3. Runtime error fixed:
+    - resolved maximum update depth loop in page state synchronization.
+4. Select controls hardened to avoid invalid controlled-value edge conditions.
+
+### 9.3 Advisory Board
+
+1. Data-driven advisory board improvements and consistency refactor.
+2. Conduct-related flow and dashboard relationships retained.
+
+### 9.4 Dashboard
+
+1. All teacher trends chart-backed.
+2. `today-classes` trend converted from list to bar chart (duration minutes).
+3. `pending-grade-rows-by-class` remains bar chart.
+
+---
+
+## 10. Student and Parent Work Completed
+
+### 10.1 Student
+
+1. Schedule and grades views refactored for consistency with role patterns.
+2. Dashboard is learning-focused and excludes finance-centric metrics.
+3. `recent-score-trend` line chart maintained.
+4. `upcoming-academic-items` converted to bar chart (count by day).
+
+### 10.2 Parent
+
+1. Schedule, grades, and billing pages refactored and wired.
+2. Dashboard child-context summary retained.
+3. Payment and dues trends remain chart-backed.
+
+---
+
+## 11. Dashboard Analytics and Charting Standardization
+
+Major dashboard analytics work completed across roles:
+
+1. Unified trend rendering through `resources/js/components/dashboard/analytics-panel.tsx`.
+2. Added/standardized support for `line`, `bar`, `area`, and `pie` displays.
+3. Added shadcn chart wrapper component usage via `resources/js/components/ui/chart.tsx`.
+4. Replaced list-only trends with chart payloads in controllers where needed.
+5. Forecast visualization improvements:
+    - area chart with gradient styling
+    - forecast differentiation using dashed/styled series
+6. Tooltip improvements:
+    - dot indicator defaults
+    - total context for grade-level enrollment
+    - duplicate forecast tooltip entry issue fixed
+7. Chart spacing issue hardening:
+    - addressed left-gap/layout behavior by container/axis tuning in shared chart rendering
+
+Additional chart color directives implemented:
+
+1. LIS pie colors mapped to semantic status colors.
+2. Payment method mix colors differentiated across methods.
+
+---
+
+## 12. Cross-Role UI Consistency Work
+
+### 12.1 Sidebar and Navigation
+
+1. Fixed collapsed sidebar behavior so academic controls dropdown links remain accessible.
+2. Navigation structure aligned with current role modules.
+
+### 12.2 Card Layout Standardization
+
+Implemented on non-dashboard role pages:
+
+1. Non-table cards adjusted for tighter consistent gaps (`gap-2` policy).
+2. Description-style headers adjusted to tighter header gap (`gap-1` policy).
+3. Visual separation under bordered headers reinforced with `CardContent` top padding.
+4. Padding was tuned from `pt-2` to `pt-6` based on user feedback for visible spacing.
+
+### 12.3 System Settings Card Pattern Alignment
+
+1. Card headers use `border-b` consistently.
+2. Unnecessary subtitle paragraphs removed from major settings cards.
+3. Backup card action layout refined to match other operational cards.
+
+---
+
+## 13. Backend Wiring Status (Functional)
+
+### 13.1 Confirmed Working Through Development + Validation
+
+1. Super admin user manager CRUD-style operations + state toggles.
+2. Announcement CRUD and audience targeting behavior.
+3. Audit logs listing and details interaction.
+4. System settings save + maintenance/portal toggles.
+5. Backup/restore system actions.
+6. Registrar enrollment queue operations.
+7. SF1 upload + student directory integration.
+8. Teacher grading-sheet rubric/assessment/score flows.
+9. Finance cashier posting and ledger-linked operations.
+
+### 13.2 Manual Validation Notes Confirmed by User
+
+1. Backup and restore actions were run and validated.
+2. Executed actions were logged in audit trail.
+
+---
+
+## 14. Database and Schema Notes
+
+Known additions/usage in this implementation stream include:
+
+1. Conduct ratings data support (`conduct_ratings` migration and model integration).
+2. Super admin feature wiring leveraged settings/audit/announcement persistence.
+3. Registrar/finance/teacher workflows use enrollment, scores, transactions, and related records with active-year scoping patterns.
+
+Operational note:
+
+1. Migrations are required before running newly wired modules.
+2. User has previously run `php artisan migrate` successfully in this stream.
+
+---
+
+## 15. Deferred Modules (Intentionally Not Prioritized)
+
+These remain deferred unless explicitly re-opened:
+
+1. Admin `deped-reports`
+2. Admin `sf9-generator`
+3. Registrar `student-departure`
+4. Registrar `permanent-records`
+5. Registrar `batch-promotion`
+6. Additional print/export-heavy finance extensions
+
+---
+
+## 16. Testing and Validation Summary
+
+### 16.1 Commands frequently used and required after edits
+
+1. `npm run types`
+2. `npx prettier --write <touched files>`
+3. `vendor/bin/pint --dirty --format agent`
+4. `php artisan test --compact <targeted tests>`
+
+### 16.2 Test Suites actively touched in this implementation stream
+
+1. `tests/Feature/DashboardTest.php`
+2. `tests/Feature/Admin/AdminFeaturesTest.php`
+3. `tests/Feature/Registrar/RegistrarFeaturesTest.php`
+4. `tests/Feature/Finance/FinanceDashboardTest.php`
+5. `tests/Feature/Teacher/TeacherFeaturesTest.php`
+6. `tests/Feature/Student/StudentFeaturesTest.php`
+7. `tests/Feature/Parent/ParentFeaturesTest.php`
+8. `tests/Feature/SuperAdmin/*` modules where applicable
+
+### 16.3 Latest verified runs in recent iterations
+
+1. Type checks passed.
+2. Pint formatting passed.
+3. Targeted dashboard feature tests passed.
+4. Targeted teacher dashboard/grading tests passed.
+
+---
+
+## 17. Tooling and Environment Notes
+
+1. Composer scripts support first-time setup and dev loop (`setup`, `setup:finish`, `dev`).
+2. Wayfinder generation is part of route-helper consistency workflow.
+3. MCP-based tooling integration has been used for debugging and documentation lookup.
+
+If UI changes do not appear:
+
+1. ensure `composer run dev` or `npm run dev` is active,
+2. hard-refresh browser,
+3. rebuild via `npm run build` when needed.
+
+---
+
+## 18. Recommended First Steps for Next Session
+
+1. Scan current route/controller/page structure before implementing new changes.
+2. Preserve shadcn-first composition and existing layout conventions.
+3. Keep dashboard trends chart-backed when adding new analytics.
+4. Run required checks after each edit batch.
+5. Continue deferred module work only when explicitly requested.
+
+---
+
+## 19. Suggested Next Priorities
+
+1. Perform final hardening pass of schedule-related views (admin/teacher/student/parent) with regression checks.
+2. Expand feature tests for super admin announcements/audit-log detail scenarios.
+3. Add deeper edge-case tests for dashboard chart payloads by role (empty, partial, and high-volume data).
+4. Re-open deferred registrar/admin modules only upon explicit direction.
+
+---
+
+## 20. File Areas Most Frequently Updated
+
+Backend:
+
+1. `app/Http/Controllers/SuperAdmin/*`
+2. `app/Http/Controllers/Admin/*`
+3. `app/Http/Controllers/Registrar/*`
+4. `app/Http/Controllers/Finance/*`
+5. `app/Http/Controllers/Teacher/*`
+6. `app/Http/Controllers/Student/*`
+7. `app/Http/Controllers/ParentPortal/*`
+
+Frontend:
+
+1. `resources/js/pages/{role}/...`
+2. `resources/js/components/dashboard/*`
+3. `resources/js/components/ui/*`
+4. `resources/js/components/nav-main.tsx`
+
+Tests:
+
+1. `tests/Feature/*Dashboard*`
+2. role-specific feature suites under `tests/Feature/{Role}`
+
+This summary is now the authoritative operational handoff for ongoing system development.

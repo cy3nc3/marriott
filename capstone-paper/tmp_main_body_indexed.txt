@@ -1,0 +1,351 @@
+0080	normal	
+0081	normal	Noted:
+0082	normal	
+0083	normal	November, 2025
+0084	Heading 1	Table of Contents
+0085	normal	
+0086	normal	
+0087	Heading 1	Introduction
+0088	normal	Educational institutions increasingly rely on information systems to sustain efficient operations, ensure data accuracy, and support timely decision-making. However, when school processes are managed through fragmented tools (e.g., separate Excel files, Google Sheets, paper forms, and department-specific records), the organization becomes vulnerable to duplicated encoding, inconsistent records, and delayed reporting—conditions that reduce administrative effectiveness and weaken service delivery to stakeholders.
+0089	normal	The operational value of integrated information systems has been emphasized across literature. According to Shah (2014), management information systems improve accessibility of information, reduce workload, and strengthen reporting quality, particularly in administrative environments where multiple processes depend on shared data. In contrast, fragmented school management information systems often lead institutions to become “data rich but information poor,” meaning that even when data exists, it is difficult to consolidate and use for action because tools are disconnected and outputs are not decision-ready. According to Forrester (2019), this problem occurs when data access is not user-friendly to policymakers and administrators, limiting real institutional learning from records.
+0090	normal	In the Philippine context, modernization efforts have similarly emphasized integration. According to Balcita and Palaoag (2020), core functions such as admission, fees, and assessment must be integrated into one framework to ensure data consistency and reduce redundancy—an argument directly aligned with the realities of many local schools that still rely on manual and semi-digital workflows. 
+0091	Heading 2	Project Context
+0092	normal	Despite the availability of modern digital 
+0093	normal	
+0094	normal	
+0095	normal	
+0096	normal	ntinues to operate through a fragmented ecosystem of independent records—Excel/Google Sheets files, Google Drive storage, paper-based logs, and department-specific tracking methods. This environment forces staff to encode the same student data multiple times and repeatedly verify accuracy across files, increasing delays and risk of inconsistency. 
+0097	normal	
+0098	normal	
+0099	normal	
+0100	normal	Evidence from stakeholder interviews further validates that fragmentation creates coordination problems that cons
+0101	normal	
+0102	normal	
+0103	normal	
+0104	normal	 For instance, the Academic Head explained that departments maintain their own records and the school must merge data manually, which leads to conflicting figures and delays in reporting outputs. 
+0105	normal	
+0106	normal	
+0107	normal	
+0108	normal	 This reinforces the concern raised in international research on data use: according to Schildkamp (2019), schoo
+0109	normal	
+0110	normal	
+0111	normal	
+0112	normal	se consolidated data for decision-making; however, effective data use requires systems that make information accessible and actionable rather than scattered across disconnected sources.
+0113	normal	
+0114	normal	The project context is further shaped by the following operational realities:
+0115	normal	
+0116	normal	Enrollment and student records are updated one-by-one in spreadsheets, requiring repeated checking and cross-referencing across files, especially during periods of high volume. 
+0117	normal	
+0118	normal	
+0119	normal	
+0120	normal	Scheduling and section coordination becomes difficult when multiple records must be verified across forms and files, contributing to overlaps and extended verification time. 
+0121	normal	
+0122	normal	
+0123	normal	
+0124	normal	
+0125	normal	
+0126	normal	toring relies on spreadsheet-based recording** where updates are delayed, especially during multiple transactions, and balances may not be reflected immediately. ence delays in grade submission** because grading requires encoding, checking, and computation before finalization, especially when there are many learners and multiple grade component
+0127	normal	Given these conditions, Marriott Connect is positioned as a School Management System with Decision Support Analytics, where operational modules (Enrollment, Scheduling, Grading, Billing/POS) serdation for the Analytics Dashboard. In this way, the system does not merely digitize tasks; it ensures that transactional records become consistent inputs for forecasting, monitoring, and evidence-based administrative planning.
+0128	normal	
+0129	normal	
+0130	normal	
+0131	normal	Statement of the Problem
+0132	normal	In this part of the research, the proponents indicate the problematic areas at the Marriott School regarding student record management, financial monitoring, scheduling, and administrative decision-making. Currently, schools utilize a wide range of technology including, but not limited to, Microsoft Excel (Spreadsheets) and Google Form tools (Google Docs/Firebase), digital paper/pencil notes (Evernotes, Microsoft Words, etc...) While there are many great tools in today's educational landscape - none of them collaborate effectively when collecting data on all students' progress from one single location.. This can hinder the ability for school administrators to keep accurate financial records and track trends over time. Schools using separate, disconnected, non-integrated tools create a less than ideal situation for students, parents, and teachers.. To address these issues, the proponents propose MarriottConnect, an Integrated Student Information System with Decision Support Analytics. The purpose of this system is to streamline administrative processes, eliminate data redundancy, and provide data-driven insights for the primary stakeholders of the organization (administrators, teachers, students, and parents). 
+0133	normal	General Problem:
+0134	normal	How to develop MarriottConnect, an Integrated Student Information System with Automated Scheduling and Decision Support Analytics to streamline enrollment, financial assessment, and academic record management for Marriott School?
+0135	normal	Marriott School faces challenges in managing student data due to its reliance upon disparate and manual/non-standardised methods and tools, resulting in a high level of fragmentation among its data management systems and processes. According to gathered data, 87% of faculty/administration use multiple systems and/or tools (i.e., physical log books to record class attendance and records for grading) to manage and share information regarding student records. The fragmentation of student record management systems and the resultant redundancies, data inaccuracies, and delayed preparation of essential reports to senior management has created significant issues for the school. As an illustration, Alex Avellano, the Academic Head, said that he found it difficult to manage the school because "The departments are all using their own Excel spreadsheets," which results in him not being able to adequately record changes and provide comprehensive reports to senior management to assist with decision making.
+0136	normal	A lack of a central information system to combine the separate offices that produce and maintain academic records, tuition balances, and student schedules creates processing problems for those responsible for recording each office's information due to data loss or clerical error. Additionally, the separation of these three offices creates larger gaps in communication between the teacher, administrators, students, and parents. Consequently, Balcita and Palaoag (2020) state that if there is not a framework for integration, ways in which schools deliver services will continue to be inefficient; therefore, they recommend that a secure, digital, and centralized solution that unifies these functions with an integrated analytics system to provide information for administrators in decision-making. 
+0137	normal	Specific Problems:
+0138	normal	How to develop a centralized Registry and Enrollment Module that digitizes student profiling and automates the generation of school forms to eliminate the redundancy of encoding data into disparate Excel files?
+0139	normal	Right now, Marriott School is relying on disjointed, manual methods and applications (e.g., Excel, Google Drive) to enter and manage important student data. Mrs. Jocelyn Cleofe, the Registrar, confirmed that enrollment remains a manual process requiring staff to "update one-by-one and double-check" across multiple files to ensure details are accurate . This redundancy is not merely inconvenient but operationally risky; Kanona (2022) argues that manual information management suffers from "low efficiency and poor security" compared to SQL-based systems. The current lack of integration results in labor-intensive manual validation processes, which wastes time generating reports and increases wait time for accurate and up-to-date information. Ultimately, the problem stems from not having a single source of truth for student data, creating severe restrictions on administrative efficiency.
+0140	normal	How to develop a Cashiering and Assessment Module that automates tuition calculation, handles flexible downpayments, and detects delinquent accounts to replace the manual cross-referencing of separate ledgers?
+0141	normal	The Finance Office is currently hindered by the lack of real-time tracking and automation. Mrs. Corrine Avellanosa, the Finance Officer, reported that determining a student's current tuition balance requires manually cross-referencing data from Google Drive against physical manual ledgers. She noted that "when there are multiple payments at once, there is a delay before the updated balance reflects in the system," often causing discrepancies in financial reporting . This manual verification process consumes valuable man-hours and delays the release of Statements of Account (SOA). Nitron (2024) emphasizes that modern educational institutions require tailored accounting systems integrated with student records to ensure financial transparency and operational speed, a capability currently absent at Marriott School.
+0142	normal	How to develop an Automated Scheduling Algorithm that generates conflict-free class schedules by matching subject requirements with teacher availability, ensuring no faculty overlaps?
+0143	normal	The resource management process is currently manual, inefficient, and prone to human error. The Registrar mentioned that checking teacher schedules one-by-one to avoid conflicts is "challenging" and time-consuming, often resulting in delays when adjustments are needed . Furthermore, teachers like Mrs. Fe Mercedes Cavitt find it laborious to locate specific records because data is scattered across different physical files and locations . Mittal et al. (2023) highlight that manual plotting is obsolete compared to algorithmic timetable generators that can automatically detect conflicts. There is a distinct problem in designing a system that can automate the allocation of these resources to prevent conflicts and optimize faculty load.
+0144	normal	How to develop a Secure Stakeholder Portal that allows parents to view real-time grades, attendance, and digital Statement of Accounts (SOA) to ensure transparency?
+0145	normal	Students, teachers, and parents currently utilize separate, informal access tools to obtain information, often with varying, non-standardized levels of data protection. Critically, the current system is failing parents, as evidenced by the survey where 80% of parents reported receiving school updates only 'Sometimes' (55%) or 'Rarely' (25%). This fragmentation has created substantial frustration for end-users who cannot access real-time data regarding their child's academic standing or financial obligations. Navarra and Antonio (2025) found that web-based monitoring is essential for parental engagement; therefore, there is a need for a secure, single-point portal with role-based access to empower students and parents to monitor their own, or their child's, academic progress instantly.
+0146	normal	How to integrate a Decision Support System (DSS) that utilizes Predictive Analytics to forecast enrollment trends and Prescriptive Analytics to analyze financial collection efficiency?
+0147	normal	Currently, the school administration lacks a mechanism for strategic foresight and relies on reactive management. Mr. Avellanosa expressed difficulty in strategic planning because the fragmented data makes it hard to generate cohesive reports . It is difficult for school administrators to view recruitment trends and financial collection trends because report formats and data from multiple departments must be consolidated manually. This inability creates difficulties for the school in forecasting what will be needed in terms of teacher recruitment and classroom preparations for the subsequent school year. Hussain, et al. (2023) and Wulandari and Pinandito, (2021) both assert that by using historical data to assist in delinquency analysis and forecasting, schools can better make high-level decisions regarding their operational requirements through the use of a system designed specifically to utilize historical information for these types of analyses.
+0148	Heading 2	Objectives
+0149	normal	The objectives of this study are to guide the design and development of MarriottConnect, a comprehensive student information system that addresses Marriott School's operational inefficiencies through data centralization and analytics, based on the needs validated through data gathering and supported by recent literature.
+0150	normal	
+0151	normal	General Objective:
+0152	normal	To develop MarriottConnect, an Integrated Student Information System with Automated Scheduling and Decision Support Analytics to streamline enrollment, financial assessment, and academic record management for Marriott School.
+0153	normal	This general objective is formulated to directly address the core inefficiency of Marriott School: the "siloed" nature of its operations. Balcita and Palaoag (2020) established that the modernization of school services requires a holistic framework where admission, fees, and assessment are integrated rather than isolated. By developing a unified system, the proponents aim to transition the school from a dependency on disparate Excel files to a cohesive digital ecosystem. Furthermore, the inclusion of Decision Support Analytics elevates the system from a simple repository to a strategic tool, aligning with Forrester’s (2019) assertion that schools must move from being "data-rich" to "information-rich" to improve educational decision-making. 
+0154	normal	Specific Objectives:
+0155	normal	To develop a centralized Registry and Enrollment Module that digitizes student profiling and automates the generation of school forms to eliminate the redundancy of encoding data into disparate Excel files.
+0156	normal	This objective aims to solve the critical data retrieval bottlenecks currently experienced by the Registrar. Grepon et al. (2021) found that shifting from standalone files to a centralized network environment eliminates delays in student admission and data retrieval, a direct solution to Mrs. Cleofe's struggle with "one-by-one" updates. Furthermore, Kanona (2022) emphasizes that SQL-based management systems provide secure and efficient search capabilities compared to manual methods, ensuring that student information is accurate, easily updatable, and immediately accessible to other departments.
+0157	normal	To develop a Cashiering and Assessment Module that automates tuition calculation, handles flexible downpayments, and detects delinquent accounts to replace the manual cross-referencing of separate ledgers.
+0158	normal	This objective addresses the need for financial accuracy and real-time tracking identified by the Finance Office. Nitron (2024) asserts that utilizing tailored accounting systems integrated with student records is essential for modernizing educational operations and financial management. Additionally, Wulandari and Pinandito (2021) demonstrated that a decision support logic is crucial for identifying students "in arrears" (delinquent); this module will automate that identification process, allowing the administration to enforce payment policies effectively without the need for Mrs. Avellanosa to manually cross-reference three different ledgers.
+0159	normal	To develop an Automated Scheduling Algorithm that generates conflict-free class schedules by matching subject requirements with teacher availability, ensuring no faculty overlaps.
+0160	normal	This objectives is to provide a user friendly, less time-consuming, and more reliable way for a school to develop a timetable using technology. According to Mittal and others (2023), algorithmically generated timetables take into account all teacher availability and room capacities when creating timetables automatically, thus minimizing the time it takes to complete scheduling processes. This technology enables schools to change curricula as they happen and to develop timetables free from any possibilities for conflicts. The need for manual adjustments that can be time-consuming and challenging, as cited by interviewees.
+0161	normal	
+0162	normal	To develop a Secure Stakeholder Portal that allows parents to view real-time grades, attendance, and digital Statement of Accounts (SOA) to ensure transparency.
+0163	normal	This objectives addresses the critical disconnect between the home and school; currently, 80% of parents believe they don't have enough information from the school. Navarra and Antonio (2025) found that parents' use of web based monitoring systems, which allow them to see their child's academic and attendance records in "real time," has a positive effect on both how engaged parents are with their child's education and how accountable the students feel for their own academic progress. Additionally, Chai and Mostafa (2021) wrote about how web-based monitoring systems enable parents to view shared records electronically, eliminating problems associated with sharing records as well as lack of transparency, therefore enhancing the relationship between the district and its stakeholders.
+0164	normal	To integrate a Decision Support System (DSS) that utilizes Predictive Analytics to forecast enrollment trends and Prescriptive Analytics to analyze financial collection efficiency.
+0165	normal	This goal allows for a road map in developing strategic foresight for the administration and not just as a location to store data. As referenced by Hussain et al. (2023), by using statistical methods to assess historical enrollment data, the administration can anticipate future student populations, which allows for effective resource planning (such as determining the amounts of chairs, teachers, etc., to order for the following school year). By doing so, the system provides the Academic Head with the ability to manage Data-Driven Management, alleviating their struggle of managing trend data from different Excel spreadsheets.
+0166	Heading 2	Scope
+0167	normal	The proposed system will have three primary user groups: students, parents, and administrators/faculty. Each user group will have access to specific modules and features.
+0168	normal	The functionalities and modules are defined by the needs identified in the data gathering phase, addressing the fragmented systems reported by most of the faculty/administrators and the communication gaps experienced by parents.
+0169	normal	The Registrar can access the following:
+0170	normal	Enrollment Module – Process the registration of New, Returning, and Transferee students and assign sections.
+0171	normal	Student Masterlist Module – View the complete list of enrolled students with status indicators (including delinquency flags from Finance).
+0172	normal	Student Records Module – Manage and archive student grades and academic history.
+0173	normal	Template-Based Document Issuance – Automatically generate and print official documents such as the Certificate of Registration (COR) and Transcript of Records (Form 137). The system maps user-inputted data directly onto the school’s official document templates.
+0174	normal	Ticketing Module – Receive and resolve ticket concerns specifically related to student records or enrollment.
+0175	normal	Enrollment Reporting – Generate specific reports on daily enrollees and section population.
+0176	normal	The Finance Officer can access the following:
+0177	normal	Cashiering Module – Process tuition fee assessments and record payments (Cash/Check/Bank Transfer).
+0178	normal	Statement of Account (SOA) Generator – Create digital/printable SOAs mirroring the school’s format for parents to view.
+0179	normal	Ticketing Module – Receive and resolve ticket concerns specifically related to tuition and fees.
+0180	normal	Financial Reporting – Generate daily collection reports and delinquency lists.
+0181	normal	The Teachers can access the following:
+0182	normal	Grading Module – Input raw scores (Written Works, Performance Tasks) which the system automatically computes into weighted final grades.
+0183	normal	Automated Form 138 Generation – Generate Report Cards (Form 138) by populating the school's official template with computed grades.
+0184	normal	Attendance Module – Manually log daily student attendance (Present, Absent, Late) to digitize the record.
+0185	normal	Schedule Module – View their assigned teaching load and class schedule.
+0186	normal	Ticketing Module – Receive and resolve ticket concerns regarding student academic performance.
+0187	normal	The Parents can access the following:
+0188	normal	Multiple Child Switcher – A feature allowing parents with more than one child at Marriott School to switch between student profiles using a single account.
+0189	normal	Financial Module – View current tuition balances and digital Statement of Accounts (SOA).
+0190	normal	Grades Module – View their child's real-time academic grades.
+0191	normal	Attendance Module – Monitor their child's daily attendance records.
+0192	normal	Schedule Module – View their child's class schedule.
+0193	normal	Ticketing Module – Submit concerns or inquiries to the school, categorized by department (Finance, Academic, or Registrar).
+0194	normal	The Students can access the following:
+0195	normal	Grades Module – View their own academic grades.
+0196	normal	Attendance Module – View their own attendance history.
+0197	normal	Schedule Module – View their assigned class schedule.
+0198	normal	
+0199	normal	The School Administrators (Academic Head/Principal) can access the following:
+0200	normal	Centralized Analytics Dashboard – Access a comprehensive view of ALL system analytics, including:
+0201	normal	Financial Analytics: Collection efficiency, cash flow trends, and delinquency rates.
+0202	normal	Enrollment Analytics: Population growth, student demographics, and retention rates.
+0203	normal	Academic Analytics: Performance trends, failure rates per subject, and teacher grading efficiency.
+0204	normal	Oversight Access (View-Only) – Grant "Read-Only" access to Registrar and Finance modules to audit transactions and monitor operational status without the ability to alter raw data (maintaining separation of duties).
+0205	normal	Decision Support System (DSS) – Utilize predictive analytics to forecast future enrollment trends and provide data-driven recommendations for strategic planning.
+0206	normal	Approval Module – Verify and lock grades submitted by teachers to prevent unauthorized tampering.
+0207	normal	Curriculum & Schedule Management – Manage subjects and edit teacher schedules using the automated conflict-detection feature.
+0208	normal	Deliverables Generation – Generate consolidated reports from different departments formatted according to the school's specific reporting templates.
+0209	normal	Ticketing Module – Oversee and escalate unresolved tickets.
+0210	normal	The Super Admin (IT Personnel) can access the following:
+0211	normal	User Management – Create and manage user accounts, reset passwords, and assign role-based access control (RBAC).
+0212	normal	System Configuration – Manage school year settings, activate/deactivate modules, and configure system variables.
+0213	normal	Audit & Maintenance – View system activity logs (Audit Trail) to track user actions and perform database backups/restoration.
+0214	normal	Note: The Super Admin does not have transactional capabilities (e.g., cannot encode grades or payments) to ensure data integrity and security.
+0215	Heading 2	Review of Related Literature/Studies/Systems
+0216	normal	The development of MarriottConnect necessitates a robust theoretical foundation built upon successful practices in centralized data management, financial automation, automated scheduling, and predictive analytics. This chapter presents comprehensive literature and studies, both local and foreign, that support the project's goal of rectifying operational deficiencies such as data inconsistency, scheduling conflicts, and delayed reporting while enhancing strategic decision-making at Marriott School.
+0217	normal	
+0218	normal	Local
+0219	normal	Efficient Student Monitoring and Data Tracking System
+0220	normal	Navarra and Antonio have developed and tested a new way for tracking student achievement electronically via their web-based Student Monitoring System. Navarra and Antonio's research shows that prior to implementing the web-based student monitoring system, teachers used traditional (manual) methods of keeping track of student performance using paper-based logbooks. As a direct result of using traditional methods, student performance logs were subject to many clerical errors because they were often maintained by teachers or school criminal justice officers; thus, students' parents frequently received delayed notifications of their child's performance and safety. Their findings support that digitizing student performance records such as grades and attendance improves a school's ability to quickly and efficiently intervene on behalf of students.
+0221	normal	The findings of Navarra and Antonio (2025) serve as a critical reference for the Stakeholder Portal of MarriottConnect. Marriott School currently suffers from a communication gap where 80% of parents report receiving inconsistent updates. By adopting the web-based monitoring approach validated in this study, MarriottConnect can provide parents with a secure, real-time platform to view their child’s academic standing and attendance history, thereby fostering transparency and accountability between the institution and the home.
+0222	normal	Optimizing Student Information Management: A Holistic Examination of Implementation Strategies
+0223	normal	Nitron (2024) emphasized the necessity of a holistic approach to Student Information and Accounting Systems (SIAS) in Philippine universities. Her study highlighted that utilizing a "tailored accounting system" integrated with intelligent technologies is critical for improving educational operations, particularly in financial management. She argued that manual financial tracking is insufficient for modern institutions and that data-driven strategies are essential to align with quality education standards and improve overall academic performance.
+0224	normal	This study directly supports the Cashiering and Assessment Module of MarriottConnect. Currently, the Marriott Finance Office relies on manual cross-referencing of ledgers to determine tuition balances, a process Nitron identifies as inefficient. By implementing the "tailored accounting" approach suggested by Nitron (2024), MarriottConnect will automate the assessment of fees and the tracking of payments, ensuring that financial data is accurate, integrated with student records, and readily available for administrative decision-making.
+0225	normal	Designing and Implementing e-School Systems: An Information Systems Approach to School Management of a Community College in Northern Mindanao, Philippines
+0226	normal	Grepon, Gumonan, Baran, and Lacsa (2021) designed a functional electronic school management system that successfully unified academic and administrative functions to support the daily operations of a community college. The paper provided deep insight into how the adoption of a centralized network infrastructure could automate complex, repetitive tasks that were originally performed manually across multiple departments. The system successfully eliminated common organizational issues such as data duplication and slow retrieval times.
+0227	normal	The insights from Grepon et al. (2021) validate the fundamental architectural goal of MarriottConnect: Data Centralization. Marriott School currently struggles with disparate Excel files and Google Forms, leading to redundancy. Following the model presented by Grepon et al., MarriottConnect will transition the school from standalone files to a centralized database ecosystem, ensuring that data entered by the Registrar is immediately accessible to Finance and Faculty, thus eliminating the "siloed" operations identified in the problem statement. 
+0228	normal	Building a Framework for the Integration of School Management Systems (BFISMS)
+0229	normal	Balcita and Palaoag (2020) offered a powerful framework demonstrating how various school management systems can achieve better efficiency through deep integration. The authors explicitly detailed that when administrative systems are fragmented when departments operate using disconnected tools schools inevitably face data inconsistencies. Their proposed framework suggests that successful systems must offer seamless interoperation between core modules like Admission, Fees, and Academics.
+0230	normal	Balcita and Palaoag’s (2020) study provides the theoretical justification for the "Integrated" aspect of MarriottConnect. It argues that Enrollment and Cashiering cannot exist as separate entities; they must be linked. This supports the proposed system logic where a student’s enrollment in the Registrar module automatically triggers the creation of their financial assessment in the Cashiering module, ensuring data consistency across the institution. 
+0231	normal	Adoption and Implementation of Automated Class and Teacher Scheduler (ACTS)
+0232	normal	The Department of Education (DepEd) Panabo City has implemented an automatic scheduling system for local school divisions. Before implementing this system, there was significant effort and time required by school administrators for them to manually plot their classroom schedules. The process of creating a schedule often caused confusion due to overlapping assignments between teachers and classrooms and would take an extensive amount of time each week to resolve. The use of algorithms in the automated scheduling system drastically reduced the time it took to create classroom schedules and helped reduce the incidence of errors in scheduling, such as teachers being double booked or classroom assignments overlapping.
+0233	normal	This report is highly relevant to the Automated Scheduling Module of MarriottConnect. The Registrar at Marriott School described the current manual scheduling process as "challenging" and prone to conflicts. By adopting the automated logic validated in the Panabo City (2025) implementation, MarriottConnect will utilize a constraint-based algorithm to generate conflict-free schedules, thereby optimizing resource utilization and reducing the administrative burden on the Academic Head.
+0234	normal	Foreign Studies
+0235	normal	Designing Decision Support System for Midwifery Students’ Tuition Fees Problem
+0236	normal	Wulandari and Pinandito (2021) focused on the development of a Decision Support System (DSS) to address financial delinquency in an educational setting. Their research utilized decision tables to identify students who were "in arrears" (delinquent) and provided management with data-driven recommendations, such as restricting exam permits or offering installment restructuring. The study proved that a DSS could significantly improve collection efficiency by automating the identification of problematic accounts.
+0237	normal	This research serves as the "Hero Source" for the Delinquency Tracker and Financial Strategy Analytics of MarriottConnect. As of now, the Finance Office is performing a manual review of three ledgers to establish who has not made a payment. If the system were to include the logic in Wulandari and Pinandito’s (2021) proposal, then the system would automatically identify delinquent accounts and show trends of payments made by customers. By using this automated process, the administration can make better financial-based decisions, rather than relying on manual data mining to find this information. 
+0238	normal	Student Information Management System for Baghdad College of Economic Sciences University (SIMS-BC): A Case Study
+0239	normal	Kanona (2022) developed a comprehensive student information management system that fully automated data handling processes across a university environment. The study highlighted the flaws of manual information management, describing it as suffering from "low efficiency, poor security, and inconvenient search." Kanona demonstrated that transitioning to an SQL-based database system ensured that student information was secure, accurate, and retrievable in seconds rather than hours.
+0240	normal	Kanona (2022) supports the Database Design and Security aspects of MarriottConnect. The study emphasizes that manual files (like the Excel sheets used by Marriott School) are insecure and inefficient. MarriottConnect will adopt the SQL-based architecture recommended by Kanona to provide a secure, role-based environment where student records are protected from unauthorized access and data loss. 
+0241	normal	Bright Kids Tuition Centre Management Information System
+0242	normal	Chai and Mostafa (2021) developed a web-based information system for a private tuition center to manage financial records, student enrollments, and staff employment history electronically. The system was designed to resolve issues related to "record duplication" and "data inconsistency" caused by manual filing systems. Their study showed that a web-based platform allowed for the seamless sharing of records between branch managers, staff, and parents.
+0243	normal	This study validates the Web-Based Architecture of MarriottConnect. Since Marriott School operates similarly to a private institution with a need for efficient record sharing between departments, the success of Chai and Mostafa’s (2021) system in reducing redundancy and improving data accessibility supports the proposal to move Marriott’s operations to a responsive web platform accessible to all stakeholders. 
+0244	normal	Student Gross Enrolment Ratio Forecasting: A Comparative Study Using Statistical Method and Machine Learning
+0245	normal	According to Hussain, Rosangliana & Vanlalruata (2023 ), When making predictions about student enrollment ratios, there are two types of statistical methods available. Using historical enrollment figures is an important predictor for future student populations. Using this knowledge, administrators can make informed decisions about the distribution of their workforce and space, along with hiring new teachers and opening new classrooms.
+0246	normal	
+0247	normal	Hussain et al.'s (2023) research is a basis for the Scientific Enrolment Forecasting feature for Decision Support Systems. As of currently, the Academic Head of the Marriott School does not have any tools available to them to see the trends that may occur. Utilizing the statistical methods outlined in Hussain et al. (2023), MarriottConnect can utilize historical data to create actionable forecasts that will support their future strategy.
+0248	normal	Timetable Generator For Educational Institution
+0249	normal	The author and his co-authors created a timetable generator for schools and universities automatically (Mittal et al., 2023). This paper focused on introducing the difficulties that many schools face with traditional manual timetables and noted that it is classified as "NP-Hard" and subject to human-altering errors. They proposed a system that uses algorithms to create "conflict-free" schedules by considering parameters like teacher availability, subject load, and room capacity, replacing the tedious manual plotting method.
+0250	normal	Mittal et al. (2023) directly support the technical logic of the Automated Scheduling Module. Their findings confirm that manual scheduling is obsolete and inefficient for growing institutions. MarriottConnect will implement the algorithmic approach advocated by Mittal et al. to ensure that the generated class and teacher schedules are optimized and free of conflicts.
+0251	normal	
+0252	normal	
+0253	normal	
+0254	normal	
+0255	normal	
+0256	normal	
+0257	normal	Synthesis
+0258	normal	The reviewed literature establishes a robust consensus on the necessity of digital transformation in educational settings, positioning MarriottConnect as a critical solution to systemic inefficiencies. The convergence of findings from both local and foreign research validates the system's core architecture.
+0259	normal	Local studies by Balcita and Palaoag (2020) and Grepon et al. (2021) confirm the debilitating effects of fragmented systems, mirroring Marriott School's reliance on disconnected Excel files. These studies provide the architectural mandate for a unified platform to create a "single source of truth." Furthermore, Navarra and Antonio (2025) and Nitron (2024) validate the specific needs for a Stakeholder Portal and Tailored Cashiering System, proving that real-time transparency and financial automation are essential for modern Philippine schools.
+0260	normal	Complementing this, foreign literature provides the technical depth for advanced modules. Wulandari and Pinandito (2021) and Hussain et al. (2023) justify the inclusion of the Decision Support System, demonstrating that analytics for delinquency and enrollment forecasting are vital for strategic management. Finally, Mittal et al. (2023) and DepEd Panabo (2025) confirm that Automated Scheduling is the industry standard for resolving the resource conflicts currently faced by Marriott School. Collectively, these studies guarantee that MarriottConnect will transition the school from manual, inefficient processes to a fully integrated, data-driven environment.
+0261	normal	
+0262	normal	
+0263	normal	
+0264	Heading 2	TECHNICAL BACKGROUND
+0265	normal	Overview of Current Technologies to be Used in the System
+0266	normal	The proposed system, MarriottConnect: An Integrated Student Information System with Decision Support Analytics, will be constructed utilizing a robust combination of current-generation web technologies to ensure data centralization, security, and accessibility.
+0267	normal	In the critical area of backend development, PHP has been selected as the primary server-side scripting language. This choice is strategic due to PHP's proven efficiency in handling complex, database-driven software systems, making it ideal for the transactional processing required for academic records and financial calculations. Correspondingly, for core data management, the system will utilize MySQL as the Relational Database Management System (RDBMS). MySQL is essential for providing a secure repository for the centralized school data, ensuring that the Registrar, Finance, and Faculty access a "single source of truth," thereby eliminating the data redundancy issues identified in the project’s context.
+0268	normal	The user interface will be developed using HTML, CSS, and JavaScript because all of today’s modern web browsers support these web standard technologies. Bootstrap will be utilized to create a responsive web interface that works well on all devices (e.g., staff desktop workstation and parent mobile phones). 
+0269	normal	Official school documents, such as Certificates of Registration (COR) and Report Cards (Form 138), will be automatically generated from the school database using the FPDF library, which provides the ability to automatically fill each certificate and report card template with the school’s specific template data. Additionally, Chart.js will be used for the DSS to create visually appealing analytics and forecasting graphs relating to the school’s enrollment and financial trends.
+0270	normal	
+0271	normal	
+0272	normal	Prototyping Model
+0273	normal	The proponents will adopt the Prototyping Model in developing MarriottConnect. This methodology is highly suitable for this project as it is an iterative model that places a strong emphasis on continuous user feedback and refinement. This approach is essential to ensure that the final system aligns precisely with the validated user needs of the Marriott School administration specifically the complex financial cross-referencing and manual scheduling challenges identified during the interviews.
+0274	normal	
+0275	normal	Figure 1. Prototype Model
+0276	normal	Taken from: https://www.guru99.com/software-engineering-prototyping-model.html
+0277	normal	
+0278	normal	The model includes the following stages, ensuring a controlled, user-centric development process:
+0279	normal	Requirements Gathering and Analysis
+0280	normal	The proponents performed extensive interviews and observations at Marriott School to obtain detailed information on existing manual processes related to enrollment, grading, and tuition collection. This step builds on the findings from the data collection (e.g., interviews with Mrs. Cleofe regarding manual sectioning and Mrs. Avellanosa regarding ledger cross-referencing) to fully understand the current pain points. The data was analyzed to determine the key gaps in operations and to create clear, measurable objectives for the Integrated System. 
+0281	normal	
+0282	normal	Quick Design
+0283	normal	Based on the finalized requirements, a preliminary design of the system's interface and data flow was created. This rapid design phase focused on the architectural blueprints and user experience (UX) for the system's major modules: Registry, Cashiering, Grading, and the Analytics Dashboard. This initial design prioritized logic and functionality such as the flow of data from enrollment to billing over final aesthetics. 
+0284	normal	Build Prototype
+0285	normal	A functional, albeit partial, prototype of MarriottConnect will be developed using the selected technologies (PHP, MySQL, Bootstrap). This prototype will demonstrate basic, core functionalities deemed most critical by the users, such as the "Flexible Downpayment" entry for Finance, the "Constraint-Based Scheduler" for the Admin, and the "Digital Gradebook" for teachers. 
+0286	normal	Initial User Evaluation
+0287	normal	The built prototype will be presented to Marriott School's administration and key staff (Registrar, Finance Officer, and Academic Head) for hands-on evaluation. Their critical feedback will be gathered to identify specific areas that require modification for instance, ensuring the printed COR matches the exact school template or refining the delinquency flagging logic. This stage ensures the system meets the practical needs highlighted in the initial analysis. 
+0288	normal	Refining Prototype
+0289	normal	The software will be incrementally refined with user input, with a primary emphasis on enhancing the User Interface Design and Improving System Performance through speed and the accuracy of the Core Algorithm, Linear Regression for Forecasting Enrollment numbers. This cycle will continue until the software has been fully validated by the users. 
+0290	normal	Implement and Maintain
+0291	normal	Once the prototype is completed and rigorously tested, the final iteration of MarriottConnect will be deployed for a structured pilot testing phase. The proponents will facilitate training sessions for the staff while monitoring the system's viability. Following successful deployment, the maintenance phase will begin to address any emerging bugs or required updates.
+0292	normal	
+0293	normal	Calendar of Activities
+0294	normal	August - The proponents initiated the Initial Host Company Search and feasibility evaluation. After selecting a laboratory clinic, the team proceeded with a formal interview and conducted the initial meeting. Following engagement, the proponents began drafting the early sections of the research paper, specifically focusing on Chapter 1, while simultaneously compiling initial evidence required for the upcoming defense.
+0295	normal	
+0296	normal	September - The proponents completed the preliminary drafts of Chapter 1 and Chapter 2, continued gathering supporting documents, and refined the problem background statement. Towards the end of the month, the team prepared for and conducted the First Mock Defense. However, due to panel advice regarding insufficient data and subsequent communication breakdown with the laboratory clinic, the proponents were forced to search for an alternative host company.
+0297	normal	
+0298	normal	October - The proponents successfully secured Marriott as the new host company and scheduled and conducted the first formal interview with the Academic Head. Leveraging the newly acquired data, the proponents comprehensively revised and rewrote Chapters 1 and 2 to accurately align the project context with the new host company's processes. Chapter 3 was then drafted. Later in the month, the proponents prepared for and conducted the Second Mock Defense, where they were advised to gather more substantial data, as the existing transcripts were not fully aligned with the study's direction.
+0299	normal	
+0300	normal	November - The proponents addressed the panel's feedback by conducting a critical round of additional interviews with key Marriott staff, including the teacher, registrar, guard, and finance personnel, along with a follow-up interview with the Academic Head for clarification. To supplement the qualitative findings, surveys were administered to students and parents. Utilizing all the newly validated data, the proponents performed a thorough revision of Chapters 1, 2, and 3 to ensure accurate reflection of the updated interviews and survey results.
+0301	normal	
+0302	normal	
+0303	normal	Gantt’s Chart of Activity
+0304	normal	
+0305	normal	Figure 2: Gantt’s Chart of Activity
+0306	normal	
+0307	normal	
+0308	normal	Resources 
+0309	normal	Hardware Requirements
+0310	normal	These components are necessary for hosting the system and enabling end-users (staff, students, and parents) within the Marriott context to access the functional application efficiently.
+0311	normal	Application/Database Server: A dedicated or virtual server environment provisioned with sufficient RAM, CPU processing power, and storage capacity to reliably host the Web Application and its database. This resource must be robust enough to handle simultaneous usage by staff, students, and parents without performance latency.
+0312	normal	Client Devices (Mobile): Smartphones or tablets running recent versions of the Android and/or iOS operating systems. These are required for staff, students, and parents to access the system on the go, specifically for viewing real-time updates and core functionalities optimized for mobile interfaces.
+0313	normal	Client Devices (Web): Desktop or laptop computers equipped with modern web browsers (e.g., Chrome, Edge, Firefox). These are required for Administrative Staff to access heavy administrative and reporting modules, and for Parents and Students to access their specific Web Application portals for detailed viewing of grades and financial records.
+0314	normal	Software Requirements
+0315	normal	Server Environment: XAMPP will be used during the development phase for local testing, providing the necessary Apache HTTP Server and PHP environment to simulate the live server before final deployment.
+0316	normal	Database Management: MySQL is selected as the Relational Database Management System (RDBMS). It will be used for structuring, storing, and managing all administrative and user data due to its reliability, security features, and widespread support in educational systems.
+0317	normal	Backend Language: PHP will serve as the primary server-side scripting language. It will handle all business logic, process data requests (such as grade computation and fee assessment), and facilitate secure interaction with the MySQL database.
+0318	normal	Frontend Languages: HTML, CSS, and JavaScript will be the foundational languages used for building the user interface, styling the visual elements, and creating interactive components of the Web Application.
+0319	normal	Frontend Framework: Bootstrap will be utilized as the CSS framework. This ensures the Web Application features a responsive, mobile-friendly, and consistent design that adapts seamlessly across various client devices (desktops, tablets, and phones).
+0320	normal	Development Environment: Visual Studio Code (VS Code) will be the designated Integrated Development Environment (IDE) for the proponents to write, debug, and manage the system's source code files efficiently.
+0321	normal	Design Tools: Figma and Canva are designated as the tools that will be utilized during the design phase. These will be used to create the system's UI/UX design mockups, wireframes, and final presentation materials based on the gathered requirements.
+0322	normal	
+0323	normal	
+0324	normal	
+0325	normal	
+0326	normal	
+0327	normal	
+0328	Heading 2	Requirements Analysis
+0329	normal	This section details the requirements needed to address the operational challenges faced by Marriott School through the development of MarriottConnect: An Integrated Student Information System with Decision Support Analytics. The analysis identifies the system’s functions, business needs, and technical considerations to ensure that development aligns with the expectations of the school’s administrators, faculty, students, and parents.
+0330	Heading 3	A. Requirement
+0331	normal	Marriott School will need to manage student records, centralize financial assessment, automate scheduling, and allow grades to be viewed, all from a central online platform. Attendance will be documented through digital teacher logs which will store the information in a centralized database for processing, analyzing, and display. Parents will have access to a secure portal to view their child's academic and financial status, with administrators being able to track all records, forecast enrollment trends, and report on metrics being gathered, while storing data safely.
+0332	Heading 3	B. Business / User Requirement
+0333	normal	The system must assist Marriott School in managing its growing number of students by eliminating the manual and fragmented processes currently performed using Excel, Google Drive, and manual logbooks. MarriottConnect must handle financial assessment automatically, update student information instantly across all departments, and allow parents to view their child’s records conveniently. The proposed software should strengthen school–parent communication, support teachers in encoding grades, automate the creation of conflict-free schedules, and assist administrators in monitoring tuition balances and enrollment trends.
+0334	normal	System Integration for Student Information and Operations
+0335	normal	The system must replace the manual cross-referencing of data between Registrar and Finance offices.
+0336	normal	The system should automatically track student data, store it in the central database, and link it with financial and academic records.
+0337	normal	The system must consolidate grades, schedules, and tuition records into a unified dashboard for accessibility.
+0338	normal	The system should support communication between the school and parents through a ticketing system.
+0339	normal	Web-Based Admin Dashboard
+0340	normal	Administrators and faculty will manage student data, encode grades, track tuition, and monitor attendance through a secure web interface.
+0341	normal	Admins can generate summary reports for enrollment, grades, and tuition in PDF format based on official school templates.
+0342	normal	Admins can view analytics for enrollment forecasting and financial collection.
+0343	Heading 3	C. System Requirements
+0344	normal	Major System Capabilities
+0345	normal	Major System Capabilities
+0346	normal	The system will operate as a web-based platform accessible through computers or mobile browsers.
+0347	normal	The system will support digital attendance logging by teachers.
+0348	normal	The system will allow role-based access (Administrator, Registrar, Finance, Teacher, Student, Parent).
+0349	normal	The system will store and retrieve student records, attendance logs, tuition balances, and grades.
+0350	normal	The system will provide a secure messaging/ticketing system for parent inquiries.
+0351	normal	The system will generate summary reports for student information, attendance, and tuition using FPDF.
+0352	normal	The system will provide Decision Support Analytics for enrollment forecasting.
+0353	normal	The system will ensure data security through authentication and encryption.
+0354	normal	Major System Conditions
+0355	normal	Each user (administrator, teacher, parent, or student) must have a unique login credential.
+0356	normal	Internet connection must be available for real-time data access and updates.
+0357	normal	The Registrar must input initial student data to activate Finance and Grading modules.
+0358	Heading 3	D. System User Characteristics
+0359	normal	Administrators – have full view access to all analytics; manage scheduling, view reports, and maintain data accuracy.
+0360	normal	Registrar – manages student enrollment, sectioning, and student records.
+0361	normal	Finance Officer – manages tuition assessment, payments, and delinquency tracking.
+0362	normal	Teachers – can input grades, view schedules, and log student attendance.
+0363	normal	Students – can log in to view grades, class schedules, and attendance records.
+0364	normal	Parents – can view their child’s grades, attendance history, and tuition balances.
+0365	Heading 3	E. Functional Requirements
+0366	normal	Manage Student Records
+0367	normal	The Registrar shall manage student profiles, enrollment status, and section assignments.
+0368	normal	The system shall log and update student demographics and link them to academic and financial records.
+0369	normal	Manage Cashiering & Assessment
+0370	normal	The Finance Officer shall process tuition fee assessments based on grade level.
+0371	normal	The system shall accept flexible downpayments and update remaining balances in real-time.
+0372	normal	The system shall flag delinquent accounts automatically.
+0373	normal	Manage Grades
+0374	normal	Teachers shall encode student grades by subject and grading period.
+0375	normal	The system shall store and calculate weighted final grades per student.
+0376	normal	The system shall lock grades after verification by the Academic Head.
+0377	normal	Manage Attendance
+0378	normal	Teachers shall record the attendance through a digital checklist.
+0379	normal	Attendance data shall automatically update in the admin and parent dashboards for monitoring.
+0380	normal	Automated Scheduling
+0381	normal	The Admin shall input teacher availability and subject loads.
+0382	normal	The system shall generate conflict-free class and teacher schedules using a constraint-based algorithm.
+0383	normal	Decision Support System
+0384	normal	The system shall analyze historical data to forecast future enrollment counts.
+0385	normal	The system shall visualize financial collection trends for strategic planning.
+0386	normal	Generate Reports
+0387	normal	The system shall generate printable reports for Certificate of Registration, Report Cards (Form 138), and Statement of Accounts.
+0388	normal	Reports shall be exportable in various formats  and mapped to the school's official templates.
+0389	normal	
+0390	normal	F. Non-Functional Requirements
+0391	normal	Operational Requirements
+0392	normal	The system will be accessible via web browsers on desktop (for staff) and mobile devices (for parents).
+0393	normal	The system requires an active internet connection for real-time operations.
+0394	normal	Performance Requirements
+0395	normal	The system must update records and calculations (e.g., tuition balance) instantly upon data entry.
+0396	normal	System uptime should be at least 95% during school hours.
+0397	normal	Security Requirements
+0398	normal	All user passwords shall be hashed in the database.
+0399	normal	User access will be role-based with authentication credentials to prevent unauthorized access to sensitive modules (e.g., Teachers cannot access Finance).
+0400	normal	The system will log all access and data modifications for auditing.
+0401	normal	Usability Requirements
+0402	normal	The interface must be user-friendly and easily navigable for all user types.
+0403	normal	The design must maintain readability, accessibility, and responsiveness on various devices using Bootstrap.
+0404	normal	Maintainability Requirements
+0405	normal	The system must allow easy updates to school year configurations, curriculum subjects, and fee structures.
+0406	normal	The database must be easily backed up and restored by the Super Admin.
+0407	Heading 2	Requirements Documentation
+0408	Heading 2	The MarriottConnect system, an Integrated Student Information System with Decision Support Analytics for Marriott School, is composed of multiple integral modules designed to interoperate seamlessly. These modules are key components in achieving efficient, organized, and data-driven management of student data and communication related to all aspects of school and student operations.
+0409	Heading 2	Educators can manage their student's academic records using module grades and academic records. Educators can input raw scores for written works and performance tasks; the system calculates the final weighted grades automatically. Students and parents will be granted easy access to view comprehensive academic information for each grading period through a secure portal.
+0410	Heading 2	Alongside this is the Cashiering and Assessment Module that automates the recording of tuition fees, payment transaction information, and balances owed. This module replaces the manual cross-referencing of ledgers by automatically calculating assessments based on grade level and accepting flexible downpayments. It creates a clear financial record available to students or parents so they understand what they owe to the institution and can make timely payments, while also flagging delinquent accounts to restrict the release of report cards.
+0411	Heading 2	Furthermore, the Automated Scheduling Module provides the administration with a powerful tool to generate conflict-free class timetables. Using a constraint-based algorithm, the matching of Subject Requirement to Instructor Availability is done in a way that prevents overlapping of Single Subject Instructors. After the matching process is completed, both Students & Instructors receive access to an organized Schedule that displays each Student's Assigned Subjects, Days of the Week, Class Times, and based on Teacher Listings, who will be teaching each Course.
+0412	Heading 2	In addition, the Attendance Module digitizes the entire attendance process. Administrators can now track daily student attendance using a digital system instead of the traditional use of paper log books. By utilizing a live database, staff will be able to view daily attendance patterns as they develop as opposed to waiting until the quarter grading process is complete to see the attendance patterns. Furthermore, with this technology, parents and district office personnel will have access to the same accurate attendance data for their children.
+0413	Heading 2	Beyond mere record-keeping, MarriottConnect incorporates the Stakeholder Portal to enhance communication between the school and the family. Through the Parent Portal, parents have access to immediate and ongoing updates regarding their child’s academic progress. This includes real-time views on received grades, attendance records, and their digital Statement of Accounts (SOA). In addition to these features, parents can utilize the Ticketing System located within the Parent Portal to communicate directly with any of the departments (Finance, Registrar or Academic) from whom they need help. This process allows parents to receive updates on their tickets and be assured that their issues will be handled properly and efficiently by the appropriate department.
+0414	Heading 2	At the centre of the system is the Registry and Enrollment Module (REM), which is the database that contains all student information (demographics, enrolment information, and academic history). REM also simplifies the admission process by facilitating New, Returning, and Transferee workflows as well as allowing users to automatically assign sections, although users can override this function if they choose.. This module ensures that administrators and authorized faculty members have access to accurate, current files on any student when required.
+0415	Heading 2	For strategic planning, the Decision Support System (DSS) & Analytics Module enables administrators to view visual dashboards forecasting enrollment trends and analyzing financial collection efficiency. By using predictive analytics on historical data, the administration can make informed decisions regarding resource allocation and financial strategy.
+0416	Heading 2	For data reporting, the Reports Module enables administrators to prepare summary reports on academic performance, tuition balances, and enrollment statistics. These generated reports are designed to be easily exportable and formatted according to the school's official templates (e.g., Certificate of Registration, Form 137/138) for administrative records and review.
+0417	Heading 2	Ultimately, the System Maintenance & Security Module is put in place to guarantee the on-going element of trust and continued function of the ongoing system. This module will permit authorized Super Administrators to manage end-user accounts, configure school years, and view audit trails. This control process is critical for ensuring data integrity, system security, and overall access to function is limited to authorized personnel only.
+0418	Heading 2	By applying the full configuration of these integrated modules, MarriottConnect will be configured to create a thorough, centralized, and automated system to ease school operations and substantially build connectivity between the Marriott School, its students, and their families.
+0419	Heading 2	
+0420	Heading 2	
+0421	Heading 2	
+0422	Heading 2	
+0423	Heading 2	
+0424	Heading 2	
+0425	Heading 2	
+0426	Heading 2	
+0427	Heading 1	References
+0428	normal	Balcita, R. E., & Palaoag, T. D. (2020). Building a framework for the integration of school management systems (BFISMS). International Journal of Information and Education Technology, 10(6), 455–459. https://doi.org/10.18178/ijiet.2020.10.6.1406
+0429	normal	Cadungog, R. R., Nambong, R. L., Hontiveros, N. L., Tenebroso, M. B., & Serrano, M. R. (2024). CITE_STEMA sa atendansiya: Modernizing CITE students attendance system with RFID technology. International Journal of Computer Science & Engineering Survey, 15(2/3/4).
+0430	normal	Chai, W. C., & Mostafa, S. A. (2021). Bright Kids tuition centre management information system. Applied Information Technology and Computer Science, 2(2), 937–957. https://doi.org/10.30880/aitcs.2021.02.02.059

@@ -1,0 +1,610 @@
+Paragraphs: 1009
+0000 |  |  | MarriottConnect: An Integrated Student Information System with Decision Support Analytics for Marriott School
+0009 |  |  | A Capstone Project Proposal
+0010 |  |  | Presented to the Faculty of the
+0011 |  |  | Information and Communications Technology Program
+0012 |  |  | STI College Muñoz - EDSA
+0014 |  |  | In Partial Fulfilment
+0015 |  |  | of the Requirements for the Degree
+0016 |  |  | Bachelor of Science in Information Technology
+0017 |  |  | Jade Michael D. Godalle
+0018 |  |  | Edson John R. Solitario
+0019 |  |  | Francis Jay D. Raagas
+0020 |  |  | Laurence Emmanuel M. Supangan
+0023 |  |  | November, 2025
+0024 |  |  | ENDORSEMENT FORM FOR PROPOSAL DEFENSE
+0027 |  |  | TITLE OF RESEARCH: MarriottConnect: An Integrated Student Information System with Decision Support Analytics for Marriott School
+0030 |  |  | NAME OF PROPONENTS:Jade Michael D. Godalle
+0031 |  |  | Edson John R. Solitario
+0032 |  |  | Francis Jay D. Raagas
+0033 |  |  | Laurence Emmanuel M. Supangan
+0036 |  |  | In Partial Fulfilment of the Requirements
+0037 |  |  | for the degree Bachelor of Science in Information Technology
+0038 |  |  | has been examined and is recommended for Proposal Defense.
+0041 |  |  | ENDORSED BY:
+0044 |  |  | Mr. John Ace C. Manlapat, MIT
+0045 |  |  | Capstone Project Adviser
+0048 |  |  | APPROVED FOR PROPOSAL DEFENSE:
+0052 |  |  | Ms. Cristylen Q. Esporsado
+0053 |  |  | Capstone Project Coordinator
+0057 |  |  | NOTED BY:
+0061 |  |  | Mr. Anthony F. Molacruz
+0062 |  |  | Program Head
+0065 | Heading1 | heading 1 | November, 2025
+0066 | Heading1 | heading 1 | APPROVAL SHEET
+0067 |  |  | This capstone project proposal titled MarriottConnect: An Integrated Student Information System with Decision Support Analytics for Marriott School, prepared and submitted by Jade Michael D. Godalle, Edson John R. Solitario, Francis Jay D. Raagas, and Laurence Emmanuel M. Supangan, in partial fulfillment of the requirements for the degree of Bachelor of Science in Information Technology, has been examined and is recommended for acceptance and approval.
+0068 |  |  | Mr. John Ace C. Manlapat, MIT
+0069 |  |  | Capstone Project Adviser
+0070 |  |  | Accepted and approved by the Capstone Project Review Panel
+0071 |  |  | in partial fulfillment of the requirements for the degree of
+0072 |  |  | Bachelor of Science in Information Technology
+0075 |  |  | Mrs. Marilyn F. Afable
+0076 |  |  | Lead Panelist
+0080 |  |  | Noted:
+0082 |  |  | November, 2025
+0083 | Heading1 | heading 1 | Table of Contents
+0086 | Heading1 | heading 1 | Introduction
+0087 |  |  | Educational institutions increasingly rely on information systems to sustain efficient operations, ensure data accuracy, and support timely decision-making. However, when school processes are managed through fragmented tools (e.g., separate Excel files, Google Sheets, paper forms, and department-specific records), the organization becomes vulnerable to duplicated encoding, inconsistent records, and delayed reporting—conditions that reduce administrative effectiveness and weaken service delivery to stakeholders.
+0088 |  |  | The operational value of integrated information systems has been emphasized across literature. According to Shah (2014), management information systems improve accessibility of information, reduce workload, and strengthen reporting quality, particularly in administrative environments where multiple processes depend on shared data. In contrast, fragmented school management information systems often lead institutions to become “data rich but information poor,” meaning that even when data exists, it is difficult to consolidate and use for action because tools are disconnected and outputs are not decision-ready. According to Forrester (2019), this problem occurs when data access is not user-friendly to policymakers and administrators, limiting real institutional learning from records.
+0089 |  |  | In the Philippine context, modernization efforts have similarly emphasized integration. According to Balcita and Palaoag (2020), core functions such as admission, fees, and assessment must be integrated into one framework to ensure data consistency and reduce redundancy—an argument directly aligned with the realities of many local schools that still rely on manual and semi-digital workflows.
+0090 | Heading2 | heading 2 | Project Context
+0091 |  |  | Despite the availability of modern digital
+0095 |  |  | ntinues to operate through a fragmented ecosystem of independent records—Excel/Google Sheets files, Google Drive storage, paper-based logs, and department-specific tracking methods. This environment forces staff to encode the same student data multiple times and repeatedly verify accuracy across files, increasing delays and risk of inconsistency.
+0099 |  |  | Evidence from stakeholder interviews further validates that fragmentation creates coordination problems that cons
+0103 |  |  | For instance, the Academic Head explained that departments maintain their own records and the school must merge data manually, which leads to conflicting figures and delays in reporting outputs.
+0107 |  |  | This reinforces the concern raised in international research on data use: according to Schildkamp (2019), schoo
+0111 |  |  | se consolidated data for decision-making; however, effective data use requires systems that make information accessible and actionable rather than scattered across disconnected sources.
+0113 |  |  | The project context is further shaped by the following operational realities:
+0115 |  |  | Enrollment and student records are updated one-by-one in spreadsheets, requiring repeated checking and cross-referencing across files, especially during periods of high volume.
+0119 |  |  | Scheduling and section coordination becomes difficult when multiple records must be verified across forms and files, contributing to overlaps and extended verification time.
+0125 |  |  | toring relies on spreadsheet-based recording** where updates are delayed, especially during multiple transactions, and balances may not be reflected immediately. ence delays in grade submission** because grading requires encoding, checking, and computation before finalization, especially when there are many learners and multiple grade component
+0126 |  |  | Given these conditions, Marriott Connect is positioned as a School Management System with Decision Support Analytics, where operational modules (Enrollment, Scheduling, Grading, Billing/POS) serdation for the Analytics Dashboard. In this way, the system does not merely digitize tasks; it ensures that transactional records become consistent inputs for forecasting, monitoring, and evidence-based administrative planning.
+0130 |  |  | Statement of the Problem
+0131 |  |  | In this part of the research, the proponents indicate the problematic areas at the Marriott School regarding student record management, financial monitoring, scheduling, and administrative decision-making. Currently, schools utilize a wide range of technology including, but not limited to, Microsoft Excel (Spreadsheets) and Google Form tools (Google Docs/Firebase), digital paper/pencil notes (Evernotes, Microsoft Words, etc...) While there are many great tools in today's educational landscape - none of them collaborate effectively when collecting data on all students' progress from one single location.. This can hinder the ability for school administrators to keep accurate financial records and track trends over time. Schools using separate, disconnected, non-integrated tools create a less than ideal situation for students, parents, and teachers.. To address these issues, the proponents propose MarriottConnect, an Integrated Student Information System with Decision Support Analytics. The purpose of this system is to streamline administrative processes, eliminate data redundancy, and provide data-driven insights for the primary stakeholders of the organization (administrators, teachers, students, and parents).
+0132 |  |  | General Problem:
+0133 |  |  | How to develop MarriottConnect, an Integrated Student Information System with Automated Scheduling and Decision Support Analytics to streamline enrollment, financial assessment, and academic record management for Marriott School?
+0134 |  |  | Marriott School faces challenges in managing student data due to its reliance upon disparate and manual/non-standardised methods and tools, resulting in a high level of fragmentation among its data management systems and processes. According to gathered data, 87% of faculty/administration use multiple systems and/or tools (i.e., physical log books to record class attendance and records for grading) to manage and share information regarding student records. The fragmentation of student record management systems and the resultant redundancies, data inaccuracies, and delayed preparation of essential reports to senior management has created significant issues for the school. As an illustration, Alex Avellano, the Academic Head, said that he found it difficult to manage the school because "The departments are all using their own Excel spreadsheets," which results in him not being able to adequately record changes and provide comprehensive reports to senior management to assist with decision making.
+0135 |  |  | A lack of a central information system to combine the separate offices that produce and maintain academic records, tuition balances, and student schedules creates processing problems for those responsible for recording each office's information due to data loss or clerical error. Additionally, the separation of these three offices creates larger gaps in communication between the teacher, administrators, students, and parents. Consequently, Balcita and Palaoag (2020) state that if there is not a framework for integration, ways in which schools deliver services will continue to be inefficient; therefore, they recommend that a secure, digital, and centralized solution that unifies these functions with an integrated analytics system to provide information for administrators in decision-making.
+0136 |  |  | Specific Problems:
+0137 |  |  | How to develop a centralized Registry and Enrollment Module that digitizes student profiling and automates the generation of school forms to eliminate the redundancy of encoding data into disparate Excel files?
+0138 |  |  | Right now, Marriott School is relying on disjointed, manual methods and applications (e.g., Excel, Google Drive) to enter and manage important student data. Mrs. Jocelyn Cleofe, the Registrar, confirmed that enrollment remains a manual process requiring staff to "update one-by-one and double-check" across multiple files to ensure details are accurate . This redundancy is not merely inconvenient but operationally risky; Kanona (2022) argues that manual information management suffers from "low efficiency and poor security" compared to SQL-based systems. The current lack of integration results in labor-intensive manual validation processes, which wastes time generating reports and increases wait time for accurate and up-to-date information. Ultimately, the problem stems from not having a single source of truth for student data, creating severe restrictions on administrative efficiency.
+0139 |  |  | How to develop a Cashiering and Assessment Module that automates tuition calculation, handles flexible downpayments, and detects delinquent accounts to replace the manual cross-referencing of separate ledgers?
+0140 |  |  | The Finance Office is currently hindered by the lack of real-time tracking and automation. Mrs. Corrine Avellanosa, the Finance Officer, reported that determining a student's current tuition balance requires manually cross-referencing data from Google Drive against physical manual ledgers. She noted that "when there are multiple payments at once, there is a delay before the updated balance reflects in the system," often causing discrepancies in financial reporting . This manual verification process consumes valuable man-hours and delays the release of Statements of Account (SOA). Nitron (2024) emphasizes that modern educational institutions require tailored accounting systems integrated with student records to ensure financial transparency and operational speed, a capability currently absent at Marriott School.
+0141 |  |  | How to develop an Automated Scheduling Algorithm that generates conflict-free class schedules by matching subject requirements with teacher availability, ensuring no faculty overlaps?
+0142 |  |  | The resource management process is currently manual, inefficient, and prone to human error. The Registrar mentioned that checking teacher schedules one-by-one to avoid conflicts is "challenging" and time-consuming, often resulting in delays when adjustments are needed . Furthermore, teachers like Mrs. Fe Mercedes Cavitt find it laborious to locate specific records because data is scattered across different physical files and locations . Mittal et al. (2023) highlight that manual plotting is obsolete compared to algorithmic timetable generators that can automatically detect conflicts. There is a distinct problem in designing a system that can automate the allocation of these resources to prevent conflicts and optimize faculty load.
+0143 |  |  | How to develop a Secure Stakeholder Portal that allows parents to view real-time grades, attendance, and digital Statement of Accounts (SOA) to ensure transparency?
+0144 |  |  | Students, teachers, and parents currently utilize separate, informal access tools to obtain information, often with varying, non-standardized levels of data protection. Critically, the current system is failing parents, as evidenced by the survey where 80% of parents reported receiving school updates only 'Sometimes' (55%) or 'Rarely' (25%). This fragmentation has created substantial frustration for end-users who cannot access real-time data regarding their child's academic standing or financial obligations. Navarra and Antonio (2025) found that web-based monitoring is essential for parental engagement; therefore, there is a need for a secure, single-point portal with role-based access to empower students and parents to monitor their own, or their child's, academic progress instantly.
+0145 |  |  | How to integrate a Decision Support System (DSS) that utilizes Predictive Analytics to forecast enrollment trends and Prescriptive Analytics to analyze financial collection efficiency?
+0146 |  |  | Currently, the school administration lacks a mechanism for strategic foresight and relies on reactive management. Mr. Avellanosa expressed difficulty in strategic planning because the fragmented data makes it hard to generate cohesive reports . It is difficult for school administrators to view recruitment trends and financial collection trends because report formats and data from multiple departments must be consolidated manually. This inability creates difficulties for the school in forecasting what will be needed in terms of teacher recruitment and classroom preparations for the subsequent school year. Hussain, et al. (2023) and Wulandari and Pinandito, (2021) both assert that by using historical data to assist in delinquency analysis and forecasting, schools can better make high-level decisions regarding their operational requirements through the use of a system designed specifically to utilize historical information for these types of analyses.
+0147 | Heading2 | heading 2 | Objectives
+0148 |  |  | The objectives of this study are to guide the design and development of MarriottConnect, a comprehensive student information system that addresses Marriott School's operational inefficiencies through data centralization and analytics, based on the needs validated through data gathering and supported by recent literature.
+0150 |  |  | General Objective:
+0151 |  |  | To develop MarriottConnect, an Integrated Student Information System with Automated Scheduling and Decision Support Analytics to streamline enrollment, financial assessment, and academic record management for Marriott School.
+0152 |  |  | This general objective is formulated to directly address the core inefficiency of Marriott School: the "siloed" nature of its operations. Balcita and Palaoag (2020) established that the modernization of school services requires a holistic framework where admission, fees, and assessment are integrated rather than isolated. By developing a unified system, the proponents aim to transition the school from a dependency on disparate Excel files to a cohesive digital ecosystem. Furthermore, the inclusion of Decision Support Analytics elevates the system from a simple repository to a strategic tool, aligning with Forrester’s (2019) assertion that schools must move from being "data-rich" to "information-rich" to improve educational decision-making.
+0153 |  |  | Specific Objectives:
+0154 |  |  | To develop a centralized Registry and Enrollment Module that digitizes student profiling and automates the generation of school forms to eliminate the redundancy of encoding data into disparate Excel files.
+0155 |  |  | This objective aims to solve the critical data retrieval bottlenecks currently experienced by the Registrar. Grepon et al. (2021) found that shifting from standalone files to a centralized network environment eliminates delays in student admission and data retrieval, a direct solution to Mrs. Cleofe's struggle with "one-by-one" updates. Furthermore, Kanona (2022) emphasizes that SQL-based management systems provide secure and efficient search capabilities compared to manual methods, ensuring that student information is accurate, easily updatable, and immediately accessible to other departments.
+0156 |  |  | To develop a Cashiering and Assessment Module that automates tuition calculation, handles flexible downpayments, and detects delinquent accounts to replace the manual cross-referencing of separate ledgers.
+0157 |  |  | This objective addresses the need for financial accuracy and real-time tracking identified by the Finance Office. Nitron (2024) asserts that utilizing tailored accounting systems integrated with student records is essential for modernizing educational operations and financial management. Additionally, Wulandari and Pinandito (2021) demonstrated that a decision support logic is crucial for identifying students "in arrears" (delinquent); this module will automate that identification process, allowing the administration to enforce payment policies effectively without the need for Mrs. Avellanosa to manually cross-reference three different ledgers.
+0158 |  |  | To develop an Automated Scheduling Algorithm that generates conflict-free class schedules by matching subject requirements with teacher availability, ensuring no faculty overlaps.
+0159 |  |  | This objectives is to provide a user friendly, less time-consuming, and more reliable way for a school to develop a timetable using technology. According to Mittal and others (2023), algorithmically generated timetables take into account all teacher availability and room capacities when creating timetables automatically, thus minimizing the time it takes to complete scheduling processes. This technology enables schools to change curricula as they happen and to develop timetables free from any possibilities for conflicts. The need for manual adjustments that can be time-consuming and challenging, as cited by interviewees.
+0161 |  |  | To develop a Secure Stakeholder Portal that allows parents to view real-time grades, attendance, and digital Statement of Accounts (SOA) to ensure transparency.
+0162 |  |  | This objectives addresses the critical disconnect between the home and school; currently, 80% of parents believe they don't have enough information from the school. Navarra and Antonio (2025) found that parents' use of web based monitoring systems, which allow them to see their child's academic and attendance records in "real time," has a positive effect on both how engaged parents are with their child's education and how accountable the students feel for their own academic progress. Additionally, Chai and Mostafa (2021) wrote about how web-based monitoring systems enable parents to view shared records electronically, eliminating problems associated with sharing records as well as lack of transparency, therefore enhancing the relationship between the district and its stakeholders.
+0163 |  |  | To integrate a Decision Support System (DSS) that utilizes Predictive Analytics to forecast enrollment trends and Prescriptive Analytics to analyze financial collection efficiency.
+0164 |  |  | This goal allows for a road map in developing strategic foresight for the administration and not just as a location to store data. As referenced by Hussain et al. (2023), by using statistical methods to assess historical enrollment data, the administration can anticipate future student populations, which allows for effective resource planning (such as determining the amounts of chairs, teachers, etc., to order for the following school year). By doing so, the system provides the Academic Head with the ability to manage Data-Driven Management, alleviating their struggle of managing trend data from different Excel spreadsheets.
+0165 | Heading2 | heading 2 | Scope
+0166 |  |  | The proposed system will have three primary user groups: students, parents, and administrators/faculty. Each user group will have access to specific modules and features.
+0167 |  |  | The functionalities and modules are defined by the needs identified in the data gathering phase, addressing the fragmented systems reported by most of the faculty/administrators and the communication gaps experienced by parents.
+0168 |  |  | The Registrar can access the following:
+0169 |  |  | Enrollment Module – Process the registration of New, Returning, and Transferee students and assign sections.
+0170 |  |  | Student Masterlist Module – View the complete list of enrolled students with status indicators (including delinquency flags from Finance).
+0171 |  |  | Student Records Module – Manage and archive student grades and academic history.
+0172 |  |  | Template-Based Document Issuance – Automatically generate and print official documents such as the Certificate of Registration (COR) and Transcript of Records (Form 137). The system maps user-inputted data directly onto the school’s official document templates.
+0173 |  |  | Ticketing Module – Receive and resolve ticket concerns specifically related to student records or enrollment.
+0174 |  |  | Enrollment Reporting – Generate specific reports on daily enrollees and section population.
+0175 |  |  | The Finance Officer can access the following:
+0176 |  |  | Cashiering Module – Process tuition fee assessments and record payments (Cash/Check/Bank Transfer).
+0177 |  |  | Statement of Account (SOA) Generator – Create digital/printable SOAs mirroring the school’s format for parents to view.
+0178 |  |  | Ticketing Module – Receive and resolve ticket concerns specifically related to tuition and fees.
+0179 |  |  | Financial Reporting – Generate daily collection reports and delinquency lists.
+0180 |  |  | The Teachers can access the following:
+0181 |  |  | Grading Module – Input raw scores (Written Works, Performance Tasks) which the system automatically computes into weighted final grades.
+0182 |  |  | Automated Form 138 Generation – Generate Report Cards (Form 138) by populating the school's official template with computed grades.
+0183 |  |  | Attendance Module – Manually log daily student attendance (Present, Absent, Late) to digitize the record.
+0184 |  |  | Schedule Module – View their assigned teaching load and class schedule.
+0185 |  |  | Ticketing Module – Receive and resolve ticket concerns regarding student academic performance.
+0186 |  |  | The Parents can access the following:
+0187 |  |  | Multiple Child Switcher – A feature allowing parents with more than one child at Marriott School to switch between student profiles using a single account.
+0188 |  |  | Financial Module – View current tuition balances and digital Statement of Accounts (SOA).
+0189 |  |  | Grades Module – View their child's real-time academic grades.
+0190 |  |  | Attendance Module – Monitor their child's daily attendance records.
+0191 |  |  | Schedule Module – View their child's class schedule.
+0192 |  |  | Ticketing Module – Submit concerns or inquiries to the school, categorized by department (Finance, Academic, or Registrar).
+0193 |  |  | The Students can access the following:
+0194 |  |  | Grades Module – View their own academic grades.
+0195 |  |  | Attendance Module – View their own attendance history.
+0196 |  |  | Schedule Module – View their assigned class schedule.
+0198 |  |  | The School Administrators (Academic Head/Principal) can access the following:
+0199 |  |  | Centralized Analytics Dashboard – Access a comprehensive view of ALL system analytics, including:
+0200 |  |  | Financial Analytics: Collection efficiency, cash flow trends, and delinquency rates.
+0201 |  |  | Enrollment Analytics: Population growth, student demographics, and retention rates.
+0202 |  |  | Academic Analytics: Performance trends, failure rates per subject, and teacher grading efficiency.
+0203 |  |  | Oversight Access (View-Only) – Grant "Read-Only" access to Registrar and Finance modules to audit transactions and monitor operational status without the ability to alter raw data (maintaining separation of duties).
+0204 |  |  | Decision Support System (DSS) – Utilize predictive analytics to forecast future enrollment trends and provide data-driven recommendations for strategic planning.
+0205 |  |  | Approval Module – Verify and lock grades submitted by teachers to prevent unauthorized tampering.
+0206 |  |  | Curriculum & Schedule Management – Manage subjects and edit teacher schedules using the automated conflict-detection feature.
+0207 |  |  | Deliverables Generation – Generate consolidated reports from different departments formatted according to the school's specific reporting templates.
+0208 |  |  | Ticketing Module – Oversee and escalate unresolved tickets.
+0209 |  |  | The Super Admin (IT Personnel) can access the following:
+0210 |  |  | User Management – Create and manage user accounts, reset passwords, and assign role-based access control (RBAC).
+0211 |  |  | System Configuration – Manage school year settings, activate/deactivate modules, and configure system variables.
+0212 |  |  | Audit & Maintenance – View system activity logs (Audit Trail) to track user actions and perform database backups/restoration.
+0213 |  |  | Note: The Super Admin does not have transactional capabilities (e.g., cannot encode grades or payments) to ensure data integrity and security.
+0214 | Heading2 | heading 2 | Review of Related Literature/Studies/Systems
+0215 |  |  | The development of MarriottConnect necessitates a robust theoretical foundation built upon successful practices in centralized data management, financial automation, automated scheduling, and predictive analytics. This chapter presents comprehensive literature and studies, both local and foreign, that support the project's goal of rectifying operational deficiencies such as data inconsistency, scheduling conflicts, and delayed reporting while enhancing strategic decision-making at Marriott School.
+0217 |  |  | Local
+0218 |  |  | Efficient Student Monitoring and Data Tracking System
+0219 |  |  | Navarra and Antonio have developed and tested a new way for tracking student achievement electronically via their web-based Student Monitoring System. Navarra and Antonio's research shows that prior to implementing the web-based student monitoring system, teachers used traditional (manual) methods of keeping track of student performance using paper-based logbooks. As a direct result of using traditional methods, student performance logs were subject to many clerical errors because they were often maintained by teachers or school criminal justice officers; thus, students' parents frequently received delayed notifications of their child's performance and safety. Their findings support that digitizing student performance records such as grades and attendance improves a school's ability to quickly and efficiently intervene on behalf of students.
+0220 |  |  | The findings of Navarra and Antonio (2025) serve as a critical reference for the Stakeholder Portal of MarriottConnect. Marriott School currently suffers from a communication gap where 80% of parents report receiving inconsistent updates. By adopting the web-based monitoring approach validated in this study, MarriottConnect can provide parents with a secure, real-time platform to view their child’s academic standing and attendance history, thereby fostering transparency and accountability between the institution and the home.
+0221 |  |  | Optimizing Student Information Management: A Holistic Examination of Implementation Strategies
+0222 |  |  | Nitron (2024) emphasized the necessity of a holistic approach to Student Information and Accounting Systems (SIAS) in Philippine universities. Her study highlighted that utilizing a "tailored accounting system" integrated with intelligent technologies is critical for improving educational operations, particularly in financial management. She argued that manual financial tracking is insufficient for modern institutions and that data-driven strategies are essential to align with quality education standards and improve overall academic performance.
+0223 |  |  | This study directly supports the Cashiering and Assessment Module of MarriottConnect. Currently, the Marriott Finance Office relies on manual cross-referencing of ledgers to determine tuition balances, a process Nitron identifies as inefficient. By implementing the "tailored accounting" approach suggested by Nitron (2024), MarriottConnect will automate the assessment of fees and the tracking of payments, ensuring that financial data is accurate, integrated with student records, and readily available for administrative decision-making.
+0224 |  |  | Designing and Implementing e-School Systems: An Information Systems Approach to School Management of a Community College in Northern Mindanao, Philippines
+0225 |  |  | Grepon, Gumonan, Baran, and Lacsa (2021) designed a functional electronic school management system that successfully unified academic and administrative functions to support the daily operations of a community college. The paper provided deep insight into how the adoption of a centralized network infrastructure could automate complex, repetitive tasks that were originally performed manually across multiple departments. The system successfully eliminated common organizational issues such as data duplication and slow retrieval times.
+0226 |  |  | The insights from Grepon et al. (2021) validate the fundamental architectural goal of MarriottConnect: Data Centralization. Marriott School currently struggles with disparate Excel files and Google Forms, leading to redundancy. Following the model presented by Grepon et al., MarriottConnect will transition the school from standalone files to a centralized database ecosystem, ensuring that data entered by the Registrar is immediately accessible to Finance and Faculty, thus eliminating the "siloed" operations identified in the problem statement.
+0227 |  |  | Building a Framework for the Integration of School Management Systems (BFISMS)
+0228 |  |  | Balcita and Palaoag (2020) offered a powerful framework demonstrating how various school management systems can achieve better efficiency through deep integration. The authors explicitly detailed that when administrative systems are fragmented when departments operate using disconnected tools schools inevitably face data inconsistencies. Their proposed framework suggests that successful systems must offer seamless interoperation between core modules like Admission, Fees, and Academics.
+0229 |  |  | Balcita and Palaoag’s (2020) study provides the theoretical justification for the "Integrated" aspect of MarriottConnect. It argues that Enrollment and Cashiering cannot exist as separate entities; they must be linked. This supports the proposed system logic where a student’s enrollment in the Registrar module automatically triggers the creation of their financial assessment in the Cashiering module, ensuring data consistency across the institution.
+0230 |  |  | Adoption and Implementation of Automated Class and Teacher Scheduler (ACTS)
+0231 |  |  | The Department of Education (DepEd) Panabo City has implemented an automatic scheduling system for local school divisions. Before implementing this system, there was significant effort and time required by school administrators for them to manually plot their classroom schedules. The process of creating a schedule often caused confusion due to overlapping assignments between teachers and classrooms and would take an extensive amount of time each week to resolve. The use of algorithms in the automated scheduling system drastically reduced the time it took to create classroom schedules and helped reduce the incidence of errors in scheduling, such as teachers being double booked or classroom assignments overlapping.
+0232 |  |  | This report is highly relevant to the Automated Scheduling Module of MarriottConnect. The Registrar at Marriott School described the current manual scheduling process as "challenging" and prone to conflicts. By adopting the automated logic validated in the Panabo City (2025) implementation, MarriottConnect will utilize a constraint-based algorithm to generate conflict-free schedules, thereby optimizing resource utilization and reducing the administrative burden on the Academic Head.
+0233 |  |  | Foreign Studies
+0234 |  |  | Designing Decision Support System for Midwifery Students’ Tuition Fees Problem
+0235 |  |  | Wulandari and Pinandito (2021) focused on the development of a Decision Support System (DSS) to address financial delinquency in an educational setting. Their research utilized decision tables to identify students who were "in arrears" (delinquent) and provided management with data-driven recommendations, such as restricting exam permits or offering installment restructuring. The study proved that a DSS could significantly improve collection efficiency by automating the identification of problematic accounts.
+0236 |  |  | This research serves as the "Hero Source" for the Delinquency Tracker and Financial Strategy Analytics of MarriottConnect. As of now, the Finance Office is performing a manual review of three ledgers to establish who has not made a payment. If the system were to include the logic in Wulandari and Pinandito’s (2021) proposal, then the system would automatically identify delinquent accounts and show trends of payments made by customers. By using this automated process, the administration can make better financial-based decisions, rather than relying on manual data mining to find this information.
+0237 |  |  | Student Information Management System for Baghdad College of Economic Sciences University (SIMS-BC): A Case Study
+0238 |  |  | Kanona (2022) developed a comprehensive student information management system that fully automated data handling processes across a university environment. The study highlighted the flaws of manual information management, describing it as suffering from "low efficiency, poor security, and inconvenient search." Kanona demonstrated that transitioning to an SQL-based database system ensured that student information was secure, accurate, and retrievable in seconds rather than hours.
+0239 |  |  | Kanona (2022) supports the Database Design and Security aspects of MarriottConnect. The study emphasizes that manual files (like the Excel sheets used by Marriott School) are insecure and inefficient. MarriottConnect will adopt the SQL-based architecture recommended by Kanona to provide a secure, role-based environment where student records are protected from unauthorized access and data loss.
+0240 |  |  | Bright Kids Tuition Centre Management Information System
+0241 |  |  | Chai and Mostafa (2021) developed a web-based information system for a private tuition center to manage financial records, student enrollments, and staff employment history electronically. The system was designed to resolve issues related to "record duplication" and "data inconsistency" caused by manual filing systems. Their study showed that a web-based platform allowed for the seamless sharing of records between branch managers, staff, and parents.
+0242 |  |  | This study validates the Web-Based Architecture of MarriottConnect. Since Marriott School operates similarly to a private institution with a need for efficient record sharing between departments, the success of Chai and Mostafa’s (2021) system in reducing redundancy and improving data accessibility supports the proposal to move Marriott’s operations to a responsive web platform accessible to all stakeholders.
+0243 |  |  | Student Gross Enrolment Ratio Forecasting: A Comparative Study Using Statistical Method and Machine Learning
+0244 |  |  | According to Hussain, Rosangliana & Vanlalruata (2023 ), When making predictions about student enrollment ratios, there are two types of statistical methods available. Using historical enrollment figures is an important predictor for future student populations. Using this knowledge, administrators can make informed decisions about the distribution of their workforce and space, along with hiring new teachers and opening new classrooms.
+0246 |  |  | Hussain et al.'s (2023) research is a basis for the Scientific Enrolment Forecasting feature for Decision Support Systems. As of currently, the Academic Head of the Marriott School does not have any tools available to them to see the trends that may occur. Utilizing the statistical methods outlined in Hussain et al. (2023), MarriottConnect can utilize historical data to create actionable forecasts that will support their future strategy.
+0247 |  |  | Timetable Generator For Educational Institution
+0248 |  |  | The author and his co-authors created a timetable generator for schools and universities automatically (Mittal et al., 2023). This paper focused on introducing the difficulties that many schools face with traditional manual timetables and noted that it is classified as "NP-Hard" and subject to human-altering errors. They proposed a system that uses algorithms to create "conflict-free" schedules by considering parameters like teacher availability, subject load, and room capacity, replacing the tedious manual plotting method.
+0249 |  |  | Mittal et al. (2023) directly support the technical logic of the Automated Scheduling Module. Their findings confirm that manual scheduling is obsolete and inefficient for growing institutions. MarriottConnect will implement the algorithmic approach advocated by Mittal et al. to ensure that the generated class and teacher schedules are optimized and free of conflicts.
+0256 |  |  | Synthesis
+0257 |  |  | The reviewed literature establishes a robust consensus on the necessity of digital transformation in educational settings, positioning MarriottConnect as a critical solution to systemic inefficiencies. The convergence of findings from both local and foreign research validates the system's core architecture.
+0258 |  |  | Local studies by Balcita and Palaoag (2020) and Grepon et al. (2021) confirm the debilitating effects of fragmented systems, mirroring Marriott School's reliance on disconnected Excel files. These studies provide the architectural mandate for a unified platform to create a "single source of truth." Furthermore, Navarra and Antonio (2025) and Nitron (2024) validate the specific needs for a Stakeholder Portal and Tailored Cashiering System, proving that real-time transparency and financial automation are essential for modern Philippine schools.
+0259 |  |  | Complementing this, foreign literature provides the technical depth for advanced modules. Wulandari and Pinandito (2021) and Hussain et al. (2023) justify the inclusion of the Decision Support System, demonstrating that analytics for delinquency and enrollment forecasting are vital for strategic management. Finally, Mittal et al. (2023) and DepEd Panabo (2025) confirm that Automated Scheduling is the industry standard for resolving the resource conflicts currently faced by Marriott School. Collectively, these studies guarantee that MarriottConnect will transition the school from manual, inefficient processes to a fully integrated, data-driven environment.
+0263 | Heading2 | heading 2 | TECHNICAL BACKGROUND
+0264 |  |  | Overview of Current Technologies to be Used in the System
+0265 |  |  | The proposed system, MarriottConnect: An Integrated Student Information System with Decision Support Analytics, will be constructed utilizing a robust combination of current-generation web technologies to ensure data centralization, security, and accessibility.
+0266 |  |  | In the critical area of backend development, PHP has been selected as the primary server-side scripting language. This choice is strategic due to PHP's proven efficiency in handling complex, database-driven software systems, making it ideal for the transactional processing required for academic records and financial calculations. Correspondingly, for core data management, the system will utilize MySQL as the Relational Database Management System (RDBMS). MySQL is essential for providing a secure repository for the centralized school data, ensuring that the Registrar, Finance, and Faculty access a "single source of truth," thereby eliminating the data redundancy issues identified in the project’s context.
+0267 |  |  | The user interface will be developed using HTML, CSS, and JavaScript because all of today’s modern web browsers support these web standard technologies. Bootstrap will be utilized to create a responsive web interface that works well on all devices (e.g., staff desktop workstation and parent mobile phones).
+0268 |  |  | Official school documents, such as Certificates of Registration (COR) and Report Cards (Form 138), will be automatically generated from the school database using the FPDF library, which provides the ability to automatically fill each certificate and report card template with the school’s specific template data. Additionally, Chart.js will be used for the DSS to create visually appealing analytics and forecasting graphs relating to the school’s enrollment and financial trends.
+0271 |  |  | Prototyping Model
+0272 |  |  | The proponents will adopt the Prototyping Model in developing MarriottConnect. This methodology is highly suitable for this project as it is an iterative model that places a strong emphasis on continuous user feedback and refinement. This approach is essential to ensure that the final system aligns precisely with the validated user needs of the Marriott School administration specifically the complex financial cross-referencing and manual scheduling challenges identified during the interviews.
+0274 |  |  | Figure 1. Prototype Model
+0275 |  |  | Taken from: https://www.guru99.com/software-engineering-prototyping-model.html
+0277 |  |  | The model includes the following stages, ensuring a controlled, user-centric development process:
+0278 |  |  | Requirements Gathering and Analysis
+0279 |  |  | The proponents performed extensive interviews and observations at Marriott School to obtain detailed information on existing manual processes related to enrollment, grading, and tuition collection. This step builds on the findings from the data collection (e.g., interviews with Mrs. Cleofe regarding manual sectioning and Mrs. Avellanosa regarding ledger cross-referencing) to fully understand the current pain points. The data was analyzed to determine the key gaps in operations and to create clear, measurable objectives for the Integrated System.
+0281 |  |  | Quick Design
+0282 |  |  | Based on the finalized requirements, a preliminary design of the system's interface and data flow was created. This rapid design phase focused on the architectural blueprints and user experience (UX) for the system's major modules: Registry, Cashiering, Grading, and the Analytics Dashboard. This initial design prioritized logic and functionality such as the flow of data from enrollment to billing over final aesthetics.
+0283 |  |  | Build Prototype
+0284 |  |  | A functional, albeit partial, prototype of MarriottConnect will be developed using the selected technologies (PHP, MySQL, Bootstrap). This prototype will demonstrate basic, core functionalities deemed most critical by the users, such as the "Flexible Downpayment" entry for Finance, the "Constraint-Based Scheduler" for the Admin, and the "Digital Gradebook" for teachers.
+0285 |  |  | Initial User Evaluation
+0286 |  |  | The built prototype will be presented to Marriott School's administration and key staff (Registrar, Finance Officer, and Academic Head) for hands-on evaluation. Their critical feedback will be gathered to identify specific areas that require modification for instance, ensuring the printed COR matches the exact school template or refining the delinquency flagging logic. This stage ensures the system meets the practical needs highlighted in the initial analysis.
+0287 |  |  | Refining Prototype
+0288 |  |  | The software will be incrementally refined with user input, with a primary emphasis on enhancing the User Interface Design and Improving System Performance through speed and the accuracy of the Core Algorithm, Linear Regression for Forecasting Enrollment numbers. This cycle will continue until the software has been fully validated by the users.
+0289 |  |  | Implement and Maintain
+0290 |  |  | Once the prototype is completed and rigorously tested, the final iteration of MarriottConnect will be deployed for a structured pilot testing phase. The proponents will facilitate training sessions for the staff while monitoring the system's viability. Following successful deployment, the maintenance phase will begin to address any emerging bugs or required updates.
+0292 |  |  | Calendar of Activities
+0293 |  |  | August - The proponents initiated the Initial Host Company Search and feasibility evaluation. After selecting a laboratory clinic, the team proceeded with a formal interview and conducted the initial meeting. Following engagement, the proponents began drafting the early sections of the research paper, specifically focusing on Chapter 1, while simultaneously compiling initial evidence required for the upcoming defense.
+0295 |  |  | September - The proponents completed the preliminary drafts of Chapter 1 and Chapter 2, continued gathering supporting documents, and refined the problem background statement. Towards the end of the month, the team prepared for and conducted the First Mock Defense. However, due to panel advice regarding insufficient data and subsequent communication breakdown with the laboratory clinic, the proponents were forced to search for an alternative host company.
+0297 |  |  | October - The proponents successfully secured Marriott as the new host company and scheduled and conducted the first formal interview with the Academic Head. Leveraging the newly acquired data, the proponents comprehensively revised and rewrote Chapters 1 and 2 to accurately align the project context with the new host company's processes. Chapter 3 was then drafted. Later in the month, the proponents prepared for and conducted the Second Mock Defense, where they were advised to gather more substantial data, as the existing transcripts were not fully aligned with the study's direction.
+0299 |  |  | November - The proponents addressed the panel's feedback by conducting a critical round of additional interviews with key Marriott staff, including the teacher, registrar, guard, and finance personnel, along with a follow-up interview with the Academic Head for clarification. To supplement the qualitative findings, surveys were administered to students and parents. Utilizing all the newly validated data, the proponents performed a thorough revision of Chapters 1, 2, and 3 to ensure accurate reflection of the updated interviews and survey results.
+0302 |  |  | Gantt’s Chart of Activity
+0304 |  |  | Figure 2: Gantt’s Chart of Activity
+0307 |  |  | Resources
+0308 |  |  | Hardware Requirements
+0309 |  |  | These components are necessary for hosting the system and enabling end-users (staff, students, and parents) within the Marriott context to access the functional application efficiently.
+0310 |  |  | Application/Database Server: A dedicated or virtual server environment provisioned with sufficient RAM, CPU processing power, and storage capacity to reliably host the Web Application and its database. This resource must be robust enough to handle simultaneous usage by staff, students, and parents without performance latency.
+0311 |  |  | Client Devices (Mobile): Smartphones or tablets running recent versions of the Android and/or iOS operating systems. These are required for staff, students, and parents to access the system on the go, specifically for viewing real-time updates and core functionalities optimized for mobile interfaces.
+0312 |  |  | Client Devices (Web): Desktop or laptop computers equipped with modern web browsers (e.g., Chrome, Edge, Firefox). These are required for Administrative Staff to access heavy administrative and reporting modules, and for Parents and Students to access their specific Web Application portals for detailed viewing of grades and financial records.
+0313 |  |  | Software Requirements
+0314 |  |  | Server Environment: XAMPP will be used during the development phase for local testing, providing the necessary Apache HTTP Server and PHP environment to simulate the live server before final deployment.
+0315 |  |  | Database Management: MySQL is selected as the Relational Database Management System (RDBMS). It will be used for structuring, storing, and managing all administrative and user data due to its reliability, security features, and widespread support in educational systems.
+0316 |  |  | Backend Language: PHP will serve as the primary server-side scripting language. It will handle all business logic, process data requests (such as grade computation and fee assessment), and facilitate secure interaction with the MySQL database.
+0317 |  |  | Frontend Languages: HTML, CSS, and JavaScript will be the foundational languages used for building the user interface, styling the visual elements, and creating interactive components of the Web Application.
+0318 |  |  | Frontend Framework: Bootstrap will be utilized as the CSS framework. This ensures the Web Application features a responsive, mobile-friendly, and consistent design that adapts seamlessly across various client devices (desktops, tablets, and phones).
+0319 |  |  | Development Environment: Visual Studio Code (VS Code) will be the designated Integrated Development Environment (IDE) for the proponents to write, debug, and manage the system's source code files efficiently.
+0320 |  |  | Design Tools: Figma and Canva are designated as the tools that will be utilized during the design phase. These will be used to create the system's UI/UX design mockups, wireframes, and final presentation materials based on the gathered requirements.
+0327 | Heading2 | heading 2 | Requirements Analysis
+0328 |  |  | This section details the requirements needed to address the operational challenges faced by Marriott School through the development of MarriottConnect: An Integrated Student Information System with Decision Support Analytics. The analysis identifies the system’s functions, business needs, and technical considerations to ensure that development aligns with the expectations of the school’s administrators, faculty, students, and parents.
+0329 | Heading3 | heading 3 | A. Requirement
+0330 |  |  | Marriott School will need to manage student records, centralize financial assessment, automate scheduling, and allow grades to be viewed, all from a central online platform. Attendance will be documented through digital teacher logs which will store the information in a centralized database for processing, analyzing, and display. Parents will have access to a secure portal to view their child's academic and financial status, with administrators being able to track all records, forecast enrollment trends, and report on metrics being gathered, while storing data safely.
+0331 | Heading3 | heading 3 | B. Business / User Requirement
+0332 |  |  | The system must assist Marriott School in managing its growing number of students by eliminating the manual and fragmented processes currently performed using Excel, Google Drive, and manual logbooks. MarriottConnect must handle financial assessment automatically, update student information instantly across all departments, and allow parents to view their child’s records conveniently. The proposed software should strengthen school–parent communication, support teachers in encoding grades, automate the creation of conflict-free schedules, and assist administrators in monitoring tuition balances and enrollment trends.
+0333 |  |  | System Integration for Student Information and Operations
+0334 |  |  | The system must replace the manual cross-referencing of data between Registrar and Finance offices.
+0335 |  |  | The system should automatically track student data, store it in the central database, and link it with financial and academic records.
+0336 |  |  | The system must consolidate grades, schedules, and tuition records into a unified dashboard for accessibility.
+0337 |  |  | The system should support communication between the school and parents through a ticketing system.
+0338 |  |  | Web-Based Admin Dashboard
+0339 |  |  | Administrators and faculty will manage student data, encode grades, track tuition, and monitor attendance through a secure web interface.
+0340 |  |  | Admins can generate summary reports for enrollment, grades, and tuition in PDF format based on official school templates.
+0341 |  |  | Admins can view analytics for enrollment forecasting and financial collection.
+0342 | Heading3 | heading 3 | C. System Requirements
+0343 |  |  | Major System Capabilities
+0344 |  |  | Major System Capabilities
+0345 |  |  | The system will operate as a web-based platform accessible through computers or mobile browsers.
+0346 |  |  | The system will support digital attendance logging by teachers.
+0347 |  |  | The system will allow role-based access (Administrator, Registrar, Finance, Teacher, Student, Parent).
+0348 |  |  | The system will store and retrieve student records, attendance logs, tuition balances, and grades.
+0349 |  |  | The system will provide a secure messaging/ticketing system for parent inquiries.
+0350 |  |  | The system will generate summary reports for student information, attendance, and tuition using FPDF.
+0351 |  |  | The system will provide Decision Support Analytics for enrollment forecasting.
+0352 |  |  | The system will ensure data security through authentication and encryption.
+0353 |  |  | Major System Conditions
+0354 |  |  | Each user (administrator, teacher, parent, or student) must have a unique login credential.
+0355 |  |  | Internet connection must be available for real-time data access and updates.
+0356 |  |  | The Registrar must input initial student data to activate Finance and Grading modules.
+0357 | Heading3 | heading 3 | D. System User Characteristics
+0358 |  |  | Administrators – have full view access to all analytics; manage scheduling, view reports, and maintain data accuracy.
+0359 |  |  | Registrar – manages student enrollment, sectioning, and student records.
+0360 |  |  | Finance Officer – manages tuition assessment, payments, and delinquency tracking.
+0361 |  |  | Teachers – can input grades, view schedules, and log student attendance.
+0362 |  |  | Students – can log in to view grades, class schedules, and attendance records.
+0363 |  |  | Parents – can view their child’s grades, attendance history, and tuition balances.
+0364 | Heading3 | heading 3 | E. Functional Requirements
+0365 |  |  | Manage Student Records
+0366 |  |  | The Registrar shall manage student profiles, enrollment status, and section assignments.
+0367 |  |  | The system shall log and update student demographics and link them to academic and financial records.
+0368 |  |  | Manage Cashiering & Assessment
+0369 |  |  | The Finance Officer shall process tuition fee assessments based on grade level.
+0370 |  |  | The system shall accept flexible downpayments and update remaining balances in real-time.
+0371 |  |  | The system shall flag delinquent accounts automatically.
+0372 |  |  | Manage Grades
+0373 |  |  | Teachers shall encode student grades by subject and grading period.
+0374 |  |  | The system shall store and calculate weighted final grades per student.
+0375 |  |  | The system shall lock grades after verification by the Academic Head.
+0376 |  |  | Manage Attendance
+0377 |  |  | Teachers shall record the attendance through a digital checklist.
+0378 |  |  | Attendance data shall automatically update in the admin and parent dashboards for monitoring.
+0379 |  |  | Automated Scheduling
+0380 |  |  | The Admin shall input teacher availability and subject loads.
+0381 |  |  | The system shall generate conflict-free class and teacher schedules using a constraint-based algorithm.
+0382 |  |  | Decision Support System
+0383 |  |  | The system shall analyze historical data to forecast future enrollment counts.
+0384 |  |  | The system shall visualize financial collection trends for strategic planning.
+0385 |  |  | Generate Reports
+0386 |  |  | The system shall generate printable reports for Certificate of Registration, Report Cards (Form 138), and Statement of Accounts.
+0387 |  |  | Reports shall be exportable in various formats  and mapped to the school's official templates.
+0389 |  |  | F. Non-Functional Requirements
+0390 |  |  | Operational Requirements
+0391 |  |  | The system will be accessible via web browsers on desktop (for staff) and mobile devices (for parents).
+0392 |  |  | The system requires an active internet connection for real-time operations.
+0393 |  |  | Performance Requirements
+0394 |  |  | The system must update records and calculations (e.g., tuition balance) instantly upon data entry.
+0395 |  |  | System uptime should be at least 95% during school hours.
+0396 |  |  | Security Requirements
+0397 |  |  | All user passwords shall be hashed in the database.
+0398 |  |  | User access will be role-based with authentication credentials to prevent unauthorized access to sensitive modules (e.g., Teachers cannot access Finance).
+0399 |  |  | The system will log all access and data modifications for auditing.
+0400 |  |  | Usability Requirements
+0401 |  |  | The interface must be user-friendly and easily navigable for all user types.
+0402 |  |  | The design must maintain readability, accessibility, and responsiveness on various devices using Bootstrap.
+0403 |  |  | Maintainability Requirements
+0404 |  |  | The system must allow easy updates to school year configurations, curriculum subjects, and fee structures.
+0405 |  |  | The database must be easily backed up and restored by the Super Admin.
+0406 | Heading2 | heading 2 | Requirements Documentation
+0407 | Heading2 | heading 2 | The MarriottConnect system, an Integrated Student Information System with Decision Support Analytics for Marriott School, is composed of multiple integral modules designed to interoperate seamlessly. These modules are key components in achieving efficient, organized, and data-driven management of student data and communication related to all aspects of school and student operations.
+0408 | Heading2 | heading 2 | Educators can manage their student's academic records using module grades and academic records. Educators can input raw scores for written works and performance tasks; the system calculates the final weighted grades automatically. Students and parents will be granted easy access to view comprehensive academic information for each grading period through a secure portal.
+0409 | Heading2 | heading 2 | Alongside this is the Cashiering and Assessment Module that automates the recording of tuition fees, payment transaction information, and balances owed. This module replaces the manual cross-referencing of ledgers by automatically calculating assessments based on grade level and accepting flexible downpayments. It creates a clear financial record available to students or parents so they understand what they owe to the institution and can make timely payments, while also flagging delinquent accounts to restrict the release of report cards.
+0410 | Heading2 | heading 2 | Furthermore, the Automated Scheduling Module provides the administration with a powerful tool to generate conflict-free class timetables. Using a constraint-based algorithm, the matching of Subject Requirement to Instructor Availability is done in a way that prevents overlapping of Single Subject Instructors. After the matching process is completed, both Students & Instructors receive access to an organized Schedule that displays each Student's Assigned Subjects, Days of the Week, Class Times, and based on Teacher Listings, who will be teaching each Course.
+0411 | Heading2 | heading 2 | In addition, the Attendance Module digitizes the entire attendance process. Administrators can now track daily student attendance using a digital system instead of the traditional use of paper log books. By utilizing a live database, staff will be able to view daily attendance patterns as they develop as opposed to waiting until the quarter grading process is complete to see the attendance patterns. Furthermore, with this technology, parents and district office personnel will have access to the same accurate attendance data for their children.
+0412 | Heading2 | heading 2 | Beyond mere record-keeping, MarriottConnect incorporates the Stakeholder Portal to enhance communication between the school and the family. Through the Parent Portal, parents have access to immediate and ongoing updates regarding their child’s academic progress. This includes real-time views on received grades, attendance records, and their digital Statement of Accounts (SOA). In addition to these features, parents can utilize the Ticketing System located within the Parent Portal to communicate directly with any of the departments (Finance, Registrar or Academic) from whom they need help. This process allows parents to receive updates on their tickets and be assured that their issues will be handled properly and efficiently by the appropriate department.
+0413 | Heading2 | heading 2 | At the centre of the system is the Registry and Enrollment Module (REM), which is the database that contains all student information (demographics, enrolment information, and academic history). REM also simplifies the admission process by facilitating New, Returning, and Transferee workflows as well as allowing users to automatically assign sections, although users can override this function if they choose.. This module ensures that administrators and authorized faculty members have access to accurate, current files on any student when required.
+0414 | Heading2 | heading 2 | For strategic planning, the Decision Support System (DSS) & Analytics Module enables administrators to view visual dashboards forecasting enrollment trends and analyzing financial collection efficiency. By using predictive analytics on historical data, the administration can make informed decisions regarding resource allocation and financial strategy.
+0415 | Heading2 | heading 2 | For data reporting, the Reports Module enables administrators to prepare summary reports on academic performance, tuition balances, and enrollment statistics. These generated reports are designed to be easily exportable and formatted according to the school's official templates (e.g., Certificate of Registration, Form 137/138) for administrative records and review.
+0416 | Heading2 | heading 2 | Ultimately, the System Maintenance & Security Module is put in place to guarantee the on-going element of trust and continued function of the ongoing system. This module will permit authorized Super Administrators to manage end-user accounts, configure school years, and view audit trails. This control process is critical for ensuring data integrity, system security, and overall access to function is limited to authorized personnel only.
+0417 | Heading2 | heading 2 | By applying the full configuration of these integrated modules, MarriottConnect will be configured to create a thorough, centralized, and automated system to ease school operations and substantially build connectivity between the Marriott School, its students, and their families.
+0426 | Heading1 | heading 1 | References
+0427 |  |  | Balcita, R. E., & Palaoag, T. D. (2020). Building a framework for the integration of school management systems (BFISMS). International Journal of Information and Education Technology, 10(6), 455–459. https://doi.org/10.18178/ijiet.2020.10.6.1406
+0428 |  |  | Cadungog, R. R., Nambong, R. L., Hontiveros, N. L., Tenebroso, M. B., & Serrano, M. R. (2024). CITE_STEMA sa atendansiya: Modernizing CITE students attendance system with RFID technology. International Journal of Computer Science & Engineering Survey, 15(2/3/4).
+0429 |  |  | Chai, W. C., & Mostafa, S. A. (2021). Bright Kids tuition centre management information system. Applied Information Technology and Computer Science, 2(2), 937–957. https://doi.org/10.30880/aitcs.2021.02.02.059
+0430 |  |  | Doğan, E., & Demirbolat, A. O. (2021). Data-driven decision-making in schools scale: A study of validity and reliability. International Journal of Curriculum and Instruction, 13(1), 507–523.
+0431 |  |  | Grepon, B. G. S., Baran, N. T., Gumonan, K. M. V., Martinez, A. L. M., & Lacsa, M. L. E. (2021). Designing and implementing e-school systems: An information systems approach to school management of a community college in Northern Mindanao, Philippines. International Journal of Computing Sciences Research, 5(1), 380–392. https://doi.org/10.25147/ijcsr.2017.001.1.74
+0432 |  |  | Kanona, R. M. (2022). Student information management system for Baghdad College of Economic Sciences University (SIMS-BC): A case study. Journal of Baghdad College of Economic Sciences, (67), 316–320.
+0433 |  |  | Navarra, J. M., & Antonio, E. O. (2025). Efficient student monitoring and data tracking system. Psychology and Education: A Multidisciplinary Journal, 35(8), 848–867. https://doi.org/10.70838/pemj.350801
+0434 |  |  | Nitron, J. G. (2024). Optimizing student information management: A holistic examination of implementation strategies. Cognizance Journal of Multidisciplinary Studies, 4(5), 106–110. https://doi.org/10.47760/cognizance.2024.v04105.008
+0435 |  |  | Pavithra, K., & Saranya, S. (2021). Survey on Android based parent notification system. International Journal of Innovative Research in Technology, 7(10), 220–222.
+0436 |  |  | Wulandari, C. P., & Pinandito, A. (2021). Designing decision support system for midwifery students’ tuition fees problem. International Journal of Innovation in Enterprise System, 5(2), 157–171.
+0440 |  |  | Appendices
+0442 |  |  | APPENDIX A. RESOURCE PERSONS
+0443 |  |  | Mr. Alexander F Avellanosa
+0444 |  |  | Academic Head
+0445 |  |  | Marriott School
+0447 |  |  | Mrs. Jocelyn M. Cleofe
+0448 |  |  | Registrar’s Office
+0449 |  |  | Marriott School
+0451 |  |  | Mrs. Corrine P. Avellanosa
+0452 |  |  | Finance Office
+0453 |  |  | Marriott School
+0455 |  |  | Mrs. Fe Mercedes M. Cavitt
+0456 |  |  | Teacher
+0457 |  |  | Marriott School
+0459 |  |  | Mr. Davey
+0460 |  |  | Guard
+0461 |  |  | Marriott School
+0497 |  |  | APPENDIX B. TRANSCRIPT OF INTERVIEWS
+0520 |  |  | B.1 Academic Head
+0522 |  |  | Interviewer: Jade Michael D. Godalle
+0523 |  |  | Interviewee: Mr. Alexander F. Avellanosa
+0525 |  |  | Interviewer: Good afternoon po, Sir Alex. I’m Jade po ulit. Nandito po ulit kami para sa interview. Sir, diba yung previous natin, gumagamit po kayo ng Excel or manual files. Bakit po sir, hanggang ngayon gumagamit pa rin po kayo ng Excel?
+0527 |  |  | Interviewee: Actually, i-clarify ko lang. Excel na nasa G-Drive po 'yan. So, manual siya, pero nasa cloud, naka-share. Alam mo yun, parang okay na rin siya sa simula, kasi lahat makakakita, makaka-access, pero mahirap i-manage. Kasi ang dami-dami ng files, bawat department may kanya-kanyang Excel, at minsan kailangan i-compare manually. Kahit nasa cloud, kung sabay-sabay nagta-trabaho, hindi mo na talaga ma-track kung sino nag-edit, paano nag-change yung data. Talagang hassle. Kaya nga kahit may Excel, hindi pa rin siya ganap na efficient.
+0529 |  |  | Interviewer: Sir, yung mga nag-offer sa inyo, nag-offer ng ano? Alam po ba nila yung problem kaya nag-offer sila ng ganong system sa inyo?
+0531 |  |  | Interviewee: Ah, yun. Dami nag-offer sa amin ng enrollment systems or iba pang system. Pero honestly, di namin sigurado kung fully nila naintindihan yung ganyang specific problems namin. Kasi ang hirap talaga, iba-iba yung situation namin. Yung mga ino-offer nila, parang standard package lang sa ibang schools. Hindi naman sila talaga fit sa workflow namin. Kaya kung gagamitin namin yun, baka mas magulo pa. Talagang kailangan namin maintindihan muna bago i-adopt.
+0533 |  |  | Interviewer: Sir, ano po ang mahirap na naranasan kapag sabay-sabay na nag-edit o nag-access ng parehong file ang iba't iba?
+0535 |  |  | Interviewee: Oo, tama. Mahirap talaga. Halimbawa, sabay nag-e-edit si Finance at si Registrar sa parehong Excel file sa Google Drive. Pag may mali, kailangan i-trace kung sino nag-edit, ano yung nagbago, saan nagkamali. Parang, ini-examine mo isa-isa yung cells. Ang hirap talaga kasi minsan nawala yung data o may nag-change na hindi mo alam. Kailangan balik-balikan, i-check ang history ng bawat entry. Nakakapagod talaga sa oras at effort.
+0537 |  |  | Interviewer: Yes, sir.
+0539 |  |  | Interviewee: Kaya nga minsan, kahit may Excel, parang manual pa rin kasi kailangan pa rin ng constant monitoring, checking, at coordination. Hindi siya automatic na nag-a-update o nagma-manage ng conflicts.
+0541 |  |  | Interviewer: Sir, gaano kadalas nagkakaroon ng error or inconsistency sa student records?
+0543 |  |  | Interviewee: Student records? Dito, medyo old school talaga. Talagang handwritten ang initial input, tapos i-encode pa sa Excel. Hindi naman madalas mag-error technically, kasi careful kami sa pag-check, pero ang problema, sobrang tagal i-verify. Ang workflow, kailangan mo i-double check, i-compare ang entries, minsan printed copy, minsan digital copy. Nakakapagod. Kapag may sabay-sabay na nag-update, may mga points na parang nawawala o hindi aligned agad.
+0545 |  |  | Interviewer: So, sir, sabi niyo po old school yung process niyo. May nangyayari po ba na duplicate ng student records?
+0547 |  |  | Interviewee: Ah, yung present students? Hindi naman technically duplicate, pero minsan may confusion sa data integrity. Halimbawa, minsan hindi ka sigurado kung ang grade na na-encode na ba or hindi pa. Parang, “San ko na ba nilagay yun?” o kaya “Na-print ko ba ito?” Kaya kailangan ulit i-check manually. Nakakapagod talaga.
+0549 |  |  | Interviewer: Sir, paano naapektuhan ng errors and delays na ito ang operational supervision ng school sa mga students?
+0551 |  |  | Interviewee: Talagang sobra ang oras na binibigay namin para maiwasan ang delay. Halimbawa, pag may problem sa grade or enrollment, nire-recall namin ang student or teacher para i-verify. Kung hindi ganito, aabutin ng delay ang students sa card release or sa enrollment confirmation. Talagang nakakapagod ang manual management.
+0553 |  |  | Interviewer: Like, paano po yun sir ngayon? Di ba sir, kuhaan po ng card ngayon, then di nakuha ng students, bukas po pwede silang bumalik?
+0555 |  |  | Interviewee: Next week na yun. Kasi may rules na dapat parent ang kukuha ng card sa first quarter. Kung wala yung parent, hindi makukuha ng student. Kaya minsan may delay talaga. Kahit ganoon, kailangan ng effort para masigurong updated at verified lahat ng records bago ibigay sa students.
+0557 |  |  | Interviewer: Sir, sa experience niyo, madalas ba kayong makaranas ng delays or errors sa communication between registrar, teachers, and finance?
+0559 |  |  | Interviewee: Oo, sobrang common. Kasi lahat manual. Minsan, nagbayad na yung student, pero hindi pa na-update sa Excel ng registrar. Minsan, nagpalit ng section ang student, late na na-inform ang teacher. Kaya kailangan pa rin ng extra coordination at checking.
+0561 |  |  | Interviewer: So, sir, paano niyo hinahandle yung ganung instances kapag may miscommunication?
+0563 |  |  | Interviewee: Usually, pinapatawag namin yung involved departments. Halimbawa, may mismatch sa payment o grades, pinapa-verify, tapos pinapapirmahan para documented. Pero minsan, ang effort talaga malaki kasi need mo pa rin manually i-check lahat ng files at records.
+0565 |  |  | Interviewer: Sir, ano ang mga challenges kapag kinokolekta ang attendance mula sa iba't ibang klase o section?
+0567 |  |  | Interviewee: Ah, isa sa pinaka-problema namin ay manual talaga. May attendance si teacher, may attendance ang class president, tapos kailangan i-compare. Kaya minsan, hindi pareho ang record. Halimbawa, isang araw may na-miss ang teacher mag-record, tapos may na-record yung student officer. Pag kinokolekta mo ulit, kailangan i-check isa-isa, i-verify kung sino ang tama. Nakakapagod at prone sa delay.
+0569 |  |  | Interviewer: Sa anong katagal bago makonsolidate ang attendance data para sa reports?
+0571 |  |  | Interviewee: Usually, weekly. Lahat ng teachers at officers magkocollect mula Monday to Friday. Pagkatapos, nire-review at kino-consolidate para sa monthly report. Nakakapanood ka na lang minsan, tapos ayun, i-check mo ulit kung may kulang or mali. Talagang time-consuming.
+0573 |  |  | Interviewer: Sir, may mga pagkakataon bang kulang o mali ang attendance records?
+0575 |  |  | Interviewee: Oo, kadalasan dahil sa rushed yung teachers. Minsan nagtuturo pa sila, tapos nakakalimutan mag-check ng attendance. Kaya kailangan i-recall the next day or follow-up manually. Kung minsan, hindi na maalala kung sino talaga ang present nung araw na yun. Kahit may manual record ang student, kailangan pa rin i-double check.
+0577 |  |  | Interviewer: Laiway po ba yung parents para mag-update ng attendance ng anak nila?
+0579 |  |  | Interviewee: Meron. Pero mostly, nakikipag-communicate kami sa parents kapag may problema. Halimbawa, absent ng dalawang araw, tinatawagan namin para malaman kung okay lang ba yung student o may kailangan ba. Talagang close ang relationship namin sa parents at students, para informed sila. Hindi namin basta pinapalampas.
+0581 |  |  | Interviewer: Ah, so tatawagan niyo po yung parents?
+0583 |  |  | Interviewee: Oo, usually kinabukasan kung may absence. Pero karamihan ng parents, sila rin ang nagre-report agad kung absent ang anak. Dapat nga, close ang communication para maiwasan ang gap sa information.
+0585 |  |  | Interviewer: Sir, paano ina-update ng teacher staff yung mga errors sa attendance?
+0587 |  |  | Interviewee: Usually, tinatawagan muna yung involved teacher or student officer. Kung kayang i-adjust agad, ginagawa namin bago pa ma-finalize ang report. Talagang manual process pero kailangan matapos bago ma-print yung final attendance card. Kung hindi, baka hindi aligned yung data, tapos magkakaroon ng confusion sa student or parent.
+0589 |  |  | Interviewer: Sir, paano nabe-verify ng school kung present o absent ang student sa mismong araw?
+0591 |  |  | Interviewee: Meron silang manual record. Teacher records, student records, tapos may Blackboard updates na nakalagay kung sino ang absent or late. Halos lahat ng info need i-verify sa dalawang sources. Nakakapagod, kasi kung may missing entry, kailangan i-follow up.
+0593 |  |  | Interviewer: Sir, ano ang epekto kapag na-delay o mali ang attendance?
+0595 |  |  | Interviewee: Mostly, nagkakaroon ng concern ang parents, nagfe-feedback kung hindi accurate. Pero, since mabilis naming na-verify at na-update, rarely maabot sa parents ang error. Pero effort talaga, marami kaming kailangan gawin para maiwasan yung discrepancy.
+0597 |  |  | Interviewer: Sir, sa palagay niyo ba makakatulong ang RFID-based attendance system para mapabuti ang process nito?
+0599 |  |  | Interviewee: Oo, definitely. Kasi automatic yung logging. Halimbawa, pumasok na yung student, maitatala agad sa record. Parents automatically makakatanggap ng notification. Mas mabilis, mas efficient. Pero kahit maliit lang yung loophole, halimbawa nagpasok pero hindi talaga pumapasok sa class, iikot pa rin kami para ma-monitor. Pero overall, malaking tulong sa speed at accuracy ng tracking.
+0601 |  |  | Interviewer: Sir, ano ang mahirap kapag kailangan kontakin ang mga magulang lalo na sa emergency o absences?
+0603 |  |  | Interviewee: Pag nahihirapan kaming kontakin, kailangan dumaan sa phone, landline, o messenger. Minsan, kailangan puntahan personally sa bahay. Pero most of the time, okay lang kasi close ang relationship namin sa parents. Malalapit lang naman sila, kaya reachable.
+0605 |  |  | Interviewer: Sir, paano naapektohan ng delay sa communication ang tiwala ng mga magulang sa school?
+0607 |  |  | Interviewee: Mostly okay lang. Medyo flexible ang parents kasi alam nilang gagawin namin ang effort para ma-update sila. May mga ways kami na reachable sa kanila: e-mail, cellphone, Facebook Messenger, kahit Facebook page namin. So kahit may delay, aware sila at nagtitiwala sa communication process namin.
+0609 |  |  | Interviewer: So sir, sa palagay nyo po, bakit makakatulong ang automatic notification para sa mga clients?
+0611 |  |  | Interviewee: Oo, malaking tulong. Automatic eh, diba? Immediate na yung info sa parents kung pumasok o hindi ang anak. Mas iwas human delay o human error. Halimbawa, RFID tap lang, automatic na naitatala at natutext yung parent.
+0613 |  |  | Interviewer: Sir, di naman po kayo gumagamit ng spreadsheet o manual computation para sa tuition po, no sir?
+0615 |  |  | Interviewee: Hindi, hindi naman po. Ang ginagamit namin, Excel pa rin pero naka-Google Drive. So may automatic na computation doon, pero mostly still manual pa rin sa pag-check.
+0617 |  |  | Interviewer: Sir, paano po ninyo titiyak na accurate at updated ang tuition records?
+0619 |  |  | Interviewee: Ah, dito kami very careful. Marami nagche-check. May cashier, may finance head, at ako rin minsan tumitingin para ma-monitor. Yung mga resibo, naka-save sa Google Drive, so kahit may errors, mabilis ma-verify. Kailangan lang talaga constant monitoring.
+0621 |  |  | Interviewer: Sir, paano naapektohan ang manual na computation ng workload ng accounting office?
+0623 |  |  | Interviewee: Siyempre, mas matagal. Kasi one by one yung check, tapos may manual adjustments pa. Mas marami ang trabaho, mas matagal bago matapos. Kung automated, mas mabilis, pero since manual, kailangan talagang tutukan ng staff.
+0625 |  |  | Interviewer: Sir, bakit minsan hirap ang mga magulang o estudyante na makita ang kanilang payment status?
+0627 |  |  | Interviewee: Siguro dahil nasa iba't ibang sources pa yung data. May naka-Excel, may naka-email, tapos may hard copy. Kaya minsan, kailangan nila mag-follow up para makumpirma. Kung centralized man, mabilis na makita, pero ngayon, medyo fragmented pa yung info.
+0629 |  |  | Interviewer: Sir, bakit patuloy pa rin gumagamit ng magkakaibang tools sa bawat department?
+0631 |  |  | Interviewee: Kasi, hindi naman lahat nakasama sa same workflow. Halimbawa, registrar may Excel, finance may iba, at teachers may sariling records. Kaya, bawat department may sariling tool, kasi need nila immediate access sa sariling data. Hindi kasi one-size-fits-all yung workflow nila.
+0633 |  |  | Interviewer: Bakit sa tingin nyo, sir, ay risky ang pag-store ng student data sa shared folders?
+0635 |  |  | Interviewee: Oo, risky kasi maraming nakakakita, maraming nakaka-access. Kahit na may permissions, minsan may editing conflicts, tapos may chance na ma-misplace or ma-overwrite yung data. Kailangan laging ma-monitor at i-double check.
+0637 |  |  | Interviewer: May mga pagkakataon bang nawala o nangbura ang files?
+0639 |  |  | Interviewee: Meron, pero bihira. Usually dahil may nag-edit na hindi napansin o na-misplace lang. Kapag ganun, babalik ulit sa process, i-verify ulit, at i-reprint kung necessary. Kaya nakakapagod talaga minsan, kasi isa-isa kailangan i-check.
+0641 |  |  | Interviewer: Paano nyo pinipigilan ang unauthorized access sa files?
+0643 |  |  | Interviewee: Sa Google Drive, nakaset kung sino lang ang pwedeng mag-view o mag-edit. Tinitiyak naming limited lang yung access, at sino ang editor, sino ang viewer. So may kontrol pero kailangan palaging bantayan.
+0645 |  |  | Interviewer: Bakit mahalaga magkaroon ng secure password-protected system para dito?
+0647 |  |  | Interviewee: Para ma-minimize yung risk na may makaka-access ng data na hindi dapat. Importante na alam namin sino lang ang may right mag-edit o mag-view ng file.
+0649 |  |  | Interviewer: Paano naapektohan ng manual process ang productivity ng teachers at staff?
+0651 |  |  | Interviewee: Medyo mabagal talaga, kasi one by one ang process. Mas maraming steps, mas matagal matapos. Pero sa kabilang banda, mas mabusisi. Nakikita mo lahat ng details. Pero kung mas mabilis at organized, mas maraming nagagawa sa parehong oras.
+0653 |  |  | Interviewer: Gaano kayo nakakaranas ng delay sa paggawa ng reports dahil sa disorganized data?
+0655 |  |  | Interviewee: Hindi naman totally disorganized kasi may sariling process kami. Pero syempre, kapag manual, mas matagal ang reporting. Kailangan i-verify lahat ng data bago i-finalize. Kaya minsan, may delays kahit planado ang workflow.
+0657 |  |  | Interviewer: Paano naapektohan ng kakulangan ng automation ang accuracy at timeliness ng data?
+0659 |  |  | Interviewee: Dito nakakaapekto sa speed at accuracy. Kadalasan, mas matagal mag-update, mas prone sa delay, kasi manual pa rin. Kailangan i-double check, i-verify, tapos maayos bago ma-release. Kung automated, mas mabilis at mas ma-track.
+0661 |  |  | Interviewer: Sir, sa inyong palagay, ano ang pinakamalaking challenge sa kasalukuyang sistema ng school?
+0663 |  |  | Interviewee: Marami. Pero ang pinakamalaking problema, talaga, yung kahirapan sa coordination ng iba't ibang departments. Halimbawa, kung enrollment, finance, at teachers, bawat isa may sariling paraan, tapos need i-merge manually. Minsan, nagka-conflict yung numbers student count, tuition payment, attendance. Kailangan mag-check isa-isa para ma-align.
+0665 |  |  | Interviewer: Paano nito naapektohan ang trabaho ninyo at ang students?
+0667 |  |  | Interviewee: Mas maraming oras ang nauubos sa pag-verify ng data kaysa sa actual na tasks. Teachers at staff, kailangan mag-double check ng entries, kaya delay sa reporting. Students, minsan natatambakan ng late updates sa grades, attendance, at payments. Ang stress, hindi sa work lang, pati sa operations ng school.
+0669 |  |  | Interviewer: Sir, bakit sa tingin nyo nanatili pa rin ang mga problema na ito hanggang ngayon?
+0671 |  |  | Interviewee: Siguro kasi complex ang system namin. Maraming tools at manual processes. Lahat connected sa ibang tasks. Wala pang streamlined workflow na madaling ma-access ng lahat. Kaya hanggang ngayon, ganito pa rin.
+0673 |  |  | Interviewer: Ano ang tingin nyo na solusyon para maayos ang mga problemang ito?
+0675 |  |  | Interviewee: Siguro, kailangan ng mas malinaw at standardized workflow. Halimbawa, kung paano kino-collect at chine-check ang attendance, paano nagha-handle ng tuition, paano nagva-verify ng student records. Kasi kapag consistent ang process, mas mabilis maayos ang error, mas mabilis ma-access ang info, at mas maiiwasan ang conflicts sa data. Mas mapapabilis ang trabaho at maiiwasan ang hassle sa lahat.
+0677 |  |  | B.2 Registrar’s Office
+0678 |  |  | Interviewer: Jade Michael D. Godalle
+0679 |  |  | Interviewee: Mrs. Jocelyn M. Cleofe
+0681 |  |  | Interviewer: Paano niyo po mini-maintain at ina-update ng records ng mga students ninyo?
+0682 |  |  | Interviewee: Sa ngayon, manual pa rin kami sa Google Sheets at Excel. Kailangan namin i-update isa-isa ang bawat record, tsaka i-double check rin para siguradong tama ang lahat ng details. Kapag maraming students, tumatagal ang proseso kasi may sections na nagkaka-overlap, kailangan i-verify ang bawat entry at minsan kailangang i-crosscheck sa ibang forms.
+0684 |  |  | Interviewer: Madalas ba kayong makaranas ng errors o data inconsistency sa records ng students?
+0685 |  |  | Interviewee: Oo, minsan may inconsistency sa data lalo na kapag maraming updates sa parehong oras. Kadalasan, kailangan i-compare ang entries sa Excel at Google Sheets, tapos siguraduhin na parehong information ang nakalagay sa lahat ng files. Hindi ito agad naayos, kaya minsan tumatagal bago maging final.
+0686 |  |  | Interviewer: Included po ba dito yung duplicated entries, late submissions, o miscommunications, ma’am?
+0687 |  |  | Interviewee: Oo, minsan may overlapping entries, tapos minsan late rin ang submission ng requirements. Halimbawa, yung enrollment forms o proof of residency, minsan dumarating lang after deadline. Kaya minsan delayed din ang pag-update ng records, tapos kailangan i-follow up sa parents at teachers.
+0689 |  |  | Interviewer: Pero ma’am, may instance na po ba na nag-duplicate yung record?
+0691 |  |  | Interviewee: May pagkakataon, lalo na kapag maraming information ang naipapasa sa parehong oras at sa parehong files. Kailangan talaga naming i-verify bawat entry para siguradong hindi mag-overlap. Minsan tumatagal ang verification kasi hindi lahat ng data ay available sa iisang lugar.
+0693 |  |  | Interviewer: Gaano katagal bago niyo ma-verify o ma-update ang record ng isang estudyante kapag may concern?
+0694 |  |  | Interviewee: Depende sa dami ng students at dami ng information na kailangang i-check. Kung maraming forms at kailangan i-verify sa ibang files, minsan umaabot ng ilang araw bago ma-finalize ang record. Kailangan din i-review ang bawat section para siguradong consistent ang lahat.
+0696 |  |  | Interviewer: Paano po kayo nakikipag-coordinate sa accounting office at mga guro tungkol sa student data?
+0697 |  |  | Interviewee: Kadalasan, manual ang coordination. Kapag may issue, tatawag kami sa teacher o staff, minsan kailangan i-email o i-meet para klaruhin ang information. Kailangan pang i-follow up kung may kulang o inconsistent, at minsan kailangan ulitin ang process hanggang sa kumpleto ang data.
+0699 |  |  | Interviewer: Madalas ba magkaroon ng delay sa pagkuha o pagpapasa ng data like grades, tuition info, enrollment list, etc.?
+0700 |  |  | Interviewee: Oo, minsan may delay kasi naghihintay kami sa kumpletong forms o approvals mula sa iba’t ibang departments. Kadalasan, kailangan i-double check bago ma-finalize, kaya minsan natatagal ang proseso ng isa o dalawang linggo depende sa dami ng students.
+0702 |  |  | Interviewer: Ano yung pinakamahirap na process ng coordination sa ibang department?
+0703 |  |  | Interviewee: Minsan mahirap i-track kung updated na ba ang data ng bawat department, lalo na kapag may pinapasa-pasang forms o schedules. Kailangan i-verify sa bawat step bago ma-finalize ang record. Halimbawa, pag nag-e-encode ng grades, kailangan siguraduhin na kumpleto ang forms at na-review ng teachers bago ma-final.
+0705 |  |  | Interviewer: Paano po yun ma’am? Kunyari sa teachers po, parang may head po sila, tapos bago yung papasa sa registrar office, parang ganun po ba?
+0706 |  |  | Interviewee: Oo, may hierarchy pa rin. Pero kahit na na-review na ng principal, kailangan pa rin namin i-check ang bawat entry sa registrar office bago ma-finalize. Minsan, kailangan i-crosscheck ang forms sa manual files, kaya tumatagal ang proseso lalo kapag maraming students.
+0708 |  |  | Interviewer: Paano niyo dinidistribute ang class schedules?
+0710 |  |  | Interviewee: Ngayon, manual pa rin. Kailangan i-check ang schedule ng bawat teacher para siguradong walang conflict sa oras at subjects. Kung may conflict, kailangan i-adjust isa-isa, tapos i-inform lahat ng teachers at principals. Kapag maraming subjects at sections, challenging talaga ang process at tumatagal ang finalization.
+0712 |  |  | Interviewer: Manual po ba yun?
+0713 |  |  | Interviewee: Oo, mahirap at time-consuming. Kailangan i-review bawat schedule, i-compare sa bawat teacher at section, tapos siguraduhin na walang overlap. Kahit maliit na pagbabago, kailangan i-adjust ang buong schedule para consistent sa lahat.
+0715 |  |  | Interviewer: May mga chance po ba na nalilito o nadedelay ang mga studyante o guro dahil sa schedule updates?
+0716 |  |  | Interviewee: Oo, minsan nagkakalituhan lalo kapag may pagbabago sa schedule. Kailangan i-update at ipaalam sa lahat ng teachers at students, tapos i-double check para siguradong consistent sa bawat section. Kapag hindi na-update agad, nagkakaroon ng confusion at delay sa klase.
+0718 |  |  | Interviewer: Gaano katagal kayong gumagawa ng reports tulad ng enrollment, summer grades, report, or class list?
+0719 |  |  | Interviewee: Sa grades, karaniwan 3-4 days para ma-encode lahat, tapos may additional time pa para i-review at i-verify ang bawat entry. Kapag maraming students, minsan mas matagal kasi kailangan siguraduhin na consistent at kumpleto ang data bago i-release.
+0721 |  |  | Interviewer: Yung pwede na pong i-distribute?
+0722 |  |  | Interviewee: Mga 3-4 weeks bago ma-release kasi kailangan pang i-review ng lahat ng teachers at principal ang final data. Lahat ng tests, quizzes, at exams ay i-encode muna, tapos tinitingnan ulit bago gawing final.
+0724 |  |  | Interviewer: Sa enrollment summary?
+0725 |  |  | Interviewee: Weekly namin kino-check at manu-manong nirerecord kung sino ang nag-enroll at nagpa-reserve sa isang linggo. Kailangan i-update bawat list para siguradong accurate, at minsan tumatagal lalo kapag maraming students ang nag-enroll sabay-sabay.
+0726 |  |  | Interviewer: Sa class list naman?
+0727 |  |  | Interviewee: Dinidiretso manually. Kapag nag-enroll na ang student, saka lang nilalagay sa section. Kailangan siguraduhin na tama ang lahat ng information at consistent sa records, kaya minsan tumatagal lalo kapag maraming students.
+0729 |  |  | Interviewer: Balik po tayo sa grade reports   sa releasing of grades, manual po ba yan o online?
+0730 |  |  | Interviewee: Manual pa rin. Pupunta ang parents dito para kunin ang card. Kailangan i-check muna ang lahat ng files bago ibigay para siguradong updated at complete ang record ng student.
+0732 |  |  | Interviewer: Wala po kayong soft copy?
+0733 |  |  | Interviewee: Meron during pandemic sa Google Classroom, pero ngayon, hard copy talaga ang ginagamit. Kailangan i-prepare isa-isa at siguraduhing consistent sa lahat ng records.
+0735 |  |  | Interviewer: So yung parents lang po ang may access sa grades?
+0736 |  |  | Interviewee: Oo, parents lang. Guardian pwede rin kung mas matanda. Hindi binibigyan ang students ng access para i-maintain ang consistency at privacy ng records.
+0738 |  |  | Interviewer: Ano po ang pinaka-challenge sa sistema ng record management sa registrar office?
+0739 |  |  | Interviewee: Pinakamahirap ay ang manual na pag-track at pag-update ng lahat ng student information. Kailangan i-check sa maraming files bago maging final, lalo na kapag maraming students at sections. Lahat ng entries ay mano-manong nirereview para siguradong consistent at kumpleto.
+0741 |  |  | Interviewer: How about sa pag-distribute?
+0742 |  |  | Interviewee: Hindi mahirap sa konting students, pero kapag marami, challenging talaga. Kailangan i-prepare at i-review isa-isa para siguradong consistent sa lahat ng sections at teachers.
+0744 |  |  | Interviewer: Sa pag-e-encode, na-aaccess po ba ng ibang teachers yung files o kayo lang?
+0745 |  |  | Interviewee: Office lang ang may access. Dalawa lang kami, at kailangan i-review lahat ng steps bago ma-finalize ang record. Kailangan i-check bawat entry para siguradong consistent sa lahat ng files.
+0747 |  |  | Interviewer: Hindi po kayo sabay?
+0748 |  |  | Interviewee: Hindi. Isa-isa kami nag-e-encode at nag-aayos, tapos saka ipapasa para sa printing. Kailangan maayos at kumpleto bago ma-finalize, kaya tumatagal talaga.
+0750 |  |  | Interviewer: Yun lang po Ma’am. Thank you po!
+0752 |  |  | Interviewee: Thank you rin!
+0756 |  |  | B.3 Finance Office
+0757 |  |  | Interviewer: Jade Michael D. GodalleInterviewee: Mrs. Corrine P. Avellanosa
+0759 |  |  | Interviewer: Paano niyo po nirerecord ang mga tuition at balances sa mga students?
+0760 |  |  | Interviewee: Sa ngayon, manual pa rin kami gamit ang Excel. Lahat ng student balances at payments, nakalagay sa spreadsheet, tapos ini-store namin sa Google Drive para centralized sa amin. Dito nakikita ang lahat ng student data enrollment, payment mode, at balance. Kapag may nag-enroll, ini-encode namin ang details sa sheet, tapos automatic nagkakalculate yung running balance at total enrollment. Sa parehong sheet, nakikita rin namin ang total payment. Kasi connected sa Drive, kahit sino sa finance team na may access, makikita rin agad. Pero kasi manual pa rin lahat, kailangan i-verify at i-update isa-isa, kaya minsan tumatagal lalo kapag maraming students.
+0762 |  |  | Interviewer: Ah, okay po. Parang centralized na siya sa registrar, cashier, at financier?
+0763 |  |  | Interviewee: Oo, tatlo kami ang directly nagma-manage nito, tapos meron din kaming external accountant. So apat ang nakaka-access sa Drive. Pero kahit centralized, manually pa rin i-update at i-check bawat record para siguradong consistent ang lahat.
+0765 |  |  | Interviewer: Tatlo po?
+0766 |  |  | Interviewee: Oo. Dalawa sa amin nagre-record, tapos ang accountant nagdo-double check ng summary. Pero lahat ng data manually pa rin pinapasa at i-verify.
+0768 |  |  | Interviewer: Then, ma’am, madalas po ba kayong makaranas ng errors o delay sa pag-update ng payment record?
+0769 |  |  | Interviewee: Oo, may delay minsan kasi manual ang proseso. Kapag may online payment or on-site payment, kailangan i-update isa-isa sa sheet. Kapag maraming payments sabay-sabay, may delay bago makita sa system ang updated balance ng student. Kadalasan, may time gap sa pag-record ng transaction at sa availability ng data sa spreadsheet.
+0771 |  |  | Interviewer: Ay ma'am, paano po ma-determine na hindi na-update?
+0772 |  |  | Interviewee: Usually, nakikita namin sa statement of account. May mga different modes of payment GCash, BDO, on-site. Pag hindi pa na-update ang payment sa sheet, hindi pa rin reflected sa statement ng student. Minsan tumatagal bago marecord, depende sa processing at pag-update sa Google Drive. Kaya may time lag sa availability ng complete data.
+0774 |  |  | Interviewer: May mga errors po. Ma'am, ano po yung karaniwang dahilan ng discrepancy o pagkakaiba ng records?
+0775 |  |  | Interviewee: Ang common issue talaga ay timing ng pag-update. Kapag may multiple payments sa parehong araw, minsan hindi agad na-update sa sheet ang lahat. Kailangan pa i-crosscheck sa sequence ng transactions. Isa pa, may mga manual checks sa series ng ORs at transactions para siguradong kumpleto ang data. So minsan delayed ang reflection sa summary hanggang ma-verify.
+0777 |  |  | Interviewer: Then ma'am, gano'ng katagal ma-update ang balance ng estudyante pagkatapos mabayad?
+0778 |  |  | Interviewee: Yung on-site payments, usually agad na-update sa same day kasi dito mismo sa office binabayad. Sa online transactions naman, depende sa processing ng bank, usually maximum three days bago fully ma-update sa spreadsheet at statement. Kailangan rin i-verify ang details bago ma-finalize para consistent sa lahat ng reports.
+0780 |  |  | Interviewer: Ay ma'am, paano po yan? Kunyari gusto ng parents makita ulit yung binayaran nila at yung balance nila, papunta pa ba sila dito?
+0781 |  |  | Interviewee: Pwede naman. May monthly statement of account na ibinibigay sa kanila. Nakikita nila doon lahat ng payments at balances. Kapag may discrepancy, puwede silang mag-email o tumawag para ma-clarify agad. Pero kailangan pa rin i-verify sa records namin bago ma-update ang statement.
+0783 |  |  | Interviewer: May POS po ba kayo, ma'am?
+0784 |  |  | Interviewee: Wala, Excel-based talaga lahat. Walang point-of-sale system ngayon, kaya manual pa rin ang recording at updating ng payments.
+0786 |  |  | Interviewer: So, ma'am, parang anytime, makikita ng parents ang status nila?
+0787 |  |  | Interviewee: Hindi agad. May monthly schedule kami ng statement updates. Kaya kadalasan, nag-aantay muna sila ng monthly statement para makita ang current balance at payments.
+0789 |  |  | Interviewer: Gano'ng kadalas nagtatanong ang mga magulang at estudyante tungkol sa tuition balance o payment status?
+0790 |  |  | Interviewee: Mostly monthly, kapag may statement of account. May mga parents rin na mas proactive, nagche-check ng payment online, pero karamihan naghihintay muna ng official statement para makita ang full details.
+0792 |  |  | Interviewer: Ano ang karaniwang paraan ng pagbibigay nyo ng updates, text, printed statements, or in-person?
+0793 |  |  | Interviewee: May messaging system kami para automatic makapag-notify kapag may statement. Pero may printed statement din na ibinibigay monthly. Lalo na sa mga parents na mas comfortable sa printed copy, parang mas madaling ma-verify nila. May iba rin pumupunta para personal check.
+0794 |  |  | Interviewer: I-email lang po talaga? Wala po kayong messenger?
+0795 |  |  | Interviewee: May email at messaging, pero mas madalas na-print out. Kasi dati, email lang, minsan hindi nababasa ng parents, lalo na yung lola't lolo. Kaya mas maayos na may physical copy.
+0797 |  |  | Interviewer: Ma'am, may mga pagkakataon ang updates kaya nagkakaroon ng misunderstanding sa payment?
+0798 |  |  | Interviewee: Oo, minsan may confusion. Pag may transactions na hindi pa fully na-update sa sheet, may parents na nagtatanong kung na-record na. Kailangan naming i-verify ang data sa spreadsheet bago ma-finalize.
+0800 |  |  | Interviewer: Anong klaseng errors po yung nae-encounter niyo, ma'am?
+0801 |  |  | Interviewee: Yung mga delay sa pag-record ng payments at hindi agad na-update sa statement. Pag automatic at real-time, agad lalabas ang updated balance at transaction history.
+0803 |  |  | Interviewer: Paano niyo po ginagawa mga financial reports tulad ng payment summaries, outstandings, balances?
+0804 |  |  | Interviewee: Excel-based din. May Statement of Account kami, balance sheets, at summary per section at grade level. Ina-update daily ang payments, tapos may outstanding balances na nakalista. Binibigyan rin ng copy ang teachers para makatulong sa follow-up. May external accountant din na nag-summarize ng total financial statement, pero manual pa rin ang proseso.
+0806 |  |  | Interviewer: Gano'n po katagal yan, ma'am? Estimated lang po.
+0807 |  |  | Interviewee: Daily kami nag-uupdate. May weekly summary, tapos monthly reports. So araw-araw may review at update, tapos weekly at monthly check sa external accountant. Pero bawat step, manual pa rin, kaya time-consuming.
+0809 |  |  | Interviewer: Ma'am, paano po kayo nakipag-coordinate sa registrar o admin kapag may updates sa enrollment or payment data?
+0810 |  |  | Interviewee: Google Drive ang ginagamit namin. Pwede agad makita ng registrar ang total balances. Lalo na kapag exam at may card release, kailangan ma-check kung may outstanding payments bago ma-release. Kung hindi updated, puwedeng ma-delay yung card release.
+0812 |  |  | Interviewer: May tanong po pala ako sa grades, pag release po ba ng card, required na bayad na yung estudyante?
+0813 |  |  | Interviewee: Oo, required na bayad bago ma-release ang card. Ito ang pang-hold ng school.
+0815 |  |  | Interviewer: May mga chance bang nagkakaroon ng problema sa synchronization ng data sa ibang department?
+0816 |  |  | Interviewee: Wala naman major, kasi centralized sa akin lahat ng payments. Pero minsan, kapag may delay sa update, puwedeng magkaroon ng problema sa registrar, halimbawa, hindi updated ang balance sa card release.
+0817 |  |  | Interviewer: Then ma'am, last question po. Ano ang mga challenges na gusto niyong mawala kung magkakaroon ng automated financial system?
+0818 |  |  | Interviewee: Madami. Gusto ko maiwasan ang delays sa pag-update, magkaroon ng transparency sa parents, at ma-monitor agad ang payments. Lalo na kapag marami na kaming students 500 plus na ngayon. Kasama rin yung books, uniforms, supplies. Iba’t ibang payment modes. Kung automated, mabilis na makaka-generate ng reports, maayos ang tracking ng enrollment count at payments, at mas efficient ang daily work ko.
+0820 |  |  | Interviewer: Like, ma'am, iisa-isa yun yung hahanapin pa?
+0821 |  |  | Interviewee: Oo, isa-isa. Kaya sobrang busy kapag enrollment. Kapag automated, immediate na lalabas lahat ng details, ORs, history ng payments, previous year info, delinquent or not. Mas madali at mas efficient.
+0823 |  |  | Interviewer: Okay na po, ma'am. Thank you.
+0825 |  |  | B.4 Teacher
+0826 |  |  | Interviewer: Jade Michael D. GodalleInterviewee: Mrs. Fe Mercedes M. Cavitt
+0828 |  |  | Interviewer: Paano ninyo kasalukuyang nirerecord ang attendance ng mga estudyante?
+0829 |  |  | Interviewee: Ah, ngayon po, manual pa rin talaga. Gumagamit kami ng attendance sheets na printed. Kada pasok sa classroom, dala namin yung sheet tapos isa-isa naming tine-tick kung sino ang present. Medyo matrabaho lalo na sa unang period kasi kailangan talagang i-check. Minsan inaabot pa bago makumpleto, lalo na kapag may mga late.
+0830 |  |  | Interviewer: Ah okay, manual po?
+0831 |  |  | Interviewee: Oo, manual talaga. At dahil papel, kailangan pang ilipat-lipat minsan nasa classroom, minsan naiipon sa adviser’s table bago ma-process.
+0833 |  |  | Interviewer: May times po ba na nagkakaroon ng errors or delays sa pag-submit ng attendance?
+0834 |  |  | Interviewee: Nagkakaroon ng delay kapag maraming klase sa isang araw. Yung attendance sheet kasi kailangan pang i-collect at i-review, lalo na kung may excused o may follow-up. Dahil hiwa-hiwalay yung sheets per section, medyo tumatagal bago ma-compile. Hindi naman malaki ang delay, pero mabagal yung flow dahil bawat update nililipat pa sa ibang record.
+0836 |  |  | Interviewer: Ma'am, ano ang mga dahilan kung bakit minsan naging mahirap i-manage ang attendance logs?
+0837 |  |  | Interviewee: Mahirap siya kapag marami kang hawak na klase. Kahit familiar ka na sa students, kailangan mo pa ring isa-isahin lalo na pag may absent o bagong transfer. Tapos dahil papel lahat, kailangan mo pang i-store nang maayos. Kapag may hinahanap na past attendance, babalikan mo pa yung lumang sheets, kaya natatagalan talaga.
+0839 |  |  | Interviewer: Ma'am, gaano po kahalaga sa inyo na real-time makita ng school at ng magulang ang attendance ng bata?
+0840 |  |  | Interviewee: Importante po, lalo na para sa parents. May mga bata kasi na pumapasok pero hindi agad nalalaman ng magulang kung anong oras sila dumating. At may mga students din na minsan lumiliban. Kung real-time, mas mabilis yung coordination, at mas nakakatulong siya sa safety ng bata.
+0842 |  |  | Interviewer: Ma'am, paano niyo po karaniwang sinasubmit ang grades sa registrar?
+0843 |  |  | Interviewee: May deadlines po kami. Pero bago ma-submit, dadaan pa sa encoding, checking, at computation. Yung grades kasi nakahiwalay written works, performance tasks, exams kaya kailangan pang pagsama-samahin. Kapag maraming students, tumatagal talaga bago maging final yung records.
+0845 |  |  | Interviewer: Gumagamit po ba kayo ng tools tulad ng Excel para isubmit sa registrar?
+0846 |  |  | Interviewee: Oo, gumagamit kami ng Excel. Pero hindi lahat agad na-eencode kasi hindi naman kami laging nasa computer. Madalas sinusulat muna sa papel habang nasa classroom, tapos lumilipat na lang sa Excel kapag nasa faculty na. Kaya parang doble trabaho pa rin.
+0848 |  |  | Interviewer: So ma'am, wala pong case na na-delay yung paper submission sa registrar?
+0849 |  |  | Interviewee: Meron pa rin minsan, lalo na kapag may revisions o may kulang pa sa requirements. Hindi naman sobrang late pero naaapektuhan yung bilis ng finalization kasi kailangan munang kompletuhin lahat bago isumite.
+0851 |  |  | Interviewer: Paano po kung late na talaga ang submission?
+0852 |  |  | Interviewee: Kapag late, mas maraming naaapektuhan kasi naka-depende yung reports ng admin sa grades namin. Sa deliberation pa lang, matagal na ang checking. Pag marami yung students, mas matagal pa bago matapos kaya may mga pagkakataon na halos dikit sa deadline yung submission.
+0854 |  |  | Interviewer: Ma'am, nahihirapan ba kayo mag-update ng student records kapag nagkakaroon ng revisions?
+0855 |  |  | Interviewee: Oo, lalo na kung revisions galing sa FAPE o admin. Maraming kailangan i-update names, sections, requirements. Dahil hiwa-hiwalay yung copies sa adviser, subject teachers, at registrar, isa-isang ina-adjust para pare-pareho. Kapag may kulang pang dokumento, balik na naman sa manual checking.
+0857 |  |  | Interviewer: Paano po kayo karaniwang nakikipag-ugnayan sa mga magulang tungkol sa performance ng estudyante?
+0859 |  |  | Interviewee: Mostly sa PTA or conferences. Pero kung may urgent, tinatawagan namin. Ang challenge lang, minsan matagal bago maiparating yung information dahil sa schedules ng parents at teachers.
+0861 |  |  | Interviewer: Ano sa palagay nyo ang pinaka-challenges sa current system ng record keeping?
+0862 |  |  | Interviewee: Sa ngayon, yung dami ng papeles at records talaga ang mabigat. Iba-iba ang documents attendance, grades, requirements, behavior notes. Pag may kailangan ang admin o parent, hahanapin mo pa kung nasaan yung specific file. Minsan nasa classroom, minsan nasa faculty. At kapag marami kang sections, mas matagal yung paghanap at pag-ayos ng data. Hindi naman dahil may maling ginawa, pero dahil sa dami ng hawak na records, mabigat talaga sa oras at proseso.
+0867 |  |  | B.5 Security Guard
+0868 |  |  | Interviewer: Jade Michael D. Godalle
+0869 |  |  | Interviewee: Mr. Davey
+0870 |  |  | Interviewer: Paano niyo nalalaman kung sino na ang mga estudyante sa school, lalo na sa umaga, at kung sino ang wala pa?
+0872 |  |  | Interviewee: Nakikita ko lang sila sa gate habang pumapasok. Isa-isa ko tinitingnan kung sino ang andun na at sino pa yung wala. Minsan, kapag marami, medyo mahirap i-track lahat agad kasi sabay-sabay din pumapasok yung iba.
+0874 |  |  | Interviewer: May record ba kayo kung anong oras pumasok ang isang estudyante, o naka-base lang kayo sa obserbasyon?
+0876 |  |  | Interviewee: Observation lang talaga. Wala kaming exact record ng oras, kaya minsan nakadepende lang sa mata ko kung sino ang dumating. Kung gusto ko i-note, kailangan ko pang isulat manually sa notebook, pero kapag busy sa gate, kadalasan hindi ko na agad nasusulat.
+0878 |  |  | Interviewer: Kapag dumating ang mga service gaya ng tricycle o school van, paano niyo tinitiyak na tama ang mga batang sinasakay nila, lalo na kapag sabay-sabay?
+0880 |  |  | Interviewee: Tatanungin ko muna yung driver at iche-check kung tama yung pangalan ng bata sa listahan. Kapag sabay-sabay ang mga service, medyo nagkakagulo, kaya pinapila ko sila at tinatawag isa-isa yung bata para siguradong tama.
+0882 |  |  | Interviewer: Kapag may bagong driver o pinalitang service, paano niyo chine-check kung authorized silang kumuha ng bata?
+0884 |  |  | Interviewee: Tinitignan ko muna sa list sa admin kung nakalista sila. Kung wala, hindi ko pinapayagang sumakay yung bata. Kailangan talaga ma-verify para maiwasan yung problema sa parents o sa school.
+0886 |  |  | Interviewer: Paano niyo nalalaman kung nakauwi na o na-pick up na ang bata, at paano niyo pinapaalam sa admin o teacher?
+0888 |  |  | Interviewee: Tinitingnan ko kung sumakay na yung bata sa tricycle o van. Kapag marami sabay-sabay, minsan medyo nakakalito, kaya kailangan ko i-check isa-isa. Pagkatapos, sinasabi ko sa admin o teacher kung sino na ang nakalabas o nasundo, minsan nililista rin sa logbook para may reference.
+0890 |  |  | Interviewer: May mga pagkakataon ba na nag-aalala ang magulang kung nakauwi na ang bata, at madali ba silang ma-update?
+0892 |  |  | Interviewee: Oo, madalas tumatawag o nagte-text sila para siguraduhin na safe yung anak nila. Kadalasan kailangan ko pang hanapin sa logbook at sabihin sa kanila isa-isa kasi walang ibang record na mabilis makita.
+0894 |  |  | Interviewer: Kapag may event o emergency, paano niyo nalalaman kung sino pa ang nasa loob ng school?
+0896 |  |  | Interviewee: Kailangan ko i-check isa-isa yung mga bata para malaman kung sino ang andun at sino ang wala. Medyo matagal minsan kasi maraming bata at maraming service ang sabay-sabay dumating.
+0898 |  |  | Interviewer: Sa tingin niyo, ano ang pinakamalaking dahilan kung bakit minsan matagal ang dismissal process, at paano niyo gustong ma-improve ang sistema?
+0900 |  |  | Interviewee: Minsan, dahil sabay-sabay dumadating ang mga service at manual pa rin ang pag-check ng bawat bata, natatagal ang proseso. Siguro mas maayos kung mas maayos yung coordination sa gate at may paraan para mas malinaw kung sino ang sinundo na at sino pa ang naghihintay.
+0923 |  |  | APPENDIX C. Curriculum Vitae of
+0924 |  |  | Jade Michael D. Godalle
+0925 |  |  | 28 Sitio Barimbao, Tandang Sora, Quezon City, Metro Manila, Philippines
+0926 |  |  | godallejade69@gmail.com
+0927 |  |  | 09637425619
+0930 |  |  | EDUCATIONAL BACKGROUND
+0933 |  |  | PROFESSIONAL OR VOLUNTEER EXPERIENCE
+0934 |  |  | Listed in reverse chronological order (most recent first).
+0937 |  |  | AFFILIATIONS
+0938 |  |  | Listed in reverse chronological order (most recent first).
+0940 |  |  | SKILLS
+0943 |  |  | TRAININGS, SEMINARS, OR WORKSHOPS ATTENDED
+0944 |  |  | Curriculum Vitae of
+0945 |  |  | Edson John R. Solitario
+0946 |  |  | 34 Union Ext., Barangay Culiat, Quezon City, Metro Manila, Philippines
+0947 |  |  | edsonsolitario246@gmail.com
+0948 |  |  | 09951648943
+0951 |  |  | EDUCATIONAL BACKGROUND
+0954 |  |  | PROFESSIONAL OR VOLUNTEER EXPERIENCE
+0955 |  |  | Listed in reverse chronological order (most recent first).
+0958 |  |  | AFFILIATIONS
+0959 |  |  | Listed in reverse chronological order (most recent first).
+0961 |  |  | SKILLS
+0964 |  |  | TRAININGS, SEMINARS, OR WORKSHOPS ATTENDED
+0965 |  |  | Curriculum Vitae of
+0966 |  |  | Francis Jay D. Raagas
+0967 |  |  | 370 Lucas Cuadra, Caloocan City, Metro Manila, Philippines
+0968 |  |  | francisraagas44@gmail.com
+0969 |  |  | 09614066285
+0972 |  |  | EDUCATIONAL BACKGROUND
+0975 |  |  | PROFESSIONAL OR VOLUNTEER EXPERIENCE
+0979 |  |  | AFFILIATIONS
+0980 |  |  | Listed in reverse chronological order (most recent first).
+0982 |  |  | SKILLS
+0985 |  |  | TRAININGS, SEMINARS, OR WORKSHOPS ATTENDED
+0986 |  |  | Curriculum Vitae of
+0987 |  |  | Laurence Emmanuel M. Supangan
+0988 |  |  | 38 San Jose, Barangay San Antonio, S.F.D.M, Quezon City, Metro Manila, Philippines
+0989 |  |  | laurencesupangan@gmail.com
+0990 |  |  | 09217871567
+0993 |  |  | EDUCATIONAL BACKGROUND
+0996 |  |  | PROFESSIONAL OR VOLUNTEER EXPERIENCE
+1000 |  |  | AFFILIATIONS
+1003 |  |  | SKILLS
+1006 |  |  | TRAININGS, SEMINARS, OR WORKSHOPS ATTENDED
