@@ -191,11 +191,11 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
 
             <div className="flex flex-col gap-6">
                 <div className="grid gap-6 lg:grid-cols-3">
-                    <Card className="lg:col-span-1">
+                    <Card className="gap-2 lg:col-span-1">
                         <CardHeader className="border-b">
                             <CardTitle>New Enrollment Intake</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-4 pt-6">
                             <div className="space-y-2">
                                 <Label htmlFor="lrn">LRN</Label>
                                 <Input

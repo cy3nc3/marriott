@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\Student;
+use App\Models\Transaction;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -55,34 +56,6 @@ class DashboardController extends Controller
             ? round(($lisSyncedStudents / $totalEnrolledStudents) * 100, 2)
             : 0.0;
 
-        $today = now()->startOfDay();
-        $queueAgingBuckets = [
-            '0-2 days' => (clone $queueScope)
-                ->whereDate('created_at', '>=', $today->copy()->subDays(2)->toDateString())
-                ->count(),
-            '3-7 days' => (clone $queueScope)
-                ->whereDate('created_at', '>=', $today->copy()->subDays(7)->toDateString())
-                ->whereDate('created_at', '<=', $today->copy()->subDays(3)->toDateString())
-                ->count(),
-            '8-14 days' => (clone $queueScope)
-                ->whereDate('created_at', '>=', $today->copy()->subDays(14)->toDateString())
-                ->whereDate('created_at', '<=', $today->copy()->subDays(8)->toDateString())
-                ->count(),
-            '15+ days' => (clone $queueScope)
-                ->whereDate('created_at', '<=', $today->copy()->subDays(15)->toDateString())
-                ->count(),
-        ];
-
-        $queueAgingPoints = collect($queueAgingBuckets)
-            ->map(function (int $count, string $bucket): array {
-                return [
-                    'label' => $bucket,
-                    'value' => $count,
-                ];
-            })
-            ->values()
-            ->all();
-
         $lisSyncDistributionPoints = [
             [
                 'label' => 'Synced',
@@ -97,6 +70,52 @@ class DashboardController extends Controller
                 'value' => $syncErrorBacklog,
             ],
         ];
+
+        $paymentMethodLabels = [
+            'cash' => 'Cash',
+            'e_wallet' => 'E-Wallet',
+            'bank_transfer' => 'Bank Transfer',
+            'check' => 'Check',
+            'other' => 'Other',
+        ];
+
+        $paymentMethodCounts = Transaction::query()
+            ->when($activeYear, function ($query) use ($activeYear) {
+                $query->whereHas('student.enrollments', function ($enrollmentQuery) use ($activeYear) {
+                    $enrollmentQuery
+                        ->where('academic_year_id', $activeYear->id)
+                        ->where('status', '!=', 'dropped');
+                });
+            })
+            ->get(['payment_mode'])
+            ->map(function (Transaction $transaction): string {
+                $rawMode = strtolower(trim((string) $transaction->payment_mode));
+
+                return match ($rawMode) {
+                    'cash' => 'cash',
+                    'gcash',
+                    'ewallet',
+                    'e-wallet',
+                    'e_wallet',
+                    'wallet' => 'e_wallet',
+                    'bank_transfer',
+                    'bank transfer' => 'bank_transfer',
+                    'check',
+                    'cheque' => 'check',
+                    default => 'other',
+                };
+            })
+            ->countBy();
+
+        $paymentMethodPoints = collect($paymentMethodLabels)
+            ->map(function (string $label, string $methodKey) use ($paymentMethodCounts): array {
+                return [
+                    'label' => $label,
+                    'value' => (int) $paymentMethodCounts->get($methodKey, 0),
+                ];
+            })
+            ->values()
+            ->all();
 
         $alerts = [];
 
@@ -180,35 +199,10 @@ class DashboardController extends Controller
             'alerts' => array_values($alerts),
             'trends' => [
                 [
-                    'id' => 'queue-aging-buckets',
-                    'label' => 'Queue Aging Buckets',
-                    'summary' => 'Current queue load by record age',
-                    'display' => 'bar',
-                    'points' => $queueAgingPoints,
-                    'chart' => [
-                        'x_key' => 'bucket',
-                        'rows' => collect($queueAgingPoints)
-                            ->map(function (array $point): array {
-                                return [
-                                    'bucket' => $point['label'],
-                                    'records' => $point['value'],
-                                ];
-                            })
-                            ->values()
-                            ->all(),
-                        'series' => [
-                            [
-                                'key' => 'records',
-                                'label' => 'Records',
-                            ],
-                        ],
-                    ],
-                ],
-                [
                     'id' => 'lis-sync-distribution',
                     'label' => 'LIS Sync Distribution',
                     'summary' => 'Current student sync status mix',
-                    'display' => 'bar',
+                    'display' => 'pie',
                     'points' => $lisSyncDistributionPoints,
                     'chart' => [
                         'x_key' => 'status',
@@ -225,6 +219,31 @@ class DashboardController extends Controller
                             [
                                 'key' => 'students',
                                 'label' => 'Students',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'id' => 'payment-method-mix',
+                    'label' => 'Payment Method Options Used',
+                    'summary' => 'Active-year transaction count by payment method',
+                    'display' => 'pie',
+                    'points' => $paymentMethodPoints,
+                    'chart' => [
+                        'x_key' => 'method',
+                        'rows' => collect($paymentMethodPoints)
+                            ->map(function (array $point): array {
+                                return [
+                                    'method' => $point['label'],
+                                    'transactions' => $point['value'],
+                                ];
+                            })
+                            ->values()
+                            ->all(),
+                        'series' => [
+                            [
+                                'key' => 'transactions',
+                                'label' => 'Transactions',
                             ],
                         ],
                     ],

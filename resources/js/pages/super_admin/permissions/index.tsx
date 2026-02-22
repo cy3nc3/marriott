@@ -116,8 +116,8 @@ export default function Permissions({ permissions, roles }: Props) {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardContent className="flex items-center gap-4">
+                <Card className="gap-2">
+                    <CardContent className="flex items-center gap-4 pt-6">
                         <Lock className="size-5 text-muted-foreground" />
                         <p className="text-sm text-muted-foreground">
                             This matrix represents the hardcoded security gates

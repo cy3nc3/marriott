@@ -62,6 +62,8 @@ class DashboardController extends Controller
                     'time_label' => $this->toTimeLabel($classSchedule->start_time, $classSchedule->end_time),
                     'title' => $title,
                     'section' => $sectionLabel ?: 'Unassigned',
+                    'duration_minutes' => Carbon::createFromFormat('H:i:s', $classSchedule->end_time)
+                        ->diffInMinutes(Carbon::createFromFormat('H:i:s', $classSchedule->start_time)),
                 ];
             })
             ->values();
@@ -197,17 +199,35 @@ class DashboardController extends Controller
                 [
                     'id' => 'today-classes',
                     'label' => 'Today Class Snapshot',
-                    'summary' => 'Current day schedule blocks',
-                    'display' => 'list',
+                    'summary' => 'Scheduled class duration per time block',
+                    'display' => 'bar',
                     'points' => $todaySchedules
                         ->map(function (array $scheduleItem): array {
                             return [
                                 'label' => $scheduleItem['start'].'-'.$scheduleItem['end'],
-                                'value' => $scheduleItem['title'].' ('.$scheduleItem['section'].')',
+                                'value' => $scheduleItem['duration_minutes'],
                             ];
                         })
                         ->values()
                         ->all(),
+                    'chart' => [
+                        'x_key' => 'time_slot',
+                        'rows' => $todaySchedules
+                            ->map(function (array $scheduleItem): array {
+                                return [
+                                    'time_slot' => $scheduleItem['start'].'-'.$scheduleItem['end'],
+                                    'minutes' => $scheduleItem['duration_minutes'],
+                                ];
+                            })
+                            ->values()
+                            ->all(),
+                        'series' => [
+                            [
+                                'key' => 'minutes',
+                                'label' => 'Minutes',
+                            ],
+                        ],
+                    ],
                 ],
                 [
                     'id' => 'pending-grade-rows-by-class',

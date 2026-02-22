@@ -174,18 +174,56 @@ class DashboardController extends Controller
                     'id' => 'role-distribution',
                     'label' => 'Role Distribution',
                     'summary' => 'Current user count by role',
+                    'display' => 'bar',
                     'points' => array_map(function (array $point): array {
                         return [
                             'label' => $point['label'],
                             'value' => $point['count'],
                         ];
                     }, $roleDistributionPoints),
+                    'chart' => [
+                        'x_key' => 'role',
+                        'rows' => collect($roleDistributionPoints)
+                            ->map(function (array $point): array {
+                                return [
+                                    'role' => $point['label'],
+                                    'users' => $point['count'],
+                                ];
+                            })
+                            ->values()
+                            ->all(),
+                        'series' => [
+                            [
+                                'key' => 'users',
+                                'label' => 'Users',
+                            ],
+                        ],
+                    ],
                 ],
                 [
                     'id' => 'audit-activity',
                     'label' => 'Audit Activity (Last 7 Days)',
                     'summary' => 'Daily volume of recorded audit events',
+                    'display' => 'line',
                     'points' => $auditTrendPoints,
+                    'chart' => [
+                        'x_key' => 'day',
+                        'rows' => collect($auditTrendPoints)
+                            ->map(function (array $point): array {
+                                return [
+                                    'day' => $point['label'],
+                                    'events' => $point['value'],
+                                ];
+                            })
+                            ->values()
+                            ->all(),
+                        'series' => [
+                            [
+                                'key' => 'events',
+                                'label' => 'Events',
+                            ],
+                        ],
+                    ],
                 ],
             ],
             'action_links' => [

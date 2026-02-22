@@ -9,6 +9,7 @@ use App\Models\Section;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Models\Subject;
+use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -82,7 +83,7 @@ test('registrar sf1 upload reconciles student directory by lrn', function () {
         );
 });
 
-test('registrar dashboard shows queue aging buckets and lis sync bar distribution', function () {
+test('registrar dashboard shows lis sync pie and payment method trends', function () {
     $section = Section::query()->create([
         'academic_year_id' => $this->academicYear->id,
         'grade_level_id' => $this->gradeLevel->id,
@@ -90,13 +91,15 @@ test('registrar dashboard shows queue aging buckets and lis sync bar distributio
     ]);
 
     $queueDefinitions = [
-        ['status' => 'pending', 'days_ago' => 1, 'is_lis_synced' => true, 'sync_error_flag' => false],
-        ['status' => 'pending_intake', 'days_ago' => 4, 'is_lis_synced' => false, 'sync_error_flag' => false],
-        ['status' => 'for_cashier_payment', 'days_ago' => 10, 'is_lis_synced' => false, 'sync_error_flag' => true],
-        ['status' => 'partial_payment', 'days_ago' => 20, 'is_lis_synced' => false, 'sync_error_flag' => false],
+        ['status' => 'pending', 'payment_term' => 'monthly', 'days_ago' => 1, 'is_lis_synced' => true, 'sync_error_flag' => false],
+        ['status' => 'pending_intake', 'payment_term' => 'quarterly', 'days_ago' => 4, 'is_lis_synced' => false, 'sync_error_flag' => false],
+        ['status' => 'for_cashier_payment', 'payment_term' => 'full', 'days_ago' => 10, 'is_lis_synced' => false, 'sync_error_flag' => true],
+        ['status' => 'partial_payment', 'payment_term' => 'monthly', 'days_ago' => 20, 'is_lis_synced' => false, 'sync_error_flag' => false],
     ];
 
     $counter = 0;
+    $firstQueueStudent = null;
+    $createdStudents = collect();
     foreach ($queueDefinitions as $definition) {
         $counter++;
         $student = Student::query()->create([
@@ -112,7 +115,7 @@ test('registrar dashboard shows queue aging buckets and lis sync bar distributio
             'academic_year_id' => $this->academicYear->id,
             'grade_level_id' => $this->gradeLevel->id,
             'section_id' => $section->id,
-            'payment_term' => 'monthly',
+            'payment_term' => $definition['payment_term'],
             'downpayment' => 1000,
             'status' => $definition['status'],
         ]);
@@ -120,7 +123,41 @@ test('registrar dashboard shows queue aging buckets and lis sync bar distributio
         $enrollment->created_at = now()->subDays($definition['days_ago']);
         $enrollment->updated_at = now()->subDays($definition['days_ago']);
         $enrollment->save();
+
+        if ($counter === 1) {
+            $firstQueueStudent = $student;
+        }
+
+        $createdStudents->push($student);
     }
+
+    Enrollment::query()->create([
+        'student_id' => $firstQueueStudent->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'semi-annual',
+        'downpayment' => 0,
+        'status' => 'dropped',
+    ]);
+
+    $droppedOnlyStudent = Student::query()->create([
+        'lrn' => '930000000111',
+        'first_name' => 'Dropped',
+        'last_name' => 'Only',
+        'is_lis_synced' => false,
+        'sync_error_flag' => false,
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $droppedOnlyStudent->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'semi-annual',
+        'downpayment' => 0,
+        'status' => 'dropped',
+    ]);
 
     $enrolledStudent = Student::query()->create([
         'lrn' => '930000000099',
@@ -140,26 +177,89 @@ test('registrar dashboard shows queue aging buckets and lis sync bar distributio
         'status' => 'enrolled',
     ]);
 
+    $cashier = User::factory()->finance()->create();
+
+    Transaction::query()->create([
+        'or_number' => 'REG-OR-1001',
+        'student_id' => $createdStudents[0]->id,
+        'cashier_id' => $cashier->id,
+        'total_amount' => 1000,
+        'payment_mode' => 'cash',
+    ]);
+
+    Transaction::query()->create([
+        'or_number' => 'REG-OR-1002',
+        'student_id' => $createdStudents[1]->id,
+        'cashier_id' => $cashier->id,
+        'total_amount' => 1500,
+        'payment_mode' => 'gcash',
+    ]);
+
+    Transaction::query()->create([
+        'or_number' => 'REG-OR-1003',
+        'student_id' => $createdStudents[2]->id,
+        'cashier_id' => $cashier->id,
+        'total_amount' => 2000,
+        'payment_mode' => 'bank_transfer',
+    ]);
+
+    Transaction::query()->create([
+        'or_number' => 'REG-OR-1004',
+        'student_id' => $createdStudents[3]->id,
+        'cashier_id' => $cashier->id,
+        'total_amount' => 1200,
+        'payment_mode' => 'cash',
+    ]);
+
+    Transaction::query()->create([
+        'or_number' => 'REG-OR-1005',
+        'student_id' => $enrolledStudent->id,
+        'cashier_id' => $cashier->id,
+        'total_amount' => 900,
+        'payment_mode' => 'check',
+    ]);
+
+    Transaction::query()->create([
+        'or_number' => 'REG-OR-1006',
+        'student_id' => $droppedOnlyStudent->id,
+        'cashier_id' => $cashier->id,
+        'total_amount' => 600,
+        'payment_mode' => 'gcash',
+    ]);
+
     $this->get('/dashboard')
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('registrar/dashboard')
-            ->where('trends.0.id', 'queue-aging-buckets')
-            ->where('trends.0.display', 'bar')
+            ->where('trends.0.id', 'lis-sync-distribution')
+            ->where('trends.0.display', 'pie')
             ->where('trends.0.chart.rows', function ($rows): bool {
-                $rowsByBucket = collect($rows)->keyBy('bucket');
+                $rowsByStatus = collect($rows)->keyBy('status');
 
-                return count($rows) === 4
-                    && (int) ($rowsByBucket['0-2 days']['records'] ?? -1) === 1
-                    && (int) ($rowsByBucket['3-7 days']['records'] ?? -1) === 1
-                    && (int) ($rowsByBucket['8-14 days']['records'] ?? -1) === 1
-                    && (int) ($rowsByBucket['15+ days']['records'] ?? -1) === 1
-                    && (int) collect($rows)->sum('records') === 4;
+                return count($rows) === 3
+                    && (int) ($rowsByStatus['Synced']['students'] ?? -1) === 2
+                    && (int) ($rowsByStatus['Pending']['students'] ?? -1) === 3
+                    && (int) ($rowsByStatus['Errors']['students'] ?? -1) === 1
+                    && (int) collect($rows)->sum('students') === 6;
             })
-            ->where('trends.1.id', 'lis-sync-distribution')
-            ->where('trends.1.display', 'bar')
+            ->where('trends.1.id', 'payment-method-mix')
+            ->where('trends.1.display', 'pie')
+            ->where('trends.1.chart.rows', function ($rows): bool {
+                return count($rows) === 5
+                    && ($rows[0]['method'] ?? null) === 'Cash'
+                    && (int) ($rows[0]['transactions'] ?? -1) === 2
+                    && ($rows[1]['method'] ?? null) === 'E-Wallet'
+                    && (int) ($rows[1]['transactions'] ?? -1) === 1
+                    && ($rows[2]['method'] ?? null) === 'Bank Transfer'
+                    && (int) ($rows[2]['transactions'] ?? -1) === 1
+                    && ($rows[3]['method'] ?? null) === 'Check'
+                    && (int) ($rows[3]['transactions'] ?? -1) === 1
+                    && ($rows[4]['method'] ?? null) === 'Other'
+                    && (int) ($rows[4]['transactions'] ?? -1) === 0
+                    && (int) collect($rows)->sum('transactions') === 5;
+            })
             ->where('kpis.2.id', 'lis-sync-rate')
-            ->where('kpis.2.value', '40.00%')
+            ->where('kpis.2.value', '33.33%')
         );
 });
 

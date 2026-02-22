@@ -142,11 +142,17 @@ export default function GradingSheet({
             pt_weight: String(rubric_weights.pt_weight),
             qa_weight: String(rubric_weights.qa_weight),
         });
-    }, [rubric_weights]);
+    }, [
+        rubric_weights.ww_weight,
+        rubric_weights.pt_weight,
+        rubric_weights.qa_weight,
+    ]);
 
-    const visibleAssessmentGroups = grouped_assessments.filter(
-        (group) => group.assessments.length > 0,
-    );
+    const visibleAssessmentGroups = useMemo(() => {
+        return grouped_assessments.filter(
+            (group) => group.assessments.length > 0,
+        );
+    }, [grouped_assessments]);
 
     const allAssessments = useMemo(() => {
         const grouped = visibleAssessmentGroups.flatMap(
@@ -176,13 +182,16 @@ export default function GradingSheet({
         return values;
     }, [students, allAssessments]);
 
-    const [scoreValues, setScoreValues] = useState<Record<string, string>>(
-        initialScoreValues,
-    );
+    const initialScoreValuesSignature = useMemo(() => {
+        return JSON.stringify(initialScoreValues);
+    }, [initialScoreValues]);
+
+    const [scoreValues, setScoreValues] =
+        useState<Record<string, string>>(initialScoreValues);
 
     useEffect(() => {
         setScoreValues(initialScoreValues);
-    }, [initialScoreValues]);
+    }, [initialScoreValuesSignature]);
 
     const selectedSectionValue = context.selected_section_id
         ? String(context.selected_section_id)
@@ -350,13 +359,15 @@ export default function GradingSheet({
             <Head title="Grading Sheet" />
 
             <div className="flex flex-col gap-6">
-                <Card>
+                <Card className="gap-2">
                     <CardHeader className="border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Class and Subject</CardTitle>
                             <Badge
                                 variant={
-                                    status === 'submitted' ? 'secondary' : 'outline'
+                                    status === 'submitted'
+                                        ? 'secondary'
+                                        : 'outline'
                                 }
                             >
                                 Status:{' '}
@@ -364,7 +375,7 @@ export default function GradingSheet({
                             </Badge>
                         </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-6">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex flex-col gap-3 sm:flex-row">
                                 <Select
@@ -375,23 +386,22 @@ export default function GradingSheet({
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {context.section_options.length > 0 ? (
-                                            context.section_options.map(
-                                                (sectionOption) => (
-                                                    <SelectItem
-                                                        key={sectionOption.id}
-                                                        value={String(
-                                                            sectionOption.id,
-                                                        )}
-                                                    >
-                                                        {sectionOption.label}
-                                                    </SelectItem>
-                                                ),
-                                            )
-                                        ) : (
-                                            <SelectItem value="section-none">
-                                                No sections
-                                            </SelectItem>
+                                        <SelectItem value="section-none">
+                                            {context.section_options.length > 0
+                                                ? 'Select section'
+                                                : 'No sections'}
+                                        </SelectItem>
+                                        {context.section_options.map(
+                                            (sectionOption) => (
+                                                <SelectItem
+                                                    key={sectionOption.id}
+                                                    value={String(
+                                                        sectionOption.id,
+                                                    )}
+                                                >
+                                                    {sectionOption.label}
+                                                </SelectItem>
+                                            ),
                                         )}
                                     </SelectContent>
                                 </Select>
@@ -404,23 +414,22 @@ export default function GradingSheet({
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {context.subject_options.length > 0 ? (
-                                            context.subject_options.map(
-                                                (subjectOption) => (
-                                                    <SelectItem
-                                                        key={subjectOption.id}
-                                                        value={String(
-                                                            subjectOption.id,
-                                                        )}
-                                                    >
-                                                        {subjectOption.name}
-                                                    </SelectItem>
-                                                ),
-                                            )
-                                        ) : (
-                                            <SelectItem value="subject-none">
-                                                No subjects
-                                            </SelectItem>
+                                        <SelectItem value="subject-none">
+                                            {context.subject_options.length > 0
+                                                ? 'Select subject'
+                                                : 'No subjects'}
+                                        </SelectItem>
+                                        {context.subject_options.map(
+                                            (subjectOption) => (
+                                                <SelectItem
+                                                    key={subjectOption.id}
+                                                    value={String(
+                                                        subjectOption.id,
+                                                    )}
+                                                >
+                                                    {subjectOption.name}
+                                                </SelectItem>
+                                            ),
                                         )}
                                     </SelectContent>
                                 </Select>
@@ -503,18 +512,21 @@ export default function GradingSheet({
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead className="pl-6"></TableHead>
-                                        {visibleAssessmentGroups.map((group) => (
-                                            <TableHead
-                                                key={group.component}
-                                                colSpan={
-                                                    group.assessments.length
-                                                }
-                                                className="border-l text-center"
-                                            >
-                                                {group.component} ({group.weight}
-                                                %)
-                                            </TableHead>
-                                        ))}
+                                        {visibleAssessmentGroups.map(
+                                            (group) => (
+                                                <TableHead
+                                                    key={group.component}
+                                                    colSpan={
+                                                        group.assessments.length
+                                                    }
+                                                    className="border-l text-center"
+                                                >
+                                                    {group.component} (
+                                                    {group.weight}
+                                                    %)
+                                                </TableHead>
+                                            ),
+                                        )}
                                         {quarterly_exam_assessment ? (
                                             <TableHead className="border-l text-center"></TableHead>
                                         ) : null}
@@ -543,7 +555,9 @@ export default function GradingSheet({
                                         )}
                                         {quarterly_exam_assessment ? (
                                             <TableHead className="border-l text-center">
-                                                {quarterly_exam_assessment.title}{' '}
+                                                {
+                                                    quarterly_exam_assessment.title
+                                                }{' '}
                                                 (
                                                 {
                                                     quarterly_exam_assessment.max_points

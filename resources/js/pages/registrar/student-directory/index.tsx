@@ -116,7 +116,7 @@ export default function StudentDirectory({
 
             <div className="flex flex-col gap-6">
                 <Card>
-                    <CardHeader className="flex flex-col gap-4 border-b sm:flex-row sm:items-start sm:justify-between">
+                    <CardHeader className="flex flex-col gap-1 border-b sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <div className="space-y-1">
                             <CardTitle>Student Directory</CardTitle>
                             <div className="flex flex-wrap items-center gap-2 text-sm">

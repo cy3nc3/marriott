@@ -104,7 +104,7 @@ class DashboardController extends Controller
             ->get()
             ->map(function ($row): array {
                 return [
-                    'label' => strtoupper((string) $row->payment_mode),
+                    'label' => ucwords(str_replace('_', ' ', (string) $row->payment_mode)),
                     'value' => (int) $row->total,
                 ];
             })
@@ -196,13 +196,51 @@ class DashboardController extends Controller
                     'id' => 'daily-collection',
                     'label' => 'Daily Collection Trend (Last 7 Days)',
                     'summary' => 'Amount collected per day',
+                    'display' => 'line',
                     'points' => $dailyCollectionTrend,
+                    'chart' => [
+                        'x_key' => 'day',
+                        'rows' => collect($dailyCollectionTrend)
+                            ->map(function (array $point): array {
+                                return [
+                                    'day' => $point['label'],
+                                    'collections' => $point['value'],
+                                ];
+                            })
+                            ->values()
+                            ->all(),
+                        'series' => [
+                            [
+                                'key' => 'collections',
+                                'label' => 'Collections',
+                            ],
+                        ],
+                    ],
                 ],
                 [
                     'id' => 'payment-mode-mix',
                     'label' => 'Payment-Mode Mix (Last 30 Days)',
                     'summary' => 'Distribution of transaction count by payment mode',
+                    'display' => 'pie',
                     'points' => $paymentModeMix,
+                    'chart' => [
+                        'x_key' => 'mode',
+                        'rows' => collect($paymentModeMix)
+                            ->map(function (array $point): array {
+                                return [
+                                    'mode' => $point['label'],
+                                    'transactions' => $point['value'],
+                                ];
+                            })
+                            ->values()
+                            ->all(),
+                        'series' => [
+                            [
+                                'key' => 'transactions',
+                                'label' => 'Transactions',
+                            ],
+                        ],
+                    ],
                 ],
             ],
             'action_links' => [

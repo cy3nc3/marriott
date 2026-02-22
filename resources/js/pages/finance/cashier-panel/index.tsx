@@ -342,11 +342,11 @@ export default function CashierPanel({
             <Head title="Cashier Panel" />
 
             <div className="flex flex-col gap-6">
-                <Card>
+                <Card className="gap-2">
                     <CardHeader className="border-b">
                         <CardTitle>Student Lookup</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-6">
                         <div className="grid gap-3 lg:grid-cols-[1fr_20rem_auto]">
                             <div className="relative">
                                 <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
@@ -393,11 +393,11 @@ export default function CashierPanel({
                 </Card>
 
                 <div className="grid gap-6 lg:grid-cols-3">
-                    <Card className="lg:col-span-1">
+                    <Card className="gap-2 lg:col-span-1">
                         <CardHeader className="border-b">
                             <CardTitle>Student Profile</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-4 pt-6">
                             {selected_student ? (
                                 <>
                                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
@@ -614,7 +614,9 @@ export default function CashierPanel({
                                     <SelectItem value="inventory">
                                         Inventory
                                     </SelectItem>
-                                    <SelectItem value="custom">Custom</SelectItem>
+                                    <SelectItem value="custom">
+                                        Custom
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -739,7 +741,9 @@ export default function CashierPanel({
                                         <span className="text-muted-foreground">
                                             {item.description}
                                         </span>
-                                        <span>{formatCurrency(item.amount)}</span>
+                                        <span>
+                                            {formatCurrency(item.amount)}
+                                        </span>
                                     </div>
                                 ))}
                                 <div className="flex items-center justify-between border-t pt-2 text-sm font-medium">

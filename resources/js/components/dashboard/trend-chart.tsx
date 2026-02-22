@@ -1,24 +1,41 @@
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Line, LineChart, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    ChartContainer,
+    ChartTooltip,
+    ChartTooltipContent,
+    type ChartConfig,
+} from '@/components/ui/chart';
 
 interface TrendChartProps {
-    data: { 
-        year: string; 
-        enrollees: number | null; 
+    data: {
+        year: string;
+        enrollees: number | null;
         isProjected: boolean;
     }[];
 }
 
 export function TrendChart({ data }: TrendChartProps) {
-    // Process data to create two series that connect at the transition point
+    const chartConfig = {
+        actual: {
+            label: 'Actual',
+            color: 'var(--chart-1)',
+        },
+        projection: {
+            label: 'Projected',
+            color: 'var(--chart-2)',
+        },
+    } satisfies ChartConfig;
+
     const processedData = data.map((item, index) => {
-        const isLastActual = !item.isProjected && (data[index + 1]?.isProjected ?? false);
-        
+        const isLastActual =
+            !item.isProjected && (data[index + 1]?.isProjected ?? false);
+
         return {
             ...item,
             actual: item.isProjected ? null : item.enrollees,
-            // Projection series includes the last actual point to ensure the line is connected
-            projection: (item.isProjected || isLastActual) ? item.enrollees : null,
+            projection:
+                item.isProjected || isLastActual ? item.enrollees : null,
         };
     });
 
@@ -29,8 +46,15 @@ export function TrendChart({ data }: TrendChartProps) {
             </CardHeader>
             <CardContent className="pl-2">
                 <div className="h-[350px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={processedData}>
+                    <ChartContainer
+                        config={chartConfig}
+                        className="!aspect-auto h-full w-full !justify-start"
+                    >
+                        <LineChart
+                            accessibilityLayer
+                            data={processedData}
+                            margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+                        >
                             <XAxis
                                 dataKey="year"
                                 stroke="#888888"
@@ -39,81 +63,83 @@ export function TrendChart({ data }: TrendChartProps) {
                                 axisLine={false}
                             />
                             <YAxis
+                                width={36}
                                 stroke="#888888"
                                 fontSize={12}
                                 tickLine={false}
                                 axisLine={false}
+                                tickMargin={6}
                                 tickFormatter={(value) => `${value}`}
                             />
-                            <Tooltip
-                                cursor={{ stroke: 'hsl(var(--muted))', strokeWidth: 2 }}
-                                content={({ active, payload }) => {
-                                    if (active && payload && payload.length) {
-                                        // Find the first payload that has a value (either actual or projection)
-                                        const activePayload = payload.find(p => p.value !== null) || payload[0];
-                                        const item = activePayload.payload;
-                                        return (
-                                            <div className="rounded-lg border bg-background p-2 shadow-sm">
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                            Year
-                                                        </span>
-                                                        <span className="font-bold text-muted-foreground">
-                                                            {item.year}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                            Enrollees
-                                                        </span>
-                                                        <span className="font-bold">
-                                                            {item.enrollees}
-                                                            {item.isProjected && (
-                                                                <span className="ml-1 text-[10px] text-amber-500">(Projected)</span>
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    }
-                                    return null;
+                            <ChartTooltip
+                                cursor={{
+                                    stroke: 'hsl(var(--muted))',
+                                    strokeWidth: 2,
                                 }}
+                                content={
+                                    <ChartTooltipContent
+                                        indicator="dot"
+                                        labelFormatter={(label, payload) => {
+                                            const payloadRow = payload?.[0]
+                                                ?.payload as
+                                                | { isProjected?: boolean }
+                                                | undefined;
+                                            const displayLabel =
+                                                typeof label === 'string' ||
+                                                typeof label === 'number'
+                                                    ? String(label)
+                                                    : '';
+
+                                            if (payloadRow?.isProjected) {
+                                                return `${displayLabel} (Projected)`;
+                                            }
+
+                                            return displayLabel;
+                                        }}
+                                    />
+                                }
                             />
-                            {/* Actual Data Line */}
                             <Line
                                 type="monotone"
                                 dataKey="actual"
-                                stroke="currentColor"
+                                stroke="var(--color-actual)"
                                 strokeWidth={3}
-                                dot={{ r: 4, fill: 'currentColor', className: 'fill-primary', strokeWidth: 0 }}
-                                className="stroke-primary"
+                                dot={{
+                                    r: 4,
+                                    fill: 'var(--color-actual)',
+                                    strokeWidth: 0,
+                                }}
                                 isAnimationActive={true}
                                 connectNulls={false}
                             />
-                            {/* Projected Data Line */}
                             <Line
                                 type="monotone"
                                 dataKey="projection"
-                                stroke="#f59e0b"
+                                stroke="var(--color-projection)"
                                 strokeWidth={3}
                                 strokeDasharray="5 5"
                                 dot={(props) => {
                                     const { cx, cy, payload } = props;
-                                    // Only draw dot for the actual projected year, not the connection point
-                                    if (payload.isProjected) {
+
+                                    if (payload?.isProjected) {
                                         return (
-                                            <circle cx={cx} cy={cy} r={4} fill="#f59e0b" stroke="none" />
+                                            <circle
+                                                cx={cx}
+                                                cy={cy}
+                                                r={4}
+                                                fill="var(--color-projection)"
+                                                stroke="none"
+                                            />
                                         );
                                     }
-                                    return null;
+
+                                    return <g />;
                                 }}
                                 isAnimationActive={true}
                                 connectNulls={false}
                             />
                         </LineChart>
-                    </ResponsiveContainer>
+                    </ChartContainer>
                 </div>
             </CardContent>
         </Card>

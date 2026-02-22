@@ -298,7 +298,7 @@ export default function DiscountManager({
                 </Card>
 
                 <Card>
-                    <CardHeader className="border-b">
+                    <CardHeader className="gap-1 border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div>
                                 <CardTitle>Student Discount Registry</CardTitle>
@@ -603,7 +603,10 @@ export default function DiscountManager({
                     </DialogContent>
                 </Dialog>
 
-                <Dialog open={isTagStudentOpen} onOpenChange={setIsTagStudentOpen}>
+                <Dialog
+                    open={isTagStudentOpen}
+                    onOpenChange={setIsTagStudentOpen}
+                >
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Tag Student Discount</DialogTitle>
@@ -611,7 +614,8 @@ export default function DiscountManager({
                         <div className="grid gap-4 py-2">
                             {active_academic_year && (
                                 <p className="text-sm text-muted-foreground">
-                                    Active School Year: {active_academic_year.name}
+                                    Active School Year:{' '}
+                                    {active_academic_year.name}
                                 </p>
                             )}
                             <div className="space-y-2">
@@ -619,7 +623,10 @@ export default function DiscountManager({
                                 <Select
                                     value={tagStudentForm.data.student_id}
                                     onValueChange={(value) =>
-                                        tagStudentForm.setData('student_id', value)
+                                        tagStudentForm.setData(
+                                            'student_id',
+                                            value,
+                                        )
                                     }
                                 >
                                     <SelectTrigger>
@@ -647,7 +654,10 @@ export default function DiscountManager({
                                 <Select
                                     value={tagStudentForm.data.discount_id}
                                     onValueChange={(value) =>
-                                        tagStudentForm.setData('discount_id', value)
+                                        tagStudentForm.setData(
+                                            'discount_id',
+                                            value,
+                                        )
                                     }
                                 >
                                     <SelectTrigger>

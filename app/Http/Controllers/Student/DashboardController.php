@@ -230,6 +230,16 @@ class DashboardController extends Controller
         $upcomingItems = $enrollment?->section_id
             ? $this->resolveUpcomingAcademicItems((int) $enrollment->section_id)
             : [];
+        $upcomingItemsByDay = collect($upcomingItems)
+            ->groupBy('date_label')
+            ->map(function (Collection $items, string $dateLabel): array {
+                return [
+                    'label' => $dateLabel,
+                    'value' => $items->count(),
+                ];
+            })
+            ->values()
+            ->all();
 
         $alerts = [];
 
@@ -341,17 +351,27 @@ class DashboardController extends Controller
                 [
                     'id' => 'upcoming-academic-items',
                     'label' => 'Upcoming Academic Schedule Items',
-                    'summary' => 'Next classes from the current schedule',
-                    'display' => 'list',
-                    'points' => collect($upcomingItems)
-                        ->map(function (array $item): array {
-                            return [
-                                'label' => $item['date_label'].' '.$item['time_label'],
-                                'value' => $item['title'],
-                            ];
-                        })
-                        ->values()
-                        ->all(),
+                    'summary' => 'Upcoming class count by day',
+                    'display' => 'bar',
+                    'points' => $upcomingItemsByDay,
+                    'chart' => [
+                        'x_key' => 'day',
+                        'rows' => collect($upcomingItemsByDay)
+                            ->map(function (array $point): array {
+                                return [
+                                    'day' => $point['label'],
+                                    'class_count' => $point['value'],
+                                ];
+                            })
+                            ->values()
+                            ->all(),
+                        'series' => [
+                            [
+                                'key' => 'class_count',
+                                'label' => 'Classes',
+                            ],
+                        ],
+                    ],
                 ],
             ],
             'action_links' => [

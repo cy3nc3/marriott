@@ -34,7 +34,7 @@ export type DashboardTrend = {
     id: string;
     label: string;
     summary: string;
-    display?: 'list' | 'line' | 'bar';
+    display?: 'list' | 'line' | 'bar' | 'area' | 'pie';
     points?: DashboardTrendPoint[];
     chart?: {
         x_key: string;

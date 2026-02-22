@@ -297,7 +297,7 @@ export default function RemedialEntry({
             <Head title="Remedial Entry" />
 
             <div className="flex flex-col gap-6">
-                <Card>
+                <Card className="gap-2">
                     <CardHeader className="border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Remedial Context</CardTitle>
@@ -308,7 +308,7 @@ export default function RemedialEntry({
                             </Badge>
                         </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-6">
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                             <div className="space-y-2">
                                 <Label>School Year</Label>
@@ -421,11 +421,11 @@ export default function RemedialEntry({
                 </Card>
 
                 <div className="grid gap-6 lg:grid-cols-3">
-                    <Card>
+                    <Card className="gap-2">
                         <CardHeader className="border-b">
                             <CardTitle>Selected Student</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-2">
+                        <CardContent className="space-y-2 pt-6">
                             <div className="flex items-center justify-between">
                                 <p className="text-sm text-muted-foreground">
                                     Name

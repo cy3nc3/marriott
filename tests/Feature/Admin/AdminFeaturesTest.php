@@ -100,6 +100,7 @@ test('admin dashboard shows enrollment yoy growth and enrollment forecast trend'
                 'lrn' => str_pad((string) (910000000000 + $sequence), 12, '0', STR_PAD_LEFT),
                 'first_name' => "Student{$sequence}",
                 'last_name' => 'Admin',
+                'gender' => $sequence % 2 === 0 ? 'Male' : 'Female',
             ]);
 
             Enrollment::query()->create([
@@ -131,16 +132,27 @@ test('admin dashboard shows enrollment yoy growth and enrollment forecast trend'
                     return $kpi['id'] === 'enrollment-capacity';
                 });
             })
+            ->where('trends.0.id', 'grade-level-enrollment')
+            ->where('trends.0.display', 'bar')
+            ->where('trends.0.chart.series.0.key', 'male')
+            ->where('trends.0.chart.series.1.key', 'female')
+            ->where('trends.0.chart.rows.0.male', 6)
+            ->where('trends.0.chart.rows.0.female', 7)
+            ->where('trends.0.chart.rows.0.total', 13)
             ->where('trends.1.id', 'enrollment-forecast')
-            ->where('trends.1.display', 'line')
+            ->where('trends.1.display', 'area')
             ->where('trends.1.chart.rows', function ($rows): bool {
                 if (count($rows) !== 7) {
                     return false;
                 }
 
                 $forecastRow = collect($rows)->last();
+                $lastActualRow = collect($rows)->slice(-2, 1)->first();
 
                 return is_array($forecastRow)
+                    && is_array($lastActualRow)
+                    && ($lastActualRow['actual'] ?? null) !== null
+                    && ($lastActualRow['forecast'] ?? null) === ($lastActualRow['actual'] ?? null)
                     && ($forecastRow['is_forecast'] ?? false) === true
                     && ($forecastRow['forecast'] ?? null) !== null;
             })

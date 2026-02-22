@@ -214,7 +214,7 @@ export default function AcademicControls({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="School Year Manager" />
             <div className="flex flex-col gap-6">
-                <Card className="max-h-fit">
+                <Card className="max-h-fit gap-2">
                     <CardContent className="pt-6">
                         <div className="mb-4 grid grid-cols-1 gap-8 md:grid-cols-4">
                             <div className="space-y-1">
@@ -370,7 +370,7 @@ export default function AcademicControls({
                             href={item.href}
                             className="group"
                         >
-                            <Card className="transition-colors hover:bg-muted/50">
+                            <Card className="gap-2 transition-colors hover:bg-muted/50">
                                 <CardContent className="flex items-center justify-between p-4">
                                     <div className="flex items-center gap-4">
                                         <div className="flex size-10 items-center justify-center rounded-lg border bg-background text-muted-foreground shadow-sm transition-colors group-hover:text-primary">

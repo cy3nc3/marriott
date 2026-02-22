@@ -147,10 +147,14 @@ export default function StudentLedgers({
     );
     const [showPaidDues, setShowPaidDues] = useState(filters.show_paid_dues);
     const [entryTypeFilter, setEntryTypeFilter] = useState(filters.entry_type);
-    const [entryDateRange, setEntryDateRange] =
-        useState<DateRange | undefined>(initialDateRange);
+    const [entryDateRange, setEntryDateRange] = useState<DateRange | undefined>(
+        initialDateRange,
+    );
 
-    const applyFilters = (studentId = selectedStudentId, paidFlag = showPaidDues) => {
+    const applyFilters = (
+        studentId = selectedStudentId,
+        paidFlag = showPaidDues,
+    ) => {
         router.get(
             student_ledgers.url({
                 query: {
@@ -158,9 +162,7 @@ export default function StudentLedgers({
                     student_id: studentId || undefined,
                     show_paid_dues: paidFlag ? 1 : undefined,
                     entry_type:
-                        entryTypeFilter === 'all'
-                            ? undefined
-                            : entryTypeFilter,
+                        entryTypeFilter === 'all' ? undefined : entryTypeFilter,
                     date_from: entryDateRange?.from
                         ? format(entryDateRange.from, 'yyyy-MM-dd')
                         : undefined,
@@ -266,11 +268,11 @@ export default function StudentLedgers({
             <Head title="Student Ledgers" />
 
             <div className="flex flex-col gap-6">
-                <Card>
+                <Card className="gap-2">
                     <CardHeader className="border-b">
                         <CardTitle>Ledger Lookup</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-6">
                         <div className="grid gap-3 lg:grid-cols-[1fr_20rem_auto]">
                             <div className="relative">
                                 <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
@@ -307,7 +309,10 @@ export default function StudentLedgers({
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <Button type="button" onClick={() => applyFilters()}>
+                            <Button
+                                type="button"
+                                onClick={() => applyFilters()}
+                            >
                                 Search
                             </Button>
                         </div>
@@ -315,11 +320,11 @@ export default function StudentLedgers({
                 </Card>
 
                 <div className="grid gap-6 lg:grid-cols-3">
-                    <Card className="lg:col-span-1">
+                    <Card className="gap-2 lg:col-span-1">
                         <CardHeader className="border-b">
                             <CardTitle>Student Ledger Profile</CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                             {selected_student ? (
                                 <>
                                     <div className="grid gap-4 sm:grid-cols-2">
@@ -411,7 +416,9 @@ export default function StudentLedgers({
                                     {selected_student && (
                                         <Badge variant="outline">
                                             Plan:{' '}
-                                            {selected_student.payment_plan_label}
+                                            {
+                                                selected_student.payment_plan_label
+                                            }
                                         </Badge>
                                     )}
                                 </div>

@@ -223,40 +223,57 @@ export default function AdvisoryBoard({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Advisory Board" />
             <div className="flex flex-col gap-6">
-                <Card>
+                <Card className="gap-2">
                     <CardHeader className="border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Advisory Context</CardTitle>
-                            <Badge variant={status === 'locked' ? 'secondary' : 'outline'}>
-                                Status: {status === 'locked' ? 'Locked' : 'Draft'}
+                            <Badge
+                                variant={
+                                    status === 'locked'
+                                        ? 'secondary'
+                                        : 'outline'
+                                }
+                            >
+                                Status:{' '}
+                                {status === 'locked' ? 'Locked' : 'Draft'}
                             </Badge>
                         </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-6">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex flex-col gap-3 sm:flex-row">
                                 <Select
                                     value={selectedSectionValue}
                                     onValueChange={handleSectionChange}
-                                    disabled={context.section_options.length === 0}
+                                    disabled={
+                                        context.section_options.length === 0
+                                    }
                                 >
                                     <SelectTrigger className="w-full sm:w-56">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {context.section_options.length === 0 ? (
-                                            <SelectItem value="section-none" disabled>
+                                        {context.section_options.length ===
+                                        0 ? (
+                                            <SelectItem
+                                                value="section-none"
+                                                disabled
+                                            >
                                                 No advisory section
                                             </SelectItem>
                                         ) : (
-                                            context.section_options.map((sectionOption) => (
-                                                <SelectItem
-                                                    key={sectionOption.id}
-                                                    value={String(sectionOption.id)}
-                                                >
-                                                    {sectionOption.label}
-                                                </SelectItem>
-                                            ))
+                                            context.section_options.map(
+                                                (sectionOption) => (
+                                                    <SelectItem
+                                                        key={sectionOption.id}
+                                                        value={String(
+                                                            sectionOption.id,
+                                                        )}
+                                                    >
+                                                        {sectionOption.label}
+                                                    </SelectItem>
+                                                ),
+                                            )
                                         )}
                                     </SelectContent>
                                 </Select>
@@ -268,11 +285,16 @@ export default function AdvisoryBoard({
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {Object.entries(quarterLabels).map(([value, label]) => (
-                                            <SelectItem key={value} value={value}>
-                                                {label}
-                                            </SelectItem>
-                                        ))}
+                                        {Object.entries(quarterLabels).map(
+                                            ([value, label]) => (
+                                                <SelectItem
+                                                    key={value}
+                                                    value={value}
+                                                >
+                                                    {label}
+                                                </SelectItem>
+                                            ),
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -287,7 +309,9 @@ export default function AdvisoryBoard({
                                 </Button>
                                 <Button
                                     variant="destructive"
-                                    onClick={() => setIsFinalizeDialogOpen(true)}
+                                    onClick={() =>
+                                        setIsFinalizeDialogOpen(true)
+                                    }
                                     disabled={actionDisabled}
                                 >
                                     <Lock className="size-4" />
@@ -319,14 +343,16 @@ export default function AdvisoryBoard({
                                             <TableHead className="pl-6">
                                                 Student
                                             </TableHead>
-                                            {grade_columns.map((subjectColumn) => (
-                                                <TableHead
-                                                    key={subjectColumn.id}
-                                                    className="border-l text-center whitespace-nowrap"
-                                                >
-                                                    {subjectColumn.name}
-                                                </TableHead>
-                                            ))}
+                                            {grade_columns.map(
+                                                (subjectColumn) => (
+                                                    <TableHead
+                                                        key={subjectColumn.id}
+                                                        className="border-l text-center whitespace-nowrap"
+                                                    >
+                                                        {subjectColumn.name}
+                                                    </TableHead>
+                                                ),
+                                            )}
                                             <TableHead className="border-l pr-6 text-right whitespace-nowrap">
                                                 General Average
                                             </TableHead>
@@ -337,29 +363,42 @@ export default function AdvisoryBoard({
                                             <TableRow>
                                                 <TableCell
                                                     className="py-8 text-center text-sm text-muted-foreground"
-                                                    colSpan={grade_columns.length + 2}
+                                                    colSpan={
+                                                        grade_columns.length + 2
+                                                    }
                                                 >
-                                                    No grades available for the selected quarter.
+                                                    No grades available for the
+                                                    selected quarter.
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
                                             grade_rows.map((gradeRow) => (
-                                                <TableRow key={gradeRow.enrollment_id}>
+                                                <TableRow
+                                                    key={gradeRow.enrollment_id}
+                                                >
                                                     <TableCell className="pl-6 font-medium whitespace-nowrap">
                                                         {gradeRow.student_name}
                                                     </TableCell>
-                                                    {grade_columns.map((subjectColumn) => (
-                                                        <TableCell
-                                                            key={subjectColumn.id}
-                                                            className="border-l text-center"
-                                                        >
-                                                            {gradeRow.subject_grades[
-                                                                String(subjectColumn.id)
-                                                            ] ?? '-'}
-                                                        </TableCell>
-                                                    ))}
+                                                    {grade_columns.map(
+                                                        (subjectColumn) => (
+                                                            <TableCell
+                                                                key={
+                                                                    subjectColumn.id
+                                                                }
+                                                                className="border-l text-center"
+                                                            >
+                                                                {gradeRow
+                                                                    .subject_grades[
+                                                                    String(
+                                                                        subjectColumn.id,
+                                                                    )
+                                                                ] ?? '-'}
+                                                            </TableCell>
+                                                        ),
+                                                    )}
                                                     <TableCell className="border-l pr-6 text-right font-medium">
-                                                        {gradeRow.general_average ?? '-'}
+                                                        {gradeRow.general_average ??
+                                                            '-'}
                                                     </TableCell>
                                                 </TableRow>
                                             ))
@@ -378,8 +417,8 @@ export default function AdvisoryBoard({
                                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                         <Info className="size-4" />
                                         <p>
-                                            Legend: AO (Always), SO (Sometimes), RO (Rarely),
-                                            NO (Not Observed)
+                                            Legend: AO (Always), SO (Sometimes),
+                                            RO (Rarely), NO (Not Observed)
                                         </p>
                                     </div>
                                 </div>
@@ -415,19 +454,29 @@ export default function AdvisoryBoard({
                                                     className="py-8 text-center text-sm text-muted-foreground"
                                                     colSpan={6}
                                                 >
-                                                    No enrolled students found for the selected advisory class.
+                                                    No enrolled students found
+                                                    for the selected advisory
+                                                    class.
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
                                             conductRows.map((studentRow) => (
-                                                <TableRow key={studentRow.enrollment_id}>
+                                                <TableRow
+                                                    key={
+                                                        studentRow.enrollment_id
+                                                    }
+                                                >
                                                     <TableCell className="pl-6 font-medium whitespace-nowrap">
-                                                        {studentRow.student_name}
+                                                        {
+                                                            studentRow.student_name
+                                                        }
                                                     </TableCell>
                                                     <TableCell className="border-l text-center">
                                                         <BehaviorSelect
                                                             value={
-                                                                studentRow.ratings.maka_diyos
+                                                                studentRow
+                                                                    .ratings
+                                                                    .maka_diyos
                                                             }
                                                             onChange={(value) =>
                                                                 updateRating(
@@ -436,12 +485,19 @@ export default function AdvisoryBoard({
                                                                     value,
                                                                 )
                                                             }
-                                                            disabled={status === 'locked'}
+                                                            disabled={
+                                                                status ===
+                                                                'locked'
+                                                            }
                                                         />
                                                     </TableCell>
                                                     <TableCell className="border-l text-center">
                                                         <BehaviorSelect
-                                                            value={studentRow.ratings.makatao}
+                                                            value={
+                                                                studentRow
+                                                                    .ratings
+                                                                    .makatao
+                                                            }
                                                             onChange={(value) =>
                                                                 updateRating(
                                                                     studentRow.enrollment_id,
@@ -449,13 +505,18 @@ export default function AdvisoryBoard({
                                                                     value,
                                                                 )
                                                             }
-                                                            disabled={status === 'locked'}
+                                                            disabled={
+                                                                status ===
+                                                                'locked'
+                                                            }
                                                         />
                                                     </TableCell>
                                                     <TableCell className="border-l text-center">
                                                         <BehaviorSelect
                                                             value={
-                                                                studentRow.ratings.makakalikasan
+                                                                studentRow
+                                                                    .ratings
+                                                                    .makakalikasan
                                                             }
                                                             onChange={(value) =>
                                                                 updateRating(
@@ -464,12 +525,19 @@ export default function AdvisoryBoard({
                                                                     value,
                                                                 )
                                                             }
-                                                            disabled={status === 'locked'}
+                                                            disabled={
+                                                                status ===
+                                                                'locked'
+                                                            }
                                                         />
                                                     </TableCell>
                                                     <TableCell className="border-l text-center">
                                                         <BehaviorSelect
-                                                            value={studentRow.ratings.makabansa}
+                                                            value={
+                                                                studentRow
+                                                                    .ratings
+                                                                    .makabansa
+                                                            }
                                                             onChange={(value) =>
                                                                 updateRating(
                                                                     studentRow.enrollment_id,
@@ -477,20 +545,29 @@ export default function AdvisoryBoard({
                                                                     value,
                                                                 )
                                                             }
-                                                            disabled={status === 'locked'}
+                                                            disabled={
+                                                                status ===
+                                                                'locked'
+                                                            }
                                                         />
                                                     </TableCell>
                                                     <TableCell className="border-l pr-6">
                                                         <Input
-                                                            value={studentRow.remarks}
+                                                            value={
+                                                                studentRow.remarks
+                                                            }
                                                             onChange={(event) =>
                                                                 updateRemarks(
                                                                     studentRow.enrollment_id,
-                                                                    event.target.value,
+                                                                    event.target
+                                                                        .value,
                                                                 )
                                                             }
                                                             className="min-w-64"
-                                                            disabled={status === 'locked'}
+                                                            disabled={
+                                                                status ===
+                                                                'locked'
+                                                            }
                                                         />
                                                     </TableCell>
                                                 </TableRow>
@@ -513,8 +590,8 @@ export default function AdvisoryBoard({
                         <DialogTitle>Finalize Conduct and Values</DialogTitle>
                     </DialogHeader>
                     <p className="text-sm text-muted-foreground">
-                        This action will lock all conduct ratings and adviser remarks for
-                        the selected quarter.
+                        This action will lock all conduct ratings and adviser
+                        remarks for the selected quarter.
                     </p>
                     <DialogFooter>
                         <Button
@@ -547,7 +624,11 @@ function BehaviorSelect({
     disabled: boolean;
 }) {
     return (
-        <Select value={value} onValueChange={(newValue) => onChange(newValue as RatingOption)} disabled={disabled}>
+        <Select
+            value={value}
+            onValueChange={(newValue) => onChange(newValue as RatingOption)}
+            disabled={disabled}
+        >
             <SelectTrigger className="mx-auto h-8 w-20">
                 <SelectValue />
             </SelectTrigger>

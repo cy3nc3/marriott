@@ -190,17 +190,14 @@ export default function SystemSettings({ settings, backups }: Props) {
 
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                     {/* School Identity */}
-                    <Card>
-                        <CardHeader>
+                    <Card className="gap-2">
+                        <CardHeader className="border-b">
                             <div className="flex items-center gap-2">
                                 <School className="size-4 text-muted-foreground" />
                                 <CardTitle>School Identity</CardTitle>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                                Official details for reports and documents
-                            </p>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                             <FieldGroup className="gap-6">
                                 <Field>
                                     <FieldLabel>School Name</FieldLabel>
@@ -259,17 +256,14 @@ export default function SystemSettings({ settings, backups }: Props) {
                     </Card>
 
                     {/* Branding */}
-                    <Card>
-                        <CardHeader>
+                    <Card className="gap-2">
+                        <CardHeader className="border-b">
                             <div className="flex items-center gap-2">
                                 <ImageIcon className="size-4 text-muted-foreground" />
                                 <CardTitle>Visual Identity</CardTitle>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                                Logo and report headers
-                            </p>
                         </CardHeader>
-                        <CardContent className="space-y-8">
+                        <CardContent className="space-y-8 pt-6">
                             <div className="flex flex-col items-start gap-8 sm:flex-row">
                                 <div className="flex shrink-0 flex-col gap-3">
                                     <Label>School Logo</Label>
@@ -349,17 +343,14 @@ export default function SystemSettings({ settings, backups }: Props) {
                     </Card>
 
                     {/* System Controls */}
-                    <Card>
-                        <CardHeader>
+                    <Card className="gap-2">
+                        <CardHeader className="border-b">
                             <div className="flex items-center gap-2">
                                 <Cog className="size-4 text-muted-foreground" />
                                 <CardTitle>System Controls</CardTitle>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                                Global access and maintenance toggles
-                            </p>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                             <FieldGroup className="gap-4">
                                 <div className="flex items-center justify-between rounded-xl border p-4">
                                     <div className="space-y-0.5">
@@ -402,17 +393,14 @@ export default function SystemSettings({ settings, backups }: Props) {
                     </Card>
 
                     {/* System Backup */}
-                    <Card>
-                        <CardHeader>
+                    <Card className="gap-2">
+                        <CardHeader className="border-b">
                             <div className="flex items-center gap-2">
                                 <Database className="size-4 text-muted-foreground" />
                                 <CardTitle>System Backup</CardTitle>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                                Data preservation and disaster recovery
-                            </p>
                         </CardHeader>
-                        <CardContent className="flex flex-col gap-6">
+                        <CardContent className="flex flex-col gap-6 pt-6">
                             <div className="flex items-center justify-between rounded-xl border p-4">
                                 <div className="space-y-1">
                                     <p className="text-sm font-medium">
@@ -565,8 +553,13 @@ export default function SystemSettings({ settings, backups }: Props) {
                                     onOpenChange={setIsBackupConfigOpen}
                                 >
                                     <DialogTrigger asChild>
-                                        <Button variant="ghost" size="icon">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="gap-2"
+                                        >
                                             <Settings2 className="size-4" />
+                                            Configure
                                         </Button>
                                     </DialogTrigger>
                                     <DialogContent className="sm:max-w-[425px]">

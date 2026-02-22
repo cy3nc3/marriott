@@ -1,19 +1,8 @@
 {
     "agents": [
-        "gemini"
+        "codex"
     ],
-    "guidelines": true,
     "herd_mcp": false,
     "mcp": true,
-    "packages": [
-        "laravel/fortify"
-    ],
-    "sail": false,
-    "skills": [
-        "wayfinder-development",
-        "pest-testing",
-        "inertia-react-development",
-        "tailwindcss-development",
-        "developing-with-fortify"
-    ]
+    "sail": false
 }

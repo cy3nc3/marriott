@@ -31,6 +31,26 @@ test('dashboard route resolves the correct role component', function (UserRole $
             ->has('alerts')
             ->has('trends')
             ->has('action_links')
+            ->where('trends', function ($trends): bool {
+                $trendItems = collect($trends)->values()->all();
+
+                if ($trendItems === []) {
+                    return false;
+                }
+
+                foreach ($trendItems as $trend) {
+                    $display = $trend['display'] ?? null;
+                    if (! in_array($display, ['line', 'bar', 'area', 'pie'], true)) {
+                        return false;
+                    }
+
+                    if (! is_array($trend['chart'] ?? null)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            })
         );
 })->with([
     'super admin' => [UserRole::SUPER_ADMIN, 'super_admin/dashboard'],

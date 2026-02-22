@@ -68,13 +68,20 @@ export default function BillingInformation({
     const [paymentDateRange, setPaymentDateRange] = useState<DateRange>();
 
     const visiblePayments = recent_payments.filter((paymentRow) => {
-        if (!paymentDateRange?.from || !paymentDateRange?.to || !paymentRow.date) {
+        if (
+            !paymentDateRange?.from ||
+            !paymentDateRange?.to ||
+            !paymentRow.date
+        ) {
             return true;
         }
 
         const paymentDate = new Date(paymentRow.date);
 
-        return paymentDate >= paymentDateRange.from && paymentDate <= paymentDateRange.to;
+        return (
+            paymentDate >= paymentDateRange.from &&
+            paymentDate <= paymentDateRange.to
+        );
     });
 
     return (
@@ -82,11 +89,11 @@ export default function BillingInformation({
             <Head title="Billing Information" />
 
             <div className="flex flex-col gap-6">
-                <Card>
+                <Card className="gap-2">
                     <CardHeader className="border-b">
                         <CardTitle>Account Summary</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-6">
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <div className="space-y-1">
                                 <p className="text-sm text-muted-foreground">
@@ -240,7 +247,8 @@ export default function BillingInformation({
                                             className="py-8 text-center text-sm text-muted-foreground"
                                             colSpan={5}
                                         >
-                                            No payments for the selected date range.
+                                            No payments for the selected date
+                                            range.
                                         </TableCell>
                                     </TableRow>
                                 ) : (

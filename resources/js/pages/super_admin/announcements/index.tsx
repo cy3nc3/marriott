@@ -274,7 +274,7 @@ export default function Announcements({
 
                 <div className="grid grid-cols-1 gap-4">
                     {announcements.data.map((item) => (
-                        <Card key={item.id}>
+                        <Card key={item.id} className="gap-2">
                             <CardContent className="space-y-4 p-6">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
@@ -370,7 +370,7 @@ export default function Announcements({
                     ))}
 
                     {announcements.data.length === 0 && (
-                        <Card>
+                        <Card className="gap-2">
                             <CardContent className="flex flex-col items-center justify-center gap-2 py-16 text-center text-muted-foreground">
                                 <Megaphone className="size-10 opacity-40" />
                                 <p className="text-sm font-medium">

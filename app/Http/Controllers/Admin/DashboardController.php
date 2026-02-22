@@ -164,7 +164,7 @@ class DashboardController extends Controller
                 [
                     'id' => 'grade-level-enrollment',
                     'label' => 'Grade-Level Enrollment',
-                    'summary' => 'Current enrollment distribution by grade level',
+                    'summary' => 'Current male and female enrollment distribution by grade level',
                     'display' => 'bar',
                     'points' => $gradeLevelTrendPoints,
                     'chart' => [
@@ -173,15 +173,21 @@ class DashboardController extends Controller
                             ->map(function (array $point): array {
                                 return [
                                     'grade_level' => $point['label'],
-                                    'enrollees' => $point['value'],
+                                    'male' => $point['male'],
+                                    'female' => $point['female'],
+                                    'total' => $point['value'],
                                 ];
                             })
                             ->values()
                             ->all(),
                         'series' => [
                             [
-                                'key' => 'enrollees',
-                                'label' => 'Enrollees',
+                                'key' => 'male',
+                                'label' => 'Male',
+                            ],
+                            [
+                                'key' => 'female',
+                                'label' => 'Female',
                             ],
                         ],
                     ],
@@ -190,7 +196,7 @@ class DashboardController extends Controller
                     'id' => 'enrollment-forecast',
                     'label' => 'Enrollment Forecast (SY)',
                     'summary' => 'Past 5 school years, current school year, and upcoming forecast',
-                    'display' => 'line',
+                    'display' => 'area',
                     'points' => $enrollmentForecast['points'],
                     'chart' => [
                         'x_key' => 'school_year',
@@ -256,13 +262,14 @@ class DashboardController extends Controller
         $forecastYears = $historyYears->push($activeYear)->unique('id')->values();
 
         $actualRows = $forecastYears
-            ->map(function (AcademicYear $year) use ($enrollmentCountsByYear): array {
+            ->map(function (AcademicYear $year) use ($activeYear, $enrollmentCountsByYear): array {
                 $actual = (int) ($enrollmentCountsByYear[$year->id] ?? 0);
+                $isActiveYear = (int) $year->id === (int) $activeYear->id;
 
                 return [
                     'school_year' => $year->name,
                     'actual' => $actual,
-                    'forecast' => null,
+                    'forecast' => $isActiveYear ? $actual : null,
                     'is_forecast' => false,
                 ];
             })
@@ -338,7 +345,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * @return array<int, array{label: string, value: int}>
+     * @return array<int, array{label: string, value: int, male: int, female: int}>
      */
     private function buildGradeLevelTrend(?int $academicYearId): array
     {
@@ -350,14 +357,23 @@ class DashboardController extends Controller
             ->where('enrollments.academic_year_id', $academicYearId)
             ->where('enrollments.status', 'enrolled')
             ->join('grade_levels', 'enrollments.grade_level_id', '=', 'grade_levels.id')
-            ->select('grade_levels.name', 'grade_levels.level_order', DB::raw('count(*) as count'))
+            ->join('students', 'enrollments.student_id', '=', 'students.id')
+            ->select(
+                'grade_levels.name',
+                'grade_levels.level_order',
+                DB::raw('count(*) as total_count'),
+                DB::raw("sum(case when lower(coalesce(students.gender, '')) = 'male' then 1 else 0 end) as male_count"),
+                DB::raw("sum(case when lower(coalesce(students.gender, '')) = 'female' then 1 else 0 end) as female_count"),
+            )
             ->groupBy('grade_levels.name', 'grade_levels.level_order')
             ->orderBy('grade_levels.level_order')
             ->get()
             ->map(function ($row): array {
                 return [
                     'label' => $row->name,
-                    'value' => (int) $row->count,
+                    'value' => (int) $row->total_count,
+                    'male' => (int) $row->male_count,
+                    'female' => (int) $row->female_count,
                 ];
             })
             ->values()

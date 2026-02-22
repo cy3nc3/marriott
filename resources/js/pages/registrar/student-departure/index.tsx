@@ -64,11 +64,11 @@ export default function StudentDeparture() {
             <Head title="Student Departure" />
 
             <div className="flex flex-col gap-6">
-                <Card>
+                <Card className="gap-2">
                     <CardHeader className="border-b">
                         <CardTitle>Student Lookup</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-6">
                         <div className="flex gap-2">
                             <Input placeholder="Search by LRN or student name" />
                             <Button variant="outline">
@@ -80,11 +80,11 @@ export default function StudentDeparture() {
                 </Card>
 
                 <div className="grid gap-6 lg:grid-cols-3">
-                    <Card>
+                    <Card className="gap-2">
                         <CardHeader className="border-b">
                             <CardTitle>Selected Student</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3">
+                        <CardContent className="space-y-3 pt-6">
                             <div className="flex items-center justify-between">
                                 <p className="text-sm text-muted-foreground">
                                     Name
@@ -129,11 +129,11 @@ export default function StudentDeparture() {
                         </CardContent>
                     </Card>
 
-                    <Card className="lg:col-span-2">
+                    <Card className="gap-2 lg:col-span-2">
                         <CardHeader className="border-b">
                             <CardTitle>Departure Details</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-4 pt-6">
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label>Reason for Leaving</Label>

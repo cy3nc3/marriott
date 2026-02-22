@@ -58,18 +58,17 @@ export default function Grades({
     subject_rows,
     conduct_rows,
 }: Props) {
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My Grades" />
 
             <div className="flex flex-col gap-6">
                 <div className="grid gap-6 lg:grid-cols-3">
-                    <Card>
+                    <Card className="gap-2">
                         <CardHeader className="border-b">
                             <CardTitle>Current General Average</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-2">
+                        <CardContent className="space-y-2 pt-6">
                             <p className="text-3xl font-semibold">
                                 {summary.general_average ?? '-'}
                             </p>
@@ -80,18 +79,19 @@ export default function Grades({
                         </CardContent>
                     </Card>
 
-                    <Card className="lg:col-span-2">
+                    <Card className="gap-2 lg:col-span-2">
                         <CardHeader className="border-b">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <CardTitle>Report Context</CardTitle>
                                 <div className="flex items-center gap-2">
                                     <Badge variant="outline">
-                                        {context.school_year ?? 'No school year'}
+                                        {context.school_year ??
+                                            'No school year'}
                                     </Badge>
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                             <p className="text-sm text-muted-foreground">
                                 Grades are shown as released by subject teachers
                                 and verified by the registrar.
@@ -156,26 +156,26 @@ export default function Grades({
                                             </TableRow>
                                         ) : (
                                             subject_rows.map((row) => (
-                                            <TableRow key={row.subject}>
-                                                <TableCell className="pl-6 font-medium">
-                                                    {row.subject}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    {row.q1}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    {row.q2}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center text-muted-foreground">
-                                                    {row.q3}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center text-muted-foreground">
-                                                    {row.q4}
-                                                </TableCell>
-                                                <TableCell className="border-l pr-6 text-right text-muted-foreground">
-                                                    {row.final}
-                                                </TableCell>
-                                            </TableRow>
+                                                <TableRow key={row.subject}>
+                                                    <TableCell className="pl-6 font-medium">
+                                                        {row.subject}
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center">
+                                                        {row.q1}
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center">
+                                                        {row.q2}
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center text-muted-foreground">
+                                                        {row.q3}
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center text-muted-foreground">
+                                                        {row.q4}
+                                                    </TableCell>
+                                                    <TableCell className="border-l pr-6 text-right text-muted-foreground">
+                                                        {row.final}
+                                                    </TableCell>
+                                                </TableRow>
                                             ))
                                         )}
                                     </TableBody>
