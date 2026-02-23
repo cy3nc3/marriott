@@ -263,3 +263,25 @@ test('finance dashboard emits warning alerts when thresholds are in warning rang
             ->where('alerts.1.severity', 'warning')
         );
 });
+
+test('finance dashboard renders empty chart-safe payloads when no records exist', function () {
+    $this->get('/dashboard')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/dashboard')
+            ->where('kpis.0.value', '0.00%')
+            ->where('kpis.1.value', 'PHP 0.00')
+            ->where('kpis.2.value', '0.00%')
+            ->where('kpis.3.value', 'PHP 0.00')
+            ->where('alerts.0.id', 'collection-efficiency')
+            ->where('alerts.0.severity', 'critical')
+            ->where('alerts.1.id', 'today-collection')
+            ->where('trends.0.id', 'daily-collection')
+            ->where('trends.0.chart.rows', function ($rows): bool {
+                return count($rows) === 7
+                    && (float) collect($rows)->sum('collections') === 0.0;
+            })
+            ->where('trends.1.id', 'payment-mode-mix')
+            ->where('trends.1.chart.series.0.key', 'transactions')
+        );
+});

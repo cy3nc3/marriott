@@ -3,7 +3,7 @@
 Last updated: 2026-02-23
 Project path: `/home/lomonol/projects/marriott` (active), `C:\Users\jadeg\Documents\Capstone\marriott` (previous Windows path)
 Primary branch target: `main`
-Latest pushed commit: `f2ac7d1`
+Latest pushed commit (before this update): `b6de4ca`
 
 ---
 
@@ -801,3 +801,100 @@ Use this exact sequence on a fresh machine or after pulling major backend change
 1. `npm run types` passed.
 2. `vendor/bin/pint --dirty --format agent` passed.
 3. `php artisan test --compact` full suite passed (`120 passed`).
+
+---
+
+## 25. Latest Schedule + Dashboard Hardening Wave (2026-02-23, pending push)
+
+### 25.1 Schedule Hardening Implemented
+
+1. Admin schedule builder now resolves school-year context safely in this order:
+    - `ongoing`
+    - `upcoming`
+    - earliest non-completed fallback
+2. Admin schedule builder teacher list now has stable ordering and safe display-name fallback.
+3. Teacher schedule is now scoped to the resolved display academic year:
+    - class schedules filtered by active year section
+    - advisory schedules filtered by active year section
+    - break extraction section IDs filtered by active year
+4. Student and parent schedule payload ordering is now deterministic:
+    - sorted by day-of-week then start time for class/advisory rows
+    - sorted by day-of-week then start time for break rows
+5. Admin schedule validation is stricter:
+    - `day` must be one of Monday-Sunday
+    - `start_time` and `end_time` must match `H:i`
+    - `end_time` must be after `start_time`
+    - `subject_id` and `teacher_id` are required when `type=academic`
+
+### 25.2 Super Admin Test Expansion Implemented
+
+1. Announcements coverage expanded:
+    - role + priority filter behavior (including global target-role announcements)
+    - search by poster name (`user.name`)
+    - duplicate target-role normalization on create
+2. Audit logs coverage expanded:
+    - detail payload assertions (`old_values`, `new_values`, `ip_address`, `user_agent`)
+    - date-from-only filtering path with user-search scenario
+
+### 25.3 Dashboard Edge-Case Coverage Added (All Roles)
+
+1. Admin:
+    - forecast behavior with partial history and zero-baseline previous year
+2. Registrar:
+    - empty state chart-safe payload with zero queue/transaction counts
+3. Finance:
+    - empty state chart-safe payload with zero amounts and stable chart contract
+4. Teacher:
+    - high-volume pending-grade-row aggregation across multiple classes
+5. Student:
+    - recent score trend capped to latest 5 assessments
+6. Parent:
+    - upcoming dues timeline capped to next 4 entries, with next-due KPI consistency
+7. Super Admin:
+    - new dashboard suite covering empty-log chart safety and high-volume audit-risk scenario
+
+### 25.4 Files Updated in This Wave
+
+Backend:
+
+1. `app/Http/Controllers/Admin/ScheduleController.php`
+2. `app/Http/Controllers/Teacher/ScheduleController.php`
+3. `app/Http/Controllers/Student/ScheduleController.php`
+4. `app/Http/Controllers/ParentPortal/ScheduleController.php`
+5. `app/Http/Requests/Admin/StoreScheduleRequest.php`
+6. `app/Http/Requests/Admin/UpdateScheduleRequest.php`
+
+Tests:
+
+1. `tests/Feature/Admin/AdminFeaturesTest.php`
+2. `tests/Feature/Registrar/RegistrarFeaturesTest.php`
+3. `tests/Feature/Finance/FinanceDashboardTest.php`
+4. `tests/Feature/Teacher/TeacherFeaturesTest.php`
+5. `tests/Feature/Student/StudentFeaturesTest.php`
+6. `tests/Feature/Parent/ParentFeaturesTest.php`
+7. `tests/Feature/SuperAdmin/AnnouncementTest.php`
+8. `tests/Feature/SuperAdmin/AuditLogTest.php`
+9. `tests/Feature/SuperAdmin/SuperAdminDashboardTest.php` (new)
+
+Other:
+
+1. `package-lock.json` updated from dependency sync (`npm install`)
+
+### 25.5 Verification Run (This Wave)
+
+1. `vendor/bin/pint --dirty --format agent` passed.
+2. `php artisan test --compact tests/Feature/SuperAdmin/AnnouncementTest.php tests/Feature/SuperAdmin/AuditLogTest.php tests/Feature/SuperAdmin/UserManagerTest.php tests/Feature/SuperAdmin/SystemSettingsTest.php` passed (`14 passed`).
+3. `php artisan test --compact tests/Feature/Admin/AdminFeaturesTest.php tests/Feature/Registrar/RegistrarFeaturesTest.php tests/Feature/Finance/FinanceDashboardTest.php tests/Feature/Teacher/TeacherFeaturesTest.php tests/Feature/Student/StudentFeaturesTest.php tests/Feature/Parent/ParentFeaturesTest.php tests/Feature/SuperAdmin/SuperAdminDashboardTest.php` passed (`53 passed`, `988 assertions`).
+
+### 25.6 Setup Impact for Other Device
+
+1. Pull latest code:
+    - `git pull origin main`
+2. Sync dependencies:
+    - `composer install`
+    - `npm install`
+3. No new migrations were introduced in this wave.
+4. If UI updates are not visible:
+    - `npm run build` (or run `npm run dev`)
+5. If stale runtime behavior appears:
+    - `php artisan optimize:clear`

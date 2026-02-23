@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreScheduleRequest extends FormRequest
 {
@@ -16,13 +17,21 @@ class StoreScheduleRequest extends FormRequest
         return [
             'section_id' => ['required', 'exists:sections,id'],
             'subject_assignment_id' => ['nullable', 'exists:subject_assignments,id'],
-            'subject_id' => ['nullable', 'exists:subjects,id'],
-            'teacher_id' => ['nullable', 'exists:users,id'],
+            'subject_id' => ['nullable', 'required_if:type,academic', 'exists:subjects,id'],
+            'teacher_id' => ['nullable', 'required_if:type,academic', 'exists:users,id'],
             'type' => ['required', 'string', 'in:academic,break,ceremony'],
             'label' => ['nullable', 'string', 'max:255'],
-            'day' => ['required', 'string'],
-            'start_time' => ['required'],
-            'end_time' => ['required'],
+            'day' => ['required', Rule::in([
+                'Monday',
+                'Tuesday',
+                'Wednesday',
+                'Thursday',
+                'Friday',
+                'Saturday',
+                'Sunday',
+            ])],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
         ];
     }
 }

@@ -144,6 +144,105 @@ test('teacher schedule page renders class and advisory schedules assigned to the
         );
 });
 
+test('teacher schedule page is scoped to the active academic year', function () {
+    $completedYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $ongoingYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '2',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'SCI7',
+        'subject_name' => 'Science 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $completedSection = Section::query()->create([
+        'academic_year_id' => $completedYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Mabini',
+        'adviser_id' => $this->teacher->id,
+    ]);
+
+    $ongoingSection = Section::query()->create([
+        'academic_year_id' => $ongoingYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => null,
+    ]);
+
+    $completedAssignment = SubjectAssignment::query()->create([
+        'section_id' => $completedSection->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $ongoingAssignment = SubjectAssignment::query()->create([
+        'section_id' => $ongoingSection->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $completedSection->id,
+        'subject_assignment_id' => $completedAssignment->id,
+        'type' => 'academic',
+        'label' => null,
+        'day' => 'Monday',
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $completedSection->id,
+        'subject_assignment_id' => null,
+        'type' => 'break',
+        'label' => 'Completed Year Break',
+        'day' => 'Monday',
+        'start_time' => '10:00:00',
+        'end_time' => '10:30:00',
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $ongoingSection->id,
+        'subject_assignment_id' => $ongoingAssignment->id,
+        'type' => 'academic',
+        'label' => null,
+        'day' => 'Tuesday',
+        'start_time' => '09:00:00',
+        'end_time' => '10:00:00',
+    ]);
+
+    $this->get('/teacher/schedule')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teacher/schedule/index')
+            ->has('schedule_items', 1)
+            ->where('schedule_items.0.title', 'Science 7')
+            ->where('schedule_items.0.section', 'Grade 7 - Rizal')
+            ->has('break_items', 2)
+            ->where('break_items.0.label', 'Recess Break')
+        );
+});
+
 test('teacher dashboard reports quarter grade completion by class based on locked final grades', function () {
     Carbon::setTestNow('2026-02-16 08:30:00');
 
@@ -440,6 +539,93 @@ test('teacher dashboard counts finalized classes only when quarter grades are lo
             ->where('quarter_grade_completion.total_classes', 2)
             ->where('quarter_grade_completion.finalized_classes', 1)
             ->where('quarter_grade_completion.unfinalized_classes', 1)
+        );
+});
+
+test('teacher dashboard handles high-volume pending grade rows by class', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 9',
+        'level_order' => 9,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'MATH9',
+        'subject_name' => 'Mathematics 9',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    for ($classIndex = 1; $classIndex <= 6; $classIndex++) {
+        $section = Section::query()->create([
+            'academic_year_id' => $schoolYear->id,
+            'grade_level_id' => $gradeLevel->id,
+            'name' => "Section {$classIndex}",
+            'adviser_id' => null,
+        ]);
+
+        $assignment = SubjectAssignment::query()->create([
+            'section_id' => $section->id,
+            'teacher_subject_id' => $teacherSubject->id,
+        ]);
+
+        ClassSchedule::query()->create([
+            'section_id' => $section->id,
+            'subject_assignment_id' => $assignment->id,
+            'type' => 'academic',
+            'label' => null,
+            'day' => 'Monday',
+            'start_time' => sprintf('%02d:00:00', 7 + $classIndex),
+            'end_time' => sprintf('%02d:00:00', 8 + $classIndex),
+        ]);
+
+        for ($studentIndex = 1; $studentIndex <= 2; $studentIndex++) {
+            $student = Student::query()->create([
+                'lrn' => str_pad((string) (990000000000 + ($classIndex * 10) + $studentIndex), 12, '0', STR_PAD_LEFT),
+                'first_name' => "Learner{$classIndex}{$studentIndex}",
+                'last_name' => 'Teacher',
+            ]);
+
+            Enrollment::query()->create([
+                'student_id' => $student->id,
+                'academic_year_id' => $schoolYear->id,
+                'grade_level_id' => $gradeLevel->id,
+                'section_id' => $section->id,
+                'payment_term' => 'cash',
+                'downpayment' => 0,
+                'status' => 'enrolled',
+            ]);
+        }
+    }
+
+    $this->get('/dashboard')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teacher/dashboard')
+            ->where('quarter_grade_completion.total_classes', 6)
+            ->where('quarter_grade_completion.finalized_classes', 0)
+            ->where('quarter_grade_completion.unfinalized_classes', 6)
+            ->where('kpis.2.id', 'grade-rows-pending')
+            ->where('kpis.2.value', 12)
+            ->where('trends.1.id', 'pending-grade-rows-by-class')
+            ->where('trends.1.chart.rows', function ($rows): bool {
+                return count($rows) === 6
+                    && (int) collect($rows)->sum('pending_rows') === 12
+                    && collect($rows)->every(function (array $row): bool {
+                        return (int) ($row['pending_rows'] ?? 0) === 2;
+                    });
+            })
         );
 });
 

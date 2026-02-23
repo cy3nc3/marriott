@@ -15,6 +15,7 @@ use App\Models\SubjectAssignment;
 use App\Models\TeacherSubject;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -436,6 +437,99 @@ test('parent dashboard route renders linked child analytics', function () {
             ->where('kpis.0.id', 'child-section')
             ->where('trends.1.id', 'upcoming-dues-timeline')
         );
+});
+
+test('parent dashboard caps upcoming dues timeline to the next four items', function () {
+    Carbon::setTestNow('2026-02-20 09:00:00');
+
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 500,
+        'status' => 'enrolled',
+    ]);
+
+    LedgerEntry::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $schoolYear->id,
+        'date' => '2026-02-01',
+        'description' => 'Tuition Charge',
+        'debit' => 10000,
+        'credit' => 0,
+        'running_balance' => 10000,
+    ]);
+
+    foreach ([
+        ['2026-02-21', 1000],
+        ['2026-02-25', 1200],
+        ['2026-03-05', 1400],
+        ['2026-03-10', 1600],
+        ['2026-03-15', 1800],
+        ['2026-03-20', 2000],
+    ] as [$dueDate, $amount]) {
+        BillingSchedule::query()->create([
+            'student_id' => $this->student->id,
+            'academic_year_id' => $schoolYear->id,
+            'description' => "Due {$dueDate}",
+            'due_date' => $dueDate,
+            'amount_due' => $amount,
+            'amount_paid' => 0,
+            'status' => 'unpaid',
+        ]);
+    }
+
+    $this->get('/dashboard')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('parent/dashboard')
+            ->where('kpis.3.id', 'next-due')
+            ->where('kpis.3.value', 'Feb 21 · PHP 1,000.00')
+            ->where('trends.1.id', 'upcoming-dues-timeline')
+            ->where('trends.1.chart.rows', function ($rows): bool {
+                if (count($rows) !== 4) {
+                    return false;
+                }
+
+                $expected = [
+                    ['due_date' => 'Feb 21', 'amount_outstanding' => 1000.0],
+                    ['due_date' => 'Feb 25', 'amount_outstanding' => 1200.0],
+                    ['due_date' => 'Mar 05', 'amount_outstanding' => 1400.0],
+                    ['due_date' => 'Mar 10', 'amount_outstanding' => 1600.0],
+                ];
+
+                return collect($expected)->every(function (array $expectedRow, int $index) use ($rows): bool {
+                    $actual = $rows[$index] ?? null;
+
+                    return is_array($actual)
+                        && ($actual['due_date'] ?? null) === $expectedRow['due_date']
+                        && (float) ($actual['amount_outstanding'] ?? -1) === $expectedRow['amount_outstanding'];
+                });
+            })
+        );
+
+    Carbon::setTestNow();
 });
 
 test('parent dashboard isolates analytics to linked student records', function () {

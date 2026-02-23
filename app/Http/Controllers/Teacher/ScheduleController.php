@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicYear;
 use App\Models\ClassSchedule;
 use App\Models\Section;
 use App\Models\SubjectAssignment;
@@ -14,6 +15,7 @@ class ScheduleController extends Controller
     public function index(): Response
     {
         $teacherId = (int) auth()->id();
+        $activeAcademicYearId = $this->resolveDisplayAcademicYearId();
 
         $classSchedules = ClassSchedule::query()
             ->with([
@@ -26,6 +28,11 @@ class ScheduleController extends Controller
             ->whereHas('subjectAssignment.teacherSubject', function ($query) use ($teacherId) {
                 $query->where('teacher_id', $teacherId);
             })
+            ->when($activeAcademicYearId, function ($query, $yearId) {
+                $query->whereHas('section', function ($sectionQuery) use ($yearId) {
+                    $sectionQuery->where('academic_year_id', $yearId);
+                });
+            })
             ->get();
 
         $advisorySchedules = ClassSchedule::query()
@@ -36,6 +43,11 @@ class ScheduleController extends Controller
             ->whereNull('subject_assignment_id')
             ->whereHas('section', function ($query) use ($teacherId) {
                 $query->where('adviser_id', $teacherId);
+            })
+            ->when($activeAcademicYearId, function ($query, $yearId) {
+                $query->whereHas('section', function ($sectionQuery) use ($yearId) {
+                    $sectionQuery->where('academic_year_id', $yearId);
+                });
             })
             ->get();
 
@@ -82,10 +94,18 @@ class ScheduleController extends Controller
             ->whereHas('teacherSubject', function ($query) use ($teacherId) {
                 $query->where('teacher_id', $teacherId);
             })
+            ->when($activeAcademicYearId, function ($query, $yearId) {
+                $query->whereHas('section', function ($sectionQuery) use ($yearId) {
+                    $sectionQuery->where('academic_year_id', $yearId);
+                });
+            })
             ->pluck('section_id');
 
         $advisorySectionIds = Section::query()
             ->where('adviser_id', $teacherId)
+            ->when($activeAcademicYearId, function ($query, $yearId) {
+                $query->where('academic_year_id', $yearId);
+            })
             ->pluck('id');
 
         $breakItems = collect();
@@ -168,5 +188,19 @@ class ScheduleController extends Controller
             'Sunday' => 7,
             default => 99,
         };
+    }
+
+    private function resolveDisplayAcademicYearId(): ?int
+    {
+        return AcademicYear::query()
+            ->where('status', 'ongoing')
+            ->value('id')
+            ?? AcademicYear::query()
+                ->where('status', 'upcoming')
+                ->orderBy('start_date')
+                ->value('id')
+            ?? AcademicYear::query()
+                ->orderByDesc('start_date')
+                ->value('id');
     }
 }

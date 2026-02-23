@@ -253,6 +253,30 @@ test('registrar dashboard shows lis sync pie and payment method trends', functio
         );
 });
 
+test('registrar dashboard renders empty chart-safe payloads with no queue or transactions', function () {
+    $this->get('/dashboard')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/dashboard')
+            ->where('kpis.0.value', 0)
+            ->where('kpis.1.value', 0)
+            ->where('kpis.2.value', '0.00%')
+            ->where('kpis.3.value', 0)
+            ->where('alerts.0.id', 'lis-sync')
+            ->where('alerts.0.severity', 'critical')
+            ->where('trends.0.id', 'lis-sync-distribution')
+            ->where('trends.0.chart.rows', function ($rows): bool {
+                return count($rows) === 3
+                    && (int) collect($rows)->sum('students') === 0;
+            })
+            ->where('trends.1.id', 'payment-method-mix')
+            ->where('trends.1.chart.rows', function ($rows): bool {
+                return count($rows) === 5
+                    && (int) collect($rows)->sum('transactions') === 0;
+            })
+        );
+});
+
 test('registrar enrollment intake supports create update and delete', function () {
     $lrn = '123123123123';
 

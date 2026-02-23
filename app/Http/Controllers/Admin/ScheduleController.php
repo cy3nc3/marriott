@@ -15,15 +15,14 @@ use App\Models\SubjectAssignment;
 use App\Models\TeacherSubject;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ScheduleController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(): Response
     {
-        $activeYear = AcademicYear::where('status', '!=', 'completed')->first();
+        $activeYear = $this->resolveActiveYear();
 
         if (! $activeYear) {
             return Inertia::render('admin/schedule-builder/index', [
@@ -46,11 +45,29 @@ class ScheduleController extends Controller
                 'code' => $s->subject_code,
                 'qualifiedTeachers' => $s->teachers->pluck('id'),
             ]),
-            'teachers' => User::where('role', UserRole::TEACHER)->get(['id', 'name'])->map(fn ($u) => [
-                'id' => $u->id,
-                'name' => $u->name,
-                'initial' => collect(explode(' ', $u->name))->map(fn ($n) => $n[0])->take(2)->join(''),
-            ]),
+            'teachers' => User::query()
+                ->where('role', UserRole::TEACHER)
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->orderBy('name')
+                ->get(['id', 'name', 'first_name', 'last_name'])
+                ->map(function (User $user): array {
+                    $teacherName = trim((string) ($user->name ?: "{$user->first_name} {$user->last_name}"));
+
+                    if ($teacherName === '') {
+                        $teacherName = "Teacher {$user->id}";
+                    }
+
+                    return [
+                        'id' => $user->id,
+                        'name' => $teacherName,
+                        'initial' => collect(explode(' ', $teacherName))
+                            ->filter()
+                            ->map(fn ($namePart) => substr($namePart, 0, 1))
+                            ->take(2)
+                            ->join(''),
+                    ];
+                }),
             'sectionSchedules' => ClassSchedule::whereHas('section', function ($q) use ($activeYear) {
                 $q->where('academic_year_id', $activeYear->id);
             })->with(['subjectAssignment.teacherSubject.subject', 'subjectAssignment.teacherSubject.teacher'])->get(),
@@ -94,5 +111,20 @@ class ScheduleController extends Controller
         $schedule->delete();
 
         return back()->with('success', 'Schedule removed.');
+    }
+
+    private function resolveActiveYear(): ?AcademicYear
+    {
+        return AcademicYear::query()
+            ->where('status', 'ongoing')
+            ->first()
+            ?? AcademicYear::query()
+                ->where('status', 'upcoming')
+                ->orderBy('start_date')
+                ->first()
+            ?? AcademicYear::query()
+                ->where('status', '!=', 'completed')
+                ->orderBy('start_date')
+                ->first();
     }
 }

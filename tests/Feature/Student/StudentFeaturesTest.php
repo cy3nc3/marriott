@@ -461,6 +461,108 @@ test('student dashboard is learning-focused and excludes billing metrics', funct
     Carbon::setTestNow();
 });
 
+test('student dashboard score trend is capped to the latest five assessments', function () {
+    Carbon::setTestNow('2025-06-20 09:00:00');
+
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 8',
+        'level_order' => 8,
+    ]);
+
+    $teacher = User::factory()->teacher()->create([
+        'first_name' => 'Mila',
+        'last_name' => 'Garcia',
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Mabini',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'SCI8',
+        'subject_name' => 'Science 8',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    foreach ([5, 6, 7, 8, 9, 10] as $index => $scoreValue) {
+        $activity = GradedActivity::query()->create([
+            'subject_assignment_id' => $assignment->id,
+            'type' => 'WW',
+            'quarter' => '1',
+            'title' => 'Quiz '.($index + 1),
+            'max_score' => 10,
+        ]);
+
+        $score = StudentScore::query()->create([
+            'student_id' => $this->student->id,
+            'graded_activity_id' => $activity->id,
+            'score' => $scoreValue,
+        ]);
+
+        $timestamp = Carbon::parse('2025-06-'.str_pad((string) (10 + $index), 2, '0', STR_PAD_LEFT).' 10:00:00');
+        $score->forceFill([
+            'created_at' => $timestamp,
+            'updated_at' => $timestamp,
+        ])->save();
+    }
+
+    $this->get('/dashboard')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('student/dashboard')
+            ->where('learning_summary.recent_score_records_count', 5)
+            ->where('learning_summary.recent_score_average', '80.00%')
+            ->where('learning_summary.latest_score', '10/10')
+            ->where('trends.0.id', 'recent-score-trend')
+            ->where('trends.0.chart.rows', function ($rows): bool {
+                if (count($rows) !== 5) {
+                    return false;
+                }
+
+                $first = $rows[0] ?? null;
+                $last = $rows[4] ?? null;
+
+                return is_array($first)
+                    && is_array($last)
+                    && (float) ($first['score_percentage'] ?? -1) === 60.0
+                    && (float) ($last['score_percentage'] ?? -1) === 100.0;
+            })
+        );
+
+    Carbon::setTestNow();
+});
+
 test('student dashboard renders safe fallback values when records are empty', function () {
     $this->get('/dashboard')
         ->assertSuccessful()

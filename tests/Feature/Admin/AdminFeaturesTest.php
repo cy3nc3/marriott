@@ -164,6 +164,108 @@ test('admin dashboard shows enrollment yoy growth and enrollment forecast trend'
         );
 });
 
+test('admin dashboard forecast remains stable with partial history and zero baseline', function () {
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 8',
+        'level_order' => 8,
+    ]);
+
+    $previousYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'archived',
+        'current_quarter' => '4',
+    ]);
+
+    $activeYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $previousSection = Section::query()->create([
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Legacy Section',
+    ]);
+
+    $activeSection = Section::query()->create([
+        'academic_year_id' => $activeYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Current Section',
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $previousSection->id,
+        'subject_assignment_id' => null,
+        'type' => 'break',
+        'label' => 'Legacy Break',
+        'day' => 'Monday',
+        'start_time' => '09:00:00',
+        'end_time' => '09:30:00',
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $activeSection->id,
+        'subject_assignment_id' => null,
+        'type' => 'break',
+        'label' => 'Current Break',
+        'day' => 'Monday',
+        'start_time' => '09:00:00',
+        'end_time' => '09:30:00',
+    ]);
+
+    for ($index = 1; $index <= 5; $index++) {
+        $student = Student::query()->create([
+            'lrn' => str_pad((string) (915000000000 + $index), 12, '0', STR_PAD_LEFT),
+            'first_name' => "Partial{$index}",
+            'last_name' => 'Admin',
+            'gender' => $index % 2 === 0 ? 'Male' : 'Female',
+        ]);
+
+        Enrollment::query()->create([
+            'student_id' => $student->id,
+            'academic_year_id' => $activeYear->id,
+            'grade_level_id' => $gradeLevel->id,
+            'section_id' => $activeSection->id,
+            'payment_term' => 'cash',
+            'downpayment' => 0,
+            'status' => 'enrolled',
+        ]);
+    }
+
+    $this->get('/dashboard')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/dashboard')
+            ->where('kpis.0.id', 'enrollment-yoy-growth')
+            ->where('kpis.0.value', '0.00%')
+            ->where('trends.1.id', 'enrollment-forecast')
+            ->where('trends.1.chart.rows', function ($rows): bool {
+                if (count($rows) !== 3) {
+                    return false;
+                }
+
+                $firstRow = $rows[0] ?? null;
+                $secondRow = $rows[1] ?? null;
+                $forecastRow = $rows[2] ?? null;
+
+                return is_array($firstRow)
+                    && is_array($secondRow)
+                    && is_array($forecastRow)
+                    && ($firstRow['actual'] ?? null) === 0
+                    && ($firstRow['forecast'] ?? null) === null
+                    && ($secondRow['actual'] ?? null) === 5
+                    && ($secondRow['forecast'] ?? null) === 5
+                    && ($forecastRow['is_forecast'] ?? null) === true
+                    && ($forecastRow['forecast'] ?? null) === 5;
+            })
+        );
+});
+
 test('admin academic controls actions work', function () {
     $this->post('/admin/academic-controls/initialize', [
         'name' => '2025-2026',
@@ -632,4 +734,102 @@ test('admin schedule builder actions work', function () {
         ->assertRedirect();
 
     expect(ClassSchedule::query()->whereKey($schedule->id)->exists())->toBeFalse();
+});
+
+test('admin schedule builder prioritizes ongoing school year context', function () {
+    $upcomingYear = AcademicYear::query()->create([
+        'name' => '2027-2028',
+        'start_date' => '2027-06-01',
+        'end_date' => '2028-03-31',
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $ongoingYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '2',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 9',
+        'level_order' => 9,
+    ]);
+
+    $upcomingSection = Section::query()->create([
+        'academic_year_id' => $upcomingYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Mabini',
+    ]);
+
+    $ongoingSection = Section::query()->create([
+        'academic_year_id' => $ongoingYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Bonifacio',
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $upcomingSection->id,
+        'subject_assignment_id' => null,
+        'type' => 'break',
+        'label' => 'Upcoming Break',
+        'day' => 'Monday',
+        'start_time' => '10:00:00',
+        'end_time' => '10:30:00',
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $ongoingSection->id,
+        'subject_assignment_id' => null,
+        'type' => 'break',
+        'label' => 'Ongoing Break',
+        'day' => 'Tuesday',
+        'start_time' => '10:00:00',
+        'end_time' => '10:30:00',
+    ]);
+
+    $this->get('/admin/schedule-builder')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/schedule-builder/index')
+            ->where('activeYear.id', $ongoingYear->id)
+            ->has('sectionSchedules', 1)
+            ->where('sectionSchedules.0.section_id', $ongoingSection->id)
+            ->has('gradeLevels.0.sections', 1)
+            ->where('gradeLevels.0.sections.0.id', $ongoingSection->id)
+        );
+});
+
+test('admin schedule builder validates end time is after start time', function () {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 8',
+        'level_order' => 8,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $academicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+    ]);
+
+    $this->post('/admin/schedule-builder', [
+        'section_id' => $section->id,
+        'type' => 'break',
+        'label' => 'Recess',
+        'day' => 'Monday',
+        'start_time' => '10:00',
+        'end_time' => '09:30',
+    ])->assertSessionHasErrors('end_time');
+
+    expect(ClassSchedule::query()->count())->toBe(0);
 });

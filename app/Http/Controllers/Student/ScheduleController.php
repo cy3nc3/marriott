@@ -52,10 +52,38 @@ class ScheduleController extends Controller
                         'type' => $classSchedule->type === 'advisory' ? 'advisory' : 'class',
                     ];
                 })
+                ->sort(function (array $left, array $right) {
+                    $leftSortValue = sprintf(
+                        '%02d-%s',
+                        $this->dayOrder($left['day']),
+                        $left['start']
+                    );
+                    $rightSortValue = sprintf(
+                        '%02d-%s',
+                        $this->dayOrder($right['day']),
+                        $right['start']
+                    );
+
+                    return $leftSortValue <=> $rightSortValue;
+                })
                 ->values();
 
             $breakItems = $scheduleRows
                 ->where('type', 'break')
+                ->sort(function (ClassSchedule $left, ClassSchedule $right) {
+                    $leftSortValue = sprintf(
+                        '%02d-%s',
+                        $this->dayOrder($left->day),
+                        $this->toHourMinute($left->start_time)
+                    );
+                    $rightSortValue = sprintf(
+                        '%02d-%s',
+                        $this->dayOrder($right->day),
+                        $this->toHourMinute($right->start_time)
+                    );
+
+                    return $leftSortValue <=> $rightSortValue;
+                })
                 ->map(function (ClassSchedule $classSchedule) {
                     return [
                         'label' => $classSchedule->label ?: 'Break',
@@ -151,5 +179,19 @@ class ScheduleController extends Controller
     private function toHourMinute(string $timeValue): string
     {
         return substr($timeValue, 0, 5);
+    }
+
+    private function dayOrder(string $day): int
+    {
+        return match ($day) {
+            'Monday' => 1,
+            'Tuesday' => 2,
+            'Wednesday' => 3,
+            'Thursday' => 4,
+            'Friday' => 5,
+            'Saturday' => 6,
+            'Sunday' => 7,
+            default => 99,
+        };
     }
 }
