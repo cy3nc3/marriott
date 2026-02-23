@@ -31,6 +31,7 @@ class User extends Authenticatable
         'birthday',
         'role',
         'is_active',
+        'access_expires_at',
     ];
 
     /**
@@ -59,6 +60,7 @@ class User extends Authenticatable
             'birthday' => 'date',
             'role' => UserRole::class,
             'is_active' => 'boolean',
+            'access_expires_at' => 'datetime',
         ];
     }
 
@@ -77,7 +79,7 @@ class User extends Authenticatable
         return $this->hasOne(Student::class, 'user_id');
     }
 
-    public function announcements()
+    public function announcements(): HasMany
     {
         return $this->hasMany(Announcement::class);
     }
@@ -85,5 +87,10 @@ class User extends Authenticatable
     public function cashierTransactions(): HasMany
     {
         return $this->hasMany(Transaction::class, 'cashier_id');
+    }
+
+    public function processedStudentDepartures(): HasMany
+    {
+        return $this->hasMany(StudentDeparture::class, 'processed_by');
     }
 }

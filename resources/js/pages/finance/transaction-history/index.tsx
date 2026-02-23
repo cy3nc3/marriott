@@ -275,46 +275,49 @@ export default function TransactionHistory({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {transactions.map((transaction) => (
-                                    <TableRow key={transaction.id}>
-                                        <TableCell className="pl-6 font-medium">
-                                            {transaction.or_number}
-                                        </TableCell>
-                                        <TableCell className="border-l">
-                                            {transaction.student_name}
-                                        </TableCell>
-                                        <TableCell className="border-l">
-                                            {transaction.entry_label}
-                                        </TableCell>
-                                        <TableCell className="border-l">
-                                            {transaction.payment_mode_label}
-                                        </TableCell>
-                                        <TableCell className="border-l">
-                                            <Badge variant="secondary">
-                                                {transaction.status_label}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="border-l">
-                                            {formatPostedAt(
-                                                transaction.posted_at,
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="border-l pr-6 text-right">
-                                            {formatCurrency(
-                                                transaction.amount,
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {transactions.length === 0 && (
+                                {transactions.length === 0 ? (
                                     <TableRow>
                                         <TableCell
                                             colSpan={7}
-                                            className="py-10 text-center text-sm text-muted-foreground"
+                                            className="h-24 text-center text-sm text-muted-foreground"
                                         >
                                             No transactions found.
                                         </TableCell>
                                     </TableRow>
+                                ) : (
+                                    transactions.map((transaction) => (
+                                        <TableRow key={transaction.id}>
+                                            <TableCell className="pl-6 font-medium">
+                                                {transaction.or_number}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {transaction.student_name}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {transaction.entry_label}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {transaction.payment_mode_label}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                <Badge variant="secondary">
+                                                    {
+                                                        transaction.status_label
+                                                    }
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {formatPostedAt(
+                                                    transaction.posted_at,
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="border-l pr-6 text-right">
+                                                {formatCurrency(
+                                                    transaction.amount,
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
                                 )}
                             </TableBody>
                         </Table>

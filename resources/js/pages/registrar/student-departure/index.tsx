@@ -1,12 +1,13 @@
-import { Head } from '@inertiajs/react';
-import { AlertTriangle, Lock, Search } from 'lucide-react';
-import { useState } from 'react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { AlertTriangle, Search, UserMinus } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -39,25 +40,105 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function StudentDeparture() {
-    const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+type LookupStudent = {
+    id: number;
+    lrn: string;
+    name: string;
+};
 
-    const departureLogRows = [
-        {
-            student: 'Maria Santos',
-            lrn: '987654321098',
-            reason: 'Transfer Out',
-            effectivityDate: '02/18/2026',
-            status: 'Processed',
-        },
-        {
-            student: 'Carlo Reyes',
-            lrn: '123123123123',
-            reason: 'Dropped',
-            effectivityDate: '02/15/2026',
-            status: 'Processed',
-        },
-    ];
+type SelectedStudent = {
+    id: number;
+    name: string;
+    lrn: string;
+    grade_and_section: string;
+    enrollment_status: string | null;
+    academic_year: string | null;
+    enrollment_id: number | null;
+    account_expires_at: string | null;
+};
+
+type DepartureLogRow = {
+    id: number;
+    student_name: string;
+    lrn: string;
+    school_year: string | null;
+    reason: string;
+    effective_date: string | null;
+    account_expires_at: string | null;
+    processed_by: string;
+};
+
+interface Props {
+    student_lookup: LookupStudent[];
+    selected_student: SelectedStudent | null;
+    departure_form_defaults: {
+        reason: 'transfer_out' | 'dropped_out';
+        effective_date: string;
+        remarks: string;
+    };
+    recent_departures: DepartureLogRow[];
+    filters: {
+        search: string | null;
+        student_id: number | null;
+    };
+}
+
+export default function StudentDeparture({
+    student_lookup,
+    selected_student,
+    departure_form_defaults,
+    recent_departures,
+    filters,
+}: Props) {
+    const [searchValue, setSearchValue] = useState(filters.search ?? '');
+    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+
+    const departureForm = useForm({
+        student_id: selected_student?.id ?? 0,
+        enrollment_id: selected_student?.enrollment_id ?? 0,
+        reason: departure_form_defaults.reason,
+        effective_date: departure_form_defaults.effective_date,
+        remarks: departure_form_defaults.remarks,
+    });
+
+    useEffect(() => {
+        departureForm.setData({
+            student_id: selected_student?.id ?? 0,
+            enrollment_id: selected_student?.enrollment_id ?? 0,
+            reason: departure_form_defaults.reason,
+            effective_date: departure_form_defaults.effective_date,
+            remarks: departure_form_defaults.remarks,
+        });
+    }, [selected_student, departure_form_defaults]);
+
+    const applyLookupFilters = (next?: {
+        search?: string;
+        studentId?: number | null;
+    }) => {
+        const querySearch = next?.search ?? searchValue;
+        const queryStudentId = next?.studentId ?? selected_student?.id ?? null;
+
+        router.get(
+            '/registrar/student-departure',
+            {
+                search: querySearch || undefined,
+                student_id: queryStudentId || undefined,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+            },
+        );
+    };
+
+    const processDeparture = () => {
+        departureForm.post('/registrar/student-departure', {
+            preserveScroll: true,
+            onSuccess: () => {
+                setConfirmDialogOpen(false);
+            },
+        });
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -69,12 +150,60 @@ export default function StudentDeparture() {
                         <CardTitle>Student Lookup</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                        <div className="flex gap-2">
-                            <Input placeholder="Search by LRN or student name" />
-                            <Button variant="outline">
-                                <Search className="size-4" />
-                                Search
-                            </Button>
+                        <div className="grid gap-4 md:grid-cols-[1fr_300px_auto]">
+                            <div className="space-y-2">
+                                <Label>Search</Label>
+                                <Input
+                                    placeholder="Search by LRN or student name"
+                                    value={searchValue}
+                                    onChange={(event) =>
+                                        setSearchValue(event.target.value)
+                                    }
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter') {
+                                            applyLookupFilters();
+                                        }
+                                    }}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Selected Learner</Label>
+                                <Select
+                                    value={
+                                        selected_student
+                                            ? String(selected_student.id)
+                                            : undefined
+                                    }
+                                    onValueChange={(value) =>
+                                        applyLookupFilters({
+                                            studentId: Number(value),
+                                        })
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select learner" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {student_lookup.map((student) => (
+                                            <SelectItem
+                                                key={student.id}
+                                                value={String(student.id)}
+                                            >
+                                                {student.name} ({student.lrn})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex items-end">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => applyLookupFilters()}
+                                >
+                                    <Search className="size-4" />
+                                    Search
+                                </Button>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -85,47 +214,56 @@ export default function StudentDeparture() {
                             <CardTitle>Selected Student</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3 pt-6">
-                            <div className="flex items-center justify-between">
+                            {!selected_student ? (
                                 <p className="text-sm text-muted-foreground">
-                                    Name
+                                    Select a learner to process departure.
                                 </p>
-                                <p className="text-sm font-medium">
-                                    Juan Dela Cruz
-                                </p>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    LRN
-                                </p>
-                                <p className="text-sm font-medium">
-                                    123456789012
-                                </p>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Grade and Section
-                                </p>
-                                <p className="text-sm font-medium">
-                                    Grade 7 - Rizal
-                                </p>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Enrollment Status
-                                </p>
-                                <Badge variant="outline">Active</Badge>
-                            </div>
-
-                            <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-                                <div className="flex items-start gap-2">
-                                    <AlertTriangle className="mt-0.5 size-4 text-amber-700" />
-                                    <p className="text-xs text-amber-800">
-                                        Processing departure removes this
-                                        student from active class lists but
-                                        keeps finance and academic history.
-                                    </p>
-                                </div>
-                            </div>
+                            ) : (
+                                <>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-muted-foreground">
+                                            Name
+                                        </p>
+                                        <p className="text-sm font-medium">
+                                            {selected_student.name}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-muted-foreground">
+                                            LRN
+                                        </p>
+                                        <p className="text-sm font-medium">
+                                            {selected_student.lrn}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-muted-foreground">
+                                            Grade and Section
+                                        </p>
+                                        <p className="text-sm font-medium">
+                                            {selected_student.grade_and_section}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-muted-foreground">
+                                            Enrollment Status
+                                        </p>
+                                        <Badge variant="outline">
+                                            {selected_student.enrollment_status ??
+                                                'Unknown'}
+                                        </Badge>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-muted-foreground">
+                                            Account Expiry
+                                        </p>
+                                        <p className="text-sm font-medium">
+                                            {selected_student.account_expires_at ??
+                                                'Not set'}
+                                        </p>
+                                    </div>
+                                </>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -136,86 +274,98 @@ export default function StudentDeparture() {
                         <CardContent className="space-y-4 pt-6">
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label>Reason for Leaving</Label>
-                                    <Select defaultValue="transfer-out">
+                                    <Label>Reason</Label>
+                                    <Select
+                                        value={departureForm.data.reason}
+                                        onValueChange={(value) =>
+                                            departureForm.setData(
+                                                'reason',
+                                                value as
+                                                    | 'transfer_out'
+                                                    | 'dropped_out',
+                                            )
+                                        }
+                                    >
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="transfer-out">
+                                            <SelectItem value="transfer_out">
                                                 Transfer Out
                                             </SelectItem>
-                                            <SelectItem value="dropped">
-                                                Dropped
-                                            </SelectItem>
-                                            <SelectItem value="moved-location">
-                                                Moved to another location
-                                            </SelectItem>
-                                            <SelectItem value="other">
-                                                Other
+                                            <SelectItem value="dropped_out">
+                                                Dropped Out
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    {departureForm.errors.reason && (
+                                        <p className="text-sm text-destructive">
+                                            {departureForm.errors.reason}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Effectivity Date</Label>
                                     <Input
                                         type="date"
-                                        defaultValue="2026-02-20"
+                                        value={departureForm.data.effective_date}
+                                        onChange={(event) =>
+                                            departureForm.setData(
+                                                'effective_date',
+                                                event.target.value,
+                                            )
+                                        }
                                     />
-                                </div>
-                            </div>
-
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label>Clearance Status</Label>
-                                    <Select defaultValue="pending">
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="pending">
-                                                Pending Clearance
-                                            </SelectItem>
-                                            <SelectItem value="cleared">
-                                                Cleared
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Credentials Released</Label>
-                                    <Select defaultValue="no">
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="yes">
-                                                Yes
-                                            </SelectItem>
-                                            <SelectItem value="no">
-                                                No
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    {departureForm.errors.effective_date && (
+                                        <p className="text-sm text-destructive">
+                                            {
+                                                departureForm.errors
+                                                    .effective_date
+                                            }
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Registrar Remarks</Label>
+                                <Label>Remarks</Label>
                                 <Textarea
-                                    placeholder="Add important notes for records and tracking."
+                                    value={departureForm.data.remarks}
+                                    onChange={(event) =>
+                                        departureForm.setData(
+                                            'remarks',
+                                            event.target.value,
+                                        )
+                                    }
+                                    placeholder="Record registrar notes for this departure"
                                     className="min-h-24"
                                 />
+                                {departureForm.errors.remarks && (
+                                    <p className="text-sm text-destructive">
+                                        {departureForm.errors.remarks}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                                <p className="flex items-start gap-2">
+                                    <AlertTriangle className="mt-0.5 size-4" />
+                                    Student history remains viewable in read-only
+                                    mode until the account expiry date.
+                                </p>
                             </div>
                         </CardContent>
-                        <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
-                            <Button variant="outline">Save Draft</Button>
+                        <div className="flex items-center justify-end border-t px-4 py-3">
                             <Button
                                 variant="destructive"
-                                onClick={() => setIsConfirmDialogOpen(true)}
+                                onClick={() => setConfirmDialogOpen(true)}
+                                disabled={
+                                    !selected_student ||
+                                    !selected_student.enrollment_id ||
+                                    departureForm.processing
+                                }
                             >
-                                <Lock className="size-4" />
+                                <UserMinus className="size-4" />
                                 Process Departure
                             </Button>
                         </div>
@@ -230,64 +380,93 @@ export default function StudentDeparture() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="pl-6">
-                                        Student
-                                    </TableHead>
+                                    <TableHead className="pl-6">Learner</TableHead>
                                     <TableHead>LRN</TableHead>
                                     <TableHead>Reason</TableHead>
-                                    <TableHead>Effectivity Date</TableHead>
+                                    <TableHead>Effective Date</TableHead>
+                                    <TableHead>Account Expiry</TableHead>
                                     <TableHead className="pr-6 text-right">
-                                        Status
+                                        Processed By
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {departureLogRows.map((row) => (
-                                    <TableRow key={row.lrn}>
-                                        <TableCell className="pl-6 font-medium">
-                                            {row.student}
-                                        </TableCell>
-                                        <TableCell>{row.lrn}</TableCell>
-                                        <TableCell>{row.reason}</TableCell>
-                                        <TableCell>
-                                            {row.effectivityDate}
-                                        </TableCell>
-                                        <TableCell className="pr-6 text-right">
-                                            <Badge variant="secondary">
-                                                {row.status}
-                                            </Badge>
+                                {recent_departures.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            className="py-8 text-center text-sm text-muted-foreground"
+                                            colSpan={6}
+                                        >
+                                            No departure logs yet.
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                ) : (
+                                    recent_departures.map((row) => (
+                                        <TableRow key={row.id}>
+                                            <TableCell className="pl-6 font-medium">
+                                                {row.student_name}
+                                            </TableCell>
+                                            <TableCell>{row.lrn}</TableCell>
+                                            <TableCell>{row.reason}</TableCell>
+                                            <TableCell>
+                                                {row.effective_date ?? '-'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {row.account_expires_at ?? '-'}
+                                            </TableCell>
+                                            <TableCell className="pr-6 text-right text-sm text-muted-foreground">
+                                                {row.processed_by || '-'}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>
                 </Card>
             </div>
 
-            <Dialog
-                open={isConfirmDialogOpen}
-                onOpenChange={setIsConfirmDialogOpen}
-            >
+            <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Confirm Student Departure</DialogTitle>
+                        <DialogDescription>
+                            {selected_student?.name ?? 'Selected learner'}
+                        </DialogDescription>
                     </DialogHeader>
-                    <p className="text-sm text-muted-foreground">
-                        Confirm processing departure for Juan Dela Cruz. This
-                        will mark the student as inactive for current class
-                        lists.
-                    </p>
+
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                        <p>
+                            Reason:{' '}
+                            <strong className="text-foreground">
+                                {departureForm.data.reason === 'transfer_out'
+                                    ? 'Transfer Out'
+                                    : 'Dropped Out'}
+                            </strong>
+                        </p>
+                        <p>
+                            Effective Date:{' '}
+                            <strong className="text-foreground">
+                                {departureForm.data.effective_date}
+                            </strong>
+                        </p>
+                        <p>
+                            This will update enrollment status and schedule
+                            account expiry on the next school year boundary.
+                        </p>
+                    </div>
+
                     <DialogFooter>
                         <Button
                             variant="outline"
-                            onClick={() => setIsConfirmDialogOpen(false)}
+                            onClick={() => setConfirmDialogOpen(false)}
                         >
                             Cancel
                         </Button>
                         <Button
                             variant="destructive"
-                            onClick={() => setIsConfirmDialogOpen(false)}
+                            onClick={processDeparture}
+                            disabled={departureForm.processing}
                         >
                             Confirm Process
                         </Button>

@@ -291,6 +291,56 @@ test('parent billing information page renders dues and recent payments', functio
         );
 });
 
+test('parent billing page shows departed learner records as read only', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 500,
+        'status' => 'dropped_out',
+    ]);
+
+    BillingSchedule::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $schoolYear->id,
+        'description' => 'Remaining Balance',
+        'due_date' => '2025-08-15',
+        'amount_due' => 2000,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    $this->get('/parent/billing-information')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('parent/billing-information/index')
+            ->where('is_departed_read_only', true)
+            ->where('account_summary.student_name', 'Juan Dela Cruz')
+            ->has('dues_by_plan.monthly', 1)
+        );
+});
+
 test('parent dashboard route renders linked child analytics', function () {
     $schoolYear = AcademicYear::query()->create([
         'name' => '2025-2026',

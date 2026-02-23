@@ -1,4 +1,5 @@
 import { Head, useForm, router } from '@inertiajs/react';
+import { format } from 'date-fns';
 import {
     UserPlus,
     Edit2,
@@ -11,11 +12,10 @@ import {
     Users,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
-import { format } from 'date-fns';
-import { DateOfBirthPicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { DateOfBirthPicker } from '@/components/ui/date-picker';
 import {
     Dialog,
     DialogContent,
@@ -47,17 +47,16 @@ import {
     TableCell,
     TableHead,
     TableHeader,
-    TableFooter,
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
 import {
     store,
     update,
     reset_password,
     toggle_status,
 } from '@/routes/super_admin/user_manager';
+import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -293,111 +292,26 @@ export default function UserManager({ users, filters }: Props) {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="pl-6">Name</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Role</TableHead>
-                                    <TableHead className="text-center">
+                                    <TableHead className="border-l">
+                                        Email
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        Role
+                                    </TableHead>
+                                    <TableHead className="border-l text-center">
                                         Status
                                     </TableHead>
-                                    <TableHead className="pr-6 text-right">
+                                    <TableHead className="border-l pr-6 text-right">
                                         Actions
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {users.data.map((user) => (
-                                    <TableRow key={user.id}>
-                                        <TableCell className="pl-6 font-medium">
-                                            {user.name}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            {user.email}
-                                        </TableCell>
-                                        <TableCell>
-                                            {getRoleBadge(user.role)}
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <Badge variant="outline">
-                                                {user.is_active
-                                                    ? 'Active'
-                                                    : 'Inactive'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="pr-6 text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                    >
-                                                        <MoreHorizontal className="size-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>
-                                                        Actions
-                                                    </DropdownMenuLabel>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            openEdit(user)
-                                                        }
-                                                        className="gap-2"
-                                                    >
-                                                        <Edit2 className="size-3.5" />
-                                                        <span>
-                                                            Edit Details
-                                                        </span>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            handleResetPassword(
-                                                                user,
-                                                            )
-                                                        }
-                                                        className="gap-2"
-                                                    >
-                                                        <KeyRound className="size-3.5" />
-                                                        <span>
-                                                            Reset Password
-                                                        </span>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            handleToggleStatus(
-                                                                user,
-                                                            )
-                                                        }
-                                                        className="gap-2"
-                                                    >
-                                                        {user.is_active ? (
-                                                            <>
-                                                                <UserX className="size-3.5" />
-                                                                <span>
-                                                                    Deactivate
-                                                                    Account
-                                                                </span>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <UserCheck className="size-3.5" />
-                                                                <span>
-                                                                    Activate
-                                                                    Account
-                                                                </span>
-                                                            </>
-                                                        )}
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {users.data.length === 0 && (
+                                {users.data.length === 0 ? (
                                     <TableRow>
                                         <TableCell
                                             colSpan={5}
-                                            className="h-32 text-center"
+                                            className="h-24"
                                         >
                                             <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                                                 <Users className="size-8 opacity-40" />
@@ -407,81 +321,144 @@ export default function UserManager({ users, filters }: Props) {
                                             </div>
                                         </TableCell>
                                     </TableRow>
+                                ) : (
+                                    users.data.map((user) => (
+                                        <TableRow key={user.id}>
+                                            <TableCell className="pl-6 font-medium">
+                                                {user.name}
+                                            </TableCell>
+                                            <TableCell className="border-l text-muted-foreground">
+                                                {user.email}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {getRoleBadge(user.role)}
+                                            </TableCell>
+                                            <TableCell className="border-l text-center">
+                                                <Badge variant="outline">
+                                                    {user.is_active
+                                                        ? 'Active'
+                                                        : 'Inactive'}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="border-l pr-6 text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                        >
+                                                            <MoreHorizontal className="size-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuLabel>
+                                                            Actions
+                                                        </DropdownMenuLabel>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                openEdit(user)
+                                                            }
+                                                            className="gap-2"
+                                                        >
+                                                            <Edit2 className="size-3.5" />
+                                                            <span>
+                                                                Edit Details
+                                                            </span>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                handleResetPassword(
+                                                                    user,
+                                                                )
+                                                            }
+                                                            className="gap-2"
+                                                        >
+                                                            <KeyRound className="size-3.5" />
+                                                            <span>
+                                                                Reset Password
+                                                            </span>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                handleToggleStatus(
+                                                                    user,
+                                                                )
+                                                            }
+                                                            className="gap-2"
+                                                        >
+                                                            {user.is_active ? (
+                                                                <>
+                                                                    <UserX className="size-3.5" />
+                                                                    <span>
+                                                                        Deactivate
+                                                                        Account
+                                                                    </span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <UserCheck className="size-3.5" />
+                                                                    <span>
+                                                                        Activate
+                                                                        Account
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
                                 )}
                             </TableBody>
-                            {users.links.length > 3 && (
-                                <TableFooter>
-                                    <TableRow>
-                                        <TableCell colSpan={5}>
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-sm text-muted-foreground">
-                                                    {users.from ?? 0}-
-                                                    {users.to ?? 0} out of{' '}
-                                                    {users.total}
-                                                </p>
-                                                <div className="flex items-center gap-2">
-                                                    {users.links.map(
-                                                        (link, index) => {
-                                                            let label =
-                                                                link.label;
-                                                            if (
-                                                                label.includes(
-                                                                    'Previous',
-                                                                )
-                                                            ) {
-                                                                label =
-                                                                    'Previous';
-                                                            } else if (
-                                                                label.includes(
-                                                                    'Next',
-                                                                )
-                                                            ) {
-                                                                label = 'Next';
-                                                            } else {
-                                                                label = label
-                                                                    .replace(
-                                                                        /&[^;]+;/g,
-                                                                        '',
-                                                                    )
-                                                                    .trim();
-                                                            }
-
-                                                            return (
-                                                                <Button
-                                                                    key={`${link.label}-${index}`}
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    disabled={
-                                                                        !link.url ||
-                                                                        link.active
-                                                                    }
-                                                                    onClick={() => {
-                                                                        if (
-                                                                            link.url
-                                                                        ) {
-                                                                            router.get(
-                                                                                link.url,
-                                                                                {},
-                                                                                {
-                                                                                    preserveState: true,
-                                                                                    preserveScroll: true,
-                                                                                },
-                                                                            );
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    {label}
-                                                                </Button>
-                                                            );
-                                                        },
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                </TableFooter>
-                            )}
                         </Table>
+                        {users.links.length > 3 && (
+                            <div className="flex items-center justify-between border-t p-4">
+                                <p className="text-sm text-muted-foreground">
+                                    {users.from ?? 0}-{users.to ?? 0} out of{' '}
+                                    {users.total}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    {users.links.map((link, index) => {
+                                        let label = link.label;
+                                        if (label.includes('Previous')) {
+                                            label = 'Previous';
+                                        } else if (label.includes('Next')) {
+                                            label = 'Next';
+                                        } else {
+                                            label = label
+                                                .replace(/&[^;]+;/g, '')
+                                                .trim();
+                                        }
+
+                                        return (
+                                            <Button
+                                                key={`${link.label}-${index}`}
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={!link.url || link.active}
+                                                onClick={() => {
+                                                    if (link.url) {
+                                                        router.get(
+                                                            link.url,
+                                                            {},
+                                                            {
+                                                                preserveState: true,
+                                                                preserveScroll: true,
+                                                            },
+                                                        );
+                                                    }
+                                                }}
+                                            >
+                                                {label}
+                                            </Button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

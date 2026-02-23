@@ -5,27 +5,24 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class PermanentRecord extends Model
+class StudentDeparture extends Model
 {
     protected $fillable = [
         'student_id',
-        'school_name',
+        'enrollment_id',
         'academic_year_id',
-        'grade_level_id',
-        'general_average',
-        'status',
-        'failed_subject_count',
-        'conditional_resolved_at',
-        'conditional_resolution_notes',
+        'reason',
+        'effective_date',
         'remarks',
+        'processed_by',
+        'account_expires_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'general_average' => 'decimal:2',
-            'failed_subject_count' => 'integer',
-            'conditional_resolved_at' => 'datetime',
+            'effective_date' => 'date',
+            'account_expires_at' => 'datetime',
         ];
     }
 
@@ -34,13 +31,18 @@ class PermanentRecord extends Model
         return $this->belongsTo(Student::class);
     }
 
+    public function enrollment(): BelongsTo
+    {
+        return $this->belongsTo(Enrollment::class);
+    }
+
     public function academicYear(): BelongsTo
     {
         return $this->belongsTo(AcademicYear::class);
     }
 
-    public function gradeLevel(): BelongsTo
+    public function processedBy(): BelongsTo
     {
-        return $this->belongsTo(GradeLevel::class);
+        return $this->belongsTo(User::class, 'processed_by');
     }
 }

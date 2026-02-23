@@ -51,4 +51,9 @@ class Enrollment extends Model
     {
         return $this->hasMany(ConductRating::class);
     }
+
+    public function departures(): HasMany
+    {
+        return $this->hasMany(StudentDeparture::class);
+    }
 }

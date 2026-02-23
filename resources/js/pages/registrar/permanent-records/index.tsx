@@ -1,20 +1,25 @@
 import { Head } from '@inertiajs/react';
-import {
-    Search,
-    Printer,
-    FilePlus2,
-    GraduationCap,
-    Building2,
-    Calendar,
-    Plus,
-} from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { FilePlus2, Pencil, Plus, Printer, Search, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FieldSeparator } from '@/components/ui/field';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -33,229 +38,1152 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+type PermanentRecordStatus =
+    | 'promoted'
+    | 'conditional'
+    | 'retained'
+    | 'completed';
+
+interface SubjectQuarterGrade {
+    subject: string;
+    q1: string;
+    q2: string;
+    q3: string;
+    q4: string;
+    final: string;
+}
+
+interface HistoricalSubjectInput {
+    id: number;
+    subject: string;
+    q1: string;
+    q2: string;
+    q3: string;
+    q4: string;
+}
+
+interface PermanentRecord {
+    id: number;
+    school_year: string;
+    grade_level: string;
+    school_name: string;
+    status: PermanentRecordStatus;
+    failed_subject_count: number;
+    subjects: SubjectQuarterGrade[];
+}
+
+interface EditHistoricalRecordForm {
+    id: number;
+    school_name: string;
+    school_year_start: string;
+    school_year_end: string;
+    grade_level: string;
+    status: PermanentRecordStatus;
+    subjects: HistoricalSubjectInput[];
+}
+
+const sampleRecords: PermanentRecord[] = [
+    {
+        id: 1,
+        school_year: '2023-2024',
+        grade_level: 'Grade 7',
+        school_name: 'Marriott School',
+        status: 'promoted',
+        failed_subject_count: 0,
+        subjects: [
+            {
+                subject: 'Mathematics',
+                q1: '88',
+                q2: '89',
+                q3: '90',
+                q4: '91',
+                final: '89.50',
+            },
+            {
+                subject: 'Science',
+                q1: '87',
+                q2: '90',
+                q3: '90',
+                q4: '92',
+                final: '89.75',
+            },
+            {
+                subject: 'English',
+                q1: '89',
+                q2: '88',
+                q3: '90',
+                q4: '91',
+                final: '89.50',
+            },
+        ],
+    },
+    {
+        id: 2,
+        school_year: '2022-2023',
+        grade_level: 'Grade 6',
+        school_name: 'Marriott School',
+        status: 'promoted',
+        failed_subject_count: 0,
+        subjects: [
+            {
+                subject: 'Mathematics',
+                q1: '86',
+                q2: '87',
+                q3: '88',
+                q4: '89',
+                final: '87.50',
+            },
+            {
+                subject: 'Science',
+                q1: '85',
+                q2: '86',
+                q3: '87',
+                q4: '88',
+                final: '86.50',
+            },
+            {
+                subject: 'English',
+                q1: '88',
+                q2: '87',
+                q3: '86',
+                q4: '87',
+                final: '87.00',
+            },
+        ],
+    },
+    {
+        id: 3,
+        school_year: '2021-2022',
+        grade_level: 'Grade 5',
+        school_name: 'Marriott School',
+        status: 'promoted',
+        failed_subject_count: 0,
+        subjects: [
+            {
+                subject: 'Mathematics',
+                q1: '84',
+                q2: '85',
+                q3: '86',
+                q4: '87',
+                final: '85.50',
+            },
+            {
+                subject: 'Science',
+                q1: '83',
+                q2: '84',
+                q3: '86',
+                q4: '87',
+                final: '85.00',
+            },
+            {
+                subject: 'English',
+                q1: '85',
+                q2: '84',
+                q3: '85',
+                q4: '86',
+                final: '85.00',
+            },
+        ],
+    },
+];
+
+function statusBadge(status: PermanentRecordStatus) {
+    if (status === 'promoted') {
+        return <Badge variant="secondary">Promoted</Badge>;
+    }
+
+    if (status === 'conditional') {
+        return <Badge variant="outline">Conditional</Badge>;
+    }
+
+    if (status === 'retained') {
+        return <Badge variant="destructive">Retained</Badge>;
+    }
+
+    return <Badge variant="outline">Completed</Badge>;
+}
+
+function computeGeneralAverage(subjects: SubjectQuarterGrade[]) {
+    const finalValues = subjects
+        .map((subject) => Number(subject.final))
+        .filter((value) => !Number.isNaN(value));
+
+    if (finalValues.length === 0) {
+        return '-';
+    }
+
+    const average =
+        finalValues.reduce((carry, value) => carry + value, 0) /
+        finalValues.length;
+
+    return average.toFixed(2);
+}
+
+function computeHistoricalFinal(subject: HistoricalSubjectInput): string {
+    const quarterValues = [subject.q1, subject.q2, subject.q3, subject.q4]
+        .map((value) => Number(value))
+        .filter((value) => !Number.isNaN(value));
+
+    if (quarterValues.length === 0) {
+        return '-';
+    }
+
+    const average =
+        quarterValues.reduce((carry, value) => carry + value, 0) /
+        quarterValues.length;
+
+    return average.toFixed(2);
+}
+
+function toHistoricalInputSubjects(
+    subjects: SubjectQuarterGrade[],
+): HistoricalSubjectInput[] {
+    return subjects.map((subject, index) => ({
+        id: index + 1,
+        subject: subject.subject,
+        q1: subject.q1,
+        q2: subject.q2,
+        q3: subject.q3,
+        q4: subject.q4,
+    }));
+}
+
+function toRecordSubjects(subjects: HistoricalSubjectInput[]): SubjectQuarterGrade[] {
+    return subjects.map((subject) => ({
+        subject: subject.subject,
+        q1: subject.q1,
+        q2: subject.q2,
+        q3: subject.q3,
+        q4: subject.q4,
+        final: computeHistoricalFinal(subject),
+    }));
+}
+
+function computeFailedSubjectCount(subjects: SubjectQuarterGrade[]): number {
+    return subjects.filter((subject) => {
+        const finalValue = Number(subject.final);
+
+        if (Number.isNaN(finalValue)) {
+            return false;
+        }
+
+        return finalValue < 75;
+    }).length;
+}
+
 export default function PermanentRecords() {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [records, setRecords] = useState<PermanentRecord[]>(sampleRecords);
+    const [historicalSubjects, setHistoricalSubjects] = useState<
+        HistoricalSubjectInput[]
+    >([
+        {
+            id: 1,
+            subject: '',
+            q1: '',
+            q2: '',
+            q3: '',
+            q4: '',
+        },
+    ]);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [editForm, setEditForm] = useState<EditHistoricalRecordForm | null>(
+        null,
+    );
+
+    const selectedStudent = {
+        name: 'Juan Dela Cruz',
+        lrn: '123456789012',
+        current_assignment: 'Grade 8 - Bonifacio',
+    };
+
+    const addHistoricalSubject = () => {
+        setHistoricalSubjects((previousRows) => [
+            ...previousRows,
+            {
+                id: Date.now(),
+                subject: '',
+                q1: '',
+                q2: '',
+                q3: '',
+                q4: '',
+            },
+        ]);
+    };
+
+    const updateHistoricalSubject = (
+        id: number,
+        field: keyof Omit<HistoricalSubjectInput, 'id'>,
+        value: string,
+    ) => {
+        setHistoricalSubjects((previousRows) =>
+            previousRows.map((row) => {
+                if (row.id !== id) {
+                    return row;
+                }
+
+                return {
+                    ...row,
+                    [field]: value,
+                };
+            }),
+        );
+    };
+
+    const removeHistoricalSubject = (id: number) => {
+        setHistoricalSubjects((previousRows) => {
+            if (previousRows.length <= 1) {
+                return previousRows;
+            }
+
+            return previousRows.filter((row) => row.id !== id);
+        });
+    };
+
+    const openEditDialog = (record: PermanentRecord) => {
+        const [schoolYearStart = '', schoolYearEnd = ''] =
+            record.school_year.split('-');
+
+        setEditForm({
+            id: record.id,
+            school_name: record.school_name,
+            school_year_start: schoolYearStart,
+            school_year_end: schoolYearEnd,
+            grade_level: record.grade_level,
+            status: record.status,
+            subjects: toHistoricalInputSubjects(record.subjects),
+        });
+        setIsEditDialogOpen(true);
+    };
+
+    const closeEditDialog = () => {
+        setIsEditDialogOpen(false);
+        setEditForm(null);
+    };
+
+    const updateEditField = (
+        field:
+            | 'school_name'
+            | 'school_year_start'
+            | 'school_year_end'
+            | 'grade_level',
+        value: string,
+    ) => {
+        setEditForm((previousForm) => {
+            if (previousForm === null) {
+                return null;
+            }
+
+            return {
+                ...previousForm,
+                [field]: value,
+            };
+        });
+    };
+
+    const updateEditStatus = (status: PermanentRecordStatus) => {
+        setEditForm((previousForm) => {
+            if (previousForm === null) {
+                return null;
+            }
+
+            return {
+                ...previousForm,
+                status,
+            };
+        });
+    };
+
+    const addEditSubject = () => {
+        setEditForm((previousForm) => {
+            if (previousForm === null) {
+                return null;
+            }
+
+            return {
+                ...previousForm,
+                subjects: [
+                    ...previousForm.subjects,
+                    {
+                        id: Date.now(),
+                        subject: '',
+                        q1: '',
+                        q2: '',
+                        q3: '',
+                        q4: '',
+                    },
+                ],
+            };
+        });
+    };
+
+    const updateEditSubject = (
+        id: number,
+        field: keyof Omit<HistoricalSubjectInput, 'id'>,
+        value: string,
+    ) => {
+        setEditForm((previousForm) => {
+            if (previousForm === null) {
+                return null;
+            }
+
+            return {
+                ...previousForm,
+                subjects: previousForm.subjects.map((subject) => {
+                    if (subject.id !== id) {
+                        return subject;
+                    }
+
+                    return {
+                        ...subject,
+                        [field]: value,
+                    };
+                }),
+            };
+        });
+    };
+
+    const removeEditSubject = (id: number) => {
+        setEditForm((previousForm) => {
+            if (previousForm === null || previousForm.subjects.length <= 1) {
+                return previousForm;
+            }
+
+            return {
+                ...previousForm,
+                subjects: previousForm.subjects.filter(
+                    (subject) => subject.id !== id,
+                ),
+            };
+        });
+    };
+
+    const saveEditedRecord = () => {
+        if (editForm === null) {
+            return;
+        }
+
+        const schoolYear = `${editForm.school_year_start}-${editForm.school_year_end}`;
+        const computedSubjects = toRecordSubjects(editForm.subjects);
+        const failedSubjectCount = computeFailedSubjectCount(computedSubjects);
+
+        setRecords((previousRecords) =>
+            previousRecords.map((record) => {
+                if (record.id !== editForm.id) {
+                    return record;
+                }
+
+                return {
+                    ...record,
+                    school_name: editForm.school_name,
+                    school_year: schoolYear,
+                    grade_level: editForm.grade_level,
+                    status: editForm.status,
+                    failed_subject_count: failedSubjectCount,
+                    subjects: computedSubjects,
+                };
+            }),
+        );
+
+        closeEditDialog();
+    };
+
+    const filteredRecords = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+
+        if (query === '') {
+            return records;
+        }
+
+        return records.filter((record) => {
+            const matchesRecordInfo =
+                record.school_year.toLowerCase().includes(query) ||
+                record.grade_level.toLowerCase().includes(query) ||
+                record.school_name.toLowerCase().includes(query) ||
+                record.status.toLowerCase().includes(query);
+
+            const matchesSubject = record.subjects.some((subject) =>
+                subject.subject.toLowerCase().includes(query),
+            );
+
+            return matchesRecordInfo || matchesSubject;
+        });
+    }, [records, searchQuery]);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Permanent Records" />
+
             <div className="flex flex-col gap-6">
-                {/* Search Section */}
                 <Card className="gap-2">
-                    <CardHeader>
-                        <CardTitle className="text-lg">
-                            Search Student Registry
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                        <div className="flex gap-4">
-                            <div className="relative flex-1">
-                                <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Enter LRN or Name to view SF10..."
-                                    className="pl-10"
-                                />
+                    <CardHeader className="border-b">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="space-y-1">
+                                <CardTitle>Permanent Records</CardTitle>
                             </div>
-                            <Button className="gap-2">
-                                <Search className="size-4" />
-                                Find Record
+
+                            <Button variant="outline">
+                                <Printer className="size-4" />
+                                Print SF10
                             </Button>
                         </div>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                        <div className="relative w-full">
+                            <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+                            <Input
+                                value={searchQuery}
+                                onChange={(event) =>
+                                    setSearchQuery(event.target.value)
+                                }
+                                placeholder="Search by school year, grade level, school, status, or subject"
+                                className="pl-9"
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 
-                {/* Selected Student Profile */}
-                <Card className="gap-2 border-primary/20">
-                    <CardContent className="flex flex-col items-center justify-between gap-6 p-6 md:flex-row">
-                        <div className="flex flex-row items-center gap-6">
-                            <Avatar
-                                size="2xl"
-                                className="border-4 border-background shadow-sm"
-                            >
-                                <AvatarImage src="" />
-                                <AvatarFallback>JD</AvatarFallback>
-                            </Avatar>
-                            <div className="space-y-1">
-                                <h2 className="text-2xl font-black tracking-tight text-primary">
-                                    Juan Dela Cruz
-                                </h2>
-                                <div className="flex gap-4 text-sm font-medium text-muted-foreground">
-                                    <p>Grade 7 - Rizal</p>
-                                    <span>•</span>
-                                    <p>LRN: 1234567890123</p>
-                                </div>
-                            </div>
-                        </div>
-                        <Button
-                            variant="outline"
-                            size="lg"
-                            className="gap-2 text-xs font-bold tracking-wider uppercase"
-                        >
-                            <Printer className="size-4" />
-                            Print SF10 (Form 137)
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-5">
-                    {/* Academic History List (SF10 Content) */}
-                    <div className="space-y-6 lg:col-span-3">
-                        <div className="mb-2 flex items-center gap-2">
-                            <GraduationCap className="size-5 text-primary" />
-                            <h3 className="text-lg font-bold">
-                                Academic History
-                            </h3>
-                        </div>
-
-                        {/* Sample Grade 7 Card */}
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between gap-1 border-b bg-muted/30 px-6 py-4">
-                                <div className="space-y-0.5">
-                                    <CardTitle className="text-base font-bold">
-                                        Grade 7
-                                    </CardTitle>
-                                    <p className="text-xs font-medium text-muted-foreground">
-                                        SY 2023-2024 • Marriott School System
-                                    </p>
-                                </div>
-                                <Badge
-                                    variant="outline"
-                                    className="border-green-200 bg-green-50 text-green-700"
-                                >
-                                    Promoted
-                                </Badge>
+                <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                    <div className="min-w-0 space-y-6">
+                        <Card className="gap-2">
+                            <CardHeader className="border-b">
+                                <CardTitle>Student Information</CardTitle>
                             </CardHeader>
-                            <CardContent className="p-0">
-                                <Table>
-                                    <TableHeader className="bg-muted/10">
-                                        <TableRow>
-                                            <TableHead className="pl-6">
-                                                Subject
-                                            </TableHead>
-                                            <TableHead className="pr-6 text-right">
-                                                Final Rating
-                                            </TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        <TableRow>
-                                            <TableCell className="pl-6 font-medium">
-                                                Mathematics
-                                            </TableCell>
-                                            <TableCell className="pr-6 text-right font-bold">
-                                                90
-                                            </TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell className="pl-6 font-medium">
-                                                Science
-                                            </TableCell>
-                                            <TableCell className="pr-6 text-right font-bold">
-                                                92
-                                            </TableCell>
-                                        </TableRow>
-                                    </TableBody>
-                                </Table>
+                            <CardContent className="pt-6">
+                                <div className="grid gap-4 sm:grid-cols-3">
+                                    <div className="space-y-1">
+                                        <p className="text-xs text-muted-foreground uppercase">
+                                            Student
+                                        </p>
+                                        <p className="text-sm font-medium">
+                                            {selectedStudent.name}
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-xs text-muted-foreground uppercase">
+                                            LRN
+                                        </p>
+                                        <p className="text-sm font-medium">
+                                            {selectedStudent.lrn}
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-xs text-muted-foreground uppercase">
+                                            Current Assignment
+                                        </p>
+                                        <p className="text-sm font-medium">
+                                            {selectedStudent.current_assignment}
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader className="border-b">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <CardTitle>Academic History (SF10)</CardTitle>
+                                    <Badge variant="secondary">
+                                        Records: {filteredRecords.length}
+                                    </Badge>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4 p-4">
+                                {filteredRecords.length === 0 ? (
+                                    <div className="rounded-md border py-10 text-center text-sm text-muted-foreground">
+                                        No permanent records found.
+                                    </div>
+                                ) : (
+                                    filteredRecords.map((record) => (
+                                        <Card key={record.id} className="gap-2">
+                                            <CardHeader className="border-b">
+                                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                    <div className="space-y-1">
+                                                        <CardTitle className="text-base">
+                                                            {record.grade_level}{' '}
+                                                            · {record.school_year}
+                                                        </CardTitle>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {record.school_name}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        {statusBadge(
+                                                            record.status,
+                                                        )}
+                                                        <Badge variant="outline">
+                                                            Failed Subjects:{' '}
+                                                            {
+                                                                record.failed_subject_count
+                                                            }
+                                                        </Badge>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                openEditDialog(
+                                                                    record,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Pencil className="size-4" />
+                                                            Edit
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent className="p-0">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead className="pl-6">
+                                                                Subject
+                                                            </TableHead>
+                                                            <TableHead className="border-l text-center">
+                                                                Q1
+                                                            </TableHead>
+                                                            <TableHead className="border-l text-center">
+                                                                Q2
+                                                            </TableHead>
+                                                            <TableHead className="border-l text-center">
+                                                                Q3
+                                                            </TableHead>
+                                                            <TableHead className="border-l text-center">
+                                                                Q4
+                                                            </TableHead>
+                                                            <TableHead className="border-l pr-6 text-right">
+                                                                Final
+                                                            </TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {record.subjects.map(
+                                                            (subject) => (
+                                                                <TableRow
+                                                                    key={`${record.id}-${subject.subject}`}
+                                                                >
+                                                                    <TableCell className="pl-6 font-medium">
+                                                                        {
+                                                                            subject.subject
+                                                                        }
+                                                                    </TableCell>
+                                                                    <TableCell className="border-l text-center">
+                                                                        {subject.q1}
+                                                                    </TableCell>
+                                                                    <TableCell className="border-l text-center">
+                                                                        {subject.q2}
+                                                                    </TableCell>
+                                                                    <TableCell className="border-l text-center">
+                                                                        {subject.q3}
+                                                                    </TableCell>
+                                                                    <TableCell className="border-l text-center">
+                                                                        {subject.q4}
+                                                                    </TableCell>
+                                                                    <TableCell className="border-l pr-6 text-right font-medium">
+                                                                        {
+                                                                            subject.final
+                                                                        }
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ),
+                                                        )}
+                                                        <TableRow>
+                                                            <TableCell className="pl-6 font-semibold">
+                                                                General Average
+                                                            </TableCell>
+                                                            <TableCell className="border-l text-center">
+                                                                -
+                                                            </TableCell>
+                                                            <TableCell className="border-l text-center">
+                                                                -
+                                                            </TableCell>
+                                                            <TableCell className="border-l text-center">
+                                                                -
+                                                            </TableCell>
+                                                            <TableCell className="border-l text-center">
+                                                                -
+                                                            </TableCell>
+                                                            <TableCell className="border-l pr-6 text-right font-semibold">
+                                                                {computeGeneralAverage(
+                                                                    record.subjects,
+                                                                )}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    </TableBody>
+                                                </Table>
+                                            </CardContent>
+                                        </Card>
+                                    ))
+                                )}
                             </CardContent>
                         </Card>
                     </div>
 
-                    {/* Add Historical Record Sidebar */}
-                    <Card className="sticky top-4 gap-2 border-primary/10 shadow-sm lg:col-span-2">
-                        <CardHeader className="border-b bg-primary/5">
-                            <CardTitle className="flex items-center gap-2 text-lg">
-                                <FilePlus2 className="size-5 text-primary" />
+                    <Card className="min-w-0 self-start gap-2">
+                        <CardHeader className="border-b">
+                            <CardTitle className="flex items-center gap-2">
+                                <FilePlus2 className="size-4" />
                                 Add Historical Record
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-6 pt-6">
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label className="flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
-                                        <Building2 className="size-3 text-muted-foreground" />
-                                        School Name
-                                    </Label>
-                                    <Input placeholder="Name of previous school..." />
-                                </div>
+                        <CardContent className="space-y-4 pt-6">
+                            <div className="space-y-2">
+                                <Label>School Name</Label>
+                                <Input placeholder="Previous school name" />
+                            </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label className="flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
-                                            <Calendar className="size-3 text-muted-foreground" />
-                                            School Year
-                                        </Label>
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                placeholder="2023"
-                                                className="text-center"
-                                            />
-                                            <span className="text-muted-foreground">
-                                                -
-                                            </span>
-                                            <Input
-                                                placeholder="2024"
-                                                className="text-center"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
-                                            <GraduationCap className="size-3 text-muted-foreground" />
-                                            Grade Level
-                                        </Label>
-                                        <Input
-                                            placeholder="e.g. 6"
-                                            className="text-center"
-                                        />
-                                    </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                    <Label>SY Start</Label>
+                                    <Input placeholder="2024" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>SY End</Label>
+                                    <Input placeholder="2025" />
                                 </div>
                             </div>
 
-                            <FieldSeparator />
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                    <Label>Grade Level</Label>
+                                    <Select defaultValue="grade_7">
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="grade_7">
+                                                Grade 7
+                                            </SelectItem>
+                                            <SelectItem value="grade_8">
+                                                Grade 8
+                                            </SelectItem>
+                                            <SelectItem value="grade_9">
+                                                Grade 9
+                                            </SelectItem>
+                                            <SelectItem value="grade_10">
+                                                Grade 10
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Status</Label>
+                                    <Select defaultValue="promoted">
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="promoted">
+                                                Promoted
+                                            </SelectItem>
+                                            <SelectItem value="conditional">
+                                                Conditional
+                                            </SelectItem>
+                                            <SelectItem value="retained">
+                                                Retained
+                                            </SelectItem>
+                                            <SelectItem value="completed">
+                                                Completed
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
 
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-xs font-bold tracking-wider uppercase">
-                                        Subjects & Final Grades
-                                    </Label>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <Label>Subject Quarterly Grades</Label>
                                     <Button
-                                        variant="ghost"
-                                        size="xs"
-                                        className="h-7 gap-1 font-bold text-primary hover:bg-primary/5"
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={addHistoricalSubject}
                                     >
-                                        <Plus className="size-3" />
+                                        <Plus className="size-4" />
                                         Add Subject
                                     </Button>
                                 </div>
-                                <div className="space-y-3">
-                                    <div className="grid grid-cols-4 gap-2">
-                                        <Input
-                                            placeholder="Subject"
-                                            className="col-span-3"
-                                        />
-                                        <Input
-                                            placeholder="Grade"
-                                            className="text-center font-bold"
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-4 gap-2">
-                                        <Input
-                                            placeholder="Subject"
-                                            className="col-span-3"
-                                        />
-                                        <Input
-                                            placeholder="Grade"
-                                            className="text-center font-bold"
-                                        />
-                                    </div>
+
+                                <div className="space-y-2">
+                                    {historicalSubjects.map(
+                                        (historicalSubject, index) => (
+                                            <div
+                                                key={historicalSubject.id}
+                                                className="space-y-2 rounded-md border p-2.5"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Input
+                                                        placeholder={`Subject ${index + 1}`}
+                                                        value={
+                                                            historicalSubject.subject
+                                                        }
+                                                        onChange={(event) =>
+                                                            updateHistoricalSubject(
+                                                                historicalSubject.id,
+                                                                'subject',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        onClick={() =>
+                                                            removeHistoricalSubject(
+                                                                historicalSubject.id,
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            historicalSubjects.length <=
+                                                            1
+                                                        }
+                                                    >
+                                                        <Trash2 className="size-4" />
+                                                    </Button>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                                                    <Input
+                                                        aria-label="Quarter 1 grade"
+                                                        placeholder="Q1"
+                                                        value={historicalSubject.q1}
+                                                        onChange={(event) =>
+                                                            updateHistoricalSubject(
+                                                                historicalSubject.id,
+                                                                'q1',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className="text-center"
+                                                    />
+                                                    <Input
+                                                        aria-label="Quarter 2 grade"
+                                                        placeholder="Q2"
+                                                        value={historicalSubject.q2}
+                                                        onChange={(event) =>
+                                                            updateHistoricalSubject(
+                                                                historicalSubject.id,
+                                                                'q2',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className="text-center"
+                                                    />
+                                                    <Input
+                                                        aria-label="Quarter 3 grade"
+                                                        placeholder="Q3"
+                                                        value={historicalSubject.q3}
+                                                        onChange={(event) =>
+                                                            updateHistoricalSubject(
+                                                                historicalSubject.id,
+                                                                'q3',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className="text-center"
+                                                    />
+                                                    <Input
+                                                        aria-label="Quarter 4 grade"
+                                                        placeholder="Q4"
+                                                        value={historicalSubject.q4}
+                                                        onChange={(event) =>
+                                                            updateHistoricalSubject(
+                                                                historicalSubject.id,
+                                                                'q4',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className="text-center"
+                                                    />
+                                                    <div className="bg-muted/40 flex h-9 items-center justify-center rounded-md border text-sm font-medium">
+                                                        {computeHistoricalFinal(
+                                                            historicalSubject,
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ),
+                                    )}
                                 </div>
+
+                                <p className="text-xs text-muted-foreground">
+                                    Final subject grades, failed-subject count,
+                                    and general average are auto-computed from
+                                    quarterly grades.
+                                </p>
                             </div>
 
-                            <Button className="mt-4 h-11 w-full font-bold tracking-wide">
-                                Save to SF10 History
-                            </Button>
+                            <div className="flex justify-end border-t pt-4">
+                                <Button type="button">Save Historical Record</Button>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
             </div>
+
+            <Dialog
+                open={isEditDialogOpen}
+                onOpenChange={(open) => {
+                    if (open) {
+                        setIsEditDialogOpen(true);
+                    } else {
+                        closeEditDialog();
+                    }
+                }}
+            >
+                <DialogContent className="max-h-[90vh] sm:max-w-2xl">
+                    <DialogHeader className="border-b">
+                        <DialogTitle>Edit Historical Record</DialogTitle>
+                    </DialogHeader>
+
+                    {editForm !== null ? (
+                        <div className="max-h-[62vh] space-y-4 overflow-y-auto pt-4 pr-1">
+                            <div className="space-y-2">
+                                <Label>School Name</Label>
+                                <Input
+                                    value={editForm.school_name}
+                                    onChange={(event) =>
+                                        updateEditField(
+                                            'school_name',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                    <Label>SY Start</Label>
+                                    <Input
+                                        value={editForm.school_year_start}
+                                        onChange={(event) =>
+                                            updateEditField(
+                                                'school_year_start',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>SY End</Label>
+                                    <Input
+                                        value={editForm.school_year_end}
+                                        onChange={(event) =>
+                                            updateEditField(
+                                                'school_year_end',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                    <Label>Grade Level</Label>
+                                    <Select
+                                        value={editForm.grade_level}
+                                        onValueChange={(value) =>
+                                            updateEditField(
+                                                'grade_level',
+                                                value,
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Grade 7">
+                                                Grade 7
+                                            </SelectItem>
+                                            <SelectItem value="Grade 8">
+                                                Grade 8
+                                            </SelectItem>
+                                            <SelectItem value="Grade 9">
+                                                Grade 9
+                                            </SelectItem>
+                                            <SelectItem value="Grade 10">
+                                                Grade 10
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Status</Label>
+                                    <Select
+                                        value={editForm.status}
+                                        onValueChange={(value) =>
+                                            updateEditStatus(
+                                                value as PermanentRecordStatus,
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="promoted">
+                                                Promoted
+                                            </SelectItem>
+                                            <SelectItem value="conditional">
+                                                Conditional
+                                            </SelectItem>
+                                            <SelectItem value="retained">
+                                                Retained
+                                            </SelectItem>
+                                            <SelectItem value="completed">
+                                                Completed
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <Label>Subject Quarterly Grades</Label>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={addEditSubject}
+                                    >
+                                        <Plus className="size-4" />
+                                        Add Subject
+                                    </Button>
+                                </div>
+
+                                <div className="max-h-[360px] space-y-2 overflow-y-auto">
+                                    {editForm.subjects.map(
+                                        (subject, index) => (
+                                            <div
+                                                key={subject.id}
+                                                className="space-y-2 rounded-md border p-2.5"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Input
+                                                        placeholder={`Subject ${index + 1}`}
+                                                        value={subject.subject}
+                                                        onChange={(event) =>
+                                                            updateEditSubject(
+                                                                subject.id,
+                                                                'subject',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        onClick={() =>
+                                                            removeEditSubject(
+                                                                subject.id,
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            editForm.subjects
+                                                                .length <= 1
+                                                        }
+                                                    >
+                                                        <Trash2 className="size-4" />
+                                                    </Button>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                                                    <Input
+                                                        aria-label="Quarter 1 grade"
+                                                        placeholder="Q1"
+                                                        value={subject.q1}
+                                                        onChange={(event) =>
+                                                            updateEditSubject(
+                                                                subject.id,
+                                                                'q1',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className="text-center"
+                                                    />
+                                                    <Input
+                                                        aria-label="Quarter 2 grade"
+                                                        placeholder="Q2"
+                                                        value={subject.q2}
+                                                        onChange={(event) =>
+                                                            updateEditSubject(
+                                                                subject.id,
+                                                                'q2',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className="text-center"
+                                                    />
+                                                    <Input
+                                                        aria-label="Quarter 3 grade"
+                                                        placeholder="Q3"
+                                                        value={subject.q3}
+                                                        onChange={(event) =>
+                                                            updateEditSubject(
+                                                                subject.id,
+                                                                'q3',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className="text-center"
+                                                    />
+                                                    <Input
+                                                        aria-label="Quarter 4 grade"
+                                                        placeholder="Q4"
+                                                        value={subject.q4}
+                                                        onChange={(event) =>
+                                                            updateEditSubject(
+                                                                subject.id,
+                                                                'q4',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className="text-center"
+                                                    />
+                                                    <div className="bg-muted/40 flex h-9 items-center justify-center rounded-md border text-sm font-medium">
+                                                        {computeHistoricalFinal(
+                                                            subject,
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    <DialogFooter className="border-t pt-4">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={closeEditDialog}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={saveEditedRecord}>
+                            Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

@@ -4,11 +4,15 @@ use App\Enums\UserRole;
 use App\Models\AcademicYear;
 use App\Models\ClassSchedule;
 use App\Models\Enrollment;
+use App\Models\FinalGrade;
 use App\Models\GradeLevel;
+use App\Models\PermanentRecord;
 use App\Models\Section;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Models\Subject;
+use App\Models\SubjectAssignment;
+use App\Models\TeacherSubject;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -200,6 +204,212 @@ test('admin academic controls actions work', function () {
         ->assertRedirect();
 
     expect(AcademicYear::count())->toBe(0);
+});
+
+test('admin year close runs batch promotion and creates next year enrollment', function () {
+    $sourceYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '4',
+    ]);
+
+    $targetYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $grade7 = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+    $grade8 = GradeLevel::query()->create([
+        'name' => 'Grade 8',
+        'level_order' => 8,
+    ]);
+
+    $teacher = User::factory()->teacher()->create();
+
+    $section = Section::query()->create([
+        'academic_year_id' => $sourceYear->id,
+        'grade_level_id' => $grade7->id,
+        'name' => 'Rizal',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '944444444444',
+        'first_name' => 'Maria',
+        'last_name' => 'Santos',
+    ]);
+
+    $sourceEnrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $sourceYear->id,
+        'grade_level_id' => $grade7->id,
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1500,
+        'status' => 'enrolled',
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $grade7->id,
+        'subject_code' => 'ENG7',
+        'subject_name' => 'English 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    foreach (['1', '2', '3', '4'] as $quarter) {
+        FinalGrade::query()->create([
+            'enrollment_id' => $sourceEnrollment->id,
+            'subject_assignment_id' => $assignment->id,
+            'quarter' => $quarter,
+            'grade' => 88,
+            'is_locked' => true,
+        ]);
+    }
+
+    Setting::set('backup_on_year_end', '0', 'backup');
+
+    $this->post("/admin/academic-controls/{$sourceYear->id}/advance-quarter")
+        ->assertRedirect();
+
+    expect($sourceYear->fresh()->status)->toBe('completed');
+
+    $nextEnrollment = Enrollment::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $targetYear->id)
+        ->first();
+
+    expect($nextEnrollment)->not->toBeNull();
+    expect($nextEnrollment->grade_level_id)->toBe($grade8->id);
+    expect($nextEnrollment->status)->toBe('pending_intake');
+    expect($nextEnrollment->section_id)->toBeNull();
+    expect((float) $nextEnrollment->downpayment)->toBe(0.0);
+
+    $record = PermanentRecord::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $sourceYear->id)
+        ->first();
+
+    expect($record)->not->toBeNull();
+    expect($record->status)->toBe('promoted');
+    expect((int) $record->failed_subject_count)->toBe(0);
+});
+
+test('admin year close is blocked when annual grades are incomplete or unlocked', function () {
+    $sourceYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '4',
+    ]);
+
+    $targetYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $grade7 = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+    GradeLevel::query()->create([
+        'name' => 'Grade 8',
+        'level_order' => 8,
+    ]);
+
+    $teacher = User::factory()->teacher()->create();
+
+    $section = Section::query()->create([
+        'academic_year_id' => $sourceYear->id,
+        'grade_level_id' => $grade7->id,
+        'name' => 'Mabini',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '955555555555',
+        'first_name' => 'Carlo',
+        'last_name' => 'Reyes',
+    ]);
+
+    $sourceEnrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $sourceYear->id,
+        'grade_level_id' => $grade7->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $grade7->id,
+        'subject_code' => 'SCI7',
+        'subject_name' => 'Science 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    FinalGrade::query()->create([
+        'enrollment_id' => $sourceEnrollment->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'grade' => 82,
+        'is_locked' => true,
+    ]);
+    FinalGrade::query()->create([
+        'enrollment_id' => $sourceEnrollment->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '2',
+        'grade' => 83,
+        'is_locked' => true,
+    ]);
+    FinalGrade::query()->create([
+        'enrollment_id' => $sourceEnrollment->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '3',
+        'grade' => 84,
+        'is_locked' => false,
+    ]);
+
+    $this->post("/admin/academic-controls/{$sourceYear->id}/advance-quarter")
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect($sourceYear->fresh()->status)->toBe('ongoing');
+
+    expect(Enrollment::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $targetYear->id)
+        ->exists())->toBeFalse();
 });
 
 test('admin curriculum manager actions work', function () {

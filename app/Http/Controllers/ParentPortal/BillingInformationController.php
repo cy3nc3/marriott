@@ -20,6 +20,9 @@ class BillingInformationController extends Controller
         $student = $this->resolveStudent(auth()->user());
         $enrollment = $student ? $this->resolveCurrentEnrollment($student) : null;
         $academicYear = $enrollment?->academicYear ?: $this->resolveActiveAcademicYear();
+        $isDepartedReadOnly = $enrollment
+            ? in_array($enrollment->status, ['transferred_out', 'dropped_out', 'dropped'], true)
+            : false;
 
         $defaultPlan = $this->normalizePlanKey($enrollment?->payment_term);
 
@@ -91,6 +94,7 @@ class BillingInformationController extends Controller
             'dues_by_plan' => $duesByPlan,
             'default_plan' => $defaultPlan,
             'recent_payments' => $recentPayments,
+            'is_departed_read_only' => $isDepartedReadOnly,
         ]);
     }
 
@@ -128,7 +132,7 @@ class BillingInformationController extends Controller
         return Enrollment::query()
             ->with('academicYear:id,name,status')
             ->where('student_id', $student->id)
-            ->where('status', 'enrolled')
+            ->whereIn('status', ['enrolled', 'transferred_out', 'dropped_out', 'dropped'])
             ->latest('id')
             ->first();
     }

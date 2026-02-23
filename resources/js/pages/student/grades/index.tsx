@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
-import { Heart, Info, ShieldCheck, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Heart, Info, ShieldCheck, TrendingUp } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -50,6 +51,7 @@ interface Props {
     };
     subject_rows: SubjectRow[];
     conduct_rows: ConductRow[];
+    is_departed_read_only: boolean;
 }
 
 export default function Grades({
@@ -57,12 +59,24 @@ export default function Grades({
     context,
     subject_rows,
     conduct_rows,
+    is_departed_read_only,
 }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My Grades" />
 
             <div className="flex flex-col gap-6">
+                {is_departed_read_only && (
+                    <Alert>
+                        <AlertTriangle className="size-4" />
+                        <AlertTitle>Read-only historical record</AlertTitle>
+                        <AlertDescription>
+                            Your enrollment is marked as departed. This page
+                            shows your latest available grade records.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 <div className="grid gap-6 lg:grid-cols-3">
                     <Card className="gap-2">
                         <CardHeader className="border-b">

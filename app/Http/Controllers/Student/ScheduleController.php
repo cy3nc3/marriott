@@ -17,6 +17,9 @@ class ScheduleController extends Controller
     {
         $student = $this->resolveStudent(auth()->user());
         $enrollment = $student ? $this->resolveCurrentEnrollment($student) : null;
+        $isDepartedReadOnly = $enrollment
+            ? in_array($enrollment->status, ['transferred_out', 'dropped_out', 'dropped'], true)
+            : false;
 
         $scheduleItems = collect();
         $breakItems = collect();
@@ -81,6 +84,7 @@ class ScheduleController extends Controller
         return Inertia::render('student/schedule/index', [
             'schedule_items' => $scheduleItems,
             'break_items' => $breakItems,
+            'is_departed_read_only' => $isDepartedReadOnly,
         ]);
     }
 
@@ -115,7 +119,7 @@ class ScheduleController extends Controller
 
         return Enrollment::query()
             ->where('student_id', $student->id)
-            ->where('status', 'enrolled')
+            ->whereIn('status', ['enrolled', 'transferred_out', 'dropped_out', 'dropped'])
             ->latest('id')
             ->first();
     }

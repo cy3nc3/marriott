@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\Setting;
 use App\Services\AuditLogService;
+use App\Services\Registrar\BatchPromotionService;
 use App\Services\SystemBackupService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -74,6 +75,7 @@ class SchoolYearController extends Controller
         AcademicYear $academicYear,
         SystemBackupService $backupService,
         AuditLogService $auditLogService,
+        BatchPromotionService $batchPromotionService,
     ) {
         $next = (int) $academicYear->current_quarter + 1;
 
@@ -95,6 +97,25 @@ class SchoolYearController extends Controller
                 ]);
             }
         } else {
+            $targetAcademicYear = AcademicYear::query()
+                ->where('start_date', '>', $academicYear->start_date)
+                ->orderBy('start_date')
+                ->first();
+
+            if (! $targetAcademicYear) {
+                return back()->with('error', 'Cannot close school year without an upcoming school year record.');
+            }
+
+            $promotionSummary = $batchPromotionService->run(
+                $academicYear,
+                $targetAcademicYear,
+                auth()->user()
+            );
+
+            if (($promotionSummary['grade_completeness_issue_count'] ?? 0) > 0) {
+                return back()->with('error', 'Cannot close school year. Complete and lock all annual grades first.');
+            }
+
             $academicYear->update(['status' => 'completed']);
 
             if (Setting::enabled('backup_on_year_end', true)) {

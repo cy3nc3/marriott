@@ -19,6 +19,9 @@ class GradesController extends Controller
     {
         $student = $this->resolveStudent(auth()->user());
         $enrollment = $student ? $this->resolveCurrentEnrollment($student) : null;
+        $isDepartedReadOnly = $enrollment
+            ? in_array($enrollment->status, ['transferred_out', 'dropped_out', 'dropped'], true)
+            : false;
 
         $subjectRows = collect();
         $conductRows = collect([
@@ -106,6 +109,7 @@ class GradesController extends Controller
             'context' => $context,
             'subject_rows' => $subjectRows,
             'conduct_rows' => $conductRows,
+            'is_departed_read_only' => $isDepartedReadOnly,
         ]);
     }
 
@@ -142,7 +146,7 @@ class GradesController extends Controller
         return Enrollment::query()
             ->with(['academicYear:id,name', 'section:id,adviser_id', 'section.adviser:id,first_name,last_name'])
             ->where('student_id', $student->id)
-            ->where('status', 'enrolled')
+            ->whereIn('status', ['enrolled', 'transferred_out', 'dropped_out', 'dropped'])
             ->latest('id')
             ->first();
     }

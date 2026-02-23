@@ -1,14 +1,8 @@
-import { Form, Head } from '@inertiajs/react';
-import InputError from '@/components/input-error';
-import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import AuthLayout from '@/layouts/auth-layout';
-import { store } from '@/routes/login';
-import { request } from '@/routes/password';
+import { Head, Link } from '@inertiajs/react';
+import AppLogoIcon from '@/components/app-logo-icon';
+import { LoginForm } from '@/components/login-form';
+import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
+import { home } from '@/routes';
 
 type Props = {
     status?: string;
@@ -17,90 +11,46 @@ type Props = {
 
 export default function Login({ status, canResetPassword }: Props) {
     return (
-        <AuthLayout
-            title="Log in to your account"
-            description="Enter your email and password below to log in"
-        >
+        <>
             <Head title="Log in" />
 
-            <Form
-                action={store().url}
-                method={store().method}
-                resetOnSuccess={['password']}
-                className="flex flex-col gap-6"
-            >
-                {({ processing, errors }) => (
-                    <>
-                        <div className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    name="email"
-                                    required
-                                    autoFocus
-                                    tabIndex={1}
-                                    autoComplete="email"
-                                    placeholder="email@example.com"
-                                />
-                                <InputError message={errors.email} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <div className="flex items-center">
-                                    <Label htmlFor="password">Password</Label>
-                                    {canResetPassword && (
-                                        <TextLink
-                                            href={request()}
-                                            className="ml-auto text-sm"
-                                            tabIndex={5}
-                                        >
-                                            Forgot password?
-                                        </TextLink>
-                                    )}
-                                </div>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    name="password"
-                                    required
-                                    tabIndex={2}
-                                    autoComplete="current-password"
-                                    placeholder="Password"
-                                />
-                                <InputError message={errors.password} />
-                            </div>
-
-                            <div className="flex items-center space-x-3">
-                                <Checkbox
-                                    id="remember"
-                                    name="remember"
-                                    tabIndex={3}
-                                />
-                                <Label htmlFor="remember">Remember me</Label>
-                            </div>
-
-                            <Button
-                                type="submit"
-                                className="mt-4 w-full"
-                                tabIndex={4}
-                                disabled={processing}
-                                data-test="login-button"
-                            >
-                                {processing && <Spinner />}
-                                Log in
-                            </Button>
+            <div className="grid min-h-svh lg:grid-cols-2">
+                <div className="bg-muted relative hidden lg:block">
+                    <div className="absolute inset-0 bg-muted/30" />
+                    <PlaceholderPattern className="absolute inset-0 h-full w-full stroke-muted-foreground/25" />
+                    <div className="relative z-10 flex h-full items-center justify-center p-10">
+                        <div className="space-y-4 text-center">
+                            <AppLogoIcon className="mx-auto size-16 fill-current text-[var(--foreground)] dark:text-white" />
+                            <p className="text-sm text-muted-foreground">
+                                School operations platform for registrar,
+                                finance, teachers, students, and parents.
+                            </p>
                         </div>
-                    </>
-                )}
-            </Form>
-
-            {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    {status}
+                    </div>
                 </div>
-            )}
-        </AuthLayout>
+
+                <div className="flex flex-col gap-4 p-6 md:p-10">
+                    <div className="flex justify-center gap-2 md:justify-start">
+                        <Link
+                            href={home()}
+                            className="flex items-center gap-2 font-medium"
+                        >
+                            <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
+                                <AppLogoIcon className="size-4 fill-current" />
+                            </div>
+                            Marriott School Suite
+                        </Link>
+                    </div>
+                    <div className="flex flex-1 items-center justify-center">
+                        <div className="w-full max-w-xs">
+                            <LoginForm
+                                status={status}
+                                canResetPassword={canResetPassword}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
     );
 }

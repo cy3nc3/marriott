@@ -1,10 +1,12 @@
 import { Head, router } from '@inertiajs/react';
-import { Search, History, Eye, ShieldAlert } from 'lucide-react';
-import { useState } from 'react';
 import { format } from 'date-fns';
+import { Eye, History, Search, ShieldAlert } from 'lucide-react';
+import { useState } from 'react';
+import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { DateRangePicker } from '@/components/ui/date-picker';
 import {
     Dialog,
     DialogContent,
@@ -14,7 +16,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { DateRangePicker } from '@/components/ui/date-picker';
 import {
     Table,
     TableBody,
@@ -25,7 +26,6 @@ import {
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
-import type { DateRange } from 'react-day-picker';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -163,55 +163,29 @@ export default function AuditLogs({ logs, filters }: Props) {
                                     <TableHead className="pl-6">
                                         Timestamp
                                     </TableHead>
-                                    <TableHead>User</TableHead>
-                                    <TableHead>Action</TableHead>
-                                    <TableHead>Target</TableHead>
-                                    <TableHead>IP Address</TableHead>
-                                    <TableHead className="pr-6 text-right">
+                                    <TableHead className="border-l">
+                                        User
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        Action
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        Target
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        IP Address
+                                    </TableHead>
+                                    <TableHead className="border-l pr-6 text-right">
                                         Details
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {logs.data.map((log) => (
-                                    <TableRow key={log.id}>
-                                        <TableCell className="pl-6 font-mono text-xs text-muted-foreground">
-                                            {new Date(
-                                                log.created_at,
-                                            ).toLocaleString()}
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {log.user?.name || 'System'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline">
-                                                {log.action}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-xs text-muted-foreground italic">
-                                            {targetLabel(log)}
-                                        </TableCell>
-                                        <TableCell className="font-mono text-xs">
-                                            {log.ip_address}
-                                        </TableCell>
-                                        <TableCell className="pr-6 text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() =>
-                                                    setSelectedLog(log)
-                                                }
-                                            >
-                                                <Eye className="size-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {logs.data.length === 0 && (
+                                {logs.data.length === 0 ? (
                                     <TableRow>
                                         <TableCell
                                             colSpan={6}
-                                            className="h-32 text-center"
+                                            className="h-24"
                                         >
                                             <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                                                 <History className="size-8 opacity-40" />
@@ -221,6 +195,49 @@ export default function AuditLogs({ logs, filters }: Props) {
                                             </div>
                                         </TableCell>
                                     </TableRow>
+                                ) : (
+                                    logs.data.map((log) => (
+                                        <TableRow key={log.id}>
+                                            <TableCell className="pl-6">
+                                                <span className="font-mono text-xs text-muted-foreground">
+                                                    {new Date(
+                                                        log.created_at,
+                                                    ).toLocaleString()}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                <span className="font-medium">
+                                                    {log.user?.name || 'System'}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                <Badge variant="outline">
+                                                    {log.action}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                <span className="text-xs text-muted-foreground italic">
+                                                    {targetLabel(log)}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                <span className="font-mono text-xs">
+                                                    {log.ip_address}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="border-l pr-6 text-right">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() =>
+                                                        setSelectedLog(log)
+                                                    }
+                                                >
+                                                    <Eye className="size-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
                                 )}
                             </TableBody>
                         </Table>

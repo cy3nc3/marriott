@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
-import { CalendarDays, Clock } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Clock } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
@@ -36,9 +37,14 @@ type BreakItem = {
 interface Props {
     schedule_items: ScheduleItem[];
     break_items: BreakItem[];
+    is_departed_read_only: boolean;
 }
 
-export default function Schedule({ schedule_items, break_items }: Props) {
+export default function Schedule({
+    schedule_items,
+    break_items,
+    is_departed_read_only,
+}: Props) {
     const classCount = schedule_items.filter(
         (item) => item.type === 'class',
     ).length;
@@ -61,6 +67,17 @@ export default function Schedule({ schedule_items, break_items }: Props) {
             <Head title="My Schedule" />
 
             <div className="flex flex-col gap-6">
+                {is_departed_read_only && (
+                    <Alert>
+                        <AlertTriangle className="size-4" />
+                        <AlertTitle>Read-only historical record</AlertTitle>
+                        <AlertDescription>
+                            Your enrollment is marked as departed. This page
+                            shows your latest available class schedule.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 <Card className="gap-2">
                     <CardContent className="space-y-4 p-4 sm:p-6">
                         <div className="flex flex-wrap items-center justify-between gap-3">

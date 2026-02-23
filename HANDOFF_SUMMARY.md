@@ -1,7 +1,7 @@
 # HANDOFF SUMMARY
 
-Last updated: 2026-02-22
-Project path: `C:\Users\jadeg\Documents\Capstone\marriott`
+Last updated: 2026-02-23
+Project path: `/home/lomonol/projects/marriott` (active), `C:\Users\jadeg\Documents\Capstone\marriott` (previous Windows path)
 Primary branch target: `main`
 Latest pushed commit: `d9d96d5`
 
@@ -19,7 +19,7 @@ This repository is now a role-based Laravel + Inertia school operations system w
 High-confidence areas:
 
 1. Super admin governance modules are functionally wired.
-2. Registrar core workflow (directory + SF1 + intake + remedial) is wired.
+2. Registrar core workflow (directory + SF1 + intake + remedial + departure + batch promotion monitor) is wired.
 3. Finance operational modules are wired.
 4. Teacher grading/advisory/schedule modules are wired.
 5. Student and Parent feature pages are consistent and wired.
@@ -129,13 +129,10 @@ Implemented modules:
 1. `student-directory` (+ SF1 upload)
 2. `enrollment`
 3. `remedial-entry`
-4. dashboard
-
-Deferred registrar modules:
-
-1. `student-departure`
-2. `permanent-records`
-3. `batch-promotion`
+4. `student-departure`
+5. `batch-promotion`
+6. `permanent-records` (frontend production-style visualization and edit interactions)
+7. dashboard
 
 ### 4.4 Finance
 
@@ -303,6 +300,42 @@ UI/UX iterations completed:
     - pending = lighter tone
     - errors = red
 
+### 7.5 Batch Promotion + Year Close Integration
+
+1. Added batch promotion backend service: `app/Services/Registrar/BatchPromotionService.php`.
+2. Added registrar monitoring page/controller wiring:
+    - `app/Http/Controllers/Registrar/BatchPromotionController.php`
+    - `resources/js/pages/registrar/batch-promotion/index.tsx`
+3. Added review-resolution request validation:
+    - `app/Http/Requests/Registrar/ResolveBatchPromotionReviewRequest.php`
+4. Admin year-close integration implemented in:
+    - `app/Http/Controllers/Admin/SchoolYearController.php`
+5. Year close now attempts promotion to target school year before setting source year as completed.
+6. Grade completeness blockers are returned and prevent year close when required annual grades are incomplete/unlocked.
+
+### 7.6 Student Departure Workflow
+
+1. Added registrar student departure controller and request validation:
+    - `app/Http/Controllers/Registrar/StudentDepartureController.php`
+    - `app/Http/Requests/Registrar/StoreStudentDepartureRequest.php`
+2. Added registrar page:
+    - `resources/js/pages/registrar/student-departure/index.tsx`
+3. Added `student_departures` persistence model:
+    - `app/Models/StudentDeparture.php`
+4. Added login-expiry model via `users.access_expires_at`.
+5. Departure flow now supports `transfer_out` and `dropped_out` with enrollment status updates.
+6. Historical student/parent pages include read-only support for departed statuses.
+
+### 7.7 Permanent Records Frontend Progress
+
+1. Permanent records page was rebuilt into production-oriented UI flow:
+    - search + student info + academic history + add historical record
+2. Academic history (SF10-style) now shows subject rows by quarter (`Q1-Q4`) + final + general average.
+3. Added edit action per academic-history card with prefilled dialog edit form.
+4. Historical subject encoding supports add/remove subject rows and computed final grade previews.
+5. Grade level/status inputs were standardized to select controls in add/edit flows.
+6. Note: this page currently remains frontend-driven for visualization (`routes/roles/registrar.php` still serves it with `Inertia::render(...)`).
+
 ---
 
 ## 8. Finance Work Completed
@@ -455,11 +488,18 @@ Known additions/usage in this implementation stream include:
 1. Conduct ratings data support (`conduct_ratings` migration and model integration).
 2. Super admin feature wiring leveraged settings/audit/announcement persistence.
 3. Registrar/finance/teacher workflows use enrollment, scores, transactions, and related records with active-year scoping patterns.
+4. Registrar progression/departure schema updates were added:
+    - `database/migrations/2026_02_22_202828_update_permanent_records_for_conditional_tracking.php`
+    - `database/migrations/2026_02_22_202829_add_access_expires_at_to_users_table.php`
+    - `database/migrations/2026_02_22_202829_create_student_departures_table.php`
+5. `permanent_records` migration includes duplicate cleanup before unique index creation on `(student_id, academic_year_id)`.
 
 Operational note:
 
 1. Migrations are required before running newly wired modules.
 2. User has previously run `php artisan migrate` successfully in this stream.
+3. If migrating an older DB snapshot, ensure the three registrar-related migrations above are applied.
+4. Fortify auth now enforces account `is_active` and `access_expires_at` checks.
 
 ---
 
@@ -469,10 +509,7 @@ These remain deferred unless explicitly re-opened:
 
 1. Admin `deped-reports`
 2. Admin `sf9-generator`
-3. Registrar `student-departure`
-4. Registrar `permanent-records`
-5. Registrar `batch-promotion`
-6. Additional print/export-heavy finance extensions
+3. Finance print/export-heavy extensions (deferred by product decision)
 
 ---
 
@@ -502,6 +539,14 @@ These remain deferred unless explicitly re-opened:
 2. Pint formatting passed.
 3. Targeted dashboard feature tests passed.
 4. Targeted teacher dashboard/grading tests passed.
+5. Post-table-refactor targeted suites passed:
+    - `tests/Feature/Registrar/RegistrarFeaturesTest.php`
+    - `tests/Feature/Finance/TransactionHistoryTest.php`
+    - `tests/Feature/Finance/StudentLedgersTest.php`
+    - `tests/Feature/SuperAdmin/AuditLogTest.php`
+    - `tests/Feature/SuperAdmin/UserManagerTest.php`
+    - `tests/Feature/RoleAccessTest.php`
+6. Combined targeted run result: `22 passed (301 assertions)`.
 
 ---
 
@@ -563,3 +608,98 @@ Tests:
 2. role-specific feature suites under `tests/Feature/{Role}`
 
 This summary is now the authoritative operational handoff for ongoing system development.
+
+---
+
+## 21. Latest UI/Frontend Progress Addendum (2026-02-23)
+
+### 21.1 Table Strategy Change
+
+1. DataTable usage was rolled back to standard shadcn `Table` markup for visual preference consistency.
+2. Updated pages:
+    - `resources/js/pages/registrar/student-directory/index.tsx`
+    - `resources/js/pages/finance/student-ledgers/index.tsx`
+    - `resources/js/pages/finance/transaction-history/index.tsx`
+    - `resources/js/pages/super_admin/audit-logs/index.tsx`
+    - `resources/js/pages/super_admin/user-manager/index.tsx`
+3. `resources/js/components/ui/data-table.tsx` and `resources/js/components/ui/data-table-column-header.tsx` still exist in repo but are not actively used by those pages after rollback.
+
+### 21.2 Permanent Records Iteration Details
+
+1. Search bar width and header/body card spacing were tuned to match system style.
+2. Student selection display was converted into dedicated student info card (removed badge-style selection indicator).
+3. Add Historical Record:
+    - removed manual failed-subject and general-average entry fields
+    - quarter-first entry flow with computed final values
+    - compacted subject row UI to control page height growth
+4. Edit Historical Record dialog:
+    - prefilled from selected academic history record
+    - reduced viewport footprint (`max-h` + internal scroll)
+    - action placement and sizing aligned with form layout patterns
+5. Add/edit grade level is constrained to `Grade 7` to `Grade 10` select options; status aligned beside grade level.
+
+### 21.3 Auth/Login UI
+
+1. Login page now uses block-style composition and split layout via:
+    - `resources/js/pages/auth/login.tsx`
+    - `resources/js/components/login-form.tsx`
+2. Visual presentation follows prior direction (production-style layout with cleaner primary auth flow).
+
+---
+
+## 22. Setup and Run Checklist (Critical for Other Device Handoff)
+
+Use this exact sequence on a fresh machine or after pulling major backend changes.
+
+### 22.1 Fresh Clone Setup
+
+1. `composer install`
+2. `composer run setup`
+3. Edit `.env` database credentials.
+4. `composer run setup:finish`
+    - runs `php artisan migrate --seed --force`
+    - runs `npm run build`
+
+### 22.2 Existing Project Pull / Incremental Setup
+
+1. `git pull origin main`
+2. `composer install`
+3. `npm install`
+4. `php artisan migrate`
+5. `npm run build` (or `npm run dev` for local hot reload)
+
+### 22.3 Dev Runtime
+
+1. `composer run dev`
+    - serves Laravel on port 8001
+    - starts queue listener
+    - starts Vite dev server
+2. Alternative split runs:
+    - `php artisan serve --port=8001`
+    - `php artisan queue:listen --tries=1 --timeout=0`
+    - `npm run dev`
+
+### 22.4 If You Hit Common Issues
+
+1. Vite manifest error:
+    - run `npm run build` or keep `npm run dev` active.
+2. Stale config/cache behavior:
+    - run `php artisan optimize:clear`.
+3. New registrar lifecycle features missing:
+    - confirm migrations are applied (`php artisan migrate`).
+
+### 22.5 Required Quality Checks After Edits
+
+1. `vendor/bin/pint --dirty --format agent`
+2. `npm run -s types`
+3. `php artisan test --compact <targeted test files>`
+
+---
+
+## 23. Notes for the Next AI Session
+
+1. Review this handoff and scan current route/controller/page structure before coding.
+2. Do not assume deferred registrar lifecycle modules are pending; batch promotion and student departure are already wired.
+3. Permanent records page currently behaves as production visualization + client-side edit flow; backend persistence wiring for that page can be next if requested.
+4. Preserve shadcn-first component usage and Tailwind utility-only layout positioning conventions.
+5. Continue to avoid introducing DataTable wrappers unless explicitly requested again.

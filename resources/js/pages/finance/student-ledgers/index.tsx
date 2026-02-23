@@ -453,37 +453,40 @@ export default function StudentLedgers({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {dues_schedule.map((due) => (
-                                        <TableRow key={due.id}>
-                                            <TableCell className="pl-6">
-                                                {due.due_date_label || '-'}
-                                            </TableCell>
-                                            <TableCell className="border-l">
-                                                {due.description}
-                                            </TableCell>
-                                            <TableCell className="border-l text-right">
-                                                {formatCurrency(due.amount_due)}
-                                            </TableCell>
-                                            <TableCell className="border-l pr-6 text-right">
-                                                <Badge
-                                                    variant={dueBadgeVariant(
-                                                        due.status,
-                                                    )}
-                                                >
-                                                    {due.status_label}
-                                                </Badge>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {dues_schedule.length === 0 && (
+                                    {dues_schedule.length === 0 ? (
                                         <TableRow>
                                             <TableCell
                                                 colSpan={4}
-                                                className="py-8 text-center text-sm text-muted-foreground"
+                                                className="h-24 text-center text-sm text-muted-foreground"
                                             >
                                                 No dues found for this student.
                                             </TableCell>
                                         </TableRow>
+                                    ) : (
+                                        dues_schedule.map((due) => (
+                                            <TableRow key={due.id}>
+                                                <TableCell className="pl-6">
+                                                    {due.due_date_label || '-'}
+                                                </TableCell>
+                                                <TableCell className="border-l">
+                                                    {due.description}
+                                                </TableCell>
+                                                <TableCell className="border-l text-right">
+                                                    {formatCurrency(
+                                                        due.amount_due,
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="border-l pr-6 text-right">
+                                                    <Badge
+                                                        variant={dueBadgeVariant(
+                                                            due.status,
+                                                        )}
+                                                    >
+                                                        {due.status_label}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
                                     )}
                                 </TableBody>
                             </Table>
@@ -565,49 +568,54 @@ export default function StudentLedgers({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {ledger_entries.map((entry) => (
-                                    <TableRow key={entry.id}>
-                                        <TableCell className="pl-6">
-                                            {entry.date_label || '-'}
-                                        </TableCell>
-                                        <TableCell className="border-l">
-                                            {entry.reference}
-                                        </TableCell>
-                                        <TableCell className="border-l">
-                                            <Badge
-                                                variant={ledgerBadgeVariant(
-                                                    entry.entry_type,
-                                                )}
-                                            >
-                                                {entry.entry_type_label}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="border-l text-right">
-                                            {entry.charge > 0
-                                                ? formatCurrency(entry.charge)
-                                                : '-'}
-                                        </TableCell>
-                                        <TableCell className="border-l text-right">
-                                            {entry.payment > 0
-                                                ? formatCurrency(entry.payment)
-                                                : '-'}
-                                        </TableCell>
-                                        <TableCell className="border-l pr-6 text-right">
-                                            {formatCurrency(
-                                                entry.running_balance,
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {ledger_entries.length === 0 && (
+                                {ledger_entries.length === 0 ? (
                                     <TableRow>
                                         <TableCell
                                             colSpan={6}
-                                            className="py-8 text-center text-sm text-muted-foreground"
+                                            className="h-24 text-center text-sm text-muted-foreground"
                                         >
                                             No ledger entries found.
                                         </TableCell>
                                     </TableRow>
+                                ) : (
+                                    ledger_entries.map((entry) => (
+                                        <TableRow key={entry.id}>
+                                            <TableCell className="pl-6">
+                                                {entry.date_label || '-'}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {entry.reference}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                <Badge
+                                                    variant={ledgerBadgeVariant(
+                                                        entry.entry_type,
+                                                    )}
+                                                >
+                                                    {entry.entry_type_label}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="border-l text-right">
+                                                {entry.charge > 0
+                                                    ? formatCurrency(
+                                                          entry.charge,
+                                                      )
+                                                    : '-'}
+                                            </TableCell>
+                                            <TableCell className="border-l text-right">
+                                                {entry.payment > 0
+                                                    ? formatCurrency(
+                                                          entry.payment,
+                                                      )
+                                                    : '-'}
+                                            </TableCell>
+                                            <TableCell className="border-l pr-6 text-right">
+                                                {formatCurrency(
+                                                    entry.running_balance,
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
                                 )}
                             </TableBody>
                         </Table>

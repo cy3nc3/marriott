@@ -262,6 +262,77 @@ test('student grades page renders computed subject rows and conduct ratings', fu
         );
 });
 
+test('student pages use departed enrollment as read only fallback', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '2',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $teacher = User::factory()->teacher()->create([
+        'first_name' => 'Arthur',
+        'last_name' => 'Santos',
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'MATH7',
+        'subject_name' => 'Mathematics 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'transferred_out',
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $section->id,
+        'subject_assignment_id' => $assignment->id,
+        'type' => 'academic',
+        'label' => null,
+        'day' => 'Monday',
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+    ]);
+
+    $this->get('/student/schedule')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('student/schedule/index')
+            ->where('is_departed_read_only', true)
+            ->where('schedule_items.0.title', 'Mathematics 7')
+        );
+});
+
 test('student dashboard is learning-focused and excludes billing metrics', function () {
     Carbon::setTestNow('2025-06-16 08:30:00');
 

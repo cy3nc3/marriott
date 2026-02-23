@@ -13,8 +13,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
 import { sf1_upload } from '@/routes/registrar/student_directory';
+import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -164,31 +164,19 @@ export default function StudentDirectory({
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="pl-6">LRN</TableHead>
-                                    <TableHead>Student</TableHead>
-                                    <TableHead>Grade and Section</TableHead>
-                                    <TableHead className="pr-6">
+                                    <TableHead className="border-l">
+                                        Student
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        Grade and Section
+                                    </TableHead>
+                                    <TableHead className="border-l pr-6">
                                         LIS Status
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {students.map((student) => (
-                                    <TableRow key={student.id}>
-                                        <TableCell className="pl-6">
-                                            {student.lrn}
-                                        </TableCell>
-                                        <TableCell>
-                                            {student.student_name}
-                                        </TableCell>
-                                        <TableCell>
-                                            {student.grade_section}
-                                        </TableCell>
-                                        <TableCell className="pr-6">
-                                            {statusBadge(student.lis_status)}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {students.length === 0 && (
+                                {students.length === 0 ? (
                                     <TableRow>
                                         <TableCell
                                             colSpan={4}
@@ -197,6 +185,23 @@ export default function StudentDirectory({
                                             No students found.
                                         </TableCell>
                                     </TableRow>
+                                ) : (
+                                    students.map((student) => (
+                                        <TableRow key={student.id}>
+                                            <TableCell className="pl-6 font-medium">
+                                                {student.lrn}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {student.student_name}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {student.grade_section}
+                                            </TableCell>
+                                            <TableCell className="border-l pr-6">
+                                                {statusBadge(student.lis_status)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
                                 )}
                             </TableBody>
                         </Table>

@@ -242,13 +242,16 @@ class EnrollmentController extends Controller
                     'password' => Hash::make($student->lrn),
                 ]
             );
-        } else {
-            $studentUser->update([
-                'first_name' => $student->first_name,
-                'last_name' => $student->last_name,
-                'name' => trim("{$student->first_name} {$student->last_name}"),
-            ]);
         }
+
+        $studentUser->update([
+            'first_name' => $student->first_name,
+            'last_name' => $student->last_name,
+            'name' => trim("{$student->first_name} {$student->last_name}"),
+            'role' => UserRole::STUDENT->value,
+            'is_active' => true,
+            'access_expires_at' => null,
+        ]);
 
         if ($student->user_id !== $studentUser->id) {
             $student->update(['user_id' => $studentUser->id]);

@@ -1,9 +1,9 @@
 [mcp_servers.laravel-boost]
-command = "php"
-args = ["artisan", "boost:mcp"]
-cwd = "C:\\Users\\jadeg\\Documents\\Capstone\\marriott"
+command = "/usr/bin/php8.3"
+args = ["/home/lomonol/projects/marriott/artisan", "mcp:start", "laravel-boost"]
+cwd = "."
 
 [mcp_servers.shadcn]
-command = "npx"
-args = ["shadcn@latest", "mcp"]
-cwd = "C:\\Users\\jadeg\\Documents\\Capstone\\marriott"
+command = "/home/lomonol/.nvm/versions/node/v24.13.0/bin/node"
+args = ["/home/lomonol/.nvm/versions/node/v24.13.0/lib/node_modules/shadcn/dist/index.js", "mcp", "--cwd", "/home/lomonol/projects/marriott"]
+cwd = "."

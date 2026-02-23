@@ -7,11 +7,13 @@ use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
 use App\Models\GradeLevel;
+use App\Models\PermanentRecord;
 use App\Models\RemedialRecord;
 use App\Models\Student;
 use App\Models\Subject;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -113,22 +115,7 @@ class RemedialEntryController extends Controller
 
         $failedGradeMap = collect();
         if ($selectedEnrollment) {
-            $failedGrades = FinalGrade::query()
-                ->with('subjectAssignment.teacherSubject.subject:id,subject_name')
-                ->where('enrollment_id', $selectedEnrollment->id)
-                ->whereIn('quarter', ['4', 'final'])
-                ->where('grade', '<', 75)
-                ->get();
-
-            $failedGradeMap = $failedGrades
-                ->mapWithKeys(function (FinalGrade $grade) {
-                    $subject = $grade->subjectAssignment?->teacherSubject?->subject;
-                    if (! $subject) {
-                        return [];
-                    }
-
-                    return [$subject->id => (float) $grade->grade];
-                });
+            $failedGradeMap = $this->resolveAnnualFailedGradeMap($selectedEnrollment);
         }
 
         $remedialRows = collect();
@@ -288,10 +275,31 @@ class RemedialEntryController extends Controller
             return back()->with('error', 'No remedial rows were saved. Please enter at least one complete row.');
         }
 
+        if ($validated['save_mode'] === 'submitted') {
+            $this->resolveConditionalRecordIfCompleted(
+                (int) $validated['student_id'],
+                (int) $validated['academic_year_id']
+            );
+        }
+
+        $hasUnresolvedConditionals = PermanentRecord::query()
+            ->where('student_id', $validated['student_id'])
+            ->where('status', 'conditional')
+            ->whereNull('conditional_resolved_at')
+            ->exists();
+
+        $hasFailedRemedialRecords = RemedialRecord::query()
+            ->where('student_id', $validated['student_id'])
+            ->where('status', 'failed')
+            ->exists();
+
         Student::query()
             ->whereKey($validated['student_id'])
             ->update([
-                'is_for_remedial' => $validated['save_mode'] === 'draft' || $hasFailed,
+                'is_for_remedial' => $validated['save_mode'] === 'draft'
+                    || $hasFailed
+                    || $hasFailedRemedialRecords
+                    || $hasUnresolvedConditionals,
             ]);
 
         $message = $validated['save_mode'] === 'submitted'
@@ -299,5 +307,112 @@ class RemedialEntryController extends Controller
             : 'Remedial draft saved.';
 
         return back()->with('success', $message);
+    }
+
+    /**
+     * @return Collection<int, float>
+     */
+    private function resolveAnnualFailedGradeMap(Enrollment $enrollment): Collection
+    {
+        $quarterGrades = FinalGrade::query()
+            ->with('subjectAssignment.teacherSubject.subject:id,subject_name')
+            ->where('enrollment_id', $enrollment->id)
+            ->whereIn('quarter', ['1', '2', '3', '4'])
+            ->get();
+
+        return $quarterGrades
+            ->groupBy(function (FinalGrade $grade) {
+                return $grade->subjectAssignment?->teacherSubject?->subject?->id;
+            })
+            ->mapWithKeys(function (Collection $grades, $subjectId): array {
+                if (! $subjectId) {
+                    return [];
+                }
+
+                $gradeByQuarter = $grades
+                    ->keyBy(function (FinalGrade $grade): string {
+                        return (string) $grade->quarter;
+                    });
+
+                $quarters = collect(['1', '2', '3', '4']);
+                $hasAllQuarters = $quarters->every(function (string $quarter) use ($gradeByQuarter): bool {
+                    return $gradeByQuarter->has($quarter);
+                });
+
+                if (! $hasAllQuarters) {
+                    return [];
+                }
+
+                $allLocked = $quarters->every(function (string $quarter) use ($gradeByQuarter): bool {
+                    return (bool) $gradeByQuarter->get($quarter)?->is_locked;
+                });
+
+                if (! $allLocked) {
+                    return [];
+                }
+
+                $annualGrade = round((float) $quarters
+                    ->map(function (string $quarter) use ($gradeByQuarter): float {
+                        return (float) $gradeByQuarter->get($quarter)->grade;
+                    })
+                    ->avg(), 2);
+
+                if ($annualGrade >= 75) {
+                    return [];
+                }
+
+                return [(int) $subjectId => $annualGrade];
+            });
+    }
+
+    private function resolveConditionalRecordIfCompleted(int $studentId, int $academicYearId): void
+    {
+        $conditionalRecord = PermanentRecord::query()
+            ->where('student_id', $studentId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('status', 'conditional')
+            ->whereNull('conditional_resolved_at')
+            ->first();
+
+        if (! $conditionalRecord) {
+            return;
+        }
+
+        $enrollment = Enrollment::query()
+            ->where('student_id', $studentId)
+            ->where('academic_year_id', $academicYearId)
+            ->first();
+
+        if (! $enrollment) {
+            return;
+        }
+
+        $failedSubjectIds = $this->resolveAnnualFailedGradeMap($enrollment)
+            ->keys()
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        if ($failedSubjectIds->isEmpty()) {
+            return;
+        }
+
+        $passedCount = RemedialRecord::query()
+            ->where('student_id', $studentId)
+            ->where('academic_year_id', $academicYearId)
+            ->whereIn('subject_id', $failedSubjectIds)
+            ->where('status', 'passed')
+            ->distinct('subject_id')
+            ->count('subject_id');
+
+        if ($passedCount !== $failedSubjectIds->count()) {
+            return;
+        }
+
+        $conditionalRecord->update([
+            'status' => 'promoted',
+            'conditional_resolved_at' => now(),
+            'conditional_resolution_notes' => 'Resolved through remedial completion.',
+            'remarks' => 'Conditional status resolved after remedial completion.',
+        ]);
     }
 }

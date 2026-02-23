@@ -81,4 +81,9 @@ class Student extends Model
     {
         return $this->belongsToMany(User::class, 'parent_student', 'student_id', 'parent_id');
     }
+
+    public function departures(): HasMany
+    {
+        return $this->hasMany(StudentDeparture::class);
+    }
 }

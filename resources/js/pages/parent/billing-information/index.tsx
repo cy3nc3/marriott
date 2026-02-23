@@ -1,6 +1,8 @@
 import { Head } from '@inertiajs/react';
+import { AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import type { DateRange } from 'react-day-picker';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRangePicker } from '@/components/ui/date-picker';
@@ -56,6 +58,7 @@ interface Props {
     dues_by_plan: Record<PaymentPlan, DueItem[]>;
     default_plan: PaymentPlan;
     recent_payments: PaymentRow[];
+    is_departed_read_only: boolean;
 }
 
 export default function BillingInformation({
@@ -63,6 +66,7 @@ export default function BillingInformation({
     dues_by_plan,
     default_plan,
     recent_payments,
+    is_departed_read_only,
 }: Props) {
     const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>(default_plan);
     const [paymentDateRange, setPaymentDateRange] = useState<DateRange>();
@@ -89,6 +93,17 @@ export default function BillingInformation({
             <Head title="Billing Information" />
 
             <div className="flex flex-col gap-6">
+                {is_departed_read_only && (
+                    <Alert>
+                        <AlertTriangle className="size-4" />
+                        <AlertTitle>Read-only historical record</AlertTitle>
+                        <AlertDescription>
+                            This learner is marked as departed. Billing details
+                            are shown for historical reference only.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 <Card className="gap-2">
                     <CardHeader className="border-b">
                         <CardTitle>Account Summary</CardTitle>

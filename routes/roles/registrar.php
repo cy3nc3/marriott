@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Registrar\BatchPromotionController;
 use App\Http\Controllers\Registrar\EnrollmentController;
 use App\Http\Controllers\Registrar\RemedialEntryController;
+use App\Http\Controllers\Registrar\StudentDepartureController;
 use App\Http\Controllers\Registrar\StudentDirectoryController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -19,14 +21,12 @@ Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->
         return Inertia::render('registrar/permanent-records/index');
     })->name('permanent_records');
 
-    Route::get('/batch-promotion', function () {
-        return Inertia::render('registrar/batch-promotion/index');
-    })->name('batch_promotion');
+    Route::get('/batch-promotion', [BatchPromotionController::class, 'index'])->name('batch_promotion');
+    Route::post('/batch-promotion/review', [BatchPromotionController::class, 'resolveReviewCase'])->name('batch_promotion.review');
 
     Route::get('/remedial-entry', [RemedialEntryController::class, 'index'])->name('remedial_entry');
     Route::post('/remedial-entry', [RemedialEntryController::class, 'store'])->name('remedial_entry.store');
 
-    Route::get('/student-departure', function () {
-        return Inertia::render('registrar/student-departure/index');
-    })->name('student_departure');
+    Route::get('/student-departure', [StudentDepartureController::class, 'index'])->name('student_departure');
+    Route::post('/student-departure', [StudentDepartureController::class, 'store'])->name('student_departure.store');
 });

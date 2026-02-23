@@ -3,12 +3,17 @@
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
+use App\Models\FinalGrade;
 use App\Models\GradeLevel;
+use App\Models\PermanentRecord;
 use App\Models\RemedialRecord;
 use App\Models\Section;
 use App\Models\Setting;
 use App\Models\Student;
+use App\Models\StudentDeparture;
 use App\Models\Subject;
+use App\Models\SubjectAssignment;
+use App\Models\TeacherSubject;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -362,5 +367,246 @@ test('registrar remedial entry stores recomputed grades and updates student flag
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('registrar/remedial-entry/index')
+        );
+});
+
+test('registrar batch promotion review resolves held conditional cases', function () {
+    $pastYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '566677778888',
+        'first_name' => 'Jessa',
+        'last_name' => 'Torres',
+        'is_for_remedial' => true,
+    ]);
+
+    $record = PermanentRecord::query()->create([
+        'student_id' => $student->id,
+        'school_name' => 'Marriott School',
+        'academic_year_id' => $pastYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'general_average' => 74.25,
+        'status' => 'conditional',
+        'failed_subject_count' => 1,
+        'remarks' => 'Conditional from prior year',
+    ]);
+
+    $this->post('/registrar/batch-promotion/review', [
+        'permanent_record_id' => $record->id,
+        'decision' => 'promoted',
+        'note' => 'Resolved after registrar review',
+    ])->assertRedirect();
+
+    $record->refresh();
+
+    expect($record->status)->toBe('promoted');
+    expect($record->conditional_resolved_at)->not->toBeNull();
+    expect($record->conditional_resolution_notes)->toBe('Resolved after registrar review');
+    expect($student->fresh()->is_for_remedial)->toBeFalse();
+});
+
+test('registrar batch promotion and student departure pages render server props', function () {
+    $this->get('/registrar/batch-promotion')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/batch-promotion/index')
+            ->has('run_summary')
+            ->has('conditional_queue')
+            ->has('held_for_review_queue')
+            ->has('grade_completeness_issues')
+        );
+
+    $this->get('/registrar/student-departure')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/student-departure/index')
+            ->has('student_lookup')
+            ->has('recent_departures')
+        );
+});
+
+test('registrar student departure stores transfer out and sets account expiry', function () {
+    $nextYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $studentUser = User::factory()->student()->create([
+        'email' => 'student.transfer@example.com',
+    ]);
+
+    $student = Student::query()->create([
+        'user_id' => $studentUser->id,
+        'lrn' => '777788889999',
+        'first_name' => 'Marco',
+        'last_name' => 'Diaz',
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Bonifacio',
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 500,
+        'status' => 'enrolled',
+    ]);
+
+    $this->post('/registrar/student-departure', [
+        'student_id' => $student->id,
+        'enrollment_id' => $enrollment->id,
+        'reason' => 'transfer_out',
+        'effective_date' => '2026-02-20',
+        'remarks' => 'Transferred to another school.',
+    ])->assertRedirect();
+
+    expect(StudentDeparture::query()->where('student_id', $student->id)->exists())->toBeTrue();
+
+    $departure = StudentDeparture::query()
+        ->where('student_id', $student->id)
+        ->latest('id')
+        ->first();
+
+    expect($departure->reason)->toBe('transfer_out');
+    expect($enrollment->fresh()->status)->toBe('transferred_out');
+    expect($studentUser->fresh()->access_expires_at?->toDateString())->toBe($nextYear->start_date);
+});
+
+test('reenrollment clears student account expiry and reactivates access', function () {
+    $studentUser = User::factory()->student()->create([
+        'email' => 'student.reactivate@example.com',
+        'is_active' => false,
+        'access_expires_at' => now()->subDay(),
+    ]);
+
+    $student = Student::query()->create([
+        'user_id' => $studentUser->id,
+        'lrn' => '888899990000',
+        'first_name' => 'Lara',
+        'last_name' => 'Cruz',
+    ]);
+
+    $this->post('/registrar/enrollment', [
+        'lrn' => $student->lrn,
+        'first_name' => 'Lara',
+        'last_name' => 'Cruz',
+        'emergency_contact' => '09170000000',
+        'payment_term' => 'monthly',
+        'downpayment' => 1000,
+    ])->assertRedirect();
+
+    $studentUser->refresh();
+
+    expect($studentUser->is_active)->toBeTrue();
+    expect($studentUser->access_expires_at)->toBeNull();
+});
+
+test('remedial submission resolves conditional status using annual failed subjects', function () {
+    $teacher = User::factory()->teacher()->create();
+
+    $section = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '900011112222',
+        'first_name' => 'Nina',
+        'last_name' => 'Reyes',
+        'is_for_remedial' => true,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'subject_code' => 'MATH7',
+        'subject_name' => 'Mathematics 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1200,
+        'status' => 'enrolled',
+    ]);
+
+    foreach (['1', '2', '3', '4'] as $quarter) {
+        FinalGrade::query()->create([
+            'enrollment_id' => $enrollment->id,
+            'subject_assignment_id' => $assignment->id,
+            'quarter' => $quarter,
+            'grade' => 70,
+            'is_locked' => true,
+        ]);
+    }
+
+    PermanentRecord::query()->create([
+        'student_id' => $student->id,
+        'school_name' => 'Marriott School',
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'general_average' => 70,
+        'status' => 'conditional',
+        'failed_subject_count' => 1,
+        'remarks' => 'Needs remedial',
+    ]);
+
+    $this->post('/registrar/remedial-entry', [
+        'academic_year_id' => $this->academicYear->id,
+        'student_id' => $student->id,
+        'save_mode' => 'submitted',
+        'records' => [
+            [
+                'subject_id' => $subject->id,
+                'final_rating' => 70,
+                'remedial_class_mark' => 82,
+            ],
+        ],
+    ])->assertRedirect();
+
+    $record = PermanentRecord::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->first();
+
+    expect($record->status)->toBe('promoted');
+    expect($record->conditional_resolved_at)->not->toBeNull();
+    expect($student->fresh()->is_for_remedial)->toBeFalse();
+});
+
+test('registrar permanent records page renders', function () {
+    $this->get('/registrar/permanent-records')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/permanent-records/index')
         );
 });

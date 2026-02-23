@@ -218,6 +218,7 @@ class SystemBackupService
             'permanent_records',
             'remedial_records',
             'final_grades',
+            'student_departures',
             'announcements',
             'settings',
             'audit_logs',

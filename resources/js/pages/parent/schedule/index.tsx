@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
-import { CalendarDays, Clock, Printer } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Clock, Printer } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -38,12 +39,14 @@ interface Props {
     student_name: string | null;
     schedule_items: ScheduleItem[];
     break_items: BreakItem[];
+    is_departed_read_only: boolean;
 }
 
 export default function Schedule({
     student_name,
     schedule_items,
     break_items,
+    is_departed_read_only,
 }: Props) {
     const classCount = schedule_items.filter(
         (item) => item.type === 'class',
@@ -67,6 +70,17 @@ export default function Schedule({
             <Head title="Class Schedule" />
 
             <div className="flex flex-col gap-6">
+                {is_departed_read_only && (
+                    <Alert>
+                        <AlertTriangle className="size-4" />
+                        <AlertTitle>Read-only historical record</AlertTitle>
+                        <AlertDescription>
+                            This learner is marked as departed. Schedule shown
+                            here is from the latest available record.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 <Card className="gap-2">
                     <CardContent className="space-y-4 p-4 sm:p-6">
                         <div className="flex flex-wrap items-center justify-between gap-3">
