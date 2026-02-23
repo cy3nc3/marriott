@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\DashboardCacheService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -97,6 +98,8 @@ class UserManagerController extends Controller
             'is_active',
         ]));
 
+        DashboardCacheService::bust();
+
         return back()->with('success', 'User account created successfully.');
     }
 
@@ -108,6 +111,15 @@ class UserManagerController extends Controller
             'birthday' => 'required|date',
             'role' => ['required', 'string', Rule::in($this->roleValues())],
         ]);
+
+        if (
+            $user->is_active
+            && $user->role === UserRole::SUPER_ADMIN
+            && $validated['role'] !== UserRole::SUPER_ADMIN->value
+            && $this->activeSuperAdminCount() <= 1
+        ) {
+            return back()->with('error', 'At least one active super admin account must remain active.');
+        }
 
         $oldValues = $user->only([
             'id',
@@ -135,6 +147,8 @@ class UserManagerController extends Controller
             'role',
         ]));
 
+        DashboardCacheService::bust();
+
         return back()->with('success', 'User account updated successfully.');
     }
 
@@ -154,11 +168,21 @@ class UserManagerController extends Controller
             'birthday' => date('Y-m-d', strtotime((string) $user->birthday)),
         ]);
 
+        DashboardCacheService::bust();
+
         return back()->with('success', 'Password reset to default (birthday) successfully.');
     }
 
     public function toggleStatus(User $user, AuditLogService $auditLogService): RedirectResponse
     {
+        if (
+            $user->is_active
+            && $user->role === UserRole::SUPER_ADMIN
+            && $this->activeSuperAdminCount() <= 1
+        ) {
+            return back()->with('error', 'At least one active super admin account must remain active.');
+        }
+
         $oldStatus = $user->is_active;
 
         $user->update([
@@ -171,6 +195,8 @@ class UserManagerController extends Controller
             'is_active' => $user->is_active,
         ]);
 
+        DashboardCacheService::bust();
+
         $status = $user->is_active ? 'activated' : 'deactivated';
 
         return back()->with('success', "User account {$status} successfully.");
@@ -181,5 +207,13 @@ class UserManagerController extends Controller
         return collect(UserRole::cases())
             ->map(fn (UserRole $role) => $role->value)
             ->all();
+    }
+
+    private function activeSuperAdminCount(): int
+    {
+        return User::query()
+            ->where('role', UserRole::SUPER_ADMIN->value)
+            ->where('is_active', true)
+            ->count();
     }
 }

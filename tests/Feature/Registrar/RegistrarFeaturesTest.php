@@ -103,7 +103,6 @@ test('registrar dashboard shows lis sync pie and payment method trends', functio
     ];
 
     $counter = 0;
-    $firstQueueStudent = null;
     $createdStudents = collect();
     foreach ($queueDefinitions as $definition) {
         $counter++;
@@ -129,22 +128,8 @@ test('registrar dashboard shows lis sync pie and payment method trends', functio
         $enrollment->updated_at = now()->subDays($definition['days_ago']);
         $enrollment->save();
 
-        if ($counter === 1) {
-            $firstQueueStudent = $student;
-        }
-
         $createdStudents->push($student);
     }
-
-    Enrollment::query()->create([
-        'student_id' => $firstQueueStudent->id,
-        'academic_year_id' => $this->academicYear->id,
-        'grade_level_id' => $this->gradeLevel->id,
-        'section_id' => $section->id,
-        'payment_term' => 'semi-annual',
-        'downpayment' => 0,
-        'status' => 'dropped',
-    ]);
 
     $droppedOnlyStudent = Student::query()->create([
         'lrn' => '930000000111',
@@ -319,6 +304,38 @@ test('registrar enrollment intake supports create update and delete', function (
         ->assertRedirect();
 
     expect(Enrollment::query()->whereKey($enrollment->id)->exists())->toBeFalse();
+});
+
+test('registrar enrollment intake rejects already enrolled student in active year', function () {
+    $student = Student::query()->create([
+        'lrn' => '123456123456',
+        'first_name' => 'Already',
+        'last_name' => 'Enrolled',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $beforeCount = Enrollment::query()->count();
+
+    $this->post('/registrar/enrollment', [
+        'lrn' => $student->lrn,
+        'first_name' => 'Already',
+        'last_name' => 'Enrolled',
+        'emergency_contact' => '09999999999',
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+    ])->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect(Enrollment::query()->count())->toBe($beforeCount);
 });
 
 test('registrar remedial entry stores recomputed grades and updates student flag', function () {

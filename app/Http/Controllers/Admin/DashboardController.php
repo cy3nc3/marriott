@@ -8,6 +8,7 @@ use App\Models\ClassSchedule;
 use App\Models\Enrollment;
 use App\Models\Section;
 use App\Models\Subject;
+use App\Services\DashboardCacheService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -68,13 +69,24 @@ class DashboardController extends Controller
             ->whereNull('adviser_id')
             ->count();
 
-        $conflictExposure = $this->calculateScheduleConflictExposure($activeYear?->id);
-        $gradeLevelTrendPoints = $this->buildGradeLevelTrend($activeYear?->id);
-        $enrollmentForecast = $this->buildEnrollmentForecast(
-            $allYears,
-            $activeYear,
-            $enrollmentCountsByYear
+        $cachedAnalytics = DashboardCacheService::remember(
+            'admin:dashboard:year-'.($activeYear?->id ?? 'none'),
+            function () use ($allYears, $activeYear, $enrollmentCountsByYear): array {
+                return [
+                    'conflict_exposure' => $this->calculateScheduleConflictExposure($activeYear?->id),
+                    'grade_level_trend_points' => $this->buildGradeLevelTrend($activeYear?->id),
+                    'enrollment_forecast' => $this->buildEnrollmentForecast(
+                        $allYears,
+                        $activeYear,
+                        $enrollmentCountsByYear
+                    ),
+                ];
+            }
         );
+
+        $conflictExposure = $cachedAnalytics['conflict_exposure'];
+        $gradeLevelTrendPoints = $cachedAnalytics['grade_level_trend_points'];
+        $enrollmentForecast = $cachedAnalytics['enrollment_forecast'];
 
         $alerts = [];
 

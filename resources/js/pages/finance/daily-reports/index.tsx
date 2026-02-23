@@ -74,7 +74,17 @@ type Filters = {
 interface Props {
     cashiers: CashierOption[];
     breakdown_rows: BreakdownRow[];
-    transaction_rows: TransactionRow[];
+    transaction_rows: {
+        data: TransactionRow[];
+        links: {
+            url: string | null;
+            label: string;
+            active: boolean;
+        }[];
+        from: number | null;
+        to: number | null;
+        total: number;
+    };
     summary: Summary;
     filters: Filters;
 }
@@ -130,8 +140,9 @@ export default function DailyReports({
               }
             : undefined;
 
-    const [reportDateRange, setReportDateRange] =
-        useState<DateRange | undefined>(initialDateRange);
+    const [reportDateRange, setReportDateRange] = useState<
+        DateRange | undefined
+    >(initialDateRange);
     const [cashierFilter, setCashierFilter] = useState(
         filters.cashier_id ? String(filters.cashier_id) : 'cashier-all',
     );
@@ -375,12 +386,14 @@ export default function DailyReports({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {transaction_rows.map((row) => (
+                                {transaction_rows.data.map((row) => (
                                     <TableRow key={row.id}>
                                         <TableCell className="pl-6">
                                             {row.or_number}
                                         </TableCell>
-                                        <TableCell>{row.student_name}</TableCell>
+                                        <TableCell>
+                                            {row.student_name}
+                                        </TableCell>
                                         <TableCell className="border-l">
                                             {row.payment_type}
                                         </TableCell>
@@ -398,7 +411,7 @@ export default function DailyReports({
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                                {transaction_rows.length === 0 && (
+                                {transaction_rows.data.length === 0 && (
                                     <TableRow>
                                         <TableCell
                                             colSpan={7}
@@ -411,6 +424,54 @@ export default function DailyReports({
                             </TableBody>
                         </Table>
                     </CardContent>
+
+                    {transaction_rows.links.length > 3 && (
+                        <div className="flex items-center justify-between border-t p-4">
+                            <p className="text-sm text-muted-foreground">
+                                {transaction_rows.from ?? 0}-
+                                {transaction_rows.to ?? 0} out of{' '}
+                                {transaction_rows.total}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                {transaction_rows.links.map((link, index) => {
+                                    let label = link.label;
+
+                                    if (label.includes('Previous')) {
+                                        label = 'Previous';
+                                    } else if (label.includes('Next')) {
+                                        label = 'Next';
+                                    } else {
+                                        label = label
+                                            .replace(/&[^;]+;/g, '')
+                                            .trim();
+                                    }
+
+                                    return (
+                                        <Button
+                                            key={`${link.label}-${index}`}
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={!link.url || link.active}
+                                            onClick={() => {
+                                                if (link.url) {
+                                                    router.get(
+                                                        link.url,
+                                                        {},
+                                                        {
+                                                            preserveState: true,
+                                                            preserveScroll: true,
+                                                        },
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            {label}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </Card>
             </div>
         </AppLayout>

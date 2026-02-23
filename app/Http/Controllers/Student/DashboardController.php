@@ -10,6 +10,7 @@ use App\Models\FinalGrade;
 use App\Models\Student;
 use App\Models\StudentScore;
 use App\Models\User;
+use App\Services\DashboardCacheService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -113,25 +114,30 @@ class DashboardController extends Controller
         $currentQuarterAverage = null;
         $previousQuarterAverage = null;
         if ($enrollment) {
-            $finalGrades = FinalGrade::query()
-                ->where('enrollment_id', $enrollment->id)
-                ->whereIn('quarter', ['1', '2', '3', '4'])
-                ->get();
+            $quarterAverages = DashboardCacheService::remember(
+                "student:dashboard:quarter-averages:{$enrollment->id}",
+                function () use ($enrollment): array {
+                    $finalGrades = FinalGrade::query()
+                        ->where('enrollment_id', $enrollment->id)
+                        ->whereIn('quarter', ['1', '2', '3', '4'])
+                        ->get();
 
-            $quarterAverages = collect(['1', '2', '3', '4'])
-                ->map(function (string $quarter) use ($finalGrades): array {
-                    $quarterRows = $finalGrades->where('quarter', $quarter);
-                    $average = $quarterRows->isNotEmpty()
-                        ? round((float) $quarterRows->avg('grade'), 2)
-                        : null;
+                    return collect(['1', '2', '3', '4'])
+                        ->map(function (string $quarter) use ($finalGrades): array {
+                            $quarterRows = $finalGrades->where('quarter', $quarter);
+                            $average = $quarterRows->isNotEmpty()
+                                ? round((float) $quarterRows->avg('grade'), 2)
+                                : null;
 
-                    return [
-                        'quarter' => $quarter,
-                        'label' => "Q{$quarter}",
-                        'average' => $average,
-                    ];
-                })
-                ->all();
+                            return [
+                                'quarter' => $quarter,
+                                'label' => "Q{$quarter}",
+                                'average' => $average,
+                            ];
+                        })
+                        ->all();
+                }
+            );
 
             $currentQuarterEntry = collect($quarterAverages)
                 ->firstWhere('quarter', $currentQuarter);
@@ -228,7 +234,10 @@ class DashboardController extends Controller
         }
 
         $upcomingItems = $enrollment?->section_id
-            ? $this->resolveUpcomingAcademicItems((int) $enrollment->section_id)
+            ? DashboardCacheService::remember(
+                "student:dashboard:upcoming-items:{$enrollment->section_id}",
+                fn () => $this->resolveUpcomingAcademicItems((int) $enrollment->section_id)
+            )
             : [];
         $upcomingItemsByDay = collect($upcomingItems)
             ->groupBy('date_label')

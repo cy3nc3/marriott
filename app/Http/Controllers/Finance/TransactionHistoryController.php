@@ -19,7 +19,7 @@ class TransactionHistoryController extends Controller
         $dateFrom = $validated['date_from'] ?? null;
         $dateTo = $validated['date_to'] ?? null;
 
-        $transactions = Transaction::query()
+        $transactionQuery = Transaction::query()
             ->with([
                 'student:id,first_name,last_name,lrn',
                 'cashier:id,first_name,last_name,name',
@@ -47,9 +47,16 @@ class TransactionHistoryController extends Controller
                 $query->whereDate('created_at', '<=', $dateTo);
             })
             ->latest('created_at')
-            ->latest('id')
-            ->get()
-            ->map(function (Transaction $transaction) {
+            ->latest('id');
+
+        $summaryQuery = clone $transactionQuery;
+        $postedAmount = round((float) $summaryQuery->sum('total_amount'), 2);
+        $totalCount = (int) (clone $transactionQuery)->count();
+
+        $transactions = $transactionQuery
+            ->paginate(15)
+            ->withQueryString()
+            ->through(function (Transaction $transaction) {
                 $studentName = trim("{$transaction->student?->first_name} {$transaction->student?->last_name}");
                 $cashierName = trim("{$transaction->cashier?->first_name} {$transaction->cashier?->last_name}");
 
@@ -67,15 +74,12 @@ class TransactionHistoryController extends Controller
                     'amount' => (float) $transaction->total_amount,
                     'posted_at' => $transaction->created_at?->toIso8601String(),
                 ];
-            })
-            ->values();
-
-        $postedAmount = round((float) $transactions->sum('amount'), 2);
+            });
 
         return Inertia::render('finance/transaction-history/index', [
             'transactions' => $transactions,
             'summary' => [
-                'count' => $transactions->count(),
+                'count' => $totalCount,
                 'posted_amount' => $postedAmount,
                 'voided_amount' => 0.0,
                 'net_amount' => $postedAmount,

@@ -64,7 +64,17 @@ type Filters = {
 };
 
 interface Props {
-    transactions: TransactionRow[];
+    transactions: {
+        data: TransactionRow[];
+        links: {
+            url: string | null;
+            label: string;
+            active: boolean;
+        }[];
+        from: number | null;
+        to: number | null;
+        total: number;
+    };
     summary: Summary;
     filters: Filters;
 }
@@ -122,8 +132,9 @@ export default function TransactionHistory({
     const [paymentModeFilter, setPaymentModeFilter] = useState(
         filters.payment_mode ?? 'all-modes',
     );
-    const [dateRange, setDateRange] =
-        useState<DateRange | undefined>(initialDateRange);
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(
+        initialDateRange,
+    );
 
     const applyFilters = () => {
         router.get(
@@ -275,7 +286,7 @@ export default function TransactionHistory({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {transactions.length === 0 ? (
+                                {transactions.data.length === 0 ? (
                                     <TableRow>
                                         <TableCell
                                             colSpan={7}
@@ -285,7 +296,7 @@ export default function TransactionHistory({
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    transactions.map((transaction) => (
+                                    transactions.data.map((transaction) => (
                                         <TableRow key={transaction.id}>
                                             <TableCell className="pl-6 font-medium">
                                                 {transaction.or_number}
@@ -301,9 +312,7 @@ export default function TransactionHistory({
                                             </TableCell>
                                             <TableCell className="border-l">
                                                 <Badge variant="secondary">
-                                                    {
-                                                        transaction.status_label
-                                                    }
+                                                    {transaction.status_label}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="border-l">
@@ -322,6 +331,53 @@ export default function TransactionHistory({
                             </TableBody>
                         </Table>
                     </CardContent>
+
+                    {transactions.links.length > 3 && (
+                        <div className="flex items-center justify-between border-t p-4">
+                            <p className="text-sm text-muted-foreground">
+                                {transactions.from ?? 0}-{transactions.to ?? 0}{' '}
+                                out of {transactions.total}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                {transactions.links.map((link, index) => {
+                                    let label = link.label;
+
+                                    if (label.includes('Previous')) {
+                                        label = 'Previous';
+                                    } else if (label.includes('Next')) {
+                                        label = 'Next';
+                                    } else {
+                                        label = label
+                                            .replace(/&[^;]+;/g, '')
+                                            .trim();
+                                    }
+
+                                    return (
+                                        <Button
+                                            key={`${link.label}-${index}`}
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={!link.url || link.active}
+                                            onClick={() => {
+                                                if (link.url) {
+                                                    router.get(
+                                                        link.url,
+                                                        {},
+                                                        {
+                                                            preserveState: true,
+                                                            preserveScroll: true,
+                                                        },
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            {label}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="grid gap-2 border-t p-4 text-sm sm:grid-cols-4">
                         <div className="space-y-1">

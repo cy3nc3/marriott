@@ -2,11 +2,11 @@
 
 use App\Http\Controllers\Registrar\BatchPromotionController;
 use App\Http\Controllers\Registrar\EnrollmentController;
+use App\Http\Controllers\Registrar\PermanentRecordsController;
 use App\Http\Controllers\Registrar\RemedialEntryController;
 use App\Http\Controllers\Registrar\StudentDepartureController;
 use App\Http\Controllers\Registrar\StudentDirectoryController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->name('registrar.')->group(function () {
     Route::get('/student-directory', [StudentDirectoryController::class, 'index'])->name('student_directory');
@@ -17,9 +17,7 @@ Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->
     Route::patch('/enrollment/{enrollment}', [EnrollmentController::class, 'update'])->name('enrollment.update');
     Route::delete('/enrollment/{enrollment}', [EnrollmentController::class, 'destroy'])->name('enrollment.destroy');
 
-    Route::get('/permanent-records', function () {
-        return Inertia::render('registrar/permanent-records/index');
-    })->name('permanent_records');
+    Route::get('/permanent-records', [PermanentRecordsController::class, 'index'])->name('permanent_records');
 
     Route::get('/batch-promotion', [BatchPromotionController::class, 'index'])->name('batch_promotion');
     Route::post('/batch-promotion/review', [BatchPromotionController::class, 'resolveReviewCase'])->name('batch_promotion.review');

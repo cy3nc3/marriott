@@ -2,6 +2,7 @@
 
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
+use App\Models\AuditLog;
 use App\Models\ClassSchedule;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
@@ -204,6 +205,81 @@ test('admin academic controls actions work', function () {
         ->assertRedirect();
 
     expect(AcademicYear::count())->toBe(0);
+});
+
+test('admin academic controls validation rejects overlaps and invalid date ranges', function () {
+    $existingYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $this->post('/admin/academic-controls/initialize', [
+        'name' => '2026-2027',
+        'start_date' => '2026-01-01',
+        'end_date' => '2027-03-31',
+    ])->assertRedirect()
+        ->assertSessionHasErrors(['start_date']);
+
+    expect(AcademicYear::query()->count())->toBe(1);
+
+    $this->patch("/admin/academic-controls/{$existingYear->id}/dates", [
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-05-01',
+    ])->assertRedirect()
+        ->assertSessionHasErrors(['end_date']);
+});
+
+test('simulation actions are blocked in production mode', function () {
+    $year = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    config(['app.env' => 'production']);
+
+    $this->post("/admin/academic-controls/{$year->id}/simulate-opening")
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    $this->post('/admin/academic-controls/reset-simulation')
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect($year->fresh()->status)->toBe('upcoming');
+    expect(AcademicYear::query()->count())->toBe(1);
+});
+
+test('admin academic control critical actions write audit logs', function () {
+    $year = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $this->post("/admin/academic-controls/{$year->id}/simulate-opening")
+        ->assertRedirect();
+
+    expect(AuditLog::query()
+        ->where('action', 'academic_year.simulation_opened')
+        ->where('model_type', AcademicYear::class)
+        ->where('model_id', $year->id)
+        ->exists())->toBeTrue();
+
+    $this->post('/admin/academic-controls/reset-simulation')
+        ->assertRedirect();
+
+    expect(AuditLog::query()
+        ->where('action', 'academic_year.simulation_reset')
+        ->where('model_type', AcademicYear::class)
+        ->exists())->toBeTrue();
 });
 
 test('admin year close runs batch promotion and creates next year enrollment', function () {

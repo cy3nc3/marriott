@@ -7,6 +7,7 @@ use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\Student;
 use App\Models\Transaction;
+use App\Services\DashboardCacheService;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,103 +20,128 @@ class DashboardController extends Controller
             ->first()
             ?? AcademicYear::query()->orderByDesc('start_date')->first();
 
-        $queueStatuses = ['pending', 'pending_intake', 'for_cashier_payment', 'partial_payment'];
+        $cachedSummary = DashboardCacheService::remember(
+            'registrar:dashboard:year-'.($activeYear?->id ?? 'none'),
+            function () use ($activeYear): array {
+                $queueStatuses = ['pending', 'pending_intake', 'for_cashier_payment', 'partial_payment'];
 
-        $enrollmentScope = Enrollment::query()
-            ->when($activeYear, function ($query) use ($activeYear) {
-                $query->where('academic_year_id', $activeYear->id);
-            });
+                $enrollmentScope = Enrollment::query()
+                    ->when($activeYear, function ($query) use ($activeYear) {
+                        $query->where('academic_year_id', $activeYear->id);
+                    });
 
-        $queueScope = (clone $enrollmentScope)
-            ->whereIn('status', $queueStatuses);
+                $queueScope = (clone $enrollmentScope)
+                    ->whereIn('status', $queueStatuses);
 
-        $intakeQueuePressure = (clone $queueScope)
-            ->whereIn('status', ['pending', 'pending_intake'])
-            ->count();
+                $intakeQueuePressure = (clone $queueScope)
+                    ->whereIn('status', ['pending', 'pending_intake'])
+                    ->count();
 
-        $forCashierPipeline = (clone $queueScope)
-            ->whereIn('status', ['for_cashier_payment', 'partial_payment'])
-            ->count();
+                $forCashierPipeline = (clone $queueScope)
+                    ->whereIn('status', ['for_cashier_payment', 'partial_payment'])
+                    ->count();
 
-        $studentScope = Student::query()
-            ->whereHas('enrollments', function ($query) use ($activeYear) {
-                if ($activeYear) {
-                    $query->where('academic_year_id', $activeYear->id);
-                }
-            });
+                $studentScope = Student::query()
+                    ->whereHas('enrollments', function ($query) use ($activeYear) {
+                        if ($activeYear) {
+                            $query->where('academic_year_id', $activeYear->id);
+                        }
+                    });
 
-        $totalEnrolledStudents = (clone $studentScope)->count();
-        $lisSyncedStudents = (clone $studentScope)
-            ->where('is_lis_synced', true)
-            ->count();
-        $syncErrorBacklog = (clone $studentScope)
-            ->where('sync_error_flag', true)
-            ->count();
+                $totalEnrolledStudents = (clone $studentScope)->count();
+                $lisSyncedStudents = (clone $studentScope)
+                    ->where('is_lis_synced', true)
+                    ->count();
+                $syncErrorBacklog = (clone $studentScope)
+                    ->where('sync_error_flag', true)
+                    ->count();
 
-        $lisSyncRate = $totalEnrolledStudents > 0
-            ? round(($lisSyncedStudents / $totalEnrolledStudents) * 100, 2)
-            : 0.0;
+                $lisSyncRate = $totalEnrolledStudents > 0
+                    ? round(($lisSyncedStudents / $totalEnrolledStudents) * 100, 2)
+                    : 0.0;
 
-        $lisSyncDistributionPoints = [
-            [
-                'label' => 'Synced',
-                'value' => $lisSyncedStudents,
-            ],
-            [
-                'label' => 'Pending',
-                'value' => max($totalEnrolledStudents - $lisSyncedStudents - $syncErrorBacklog, 0),
-            ],
-            [
-                'label' => 'Errors',
-                'value' => $syncErrorBacklog,
-            ],
-        ];
-
-        $paymentMethodLabels = [
-            'cash' => 'Cash',
-            'e_wallet' => 'E-Wallet',
-            'bank_transfer' => 'Bank Transfer',
-            'check' => 'Check',
-            'other' => 'Other',
-        ];
-
-        $paymentMethodCounts = Transaction::query()
-            ->when($activeYear, function ($query) use ($activeYear) {
-                $query->whereHas('student.enrollments', function ($enrollmentQuery) use ($activeYear) {
-                    $enrollmentQuery
-                        ->where('academic_year_id', $activeYear->id)
-                        ->where('status', '!=', 'dropped');
-                });
-            })
-            ->get(['payment_mode'])
-            ->map(function (Transaction $transaction): string {
-                $rawMode = strtolower(trim((string) $transaction->payment_mode));
-
-                return match ($rawMode) {
-                    'cash' => 'cash',
-                    'gcash',
-                    'ewallet',
-                    'e-wallet',
-                    'e_wallet',
-                    'wallet' => 'e_wallet',
-                    'bank_transfer',
-                    'bank transfer' => 'bank_transfer',
-                    'check',
-                    'cheque' => 'check',
-                    default => 'other',
-                };
-            })
-            ->countBy();
-
-        $paymentMethodPoints = collect($paymentMethodLabels)
-            ->map(function (string $label, string $methodKey) use ($paymentMethodCounts): array {
-                return [
-                    'label' => $label,
-                    'value' => (int) $paymentMethodCounts->get($methodKey, 0),
+                $lisSyncDistributionPoints = [
+                    [
+                        'label' => 'Synced',
+                        'value' => $lisSyncedStudents,
+                    ],
+                    [
+                        'label' => 'Pending',
+                        'value' => max($totalEnrolledStudents - $lisSyncedStudents - $syncErrorBacklog, 0),
+                    ],
+                    [
+                        'label' => 'Errors',
+                        'value' => $syncErrorBacklog,
+                    ],
                 ];
-            })
-            ->values()
-            ->all();
+
+                $paymentMethodLabels = [
+                    'cash' => 'Cash',
+                    'e_wallet' => 'E-Wallet',
+                    'bank_transfer' => 'Bank Transfer',
+                    'check' => 'Check',
+                    'other' => 'Other',
+                ];
+
+                $paymentMethodCounts = Transaction::query()
+                    ->when($activeYear, function ($query) use ($activeYear) {
+                        $query->whereHas('student.enrollments', function ($enrollmentQuery) use ($activeYear) {
+                            $enrollmentQuery
+                                ->where('academic_year_id', $activeYear->id)
+                                ->where('status', '!=', 'dropped');
+                        });
+                    })
+                    ->get(['payment_mode'])
+                    ->map(function (Transaction $transaction): string {
+                        $rawMode = strtolower(trim((string) $transaction->payment_mode));
+
+                        return match ($rawMode) {
+                            'cash' => 'cash',
+                            'gcash',
+                            'ewallet',
+                            'e-wallet',
+                            'e_wallet',
+                            'wallet' => 'e_wallet',
+                            'bank_transfer',
+                            'bank transfer' => 'bank_transfer',
+                            'check',
+                            'cheque' => 'check',
+                            default => 'other',
+                        };
+                    })
+                    ->countBy();
+
+                $paymentMethodPoints = collect($paymentMethodLabels)
+                    ->map(function (string $label, string $methodKey) use ($paymentMethodCounts): array {
+                        return [
+                            'label' => $label,
+                            'value' => (int) $paymentMethodCounts->get($methodKey, 0),
+                        ];
+                    })
+                    ->values()
+                    ->all();
+
+                return [
+                    'intake_queue_pressure' => $intakeQueuePressure,
+                    'for_cashier_pipeline' => $forCashierPipeline,
+                    'total_enrolled_students' => $totalEnrolledStudents,
+                    'lis_synced_students' => $lisSyncedStudents,
+                    'sync_error_backlog' => $syncErrorBacklog,
+                    'lis_sync_rate' => $lisSyncRate,
+                    'lis_sync_distribution_points' => $lisSyncDistributionPoints,
+                    'payment_method_points' => $paymentMethodPoints,
+                ];
+            }
+        );
+
+        $intakeQueuePressure = (int) $cachedSummary['intake_queue_pressure'];
+        $forCashierPipeline = (int) $cachedSummary['for_cashier_pipeline'];
+        $totalEnrolledStudents = (int) $cachedSummary['total_enrolled_students'];
+        $lisSyncedStudents = (int) $cachedSummary['lis_synced_students'];
+        $syncErrorBacklog = (int) $cachedSummary['sync_error_backlog'];
+        $lisSyncRate = (float) $cachedSummary['lis_sync_rate'];
+        $lisSyncDistributionPoints = $cachedSummary['lis_sync_distribution_points'];
+        $paymentMethodPoints = $cachedSummary['payment_method_points'];
 
         $alerts = [];
 

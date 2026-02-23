@@ -15,6 +15,7 @@ use App\Models\GradingRubric;
 use App\Models\StudentScore;
 use App\Models\SubjectAssignment;
 use App\Models\TeacherSubject;
+use App\Services\DashboardCacheService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -269,6 +270,8 @@ class GradingSheetController extends Controller
             ]
         );
 
+        DashboardCacheService::bust();
+
         return back()->with('success', 'Rubric updated successfully.');
     }
 
@@ -290,6 +293,8 @@ class GradingSheetController extends Controller
             'title' => $validated['title'],
             'max_score' => $validated['max_score'],
         ]);
+
+        DashboardCacheService::bust();
 
         return back()->with('success', 'Assessment added.');
     }
@@ -409,6 +414,8 @@ class GradingSheetController extends Controller
         $message = $validated['save_mode'] === 'submitted'
             ? 'Quarter grades submitted and locked.'
             : 'Scores saved as draft.';
+
+        DashboardCacheService::bust();
 
         return back()->with('success', $message);
     }

@@ -845,12 +845,18 @@ export default function ScheduleBuilder({
                                             if (selectedItem) {
                                                 editForm.setData(
                                                     'type',
-                                                    val as any,
+                                                    val as
+                                                        | 'academic'
+                                                        | 'break'
+                                                        | 'ceremony',
                                                 );
                                             } else {
                                                 addForm.setData(
                                                     'type',
-                                                    val as any,
+                                                    val as
+                                                        | 'academic'
+                                                        | 'break'
+                                                        | 'ceremony',
                                                 );
                                             }
                                         }}

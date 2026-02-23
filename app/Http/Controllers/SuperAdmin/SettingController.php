@@ -18,9 +18,7 @@ class SettingController extends Controller
 {
     public function index(SystemBackupService $backupService): Response
     {
-        $settings = Setting::query()
-            ->pluck('value', 'key')
-            ->toArray();
+        $settings = Setting::allCached();
 
         return Inertia::render('super_admin/system-settings/index', [
             'settings' => $settings,

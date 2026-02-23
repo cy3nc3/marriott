@@ -9,6 +9,8 @@ use App\Models\Enrollment;
 use App\Models\GradeLevel;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\DashboardCacheService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -144,7 +146,15 @@ class EnrollmentController extends Controller
             });
         } catch (\RuntimeException $exception) {
             return back()->with('error', $exception->getMessage());
+        } catch (QueryException $exception) {
+            if ($exception->getCode() === '23000') {
+                return back()->with('error', 'Student already has an intake record for the active school year.');
+            }
+
+            throw $exception;
         }
+
+        DashboardCacheService::bust();
 
         return back()->with('success', 'Enrollment intake saved.');
     }
@@ -187,6 +197,8 @@ class EnrollmentController extends Controller
             ]);
         });
 
+        DashboardCacheService::bust();
+
         return back()->with('success', 'Enrollment intake updated.');
     }
 
@@ -197,6 +209,8 @@ class EnrollmentController extends Controller
         }
 
         $enrollment->delete();
+
+        DashboardCacheService::bust();
 
         return back()->with('success', 'Enrollment intake removed from queue.');
     }

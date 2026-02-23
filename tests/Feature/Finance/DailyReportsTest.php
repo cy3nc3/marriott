@@ -144,10 +144,11 @@ test('finance daily reports page renders summary breakdown and transaction rows'
             ->where('breakdown_rows.1.total_amount', 5000)
             ->where('breakdown_rows.2.category', 'Products (Uniform/Books)')
             ->where('breakdown_rows.2.total_amount', 1350)
-            ->has('transaction_rows', 3)
-            ->where('transaction_rows.0.or_number', 'OR-01023')
-            ->where('transaction_rows.1.or_number', 'OR-01022')
-            ->where('transaction_rows.2.or_number', 'OR-01021')
+            ->has('transaction_rows.data', 3)
+            ->where('transaction_rows.total', 3)
+            ->where('transaction_rows.data.0.or_number', 'OR-01023')
+            ->where('transaction_rows.data.1.or_number', 'OR-01022')
+            ->where('transaction_rows.data.2.or_number', 'OR-01021')
         );
 });
 
@@ -238,8 +239,9 @@ test('finance daily reports filters by cashier payment mode and date range', fun
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('finance/daily-reports/index')
-            ->has('transaction_rows', 1)
-            ->where('transaction_rows.0.or_number', 'OR-02002')
+            ->has('transaction_rows.data', 1)
+            ->where('transaction_rows.total', 1)
+            ->where('transaction_rows.data.0.or_number', 'OR-02002')
             ->where('summary.transaction_count', 1)
             ->where('summary.gross_collection', 3300)
             ->where('summary.cash_on_hand', 0)

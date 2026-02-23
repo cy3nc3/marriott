@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\Setting;
 use App\Models\Student;
+use App\Services\DashboardCacheService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -106,6 +107,8 @@ class StudentDirectoryController extends Controller
         $processedRows = 0;
         $matched = 0;
         $discrepancy = 0;
+        $parsedRows = [];
+        $lrns = [];
 
         while (($row = fgetcsv($handle)) !== false) {
             if (count(array_filter($row, fn ($value) => trim((string) $value) !== '')) === 0) {
@@ -124,15 +127,35 @@ class StudentDirectoryController extends Controller
                 'learner_reference_number',
             ]));
 
-            if (! $lrn) {
+            $parsedRows[] = [
+                'row_data' => $rowData,
+                'lrn' => $lrn,
+            ];
+
+            if ($lrn !== '') {
+                $lrns[] = $lrn;
+            }
+        }
+
+        fclose($handle);
+
+        $studentsByLrn = Student::query()
+            ->whereIn('lrn', array_values(array_unique($lrns)))
+            ->get()
+            ->keyBy('lrn');
+
+        foreach ($parsedRows as $parsedRow) {
+            $lrn = (string) $parsedRow['lrn'];
+            $rowData = (array) $parsedRow['row_data'];
+
+            if ($lrn === '') {
                 $discrepancy++;
 
                 continue;
             }
 
-            $student = Student::query()->where('lrn', $lrn)->first();
-
-            if (! $student) {
+            $student = $studentsByLrn->get($lrn);
+            if (! $student instanceof Student) {
                 $discrepancy++;
 
                 continue;
@@ -154,10 +177,9 @@ class StudentDirectoryController extends Controller
             $matched++;
         }
 
-        fclose($handle);
-
         Setting::set('registrar_sf1_last_upload_at', now()->toDateTimeString(), 'registrar');
         Setting::set('registrar_sf1_last_upload_name', $file->getClientOriginalName(), 'registrar');
+        DashboardCacheService::bust();
 
         return back()->with(
             'success',

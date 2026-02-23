@@ -82,110 +82,27 @@ interface EditHistoricalRecordForm {
     subjects: HistoricalSubjectInput[];
 }
 
-const sampleRecords: PermanentRecord[] = [
-    {
-        id: 1,
-        school_year: '2023-2024',
-        grade_level: 'Grade 7',
-        school_name: 'Marriott School',
-        status: 'promoted',
-        failed_subject_count: 0,
-        subjects: [
-            {
-                subject: 'Mathematics',
-                q1: '88',
-                q2: '89',
-                q3: '90',
-                q4: '91',
-                final: '89.50',
-            },
-            {
-                subject: 'Science',
-                q1: '87',
-                q2: '90',
-                q3: '90',
-                q4: '92',
-                final: '89.75',
-            },
-            {
-                subject: 'English',
-                q1: '89',
-                q2: '88',
-                q3: '90',
-                q4: '91',
-                final: '89.50',
-            },
-        ],
-    },
-    {
-        id: 2,
-        school_year: '2022-2023',
-        grade_level: 'Grade 6',
-        school_name: 'Marriott School',
-        status: 'promoted',
-        failed_subject_count: 0,
-        subjects: [
-            {
-                subject: 'Mathematics',
-                q1: '86',
-                q2: '87',
-                q3: '88',
-                q4: '89',
-                final: '87.50',
-            },
-            {
-                subject: 'Science',
-                q1: '85',
-                q2: '86',
-                q3: '87',
-                q4: '88',
-                final: '86.50',
-            },
-            {
-                subject: 'English',
-                q1: '88',
-                q2: '87',
-                q3: '86',
-                q4: '87',
-                final: '87.00',
-            },
-        ],
-    },
-    {
-        id: 3,
-        school_year: '2021-2022',
-        grade_level: 'Grade 5',
-        school_name: 'Marriott School',
-        status: 'promoted',
-        failed_subject_count: 0,
-        subjects: [
-            {
-                subject: 'Mathematics',
-                q1: '84',
-                q2: '85',
-                q3: '86',
-                q4: '87',
-                final: '85.50',
-            },
-            {
-                subject: 'Science',
-                q1: '83',
-                q2: '84',
-                q3: '86',
-                q4: '87',
-                final: '85.00',
-            },
-            {
-                subject: 'English',
-                q1: '85',
-                q2: '84',
-                q3: '85',
-                q4: '86',
-                final: '85.00',
-            },
-        ],
-    },
-];
+interface StudentOption {
+    id: number;
+    name: string;
+    lrn: string;
+}
+
+interface SelectedStudent {
+    id: number;
+    name: string;
+    lrn: string;
+    current_assignment: string;
+}
+
+interface Props {
+    students: StudentOption[];
+    selected_student: SelectedStudent | null;
+    records: PermanentRecord[];
+    filters: {
+        student_id: number | null;
+    };
+}
 
 function statusBadge(status: PermanentRecordStatus) {
     if (status === 'promoted') {
@@ -248,7 +165,9 @@ function toHistoricalInputSubjects(
     }));
 }
 
-function toRecordSubjects(subjects: HistoricalSubjectInput[]): SubjectQuarterGrade[] {
+function toRecordSubjects(
+    subjects: HistoricalSubjectInput[],
+): SubjectQuarterGrade[] {
     return subjects.map((subject) => ({
         subject: subject.subject,
         q1: subject.q1,
@@ -271,9 +190,12 @@ function computeFailedSubjectCount(subjects: SubjectQuarterGrade[]): number {
     }).length;
 }
 
-export default function PermanentRecords() {
+export default function PermanentRecords({
+    records: initialRecords,
+    selected_student: selectedStudent,
+}: Props) {
     const [searchQuery, setSearchQuery] = useState('');
-    const [records, setRecords] = useState<PermanentRecord[]>(sampleRecords);
+    const [records, setRecords] = useState<PermanentRecord[]>(initialRecords);
     const [historicalSubjects, setHistoricalSubjects] = useState<
         HistoricalSubjectInput[]
     >([
@@ -290,12 +212,6 @@ export default function PermanentRecords() {
     const [editForm, setEditForm] = useState<EditHistoricalRecordForm | null>(
         null,
     );
-
-    const selectedStudent = {
-        name: 'Juan Dela Cruz',
-        lrn: '123456789012',
-        current_assignment: 'Grade 8 - Bonifacio',
-    };
 
     const addHistoricalSubject = () => {
         setHistoricalSubjects((previousRows) => [
@@ -556,7 +472,7 @@ export default function PermanentRecords() {
                                             Student
                                         </p>
                                         <p className="text-sm font-medium">
-                                            {selectedStudent.name}
+                                            {selectedStudent?.name ?? '-'}
                                         </p>
                                     </div>
                                     <div className="space-y-1">
@@ -564,7 +480,7 @@ export default function PermanentRecords() {
                                             LRN
                                         </p>
                                         <p className="text-sm font-medium">
-                                            {selectedStudent.lrn}
+                                            {selectedStudent?.lrn ?? '-'}
                                         </p>
                                     </div>
                                     <div className="space-y-1">
@@ -572,7 +488,8 @@ export default function PermanentRecords() {
                                             Current Assignment
                                         </p>
                                         <p className="text-sm font-medium">
-                                            {selectedStudent.current_assignment}
+                                            {selectedStudent?.current_assignment ??
+                                                'Unassigned'}
                                         </p>
                                     </div>
                                 </div>
@@ -582,7 +499,9 @@ export default function PermanentRecords() {
                         <Card>
                             <CardHeader className="border-b">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <CardTitle>Academic History (SF10)</CardTitle>
+                                    <CardTitle>
+                                        Academic History (SF10)
+                                    </CardTitle>
                                     <Badge variant="secondary">
                                         Records: {filteredRecords.length}
                                     </Badge>
@@ -601,7 +520,8 @@ export default function PermanentRecords() {
                                                     <div className="space-y-1">
                                                         <CardTitle className="text-base">
                                                             {record.grade_level}{' '}
-                                                            · {record.school_year}
+                                                            ·{' '}
+                                                            {record.school_year}
                                                         </CardTitle>
                                                         <p className="text-sm text-muted-foreground">
                                                             {record.school_name}
@@ -669,16 +589,24 @@ export default function PermanentRecords() {
                                                                         }
                                                                     </TableCell>
                                                                     <TableCell className="border-l text-center">
-                                                                        {subject.q1}
+                                                                        {
+                                                                            subject.q1
+                                                                        }
                                                                     </TableCell>
                                                                     <TableCell className="border-l text-center">
-                                                                        {subject.q2}
+                                                                        {
+                                                                            subject.q2
+                                                                        }
                                                                     </TableCell>
                                                                     <TableCell className="border-l text-center">
-                                                                        {subject.q3}
+                                                                        {
+                                                                            subject.q3
+                                                                        }
                                                                     </TableCell>
                                                                     <TableCell className="border-l text-center">
-                                                                        {subject.q4}
+                                                                        {
+                                                                            subject.q4
+                                                                        }
                                                                     </TableCell>
                                                                     <TableCell className="border-l pr-6 text-right font-medium">
                                                                         {
@@ -720,7 +648,7 @@ export default function PermanentRecords() {
                         </Card>
                     </div>
 
-                    <Card className="min-w-0 self-start gap-2">
+                    <Card className="min-w-0 gap-2 self-start">
                         <CardHeader className="border-b">
                             <CardTitle className="flex items-center gap-2">
                                 <FilePlus2 className="size-4" />
@@ -849,7 +777,9 @@ export default function PermanentRecords() {
                                                     <Input
                                                         aria-label="Quarter 1 grade"
                                                         placeholder="Q1"
-                                                        value={historicalSubject.q1}
+                                                        value={
+                                                            historicalSubject.q1
+                                                        }
                                                         onChange={(event) =>
                                                             updateHistoricalSubject(
                                                                 historicalSubject.id,
@@ -863,7 +793,9 @@ export default function PermanentRecords() {
                                                     <Input
                                                         aria-label="Quarter 2 grade"
                                                         placeholder="Q2"
-                                                        value={historicalSubject.q2}
+                                                        value={
+                                                            historicalSubject.q2
+                                                        }
                                                         onChange={(event) =>
                                                             updateHistoricalSubject(
                                                                 historicalSubject.id,
@@ -877,7 +809,9 @@ export default function PermanentRecords() {
                                                     <Input
                                                         aria-label="Quarter 3 grade"
                                                         placeholder="Q3"
-                                                        value={historicalSubject.q3}
+                                                        value={
+                                                            historicalSubject.q3
+                                                        }
                                                         onChange={(event) =>
                                                             updateHistoricalSubject(
                                                                 historicalSubject.id,
@@ -891,7 +825,9 @@ export default function PermanentRecords() {
                                                     <Input
                                                         aria-label="Quarter 4 grade"
                                                         placeholder="Q4"
-                                                        value={historicalSubject.q4}
+                                                        value={
+                                                            historicalSubject.q4
+                                                        }
                                                         onChange={(event) =>
                                                             updateHistoricalSubject(
                                                                 historicalSubject.id,
@@ -902,7 +838,7 @@ export default function PermanentRecords() {
                                                         }
                                                         className="text-center"
                                                     />
-                                                    <div className="bg-muted/40 flex h-9 items-center justify-center rounded-md border text-sm font-medium">
+                                                    <div className="flex h-9 items-center justify-center rounded-md border bg-muted/40 text-sm font-medium">
                                                         {computeHistoricalFinal(
                                                             historicalSubject,
                                                         )}
@@ -921,7 +857,9 @@ export default function PermanentRecords() {
                             </div>
 
                             <div className="flex justify-end border-t pt-4">
-                                <Button type="button">Save Historical Record</Button>
+                                <Button type="button">
+                                    Save Historical Record
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
@@ -1062,109 +1000,102 @@ export default function PermanentRecords() {
                                 </div>
 
                                 <div className="max-h-[360px] space-y-2 overflow-y-auto">
-                                    {editForm.subjects.map(
-                                        (subject, index) => (
-                                            <div
-                                                key={subject.id}
-                                                className="space-y-2 rounded-md border p-2.5"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <Input
-                                                        placeholder={`Subject ${index + 1}`}
-                                                        value={subject.subject}
-                                                        onChange={(event) =>
-                                                            updateEditSubject(
-                                                                subject.id,
-                                                                'subject',
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                    />
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="icon-sm"
-                                                        onClick={() =>
-                                                            removeEditSubject(
-                                                                subject.id,
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            editForm.subjects
-                                                                .length <= 1
-                                                        }
-                                                    >
-                                                        <Trash2 className="size-4" />
-                                                    </Button>
-                                                </div>
+                                    {editForm.subjects.map((subject, index) => (
+                                        <div
+                                            key={subject.id}
+                                            className="space-y-2 rounded-md border p-2.5"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    placeholder={`Subject ${index + 1}`}
+                                                    value={subject.subject}
+                                                    onChange={(event) =>
+                                                        updateEditSubject(
+                                                            subject.id,
+                                                            'subject',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    onClick={() =>
+                                                        removeEditSubject(
+                                                            subject.id,
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        editForm.subjects
+                                                            .length <= 1
+                                                    }
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
+                                            </div>
 
-                                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                                                    <Input
-                                                        aria-label="Quarter 1 grade"
-                                                        placeholder="Q1"
-                                                        value={subject.q1}
-                                                        onChange={(event) =>
-                                                            updateEditSubject(
-                                                                subject.id,
-                                                                'q1',
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                        className="text-center"
-                                                    />
-                                                    <Input
-                                                        aria-label="Quarter 2 grade"
-                                                        placeholder="Q2"
-                                                        value={subject.q2}
-                                                        onChange={(event) =>
-                                                            updateEditSubject(
-                                                                subject.id,
-                                                                'q2',
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                        className="text-center"
-                                                    />
-                                                    <Input
-                                                        aria-label="Quarter 3 grade"
-                                                        placeholder="Q3"
-                                                        value={subject.q3}
-                                                        onChange={(event) =>
-                                                            updateEditSubject(
-                                                                subject.id,
-                                                                'q3',
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                        className="text-center"
-                                                    />
-                                                    <Input
-                                                        aria-label="Quarter 4 grade"
-                                                        placeholder="Q4"
-                                                        value={subject.q4}
-                                                        onChange={(event) =>
-                                                            updateEditSubject(
-                                                                subject.id,
-                                                                'q4',
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                        className="text-center"
-                                                    />
-                                                    <div className="bg-muted/40 flex h-9 items-center justify-center rounded-md border text-sm font-medium">
-                                                        {computeHistoricalFinal(
-                                                            subject,
-                                                        )}
-                                                    </div>
+                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                                                <Input
+                                                    aria-label="Quarter 1 grade"
+                                                    placeholder="Q1"
+                                                    value={subject.q1}
+                                                    onChange={(event) =>
+                                                        updateEditSubject(
+                                                            subject.id,
+                                                            'q1',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    className="text-center"
+                                                />
+                                                <Input
+                                                    aria-label="Quarter 2 grade"
+                                                    placeholder="Q2"
+                                                    value={subject.q2}
+                                                    onChange={(event) =>
+                                                        updateEditSubject(
+                                                            subject.id,
+                                                            'q2',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    className="text-center"
+                                                />
+                                                <Input
+                                                    aria-label="Quarter 3 grade"
+                                                    placeholder="Q3"
+                                                    value={subject.q3}
+                                                    onChange={(event) =>
+                                                        updateEditSubject(
+                                                            subject.id,
+                                                            'q3',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    className="text-center"
+                                                />
+                                                <Input
+                                                    aria-label="Quarter 4 grade"
+                                                    placeholder="Q4"
+                                                    value={subject.q4}
+                                                    onChange={(event) =>
+                                                        updateEditSubject(
+                                                            subject.id,
+                                                            'q4',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    className="text-center"
+                                                />
+                                                <div className="flex h-9 items-center justify-center rounded-md border bg-muted/40 text-sm font-medium">
+                                                    {computeHistoricalFinal(
+                                                        subject,
+                                                    )}
                                                 </div>
                                             </div>
-                                        ),
-                                    )}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>

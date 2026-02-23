@@ -79,3 +79,23 @@ test('super admin user manager actions write audit logs', function () {
         ->where('model_id', $managedUser->id)
         ->exists())->toBeTrue();
 });
+
+test('last active super admin cannot be demoted', function () {
+    $this->patch("/super-admin/user-manager/{$this->superAdmin->id}", [
+        'first_name' => 'System',
+        'last_name' => 'Owner',
+        'birthday' => '2000-01-01',
+        'role' => UserRole::ADMIN->value,
+    ])->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect($this->superAdmin->fresh()->role->value)->toBe(UserRole::SUPER_ADMIN->value);
+});
+
+test('last active super admin cannot be deactivated', function () {
+    $this->post("/super-admin/user-manager/{$this->superAdmin->id}/toggle-status")
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect($this->superAdmin->fresh()->is_active)->toBeTrue();
+});

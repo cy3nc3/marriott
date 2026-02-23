@@ -8,6 +8,7 @@ use App\Models\ClassSchedule;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
 use App\Models\SubjectAssignment;
+use App\Services\DashboardCacheService;
 use Carbon\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,54 +20,60 @@ class DashboardController extends Controller
         $teacherId = (int) auth()->id();
         $today = now()->format('l');
 
-        $todaySchedules = ClassSchedule::query()
-            ->with([
-                'section:id,grade_level_id,name,adviser_id',
-                'section.gradeLevel:id,name',
-                'subjectAssignment:id,teacher_subject_id',
-                'subjectAssignment.teacherSubject:id,subject_id,teacher_id',
-                'subjectAssignment.teacherSubject.subject:id,subject_name',
-            ])
-            ->where('day', $today)
-            ->where(function ($query) use ($teacherId) {
-                $query
-                    ->whereHas('subjectAssignment.teacherSubject', function ($teacherQuery) use ($teacherId) {
-                        $teacherQuery->where('teacher_id', $teacherId);
-                    })
-                    ->orWhere(function ($advisoryQuery) use ($teacherId) {
-                        $advisoryQuery
-                            ->whereNull('subject_assignment_id')
-                            ->whereHas('section', function ($sectionQuery) use ($teacherId) {
-                                $sectionQuery->where('adviser_id', $teacherId);
+        $todaySchedules = collect(DashboardCacheService::remember(
+            "teacher:dashboard:schedules:{$teacherId}:{$today}",
+            function () use ($teacherId, $today): array {
+                return ClassSchedule::query()
+                    ->with([
+                        'section:id,grade_level_id,name,adviser_id',
+                        'section.gradeLevel:id,name',
+                        'subjectAssignment:id,teacher_subject_id',
+                        'subjectAssignment.teacherSubject:id,subject_id,teacher_id',
+                        'subjectAssignment.teacherSubject.subject:id,subject_name',
+                    ])
+                    ->where('day', $today)
+                    ->where(function ($query) use ($teacherId) {
+                        $query
+                            ->whereHas('subjectAssignment.teacherSubject', function ($teacherQuery) use ($teacherId) {
+                                $teacherQuery->where('teacher_id', $teacherId);
+                            })
+                            ->orWhere(function ($advisoryQuery) use ($teacherId) {
+                                $advisoryQuery
+                                    ->whereNull('subject_assignment_id')
+                                    ->whereHas('section', function ($sectionQuery) use ($teacherId) {
+                                        $sectionQuery->where('adviser_id', $teacherId);
+                                    });
                             });
-                    });
-            })
-            ->orderBy('start_time')
-            ->orderBy('end_time')
-            ->get()
-            ->map(function (ClassSchedule $classSchedule): array {
-                $title = $classSchedule->subjectAssignment?->teacherSubject?->subject?->subject_name
-                    ?? ($classSchedule->label ?: 'Advisory');
+                    })
+                    ->orderBy('start_time')
+                    ->orderBy('end_time')
+                    ->get()
+                    ->map(function (ClassSchedule $classSchedule): array {
+                        $title = $classSchedule->subjectAssignment?->teacherSubject?->subject?->subject_name
+                            ?? ($classSchedule->label ?: 'Advisory');
 
-                $gradeLevelName = $classSchedule->section?->gradeLevel?->name;
-                $sectionName = $classSchedule->section?->name;
-                $sectionLabel = $sectionName;
-                if ($gradeLevelName && $sectionName) {
-                    $sectionLabel = "{$gradeLevelName} - {$sectionName}";
-                }
+                        $gradeLevelName = $classSchedule->section?->gradeLevel?->name;
+                        $sectionName = $classSchedule->section?->name;
+                        $sectionLabel = $sectionName;
+                        if ($gradeLevelName && $sectionName) {
+                            $sectionLabel = "{$gradeLevelName} - {$sectionName}";
+                        }
 
-                return [
-                    'id' => $classSchedule->id,
-                    'start' => $this->toHourMinute($classSchedule->start_time),
-                    'end' => $this->toHourMinute($classSchedule->end_time),
-                    'time_label' => $this->toTimeLabel($classSchedule->start_time, $classSchedule->end_time),
-                    'title' => $title,
-                    'section' => $sectionLabel ?: 'Unassigned',
-                    'duration_minutes' => Carbon::createFromFormat('H:i:s', $classSchedule->end_time)
-                        ->diffInMinutes(Carbon::createFromFormat('H:i:s', $classSchedule->start_time)),
-                ];
-            })
-            ->values();
+                        return [
+                            'id' => $classSchedule->id,
+                            'start' => $this->toHourMinute($classSchedule->start_time),
+                            'end' => $this->toHourMinute($classSchedule->end_time),
+                            'time_label' => $this->toTimeLabel($classSchedule->start_time, $classSchedule->end_time),
+                            'title' => $title,
+                            'section' => $sectionLabel ?: 'Unassigned',
+                            'duration_minutes' => Carbon::createFromFormat('H:i:s', $classSchedule->end_time)
+                                ->diffInMinutes(Carbon::createFromFormat('H:i:s', $classSchedule->start_time)),
+                        ];
+                    })
+                    ->values()
+                    ->all();
+            }
+        ));
 
         $activeYear = AcademicYear::query()
             ->where('status', 'ongoing')
@@ -83,81 +90,102 @@ class DashboardController extends Controller
         if ($activeYear) {
             $currentQuarter = (string) ($activeYear->current_quarter ?: '1');
 
-            $classAssignments = SubjectAssignment::query()
-                ->with([
-                    'section:id,grade_level_id,name',
-                    'section.gradeLevel:id,name',
-                    'teacherSubject:id,subject_id,teacher_id',
-                    'teacherSubject.subject:id,subject_name',
-                ])
-                ->whereHas('teacherSubject', function ($query) use ($teacherId) {
-                    $query->where('teacher_id', $teacherId);
-                })
-                ->whereHas('section', function ($query) use ($activeYear) {
-                    $query->where('academic_year_id', $activeYear->id);
-                })
-                ->get(['id', 'section_id', 'teacher_subject_id'])
-                ->values();
+            $cachedMetrics = DashboardCacheService::remember(
+                "teacher:dashboard:metrics:{$teacherId}:{$activeYear->id}:{$currentQuarter}",
+                function () use ($teacherId, $activeYear, $currentQuarter): array {
+                    $classAssignments = SubjectAssignment::query()
+                        ->with([
+                            'section:id,grade_level_id,name',
+                            'section.gradeLevel:id,name',
+                            'teacherSubject:id,subject_id,teacher_id',
+                            'teacherSubject.subject:id,subject_name',
+                        ])
+                        ->whereHas('teacherSubject', function ($query) use ($teacherId) {
+                            $query->where('teacher_id', $teacherId);
+                        })
+                        ->whereHas('section', function ($query) use ($activeYear) {
+                            $query->where('academic_year_id', $activeYear->id);
+                        })
+                        ->get(['id', 'section_id', 'teacher_subject_id'])
+                        ->values();
 
-            $totalClassesCount = $classAssignments->count();
+                    $totalClassesCount = $classAssignments->count();
+                    $finalizedClassesCount = 0;
+                    $totalPendingGradeRows = 0;
+                    $pendingRowsByClass = [];
 
-            if ($totalClassesCount > 0) {
-                $enrolledCountBySection = Enrollment::query()
-                    ->where('academic_year_id', $activeYear->id)
-                    ->whereIn('section_id', $classAssignments->pluck('section_id')->unique())
-                    ->where('status', 'enrolled')
-                    ->selectRaw('section_id, count(*) as total')
-                    ->groupBy('section_id')
-                    ->pluck('total', 'section_id');
+                    if ($totalClassesCount > 0) {
+                        $enrolledCountBySection = Enrollment::query()
+                            ->where('academic_year_id', $activeYear->id)
+                            ->whereIn('section_id', $classAssignments->pluck('section_id')->unique())
+                            ->where('status', 'enrolled')
+                            ->selectRaw('section_id, count(*) as total')
+                            ->groupBy('section_id')
+                            ->pluck('total', 'section_id');
 
-                $finalGradeSummaryByClass = FinalGrade::query()
-                    ->where('quarter', $currentQuarter)
-                    ->whereIn('subject_assignment_id', $classAssignments->pluck('id'))
-                    ->selectRaw('subject_assignment_id, count(*) as total, sum(case when is_locked then 1 else 0 end) as locked_total')
-                    ->groupBy('subject_assignment_id')
-                    ->get()
-                    ->keyBy('subject_assignment_id');
+                        $finalGradeSummaryByClass = FinalGrade::query()
+                            ->where('quarter', $currentQuarter)
+                            ->whereIn('subject_assignment_id', $classAssignments->pluck('id'))
+                            ->selectRaw('subject_assignment_id, count(*) as total, sum(case when is_locked then 1 else 0 end) as locked_total')
+                            ->groupBy('subject_assignment_id')
+                            ->get()
+                            ->keyBy('subject_assignment_id');
 
-                foreach ($classAssignments as $classAssignment) {
-                    $expectedRows = (int) ($enrolledCountBySection[$classAssignment->section_id] ?? 0);
-                    $summaryRow = $finalGradeSummaryByClass->get($classAssignment->id);
-                    $postedRows = (int) ($summaryRow?->total ?? 0);
-                    $lockedRows = (int) ($summaryRow?->locked_total ?? 0);
+                        foreach ($classAssignments as $classAssignment) {
+                            $expectedRows = (int) ($enrolledCountBySection[$classAssignment->section_id] ?? 0);
+                            $summaryRow = $finalGradeSummaryByClass->get($classAssignment->id);
+                            $postedRows = (int) ($summaryRow?->total ?? 0);
+                            $lockedRows = (int) ($summaryRow?->locked_total ?? 0);
 
-                    $pendingRows = max($expectedRows - $postedRows, 0);
-                    $totalPendingGradeRows += $pendingRows;
+                            $pendingRows = max($expectedRows - $postedRows, 0);
+                            $totalPendingGradeRows += $pendingRows;
 
-                    $gradeLevelName = $classAssignment->section?->gradeLevel?->name;
-                    $sectionName = $classAssignment->section?->name;
-                    $subjectName = $classAssignment->teacherSubject?->subject?->subject_name;
+                            $gradeLevelName = $classAssignment->section?->gradeLevel?->name;
+                            $sectionName = $classAssignment->section?->name;
+                            $subjectName = $classAssignment->teacherSubject?->subject?->subject_name;
 
-                    $classLabel = 'Unassigned Class';
-                    if ($gradeLevelName && $sectionName && $subjectName) {
-                        $classLabel = "{$gradeLevelName} - {$sectionName} ({$subjectName})";
+                            $classLabel = 'Unassigned Class';
+                            if ($gradeLevelName && $sectionName && $subjectName) {
+                                $classLabel = "{$gradeLevelName} - {$sectionName} ({$subjectName})";
+                            }
+
+                            $pendingRowsByClass[] = [
+                                'label' => $classLabel,
+                                'value' => $pendingRows,
+                            ];
+
+                            $isFinalized = $expectedRows === 0
+                                || ($postedRows >= $expectedRows && $lockedRows >= $expectedRows);
+
+                            if ($isFinalized) {
+                                $finalizedClassesCount++;
+                            }
+                        }
                     }
 
-                    $pendingRowsByClass[] = [
-                        'label' => $classLabel,
-                        'value' => $pendingRows,
+                    $atRiskLearnersCount = FinalGrade::query()
+                        ->where('quarter', $currentQuarter)
+                        ->where('grade', '<', 75)
+                        ->whereIn('subject_assignment_id', $classAssignments->pluck('id'))
+                        ->distinct('enrollment_id')
+                        ->count('enrollment_id');
+
+                    return [
+                        'total_classes_count' => $totalClassesCount,
+                        'finalized_classes_count' => $finalizedClassesCount,
+                        'total_pending_grade_rows' => $totalPendingGradeRows,
+                        'pending_rows_by_class' => $pendingRowsByClass,
+                        'at_risk_learners_count' => $atRiskLearnersCount,
                     ];
-
-                    $isFinalized = $expectedRows === 0
-                        || ($postedRows >= $expectedRows && $lockedRows >= $expectedRows);
-
-                    if ($isFinalized) {
-                        $finalizedClassesCount++;
-                    }
                 }
-            }
+            );
 
+            $totalClassesCount = (int) $cachedMetrics['total_classes_count'];
+            $finalizedClassesCount = (int) $cachedMetrics['finalized_classes_count'];
+            $totalPendingGradeRows = (int) $cachedMetrics['total_pending_grade_rows'];
+            $pendingRowsByClass = $cachedMetrics['pending_rows_by_class'];
+            $atRiskLearnersCount = (int) $cachedMetrics['at_risk_learners_count'];
             $unfinalizedClassesCount = max($totalClassesCount - $finalizedClassesCount, 0);
-
-            $atRiskLearnersCount = FinalGrade::query()
-                ->where('quarter', $currentQuarter)
-                ->where('grade', '<', 75)
-                ->whereIn('subject_assignment_id', $classAssignments->pluck('id'))
-                ->distinct('enrollment_id')
-                ->count('enrollment_id');
         }
 
         $alerts = $this->buildAlerts(

@@ -11,6 +11,7 @@ use App\Models\LedgerEntry;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\DashboardCacheService;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -89,34 +90,38 @@ class DashboardController extends Controller
                 ? trim("{$enrollment->section->adviser->first_name} {$enrollment->section->adviser->last_name}")
                 : 'Not assigned';
 
-            $billingSchedules = BillingSchedule::query()
-                ->where('student_id', $student->id)
-                ->when($academicYear, function ($query) use ($academicYear) {
-                    $query->where('academic_year_id', $academicYear->id);
-                })
-                ->whereIn('status', ['unpaid', 'partially_paid'])
-                ->orderBy('due_date')
-                ->get(['due_date', 'amount_due', 'amount_paid']);
+            $upcomingDueRows = collect(DashboardCacheService::remember(
+                "parent:dashboard:due-rows:{$student->id}:".($academicYear?->id ?? 'none'),
+                function () use ($academicYear, $student): array {
+                    return BillingSchedule::query()
+                        ->where('student_id', $student->id)
+                        ->when($academicYear, function ($query) use ($academicYear) {
+                            $query->where('academic_year_id', $academicYear->id);
+                        })
+                        ->whereIn('status', ['unpaid', 'partially_paid'])
+                        ->orderBy('due_date')
+                        ->get(['due_date', 'amount_due', 'amount_paid'])
+                        ->map(function (BillingSchedule $billingSchedule): ?array {
+                            $outstanding = max(
+                                (float) $billingSchedule->amount_due - (float) $billingSchedule->amount_paid,
+                                0
+                            );
 
-            $upcomingDueRows = $billingSchedules
-                ->map(function (BillingSchedule $billingSchedule): ?array {
-                    $outstanding = max(
-                        (float) $billingSchedule->amount_due - (float) $billingSchedule->amount_paid,
-                        0
-                    );
+                            if ($outstanding <= 0) {
+                                return null;
+                            }
 
-                    if ($outstanding <= 0) {
-                        return null;
-                    }
-
-                    return [
-                        'due_date' => $billingSchedule->due_date?->toDateString(),
-                        'label' => $billingSchedule->due_date?->format('M d') ?? 'No date',
-                        'outstanding' => round($outstanding, 2),
-                    ];
-                })
-                ->filter()
-                ->values();
+                            return [
+                                'due_date' => $billingSchedule->due_date?->toDateString(),
+                                'label' => $billingSchedule->due_date?->format('M d') ?? 'No date',
+                                'outstanding' => round($outstanding, 2),
+                            ];
+                        })
+                        ->filter()
+                        ->values()
+                        ->all();
+                }
+            ));
 
             $upcomingDuesTimeline = $upcomingDueRows
                 ->take(4)
@@ -152,25 +157,30 @@ class DashboardController extends Controller
                 $dueRiskLevel = 'Warning';
             }
 
-            $transactionByDay = Transaction::query()
-                ->where('student_id', $student->id)
-                ->whereDate('created_at', '>=', now()->subDays(6)->toDateString())
-                ->selectRaw('DATE(created_at) as day, sum(total_amount) as total')
-                ->groupBy('day')
-                ->orderBy('day')
-                ->pluck('total', 'day');
+            $recentPaymentTrend = DashboardCacheService::remember(
+                "parent:dashboard:recent-payments:{$student->id}",
+                function () use ($student): array {
+                    $transactionByDay = Transaction::query()
+                        ->where('student_id', $student->id)
+                        ->whereDate('created_at', '>=', now()->subDays(6)->toDateString())
+                        ->selectRaw('DATE(created_at) as day, sum(total_amount) as total')
+                        ->groupBy('day')
+                        ->orderBy('day')
+                        ->pluck('total', 'day');
 
-            $recentPaymentTrend = collect(range(6, 0, -1))
-                ->map(function (int $daysAgo) use ($transactionByDay): array {
-                    $day = now()->subDays($daysAgo)->toDateString();
+                    return collect(range(6, 0, -1))
+                        ->map(function (int $daysAgo) use ($transactionByDay): array {
+                            $day = now()->subDays($daysAgo)->toDateString();
 
-                    return [
-                        'label' => now()->subDays($daysAgo)->format('M d'),
-                        'value' => round((float) ($transactionByDay[$day] ?? 0), 2),
-                    ];
-                })
-                ->values()
-                ->all();
+                            return [
+                                'label' => now()->subDays($daysAgo)->format('M d'),
+                                'value' => round((float) ($transactionByDay[$day] ?? 0), 2),
+                            ];
+                        })
+                        ->values()
+                        ->all();
+                }
+            );
         }
 
         $alerts = [];

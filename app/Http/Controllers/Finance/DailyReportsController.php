@@ -25,13 +25,7 @@ class DailyReportsController extends Controller
         $dateFrom = $validated['date_from'] ?? null;
         $dateTo = $validated['date_to'] ?? null;
 
-        $transactions = Transaction::query()
-            ->with([
-                'student:id,first_name,last_name,lrn',
-                'cashier:id,first_name,last_name,name',
-                'items:id,transaction_id,fee_id,inventory_item_id,description,amount',
-                'items.fee:id,type',
-            ])
+        $transactionQuery = Transaction::query()
             ->when($cashierId, function ($query, $cashierId) {
                 $query->where('cashier_id', $cashierId);
             })
@@ -45,7 +39,21 @@ class DailyReportsController extends Controller
                 $query->whereDate('created_at', '<=', $dateTo);
             })
             ->latest('created_at')
-            ->latest('id')
+            ->latest('id');
+
+        $summaryQuery = clone $transactionQuery;
+        $transactionCount = (int) (clone $summaryQuery)->count();
+        $grossCollection = round((float) (clone $summaryQuery)->sum('total_amount'), 2);
+        $cashOnHand = round((float) (clone $summaryQuery)
+            ->where('payment_mode', 'cash')
+            ->sum('total_amount'), 2);
+        $digitalCollection = round($grossCollection - $cashOnHand, 2);
+
+        $transactionsForBreakdown = (clone $transactionQuery)
+            ->with([
+                'items:id,transaction_id,fee_id,inventory_item_id,description,amount',
+                'items.fee:id,type',
+            ])
             ->get();
 
         $cashiers = User::query()
@@ -64,16 +72,18 @@ class DailyReportsController extends Controller
             })
             ->values();
 
-        $breakdownRows = $this->buildBreakdownRows($transactions);
+        $breakdownRows = $this->buildBreakdownRows($transactionsForBreakdown);
 
-        $grossCollection = round((float) $transactions->sum('total_amount'), 2);
-        $cashOnHand = round((float) $transactions
-            ->where('payment_mode', 'cash')
-            ->sum('total_amount'), 2);
-        $digitalCollection = round($grossCollection - $cashOnHand, 2);
-
-        $transactionRows = $transactions
-            ->map(function (Transaction $transaction) {
+        $transactionRows = (clone $transactionQuery)
+            ->with([
+                'student:id,first_name,last_name,lrn',
+                'cashier:id,first_name,last_name,name',
+                'items:id,transaction_id,fee_id,inventory_item_id,description,amount',
+                'items.fee:id,type',
+            ])
+            ->paginate(15)
+            ->withQueryString()
+            ->through(function (Transaction $transaction) {
                 $studentName = trim("{$transaction->student?->first_name} {$transaction->student?->last_name}");
                 $cashierName = trim("{$transaction->cashier?->first_name} {$transaction->cashier?->last_name}");
 
@@ -88,15 +98,14 @@ class DailyReportsController extends Controller
                     'cashier_name' => $cashierName !== '' ? $cashierName : ($transaction->cashier?->name ?? '-'),
                     'posted_at' => $transaction->created_at?->toIso8601String(),
                 ];
-            })
-            ->values();
+            });
 
         return Inertia::render('finance/daily-reports/index', [
             'cashiers' => $cashiers,
             'breakdown_rows' => $breakdownRows,
             'transaction_rows' => $transactionRows,
             'summary' => [
-                'transaction_count' => $transactions->count(),
+                'transaction_count' => $transactionCount,
                 'gross_collection' => $grossCollection,
                 'cash_on_hand' => $cashOnHand,
                 'digital_collection' => $digitalCollection,

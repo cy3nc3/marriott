@@ -11,6 +11,7 @@ use App\Models\InventoryItem;
 use App\Models\LedgerEntry;
 use App\Models\Student;
 use App\Models\Transaction;
+use App\Services\DashboardCacheService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -174,14 +175,18 @@ class CashierPanelController extends Controller
                 'remarks' => $validated['remarks'] ?? null,
             ]);
 
-            foreach ($items as $item) {
-                $transaction->items()->create([
-                    'fee_id' => $item['fee_id'],
-                    'inventory_item_id' => $item['inventory_item_id'],
-                    'description' => $item['description'],
-                    'amount' => $item['amount'],
-                ]);
-            }
+            $transaction->items()->createMany(
+                $items
+                    ->map(function (array $item): array {
+                        return [
+                            'fee_id' => $item['fee_id'],
+                            'inventory_item_id' => $item['inventory_item_id'],
+                            'description' => $item['description'],
+                            'amount' => $item['amount'],
+                        ];
+                    })
+                    ->all()
+            );
 
             $previousRunningBalance = (float) (LedgerEntry::query()
                 ->where('student_id', $student->id)
@@ -205,6 +210,8 @@ class CashierPanelController extends Controller
 
             $this->syncEnrollmentStatusAfterPayment($student, $academicYear);
         });
+
+        DashboardCacheService::bust();
 
         return back()->with('success', 'Transaction posted successfully.');
     }
