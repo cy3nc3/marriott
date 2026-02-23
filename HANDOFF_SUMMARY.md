@@ -3,7 +3,7 @@
 Last updated: 2026-02-23
 Project path: `/home/lomonol/projects/marriott` (active), `C:\Users\jadeg\Documents\Capstone\marriott` (previous Windows path)
 Primary branch target: `main`
-Latest pushed commit: `d9d96d5`
+Latest pushed commit: `f2ac7d1`
 
 ---
 
@@ -326,7 +326,7 @@ UI/UX iterations completed:
 5. Departure flow now supports `transfer_out` and `dropped_out` with enrollment status updates.
 6. Historical student/parent pages include read-only support for departed statuses.
 
-### 7.7 Permanent Records Frontend Progress
+### 7.7 Permanent Records Progress
 
 1. Permanent records page was rebuilt into production-oriented UI flow:
     - search + student info + academic history + add historical record
@@ -334,7 +334,7 @@ UI/UX iterations completed:
 3. Added edit action per academic-history card with prefilled dialog edit form.
 4. Historical subject encoding supports add/remove subject rows and computed final grade previews.
 5. Grade level/status inputs were standardized to select controls in add/edit flows.
-6. Note: this page currently remains frontend-driven for visualization (`routes/roles/registrar.php` still serves it with `Inertia::render(...)`).
+6. Page routing is now controller-driven (`routes/roles/registrar.php` -> `PermanentRecordsController@index`) with backend-provided student/record payloads.
 
 ---
 
@@ -493,13 +493,21 @@ Known additions/usage in this implementation stream include:
     - `database/migrations/2026_02_22_202829_add_access_expires_at_to_users_table.php`
     - `database/migrations/2026_02_22_202829_create_student_departures_table.php`
 5. `permanent_records` migration includes duplicate cleanup before unique index creation on `(student_id, academic_year_id)`.
+6. P0 hardening/index migration added:
+    - `database/migrations/2026_02_23_210000_harden_integrity_and_add_performance_indexes.php`
+    - adds unique constraints for:
+        - `enrollments (student_id, academic_year_id)`
+        - `student_scores (student_id, graded_activity_id)`
+    - adds performance indexes across `enrollments`, `transactions`, `ledger_entries`, `billing_schedules`, `final_grades`, `audit_logs`, and `class_schedules`
+    - performs pre-constraint deduplication for `enrollments` and `student_scores`
 
 Operational note:
 
 1. Migrations are required before running newly wired modules.
 2. User has previously run `php artisan migrate` successfully in this stream.
-3. If migrating an older DB snapshot, ensure the three registrar-related migrations above are applied.
+3. If migrating an older DB snapshot, ensure both the registrar lifecycle migrations and the 2026-02-23 hardening/index migration are applied.
 4. Fortify auth now enforces account `is_active` and `access_expires_at` checks.
+5. For older datasets, run a DB backup before `php artisan migrate` because the hardening migration deduplicates existing enrollment/score rows before adding unique constraints.
 
 ---
 
@@ -622,7 +630,9 @@ This summary is now the authoritative operational handoff for ongoing system dev
     - `resources/js/pages/finance/transaction-history/index.tsx`
     - `resources/js/pages/super_admin/audit-logs/index.tsx`
     - `resources/js/pages/super_admin/user-manager/index.tsx`
-3. `resources/js/components/ui/data-table.tsx` and `resources/js/components/ui/data-table-column-header.tsx` still exist in repo but are not actively used by those pages after rollback.
+3. Legacy DataTable wrapper components were removed after rollback:
+    - `resources/js/components/ui/data-table.tsx`
+    - `resources/js/components/ui/data-table-column-header.tsx`
 
 ### 21.2 Permanent Records Iteration Details
 
@@ -700,6 +710,94 @@ Use this exact sequence on a fresh machine or after pulling major backend change
 
 1. Review this handoff and scan current route/controller/page structure before coding.
 2. Do not assume deferred registrar lifecycle modules are pending; batch promotion and student departure are already wired.
-3. Permanent records page currently behaves as production visualization + client-side edit flow; backend persistence wiring for that page can be next if requested.
+3. Permanent records page now loads from backend payloads; add/edit interactions still use client-side state unless write endpoints are explicitly requested.
 4. Preserve shadcn-first component usage and Tailwind utility-only layout positioning conventions.
 5. Continue to avoid introducing DataTable wrappers unless explicitly requested again.
+
+---
+
+## 24. Latest Backend Hardening + Performance Wave (2026-02-23, `f2ac7d1`)
+
+### 24.1 P0 Hardening Implemented
+
+1. Academic controls now use strict FormRequests:
+    - `app/Http/Requests/Admin/InitializeAcademicYearRequest.php`
+    - `app/Http/Requests/Admin/UpdateAcademicYearDatesRequest.php`
+2. School year safety guards added in `app/Http/Controllers/Admin/SchoolYearController.php`:
+    - blocks editing completed years
+    - blocks simulation open/reset in production
+    - blocks simulation open if another year is already ongoing
+    - keeps year-close blocker when grade completeness checks fail
+3. High-risk academic-year actions now emit explicit audit logs:
+    - initialize, date update, quarter advance, close blocked/closed, simulation open/reset
+4. Last-super-admin survivability guard implemented in `app/Http/Controllers/SuperAdmin/UserManagerController.php`:
+    - prevents demotion/deactivation of the final active `super_admin`
+5. Enrollment duplicate protection hardened in `app/Http/Controllers/Registrar/EnrollmentController.php`:
+    - rejects already enrolled student for active year
+    - handles unique-constraint DB conflict path cleanly
+
+### 24.2 Performance Improvements Implemented
+
+1. Added shared dashboard cache utility:
+    - `app/Services/DashboardCacheService.php`
+2. Applied dashboard caching across all role dashboard controllers:
+    - Admin, Super Admin, Registrar, Finance, Teacher, Student, Parent
+3. Added cache busting in write paths (settings/user/admin/registrar/finance/teacher flows where metrics can change).
+4. Cached settings reads via `Setting::allCached()` in `app/Models/Setting.php`.
+5. Optimized cashier transaction item writes in `app/Http/Controllers/Finance/CashierPanelController.php` using batched relationship insert.
+6. Optimized SF1 upload student lookup path in `app/Http/Controllers/Registrar/StudentDirectoryController.php` via preloaded LRN map.
+7. Added pagination for heavy finance pages (15/page):
+    - `app/Http/Controllers/Finance/TransactionHistoryController.php`
+    - `app/Http/Controllers/Finance/DailyReportsController.php`
+    - frontend pagination consumption updated in matching TSX pages
+
+### 24.3 Permanent Records Backend Wiring Completed
+
+1. Registrar permanent records route now points to controller:
+    - `routes/roles/registrar.php`
+2. Backend page payload now built from persisted data:
+    - `app/Http/Controllers/Registrar/PermanentRecordsController.php`
+3. Records include mapped quarter/final subject grades resolved from enrollment + final grades linkage.
+4. Frontend page consumes backend props and no longer relies on local sample array:
+    - `resources/js/pages/registrar/permanent-records/index.tsx`
+
+### 24.4 CI and Quality Gate Updates
+
+1. Lint workflow now uses non-mutating checks and includes type checking:
+    - `.github/workflows/lint.yml`
+2. Test workflow includes:
+    - `composer audit`
+    - frontend type check
+    - non-blocking prod-only npm audit
+    - full Pest suite execution
+    - `.github/workflows/tests.yml`
+
+### 24.5 Tests Added/Updated in This Wave
+
+1. `tests/Feature/Admin/AdminFeaturesTest.php`
+2. `tests/Feature/Registrar/RegistrarFeaturesTest.php`
+3. `tests/Feature/SuperAdmin/UserManagerTest.php`
+4. `tests/Feature/Finance/TransactionHistoryTest.php`
+5. `tests/Feature/Finance/DailyReportsTest.php`
+
+### 24.6 Required Setup for This Wave
+
+1. Pull latest code:
+    - `git pull origin main`
+2. Ensure dependencies are current:
+    - `composer install`
+    - `npm install`
+3. Apply new schema changes:
+    - `php artisan migrate`
+4. Recommended before migration on old/dirty data:
+    - take a DB backup first (migration deduplicates rows before adding unique constraints)
+5. If behavior looks stale after deploy/pull:
+    - `php artisan optimize:clear`
+6. Rebuild assets if frontend updates are not visible:
+    - `npm run build` (or run `npm run dev` during development)
+
+### 24.7 Last Full Verification Run (This Wave)
+
+1. `npm run types` passed.
+2. `vendor/bin/pint --dirty --format agent` passed.
+3. `php artisan test --compact` full suite passed (`120 passed`).
