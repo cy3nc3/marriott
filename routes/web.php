@@ -2,10 +2,12 @@
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\AnnouncementNotificationController;
 use App\Http\Controllers\Finance\DashboardController as FinanceDashboardController;
 use App\Http\Controllers\ParentPortal\DashboardController as ParentDashboardController;
 use App\Http\Controllers\Registrar\DashboardController as RegistrarDashboardController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
+use App\Http\Controllers\SuperAdmin\AnnouncementController as AnnouncementManagementController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
 use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -48,6 +50,36 @@ Route::get('dashboard', function () {
 
     return Inertia::render("{$user->role->value}/dashboard");
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware(['auth', 'verified', 'role:super_admin,admin,registrar,finance,teacher'])
+    ->prefix('announcements')
+    ->name('announcements.')
+    ->group(function () {
+        Route::get('/', [AnnouncementManagementController::class, 'index'])
+            ->name('index');
+        Route::post('/', [AnnouncementManagementController::class, 'store'])
+            ->name('store');
+        Route::put('/{announcement}', [AnnouncementManagementController::class, 'update'])
+            ->name('update');
+        Route::delete('/{announcement}', [AnnouncementManagementController::class, 'destroy'])
+            ->name('destroy');
+    });
+
+Route::middleware(['auth', 'verified'])
+    ->prefix('notifications')
+    ->name('notifications.')
+    ->group(function () {
+        Route::get('/announcements/{announcement}', [AnnouncementNotificationController::class, 'show'])
+            ->name('announcements.show');
+        Route::get('/announcements/{announcement}/attachments/{attachment}', [AnnouncementNotificationController::class, 'showAttachment'])
+            ->name('announcements.attachments.show');
+        Route::get('/announcements/{announcement}/attachments/{attachment}/download', [AnnouncementNotificationController::class, 'downloadAttachment'])
+            ->name('announcements.attachments.download');
+        Route::post('/announcements/read-all', [AnnouncementNotificationController::class, 'markAllAsRead'])
+            ->name('announcements.read_all');
+        Route::post('/announcements/{announcement}/read', [AnnouncementNotificationController::class, 'markAsRead'])
+            ->name('announcements.read');
+    });
 
 Route::group([], __DIR__.'/roles/super_admin.php');
 Route::group([], __DIR__.'/roles/admin.php');

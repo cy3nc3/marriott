@@ -7,6 +7,7 @@ use App\Models\Enrollment;
 use App\Models\FinalGrade;
 use App\Models\GradedActivity;
 use App\Models\GradeLevel;
+use App\Models\GradeSubmission;
 use App\Models\GradingRubric;
 use App\Models\Section;
 use App\Models\Student;
@@ -904,6 +905,29 @@ test('teacher grading sheet actions update rubric add assessments and submit gra
         'grade' => 90,
         'is_locked' => true,
     ]);
+
+    $this->assertDatabaseHas('grade_submissions', [
+        'academic_year_id' => $schoolYear->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'status' => GradeSubmission::STATUS_SUBMITTED,
+        'submitted_by' => $this->teacher->id,
+    ]);
+
+    $this->post('/teacher/grading-sheet/scores', [
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'save_mode' => 'draft',
+        'scores' => [
+            [
+                'student_id' => $student->id,
+                'graded_activity_id' => $activity?->id,
+                'score' => 17,
+            ],
+        ],
+    ])
+        ->assertRedirect()
+        ->assertSessionHas('error', 'This class-quarter is already finalized. Return it first before editing scores.');
 });
 
 test('teacher advisory board renders advisory class grades and conduct rows from real records', function () {

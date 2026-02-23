@@ -11,6 +11,7 @@ use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
 use App\Models\GradedActivity;
+use App\Models\GradeSubmission;
 use App\Models\GradingRubric;
 use App\Models\StudentScore;
 use App\Models\SubjectAssignment;
@@ -18,6 +19,7 @@ use App\Models\TeacherSubject;
 use App\Services\DashboardCacheService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -187,16 +189,38 @@ class GradingSheetController extends Controller
             })
             ->values();
 
-        $isSubmitted = false;
-        if ($selectedAssignment && $enrollments->isNotEmpty()) {
-            $lockedCount = FinalGrade::query()
+        $gradeSubmission = null;
+        $status = GradeSubmission::STATUS_DRAFT;
+        $statusNote = null;
+        $canEdit = true;
+
+        if ($selectedAssignment) {
+            $gradeSubmission = GradeSubmission::query()
+                ->where('academic_year_id', $selectedAssignment->section?->academic_year_id)
                 ->where('subject_assignment_id', $selectedAssignment->id)
                 ->where('quarter', $selectedQuarter)
-                ->whereIn('enrollment_id', $enrollments->pluck('id'))
-                ->where('is_locked', true)
-                ->count();
+                ->first();
 
-            $isSubmitted = $lockedCount === $enrollments->count();
+            if ($gradeSubmission) {
+                $status = $gradeSubmission->status;
+                $statusNote = $gradeSubmission->return_notes;
+                $canEdit = ! in_array($status, [
+                    GradeSubmission::STATUS_SUBMITTED,
+                    GradeSubmission::STATUS_VERIFIED,
+                ], true);
+            } elseif ($enrollments->isNotEmpty()) {
+                $lockedCount = FinalGrade::query()
+                    ->where('subject_assignment_id', $selectedAssignment->id)
+                    ->where('quarter', $selectedQuarter)
+                    ->whereIn('enrollment_id', $enrollments->pluck('id'))
+                    ->where('is_locked', true)
+                    ->count();
+
+                if ($lockedCount === $enrollments->count()) {
+                    $status = GradeSubmission::STATUS_SUBMITTED;
+                    $canEdit = false;
+                }
+            }
         }
 
         return Inertia::render('teacher/grading-sheet/index', [
@@ -242,7 +266,9 @@ class GradingSheetController extends Controller
                 ]
                 : null,
             'students' => $students,
-            'status' => $isSubmitted ? 'submitted' : 'draft',
+            'status' => $status,
+            'status_note' => $statusNote,
+            'can_edit' => $canEdit,
         ]);
     }
 
@@ -286,6 +312,19 @@ class GradingSheetController extends Controller
             })
             ->firstOrFail();
 
+        $gradeSubmission = GradeSubmission::query()
+            ->where('academic_year_id', $subjectAssignment->section?->academic_year_id)
+            ->where('subject_assignment_id', $subjectAssignment->id)
+            ->where('quarter', $validated['quarter'])
+            ->first();
+
+        if ($gradeSubmission && in_array($gradeSubmission->status, [
+            GradeSubmission::STATUS_SUBMITTED,
+            GradeSubmission::STATUS_VERIFIED,
+        ], true)) {
+            return back()->with('error', 'This class-quarter is already finalized. Return it first before editing assessments.');
+        }
+
         GradedActivity::query()->create([
             'subject_assignment_id' => $subjectAssignment->id,
             'quarter' => $validated['quarter'],
@@ -314,6 +353,19 @@ class GradingSheetController extends Controller
             })
             ->firstOrFail();
 
+        $gradeSubmission = GradeSubmission::query()
+            ->where('academic_year_id', $subjectAssignment->section?->academic_year_id)
+            ->where('subject_assignment_id', $subjectAssignment->id)
+            ->where('quarter', $validated['quarter'])
+            ->first();
+
+        if ($gradeSubmission && in_array($gradeSubmission->status, [
+            GradeSubmission::STATUS_SUBMITTED,
+            GradeSubmission::STATUS_VERIFIED,
+        ], true)) {
+            return back()->with('error', 'This class-quarter is already finalized. Return it first before editing scores.');
+        }
+
         $quarterActivities = GradedActivity::query()
             ->where('subject_assignment_id', $subjectAssignment->id)
             ->where('quarter', $validated['quarter'])
@@ -332,84 +384,131 @@ class GradingSheetController extends Controller
 
         $validStudentIds = $enrollments->pluck('student_id');
 
-        foreach ($validated['scores'] as $scoreRow) {
-            $gradedActivity = $quarterActivities->get((int) $scoreRow['graded_activity_id']);
-            if (! $gradedActivity) {
-                continue;
+        DB::transaction(function () use (
+            $validated,
+            $gradeSubmission,
+            $quarterActivities,
+            $validStudentIds,
+            $subjectAssignment,
+            $enrollments
+        ): void {
+            foreach ($validated['scores'] as $scoreRow) {
+                $gradedActivity = $quarterActivities->get((int) $scoreRow['graded_activity_id']);
+                if (! $gradedActivity) {
+                    continue;
+                }
+
+                if (! $validStudentIds->contains((int) $scoreRow['student_id'])) {
+                    continue;
+                }
+
+                if (! array_key_exists('score', $scoreRow) || $scoreRow['score'] === null || $scoreRow['score'] === '') {
+                    continue;
+                }
+
+                $normalizedScore = min(
+                    (float) $gradedActivity->max_score,
+                    max((float) $scoreRow['score'], 0)
+                );
+
+                StudentScore::query()->updateOrCreate(
+                    [
+                        'student_id' => $scoreRow['student_id'],
+                        'graded_activity_id' => $gradedActivity->id,
+                    ],
+                    [
+                        'score' => $normalizedScore,
+                    ]
+                );
             }
 
-            if (! $validStudentIds->contains((int) $scoreRow['student_id'])) {
-                continue;
+            $rubric = GradingRubric::query()
+                ->where('subject_id', $subjectAssignment->teacherSubject?->subject_id)
+                ->first();
+
+            $rubricWeights = [
+                'ww_weight' => $rubric?->ww_weight ?? 40,
+                'pt_weight' => $rubric?->pt_weight ?? 40,
+                'qa_weight' => $rubric?->qa_weight ?? 20,
+            ];
+
+            $writtenWorks = $quarterActivities->where('type', 'WW')->values();
+            $performanceTasks = $quarterActivities->where('type', 'PT')->values();
+            $quarterlyExams = $quarterActivities->where('type', 'QA')->values();
+
+            $scoreMapByStudent = StudentScore::query()
+                ->whereIn('student_id', $validStudentIds)
+                ->whereIn('graded_activity_id', $quarterActivities->keys())
+                ->get(['student_id', 'graded_activity_id', 'score'])
+                ->groupBy('student_id')
+                ->map(function (Collection $studentScores) {
+                    return $studentScores->mapWithKeys(function (StudentScore $studentScore) {
+                        return [
+                            (int) $studentScore->graded_activity_id => (float) $studentScore->score,
+                        ];
+                    })->all();
+                });
+
+            foreach ($enrollments as $enrollment) {
+                $computedGrade = $this->calculateComputedGrade(
+                    $writtenWorks,
+                    $performanceTasks,
+                    $quarterlyExams,
+                    (array) ($scoreMapByStudent->get($enrollment->student_id) ?? []),
+                    $rubricWeights
+                );
+
+                FinalGrade::query()->updateOrCreate(
+                    [
+                        'enrollment_id' => $enrollment->id,
+                        'subject_assignment_id' => $subjectAssignment->id,
+                        'quarter' => $validated['quarter'],
+                    ],
+                    [
+                        'grade' => $computedGrade,
+                        'is_locked' => $validated['save_mode'] === 'submitted',
+                    ]
+                );
             }
 
-            if (! array_key_exists('score', $scoreRow) || $scoreRow['score'] === null || $scoreRow['score'] === '') {
-                continue;
+            if ($validated['save_mode'] === 'submitted') {
+                GradeSubmission::query()->updateOrCreate(
+                    [
+                        'academic_year_id' => $subjectAssignment->section?->academic_year_id,
+                        'subject_assignment_id' => $subjectAssignment->id,
+                        'quarter' => $validated['quarter'],
+                    ],
+                    [
+                        'status' => GradeSubmission::STATUS_SUBMITTED,
+                        'submitted_by' => auth()->id(),
+                        'submitted_at' => now(),
+                        'verified_by' => null,
+                        'verified_at' => null,
+                        'returned_by' => null,
+                        'returned_at' => null,
+                        'return_notes' => null,
+                    ]
+                );
+            } elseif (! ($gradeSubmission && $gradeSubmission->status === GradeSubmission::STATUS_RETURNED)) {
+                GradeSubmission::query()->updateOrCreate(
+                    [
+                        'academic_year_id' => $subjectAssignment->section?->academic_year_id,
+                        'subject_assignment_id' => $subjectAssignment->id,
+                        'quarter' => $validated['quarter'],
+                    ],
+                    [
+                        'status' => GradeSubmission::STATUS_DRAFT,
+                        'submitted_by' => null,
+                        'submitted_at' => null,
+                        'verified_by' => null,
+                        'verified_at' => null,
+                        'returned_by' => null,
+                        'returned_at' => null,
+                        'return_notes' => null,
+                    ]
+                );
             }
-
-            $normalizedScore = min(
-                (float) $gradedActivity->max_score,
-                max((float) $scoreRow['score'], 0)
-            );
-
-            StudentScore::query()->updateOrCreate(
-                [
-                    'student_id' => $scoreRow['student_id'],
-                    'graded_activity_id' => $gradedActivity->id,
-                ],
-                [
-                    'score' => $normalizedScore,
-                ]
-            );
-        }
-
-        $rubric = GradingRubric::query()
-            ->where('subject_id', $subjectAssignment->teacherSubject?->subject_id)
-            ->first();
-
-        $rubricWeights = [
-            'ww_weight' => $rubric?->ww_weight ?? 40,
-            'pt_weight' => $rubric?->pt_weight ?? 40,
-            'qa_weight' => $rubric?->qa_weight ?? 20,
-        ];
-
-        $writtenWorks = $quarterActivities->where('type', 'WW')->values();
-        $performanceTasks = $quarterActivities->where('type', 'PT')->values();
-        $quarterlyExams = $quarterActivities->where('type', 'QA')->values();
-
-        $scoreMapByStudent = StudentScore::query()
-            ->whereIn('student_id', $validStudentIds)
-            ->whereIn('graded_activity_id', $quarterActivities->keys())
-            ->get(['student_id', 'graded_activity_id', 'score'])
-            ->groupBy('student_id')
-            ->map(function (Collection $studentScores) {
-                return $studentScores->mapWithKeys(function (StudentScore $studentScore) {
-                    return [
-                        (int) $studentScore->graded_activity_id => (float) $studentScore->score,
-                    ];
-                })->all();
-            });
-
-        foreach ($enrollments as $enrollment) {
-            $computedGrade = $this->calculateComputedGrade(
-                $writtenWorks,
-                $performanceTasks,
-                $quarterlyExams,
-                (array) ($scoreMapByStudent->get($enrollment->student_id) ?? []),
-                $rubricWeights
-            );
-
-            FinalGrade::query()->updateOrCreate(
-                [
-                    'enrollment_id' => $enrollment->id,
-                    'subject_assignment_id' => $subjectAssignment->id,
-                    'quarter' => $validated['quarter'],
-                ],
-                [
-                    'grade' => $computedGrade,
-                    'is_locked' => $validated['save_mode'] === 'submitted',
-                ]
-            );
-        }
+        });
 
         $message = $validated['save_mode'] === 'submitted'
             ? 'Quarter grades submitted and locked.'

@@ -27,4 +27,9 @@ class SubjectAssignment extends Model
     {
         return $this->hasMany(GradedActivity::class);
     }
+
+    public function gradeSubmissions(): HasMany
+    {
+        return $this->hasMany(GradeSubmission::class);
+    }
 }

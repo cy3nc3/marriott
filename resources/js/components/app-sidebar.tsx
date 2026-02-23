@@ -62,7 +62,7 @@ const roleNavItems: Record<string, NavItem[]> = {
         },
         {
             title: 'Announcements',
-            href: '/super-admin/announcements',
+            href: '/announcements',
             icon: Megaphone,
         },
         {
@@ -82,6 +82,11 @@ const roleNavItems: Record<string, NavItem[]> = {
         },
     ],
     admin: [
+        {
+            title: 'Announcements',
+            href: '/announcements',
+            icon: Megaphone,
+        },
         {
             title: 'Academic Controls',
             href: '/admin/academic-controls',
@@ -105,6 +110,11 @@ const roleNavItems: Record<string, NavItem[]> = {
                 },
             ],
         },
+        {
+            title: 'Grade Verification',
+            href: '/admin/grade-verification',
+            icon: CheckSquare,
+        },
         { title: 'Class Lists', href: '/admin/class-lists', icon: Users },
         {
             title: 'DepEd Reports',
@@ -118,6 +128,11 @@ const roleNavItems: Record<string, NavItem[]> = {
         },
     ],
     registrar: [
+        {
+            title: 'Announcements',
+            href: '/announcements',
+            icon: Megaphone,
+        },
         {
             title: 'Student Directory',
             href: '/registrar/student-directory',
@@ -146,6 +161,11 @@ const roleNavItems: Record<string, NavItem[]> = {
         },
     ],
     finance: [
+        {
+            title: 'Announcements',
+            href: '/announcements',
+            icon: Megaphone,
+        },
         {
             title: 'Student Ledgers',
             href: '/finance/student-ledgers',
@@ -183,6 +203,11 @@ const roleNavItems: Record<string, NavItem[]> = {
         },
     ],
     teacher: [
+        {
+            title: 'Announcements',
+            href: '/announcements',
+            icon: Megaphone,
+        },
         { title: 'Schedule', href: '/teacher/schedule', icon: Calendar },
         {
             title: 'Grading Sheet',

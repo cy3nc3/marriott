@@ -53,6 +53,12 @@ test('admin pages render successfully', function () {
             ->component('admin/class-lists/index')
         );
 
+    $this->get('/admin/grade-verification')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/grade-verification/index')
+        );
+
     $this->get('/admin/deped-reports')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page

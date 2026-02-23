@@ -16,14 +16,15 @@ class SuperAdminSeeder extends Seeder
     public function run(): void
     {
         $superAdmin = User::where('role', UserRole::SUPER_ADMIN)->first();
-        if (!$superAdmin) return;
+        if (! $superAdmin) {
+            return;
+        }
 
         // 1. Create mock announcements
         Announcement::create([
             'user_id' => $superAdmin->id,
             'title' => 'System Maintenance: February 20, 2026',
             'content' => 'The system will be undergoing scheduled maintenance this coming Friday from 10:00 PM to 2:00 AM. Please save all your work before the maintenance period starts.',
-            'priority' => 'high',
             'target_roles' => null,
             'expires_at' => '2026-02-21 00:00:00',
         ]);
@@ -32,7 +33,6 @@ class SuperAdminSeeder extends Seeder
             'user_id' => $superAdmin->id,
             'title' => 'Welcome to the New School Management System!',
             'content' => 'We are excited to launch our upgraded portal. Feel free to explore the new features and reach out to the IT department for any assistance.',
-            'priority' => 'normal',
             'target_roles' => null,
         ]);
 
@@ -50,9 +50,9 @@ class SuperAdminSeeder extends Seeder
             AuditLog::create([
                 'user_id' => $superAdmin->id,
                 'action' => $act['action'],
-                'model_type' => 'App\\Models\\' . $act['model'],
+                'model_type' => 'App\\Models\\'.$act['model'],
                 'model_id' => rand(1, 100),
-                'ip_address' => '192.168.1.' . rand(1, 254),
+                'ip_address' => '192.168.1.'.rand(1, 254),
                 'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'created_at' => now()->subHours(rand(1, 72)),
             ]);

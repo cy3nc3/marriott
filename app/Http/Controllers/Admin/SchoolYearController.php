@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\InitializeAcademicYearRequest;
 use App\Http\Requests\Admin\UpdateAcademicYearDatesRequest;
 use App\Models\AcademicYear;
+use App\Models\GradeSubmission;
 use App\Models\Setting;
 use App\Services\AuditLogService;
 use App\Services\DashboardCacheService;
@@ -186,6 +187,20 @@ class SchoolYearController extends Controller
             ]);
 
             return back()->with('error', 'Cannot close school year without an upcoming school year record.');
+        }
+
+        $pendingVerificationCount = GradeSubmission::query()
+            ->where('academic_year_id', $academicYear->id)
+            ->whereIn('status', [GradeSubmission::STATUS_SUBMITTED, GradeSubmission::STATUS_RETURNED])
+            ->count();
+
+        if ($pendingVerificationCount > 0) {
+            $auditLogService->log('academic_year.close_blocked', $academicYear, null, [
+                'reason' => 'grade_verification_pending',
+                'pending_verification_count' => $pendingVerificationCount,
+            ]);
+
+            return back()->with('error', 'Cannot close school year. Resolve all grade verifications first.');
         }
 
         $promotionSummary = $batchPromotionService->run(

@@ -19,7 +19,6 @@ Route::middleware(['auth', 'verified', 'role:super_admin'])->prefix('super-admin
     // Audit Logs
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit_logs');
 
-    // Announcements
     Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements');
     Route::post('/announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
     Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');

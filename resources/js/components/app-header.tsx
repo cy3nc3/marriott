@@ -1,7 +1,8 @@
-import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { Bell, BookOpen, Check, Folder, LayoutGrid, Menu, Search } from 'lucide-react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -31,6 +32,7 @@ import { UserMenuContent } from '@/components/user-menu-content';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useInitials } from '@/hooks/use-initials';
 import { cn, toUrl } from '@/lib/utils';
+import notificationsAnnouncements from '@/routes/notifications/announcements';
 import type { BreadcrumbItem, NavItem, SharedData } from '@/types';
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
@@ -67,8 +69,37 @@ const activeItemStyles =
 export function AppHeader({ breadcrumbs = [] }: Props) {
     const page = usePage<SharedData>();
     const { auth } = page.props;
+    const notifications = page.props.notifications;
     const getInitials = useInitials();
     const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
+
+    const notificationItems = notifications?.announcements ?? [];
+    const unreadNotificationCount = notifications?.unread_count ?? 0;
+
+    const handleMarkAsRead = (announcementId: number) => {
+        router.post(notificationsAnnouncements.read.url(announcementId), {}, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
+    const handleMarkAllAsRead = () => {
+        router.post(notificationsAnnouncements.read_all.url(), {}, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
+    const formatNotificationDate = (value: string | null) => {
+        if (!value) {
+            return '--';
+        }
+
+        return new Date(value).toLocaleDateString();
+    };
+
     return (
         <>
             <div className="border-b border-sidebar-border/80">
@@ -215,6 +246,115 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                 ))}
                             </div>
                         </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="relative h-9 w-9"
+                                >
+                                    <Bell className="size-5 opacity-80" />
+                                    {unreadNotificationCount > 0 && (
+                                        <span className="absolute top-1 right-1 inline-flex min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-none text-white">
+                                            {unreadNotificationCount > 9
+                                                ? '9+'
+                                                : unreadNotificationCount}
+                                        </span>
+                                    )}
+                                    <span className="sr-only">
+                                        Notifications
+                                    </span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                className="w-[360px] p-0"
+                                align="end"
+                            >
+                                <div className="flex items-center justify-between border-b px-4 py-3">
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-semibold">
+                                            Announcements
+                                        </p>
+                                        <Badge variant="outline">
+                                            {unreadNotificationCount} unread
+                                        </Badge>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 px-2 text-xs"
+                                        disabled={unreadNotificationCount === 0}
+                                        onClick={handleMarkAllAsRead}
+                                    >
+                                        <Check className="size-3.5" />
+                                        Mark all read
+                                    </Button>
+                                </div>
+
+                                {notificationItems.length === 0 ? (
+                                    <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                                        No announcements right now.
+                                    </div>
+                                ) : (
+                                    <div className="max-h-[320px] overflow-y-auto">
+                                        {notificationItems.map(
+                                            (announcement) => (
+                                                <div
+                                                    key={announcement.id}
+                                                    className={cn(
+                                                        'border-b px-4 py-3 last:border-b-0',
+                                                        !announcement.is_read &&
+                                                            'bg-muted/20',
+                                                    )}
+                                                >
+                                                    <Link
+                                                        href={notificationsAnnouncements.show.url(
+                                                            announcement.id,
+                                                        )}
+                                                        className="block"
+                                                        prefetch
+                                                    >
+                                                        <div className="mb-1">
+                                                            <p className="text-sm font-medium">
+                                                                {
+                                                                    announcement.title
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                        <p className="truncate text-xs text-muted-foreground">
+                                                            {
+                                                                announcement.content_preview
+                                                            }
+                                                        </p>
+                                                    </Link>
+                                                    <div className="mt-2 flex items-center justify-between">
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {formatNotificationDate(
+                                                                announcement.created_at,
+                                                            )}
+                                                        </p>
+                                                        {!announcement.is_read && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-7 px-2 text-xs"
+                                                                onClick={() =>
+                                                                    handleMarkAsRead(
+                                                                        announcement.id,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Mark read
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ),
+                                        )}
+                                    </div>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button

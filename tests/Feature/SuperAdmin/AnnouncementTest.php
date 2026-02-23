@@ -14,7 +14,6 @@ test('super admin announcement crud actions write audit logs', function () {
     $this->post('/super-admin/announcements', [
         'title' => 'Maintenance Notice',
         'content' => 'System will be down this weekend.',
-        'priority' => 'high',
         'target_roles' => ['teacher', 'student'],
         'expires_at' => now()->addDays(5)->toDateString(),
     ])->assertRedirect();
@@ -33,7 +32,6 @@ test('super admin announcement crud actions write audit logs', function () {
     $this->put("/super-admin/announcements/{$announcement->id}", [
         'title' => 'Updated Maintenance Notice',
         'content' => 'System will be down on Sunday only.',
-        'priority' => 'critical',
         'target_roles' => [],
         'expires_at' => now()->addDays(7)->toDateString(),
     ])->assertRedirect();
@@ -41,7 +39,6 @@ test('super admin announcement crud actions write audit logs', function () {
     $announcement->refresh();
 
     expect($announcement->title)->toBe('Updated Maintenance Notice');
-    expect($announcement->priority)->toBe('critical');
     expect($announcement->target_roles)->toBeNull();
     expect(AuditLog::query()
         ->where('action', 'announcement.updated')
@@ -60,55 +57,53 @@ test('super admin announcement crud actions write audit logs', function () {
         ->exists())->toBeTrue();
 });
 
-test('super admin announcement filters include global and role-targeted items', function () {
+test('super admin announcement role filter includes global and role-targeted items', function () {
     Announcement::query()->create([
         'user_id' => $this->superAdmin->id,
-        'title' => 'General High Priority',
+        'title' => 'General Memo',
         'content' => 'Applies to all roles.',
-        'priority' => 'high',
         'target_roles' => null,
         'expires_at' => now()->addDays(2),
     ]);
 
     Announcement::query()->create([
         'user_id' => $this->superAdmin->id,
-        'title' => 'Teacher High Priority',
+        'title' => 'Teacher Memo A',
         'content' => 'For teachers only.',
-        'priority' => 'high',
         'target_roles' => ['teacher'],
         'expires_at' => now()->addDays(3),
     ]);
 
     Announcement::query()->create([
         'user_id' => $this->superAdmin->id,
-        'title' => 'Student High Priority',
+        'title' => 'Student Memo',
         'content' => 'For students only.',
-        'priority' => 'high',
         'target_roles' => ['student'],
         'expires_at' => now()->addDays(4),
     ]);
 
     Announcement::query()->create([
         'user_id' => $this->superAdmin->id,
-        'title' => 'Teacher Low Priority',
-        'content' => 'Low priority note.',
-        'priority' => 'low',
+        'title' => 'Teacher Memo B',
+        'content' => 'Second teacher-targeted note.',
         'target_roles' => ['teacher'],
         'expires_at' => now()->addDays(5),
     ]);
 
-    $this->get('/super-admin/announcements?priority=high&role=teacher')
+    $this->get('/super-admin/announcements?role=teacher')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('super_admin/announcements/index')
-            ->where('filters.priority', 'high')
             ->where('filters.role', 'teacher')
-            ->has('announcements.data', 2)
-            ->where('announcements.data.0.title', function (string $title): bool {
-                return in_array($title, ['Teacher High Priority', 'General High Priority'], true);
-            })
-            ->where('announcements.data.1.title', function (string $title): bool {
-                return in_array($title, ['Teacher High Priority', 'General High Priority'], true);
+            ->where('announcements.data', function ($announcements): bool {
+                $announcementCollection = collect($announcements)->values();
+                $titles = $announcementCollection->pluck('title');
+
+                return $announcementCollection->count() === 3
+                    && $titles->contains('General Memo')
+                    && $titles->contains('Teacher Memo A')
+                    && $titles->contains('Teacher Memo B')
+                    && ! $titles->contains('Student Memo');
             })
         );
 });
@@ -122,7 +117,6 @@ test('super admin announcement search can match poster name', function () {
         'user_id' => $this->superAdmin->id,
         'title' => 'Regular Memo',
         'content' => 'No matching poster name.',
-        'priority' => 'normal',
         'target_roles' => null,
     ]);
 
@@ -130,7 +124,6 @@ test('super admin announcement search can match poster name', function () {
         'user_id' => $otherPoster->id,
         'title' => 'Operations Advisory',
         'content' => 'Please review this schedule change.',
-        'priority' => 'normal',
         'target_roles' => ['teacher'],
     ]);
 
@@ -149,7 +142,6 @@ test('super admin announcement store normalizes duplicate target roles', functio
     $this->post('/super-admin/announcements', [
         'title' => 'Role Test',
         'content' => 'Role dedupe test.',
-        'priority' => 'normal',
         'target_roles' => ['teacher', 'teacher', 'student'],
     ])->assertRedirect();
 

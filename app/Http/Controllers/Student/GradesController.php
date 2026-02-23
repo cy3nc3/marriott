@@ -7,6 +7,7 @@ use App\Models\AcademicYear;
 use App\Models\ConductRating;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
+use App\Models\GradeSubmission;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -48,7 +49,19 @@ class GradesController extends Controller
             $finalGrades = FinalGrade::query()
                 ->with('subjectAssignment.teacherSubject.subject:id,subject_name')
                 ->where('enrollment_id', $enrollment->id)
-                ->whereIn('quarter', ['1', '2', '3', '4'])
+                ->whereIn('final_grades.quarter', ['1', '2', '3', '4'])
+                ->leftJoin('grade_submissions as grade_submission', function ($join) use ($enrollment): void {
+                    $join
+                        ->on('grade_submission.subject_assignment_id', '=', 'final_grades.subject_assignment_id')
+                        ->on('grade_submission.quarter', '=', 'final_grades.quarter')
+                        ->where('grade_submission.academic_year_id', '=', (int) $enrollment->academic_year_id);
+                })
+                ->where(function ($query): void {
+                    $query
+                        ->whereNull('grade_submission.id')
+                        ->orWhere('grade_submission.status', GradeSubmission::STATUS_VERIFIED);
+                })
+                ->select('final_grades.*')
                 ->get();
 
             $subjectRows = $this->buildSubjectRows($finalGrades);

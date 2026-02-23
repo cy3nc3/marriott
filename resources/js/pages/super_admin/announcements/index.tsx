@@ -6,11 +6,13 @@ import {
     Users,
     Bell,
     Pencil,
-    Filter,
     Search,
     XCircle,
+    Paperclip,
+    UploadCloud,
+    X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { type ChangeEvent, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,13 +38,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
 import { RolesCombobox } from '@/components/ui/roles-combobox';
 import AppLayout from '@/layouts/app-layout';
+import announcementsRoutes from '@/routes/announcements';
 import type { BreadcrumbItem } from '@/types';
-import super_admin from '@/routes/super_admin';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Announcements',
-        href: '/super-admin/announcements',
+        href: '/announcements',
     },
 ];
 
@@ -50,12 +52,19 @@ interface Announcement {
     id: number;
     title: string;
     content: string;
-    priority: string;
     target_roles: string[] | null;
     is_active: boolean;
     created_at: string;
     expires_at?: string;
     user: { name: string };
+    attachments: AnnouncementAttachment[];
+}
+
+interface AnnouncementAttachment {
+    id: number;
+    original_name: string;
+    mime_type: string | null;
+    file_size: number;
 }
 
 interface Props {
@@ -73,7 +82,6 @@ interface Props {
     roles: { value: string; label: string }[];
     filters: {
         search?: string;
-        priority?: string;
         role?: string;
     };
 }
@@ -85,11 +93,12 @@ export default function Announcements({
 }: Props) {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<Announcement | null>(null);
+    const [existingAttachments, setExistingAttachments] = useState<
+        AnnouncementAttachment[]
+    >([]);
+    const attachmentInputRef = useRef<HTMLInputElement | null>(null);
 
     // Filters
-    const [filterPriority, setFilterPriority] = useState<string>(
-        filters.priority || 'all',
-    );
     const [filterRole, setFilterRole] = useState<string>(filters.role || 'all');
     const [searchQuery, setSearchQuery] = useState<string>(
         filters.search || '',
@@ -98,42 +107,52 @@ export default function Announcements({
     const form = useForm({
         title: '',
         content: '',
-        priority: 'normal',
         target_roles: [] as string[],
         expires_at: '',
+        attachments: [] as File[],
+        removed_attachment_ids: [] as number[],
     });
 
     const handleOpenDialog = (item?: Announcement) => {
         if (item) {
             setEditingItem(item);
+            setExistingAttachments(item.attachments || []);
             form.setData({
                 title: item.title,
                 content: item.content,
-                priority: item.priority,
                 target_roles: item.target_roles || [],
                 expires_at: item.expires_at || '',
+                attachments: [],
+                removed_attachment_ids: [],
             });
         } else {
             setEditingItem(null);
+            setExistingAttachments([]);
             form.reset();
+            form.setData('attachments', []);
+            form.setData('removed_attachment_ids', []);
         }
         setIsAddOpen(true);
     };
 
     const handleSubmit = () => {
         if (editingItem) {
-            form.put(super_admin.announcements.update.url(editingItem.id), {
+            form.put(announcementsRoutes.update.url(editingItem.id), {
+                forceFormData: true,
                 onSuccess: () => {
                     setIsAddOpen(false);
                     form.reset();
+                    setExistingAttachments([]);
                     setEditingItem(null);
                 },
             });
         } else {
-            form.post(super_admin.announcements.store.url(), {
+            form.post(announcementsRoutes.store.url(), {
+                forceFormData: true,
                 onSuccess: () => {
                     setIsAddOpen(false);
                     form.reset();
+                    setExistingAttachments([]);
                 },
             });
         }
@@ -141,7 +160,7 @@ export default function Announcements({
 
     const handleDelete = (id: number) => {
         if (confirm('Delete this announcement?')) {
-            router.delete(super_admin.announcements.destroy.url(id));
+            router.delete(announcementsRoutes.destroy.url(id));
         }
     };
 
@@ -149,16 +168,50 @@ export default function Announcements({
         form.setData('expires_at', date ? format(date, 'yyyy-MM-dd') : '');
     };
 
-    const getPriorityBadge = (priority: string) => {
-        return <Badge variant="outline">{priority}</Badge>;
+    const addSelectedAttachments = (event: ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files ?? []);
+        if (files.length === 0) {
+            return;
+        }
+
+        form.setData('attachments', [...form.data.attachments, ...files]);
+        event.target.value = '';
     };
 
-    const applyFilters = (search: string, priority: string, role: string) => {
+    const removePendingAttachment = (index: number) => {
+        form.setData(
+            'attachments',
+            form.data.attachments.filter((_, fileIndex) => fileIndex !== index),
+        );
+    };
+
+    const removeExistingAttachment = (attachmentId: number) => {
+        setExistingAttachments((previous) =>
+            previous.filter((attachment) => attachment.id !== attachmentId),
+        );
+
+        const nextRemovedIds = new Set(form.data.removed_attachment_ids);
+        nextRemovedIds.add(attachmentId);
+        form.setData('removed_attachment_ids', Array.from(nextRemovedIds));
+    };
+
+    const formatFileSize = (size: number) => {
+        if (size < 1024) {
+            return `${size} B`;
+        }
+
+        if (size < 1024 * 1024) {
+            return `${(size / 1024).toFixed(1)} KB`;
+        }
+
+        return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    const applyFilters = (search: string, role: string) => {
         router.get(
-            super_admin.announcements.url(),
+            announcementsRoutes.index.url(),
             {
                 search: search || undefined,
-                priority: priority === 'all' ? undefined : priority,
                 role: role === 'all' ? undefined : role,
             },
             {
@@ -171,24 +224,18 @@ export default function Announcements({
 
     const handleSearch = (value: string) => {
         setSearchQuery(value);
-        applyFilters(value, filterPriority, filterRole);
-    };
-
-    const handlePriorityFilter = (value: string) => {
-        setFilterPriority(value);
-        applyFilters(searchQuery, value, filterRole);
+        applyFilters(value, filterRole);
     };
 
     const handleRoleFilter = (value: string) => {
         setFilterRole(value);
-        applyFilters(searchQuery, filterPriority, value);
+        applyFilters(searchQuery, value);
     };
 
     const resetFilters = () => {
-        setFilterPriority('all');
         setFilterRole('all');
         setSearchQuery('');
-        applyFilters('', 'all', 'all');
+        applyFilters('', 'all');
     };
 
     return (
@@ -206,29 +253,6 @@ export default function Announcements({
                                 onChange={(e) => handleSearch(e.target.value)}
                             />
                         </div>
-
-                        <Select
-                            value={filterPriority}
-                            onValueChange={handlePriorityFilter}
-                        >
-                            <SelectTrigger className="w-[160px]">
-                                <div className="flex items-center gap-2">
-                                    <Filter className="size-4" />
-                                    <SelectValue placeholder="Priority" />
-                                </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">
-                                    All Priorities
-                                </SelectItem>
-                                <SelectItem value="critical">
-                                    Critical
-                                </SelectItem>
-                                <SelectItem value="high">High</SelectItem>
-                                <SelectItem value="normal">Normal</SelectItem>
-                                <SelectItem value="low">Low</SelectItem>
-                            </SelectContent>
-                        </Select>
 
                         <Select
                             value={filterRole}
@@ -253,9 +277,7 @@ export default function Announcements({
                             </SelectContent>
                         </Select>
 
-                        {(searchQuery ||
-                            filterPriority !== 'all' ||
-                            filterRole !== 'all') && (
+                        {(searchQuery || filterRole !== 'all') && (
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -287,7 +309,6 @@ export default function Announcements({
                                             </p>
                                             <div className="flex items-center gap-2">
                                                 <p className="text-xs text-muted-foreground">
-                                                    Posted by {item.user.name} -{' '}
                                                     {new Date(
                                                         item.created_at,
                                                     ).toLocaleDateString()}
@@ -325,7 +346,6 @@ export default function Announcements({
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        {getPriorityBadge(item.priority)}
                                         {item.target_roles &&
                                         item.target_roles.length > 0 ? (
                                             <Badge variant="outline">
@@ -338,6 +358,16 @@ export default function Announcements({
                                         ) : (
                                             <Badge variant="outline">
                                                 All Roles
+                                            </Badge>
+                                        )}
+                                        {item.attachments.length > 0 && (
+                                            <Badge variant="outline">
+                                                <Paperclip className="size-3" />
+                                                {item.attachments.length}{' '}
+                                                Attachment
+                                                {item.attachments.length === 1
+                                                    ? ''
+                                                    : 's'}
                                             </Badge>
                                         )}
                                         <div className="flex items-center gap-1">
@@ -434,7 +464,7 @@ export default function Announcements({
             </div>
 
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                <DialogContent className="sm:max-w-[450px]">
+                <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-[450px]">
                     <DialogHeader>
                         <DialogTitle>
                             {editingItem ? 'Edit' : 'New'} Broadcast
@@ -444,7 +474,7 @@ export default function Announcements({
                             parameters.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-6 py-4">
+                    <div className="grid max-h-[60vh] gap-4 overflow-y-auto py-4 pr-1">
                         <div className="grid gap-2">
                             <Label>Broadcast Title</Label>
                             <Input
@@ -479,47 +509,103 @@ export default function Announcements({
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label>Priority Level</Label>
-                                <Select
-                                    value={form.data.priority}
-                                    onValueChange={(val) =>
-                                        form.setData('priority', val)
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="low">
-                                            Low (Info)
-                                        </SelectItem>
-                                        <SelectItem value="normal">
-                                            Normal
-                                        </SelectItem>
-                                        <SelectItem value="high">
-                                            High (Warning)
-                                        </SelectItem>
-                                        <SelectItem value="critical">
-                                            Critical (Emergency)
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                        <div className="grid gap-2">
+                            <Label>Attachments</Label>
+                            <input
+                                ref={attachmentInputRef}
+                                type="file"
+                                multiple
+                                accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                                className="hidden"
+                                onChange={addSelectedAttachments}
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="justify-start"
+                                onClick={() => attachmentInputRef.current?.click()}
+                            >
+                                <UploadCloud className="size-4" />
+                                Add Files
+                            </Button>
+                            <div className="max-h-36 space-y-2 overflow-y-auto pr-1">
+                                {existingAttachments.map((attachment) => (
+                                    <div
+                                        key={attachment.id}
+                                        className="flex items-center justify-between rounded-md border p-2 text-xs"
+                                    >
+                                        <div className="truncate">
+                                            <p className="truncate font-medium">
+                                                {attachment.original_name}
+                                            </p>
+                                            <p className="text-muted-foreground">
+                                                {formatFileSize(
+                                                    attachment.file_size,
+                                                )}
+                                            </p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            onClick={() =>
+                                                removeExistingAttachment(
+                                                    attachment.id,
+                                                )
+                                            }
+                                        >
+                                            <X className="size-3.5" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {form.data.attachments.map((file, index) => (
+                                    <div
+                                        key={`${file.name}-${index}`}
+                                        className="flex items-center justify-between rounded-md border p-2 text-xs"
+                                    >
+                                        <div className="truncate">
+                                            <p className="truncate font-medium">
+                                                {file.name}
+                                            </p>
+                                            <p className="text-muted-foreground">
+                                                {formatFileSize(file.size)}
+                                            </p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            onClick={() =>
+                                                removePendingAttachment(index)
+                                            }
+                                        >
+                                            <X className="size-3.5" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {existingAttachments.length === 0 &&
+                                    form.data.attachments.length === 0 && (
+                                        <p className="text-xs text-muted-foreground">
+                                            No attachments added.
+                                        </p>
+                                    )}
                             </div>
-                            <div className="grid gap-2">
-                                <Label>Auto-Expiry Date</Label>
-                                <DatePicker
-                                    date={
-                                        form.data.expires_at
-                                            ? new Date(form.data.expires_at)
-                                            : undefined
-                                    }
-                                    setDate={handleDateChange}
-                                    className="w-full"
-                                    placeholder="No Expiry"
-                                />
-                            </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label>Auto-Expiry Date</Label>
+                            <DatePicker
+                                date={
+                                    form.data.expires_at
+                                        ? new Date(form.data.expires_at)
+                                        : undefined
+                                }
+                                setDate={handleDateChange}
+                                className="w-full"
+                                placeholder="No Expiry"
+                            />
                         </div>
                     </div>
                     <DialogFooter>

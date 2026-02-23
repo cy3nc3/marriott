@@ -84,6 +84,11 @@ class User extends Authenticatable
         return $this->hasMany(Announcement::class);
     }
 
+    public function announcementReads(): HasMany
+    {
+        return $this->hasMany(AnnouncementRead::class);
+    }
+
     public function cashierTransactions(): HasMany
     {
         return $this->hasMany(Transaction::class, 'cashier_id');
@@ -92,5 +97,20 @@ class User extends Authenticatable
     public function processedStudentDepartures(): HasMany
     {
         return $this->hasMany(StudentDeparture::class, 'processed_by');
+    }
+
+    public function submittedGradeSubmissions(): HasMany
+    {
+        return $this->hasMany(GradeSubmission::class, 'submitted_by');
+    }
+
+    public function verifiedGradeSubmissions(): HasMany
+    {
+        return $this->hasMany(GradeSubmission::class, 'verified_by');
+    }
+
+    public function returnedGradeSubmissions(): HasMany
+    {
+        return $this->hasMany(GradeSubmission::class, 'returned_by');
     }
 }

@@ -91,7 +91,9 @@ interface Props {
     grouped_assessments: AssessmentGroup[];
     quarterly_exam_assessment: Assessment | null;
     students: StudentRow[];
-    status: 'draft' | 'submitted';
+    status: 'draft' | 'submitted' | 'verified' | 'returned';
+    status_note: string | null;
+    can_edit: boolean;
 }
 
 const quarterLabels: Record<string, string> = {
@@ -118,8 +120,19 @@ export default function GradingSheet({
     quarterly_exam_assessment,
     students,
     status,
+    status_note,
+    can_edit,
 }: Props) {
     const gradingSheetRoute = teacher.grading_sheet;
+
+    const statusLabel =
+        status === 'submitted'
+            ? 'Submitted for Verification'
+            : status === 'verified'
+              ? 'Verified'
+              : status === 'returned'
+                ? 'Returned for Revision'
+                : 'Draft';
 
     const [isAssessmentModalOpen, setIsAssessmentModalOpen] = useState(false);
     const [isRubricModalOpen, setIsRubricModalOpen] = useState(false);
@@ -363,19 +376,30 @@ export default function GradingSheet({
                     <CardHeader className="border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Class and Subject</CardTitle>
-                            <Badge
-                                variant={
-                                    status === 'submitted'
-                                        ? 'secondary'
-                                        : 'outline'
-                                }
-                            >
-                                Status:{' '}
-                                {status === 'submitted' ? 'Submitted' : 'Draft'}
+                                <Badge
+                                    variant={
+                                        status === 'verified'
+                                            ? 'default'
+                                            : status === 'submitted'
+                                              ? 'secondary'
+                                              : status === 'returned'
+                                                ? 'destructive'
+                                                : 'outline'
+                                    }
+                                >
+                                Status: {statusLabel}
                             </Badge>
                         </div>
                     </CardHeader>
                     <CardContent className="pt-6">
+                        {status === 'returned' && status_note ? (
+                            <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm">
+                                <p className="font-medium">Returned Note</p>
+                                <p className="text-muted-foreground">
+                                    {status_note}
+                                </p>
+                            </div>
+                        ) : null}
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex flex-col gap-3 sm:flex-row">
                                 <Select
@@ -462,7 +486,9 @@ export default function GradingSheet({
                                 <Button
                                     variant="outline"
                                     onClick={() => setIsRubricModalOpen(true)}
-                                    disabled={!context.selected_subject_id}
+                                    disabled={
+                                        !context.selected_subject_id || !can_edit
+                                    }
                                 >
                                     <Settings2 className="size-4" />
                                     Configure Rubric
@@ -470,6 +496,7 @@ export default function GradingSheet({
                                 <Button
                                     onClick={() => submitScores('submitted')}
                                     disabled={
+                                        !can_edit ||
                                         !context.has_assignment ||
                                         students.length === 0 ||
                                         allAssessments.length === 0
@@ -490,7 +517,7 @@ export default function GradingSheet({
                             <Button
                                 size="sm"
                                 onClick={() => setIsAssessmentModalOpen(true)}
-                                disabled={!context.has_assignment}
+                                disabled={!context.has_assignment || !can_edit}
                             >
                                 <Plus className="size-4" />
                                 Add Assessment
@@ -609,6 +636,9 @@ export default function GradingSheet({
                                                                             )
                                                                         }
                                                                         className="mx-auto w-20"
+                                                                        disabled={
+                                                                            !can_edit
+                                                                        }
                                                                     />
                                                                 </TableCell>
                                                             );
@@ -633,6 +663,7 @@ export default function GradingSheet({
                                                             )
                                                         }
                                                         className="mx-auto w-20"
+                                                        disabled={!can_edit}
                                                     />
                                                 </TableCell>
                                             ) : null}
@@ -654,6 +685,7 @@ export default function GradingSheet({
                                 variant="outline"
                                 onClick={() => submitScores('draft')}
                                 disabled={
+                                    !can_edit ||
                                     !context.has_assignment ||
                                     students.length === 0 ||
                                     allAssessments.length === 0
@@ -664,6 +696,7 @@ export default function GradingSheet({
                             <Button
                                 onClick={() => submitScores('submitted')}
                                 disabled={
+                                    !can_edit ||
                                     !context.has_assignment ||
                                     students.length === 0 ||
                                     allAssessments.length === 0

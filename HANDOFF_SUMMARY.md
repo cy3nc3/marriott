@@ -898,3 +898,168 @@ Other:
     - `npm run build` (or run `npm run dev`)
 5. If stale runtime behavior appears:
     - `php artisan optimize:clear`
+
+## 26. Latest Announcements + Notifications + Grade Verification Wave (2026-02-23, pending push)
+
+### 26.1 Announcement Ownership and Access Rules
+
+1. Announcements are now managed via shared `/announcements` routes for `super_admin`, `admin`, `registrar`, `finance`, and `teacher` roles.
+2. Super admin can view/manage all announcements.
+3. Non-super-admin publishers only see and manage their own announcements.
+4. Non-super-admin publishers cannot target `super_admin` in role targeting options.
+5. Delete/edit authorization now enforces ownership unless requester is super admin.
+
+### 26.2 Announcement Attachments and Detail Pages
+
+1. Added announcement attachments support:
+    - persistence model: `app/Models/AnnouncementAttachment.php`
+    - migration: `database/migrations/2026_02_23_184742_create_announcement_attachments_table.php`
+2. Announcement create/edit now supports up to 5 files (10MB each) via FormRequest validation:
+    - `app/Http/Requests/SuperAdmin/StoreAnnouncementRequest.php`
+    - `app/Http/Requests/SuperAdmin/UpdateAnnouncementRequest.php`
+3. Added per-notification announcement detail page for full content and attachments:
+    - frontend: `resources/js/pages/notifications/announcements/show.tsx`
+    - controller: `app/Http/Controllers/AnnouncementNotificationController.php`
+4. Attachment preview/download endpoints are wired and access-controlled by visibility rules:
+    - `notifications.announcements.attachments.show`
+    - `notifications.announcements.attachments.download`
+
+### 26.3 Notification System Wiring
+
+1. Added read tracking with dedicated model/table:
+    - model: `app/Models/AnnouncementRead.php`
+    - migration: `database/migrations/2026_02_23_181035_create_announcement_reads_table.php`
+2. Notification payload is globally shared via Inertia middleware:
+    - `app/Http/Middleware/HandleInertiaRequests.php`
+3. Shared notification service now drives unread counts and visibility filters:
+    - `app/Services/AnnouncementNotificationService.php`
+4. Notification dropdowns are wired in current active header implementation (`app-sidebar-header`) with:
+    - one-line content preview (`truncate`)
+    - announcement detail click-through
+    - mark-as-read and mark-all-read actions
+5. Added notification routes in `routes/web.php`:
+    - show announcement detail
+    - mark read
+    - mark all read
+
+### 26.4 Targeted Recipient Support
+
+1. Added per-user target audience support on announcements:
+    - `announcements.target_user_ids` JSON column
+    - migration: `database/migrations/2026_02_23_203959_add_target_user_ids_to_announcements_table.php`
+2. Notification visibility now requires BOTH:
+    - matching role targeting (or global role scope), and
+    - matching user targeting (or global user scope)
+3. This is used for grade-deadline announcements so only relevant teachers receive notices.
+
+### 26.5 Admin Grade Verification Module (New)
+
+1. Added admin grade verification page + backend:
+    - controller: `app/Http/Controllers/Admin/GradeVerificationController.php`
+    - page: `resources/js/pages/admin/grade-verification/index.tsx`
+    - routes in `routes/roles/admin.php`
+2. Added grade submission persistence:
+    - model: `app/Models/GradeSubmission.php`
+    - migration: `database/migrations/2026_02_23_200701_create_grade_submissions_table.php`
+3. Added FormRequests:
+    - `IndexGradeVerificationRequest`
+    - `UpdateGradeSubmissionDeadlineRequest`
+    - `VerifyGradeSubmissionRequest`
+    - `ReturnGradeSubmissionRequest`
+4. Admin page behavior:
+    - tab queues: For Verification, Returned, Verified
+    - header shows current quarter + submission deadline + set/edit deadline button
+    - no quarter selector dropdown (current quarter driven)
+5. Verification behavior:
+    - verify only from submitted state
+    - requires expected class grade rows to be posted and locked
+    - return action unlocks rows and records return notes
+
+### 26.6 Teacher Grading Submission Integration
+
+1. Teacher grading flow now tracks class-quarter submission status (`draft/submitted/returned/verified`).
+2. Once submitted/verified, assessment and score edits are blocked until returned.
+3. Submission status and return note are surfaced in grading sheet UI.
+4. Student and parent grades pages now only include verified class-quarter grades.
+
+### 26.7 Grade Deadline Announcements and Reminders
+
+1. Added service for grade deadline announcement generation:
+    - `app/Services/GradeDeadlineAnnouncementService.php`
+2. Set/edit deadline from admin grade verification automatically posts teacher announcements when deadline changes.
+3. Reminder automation added via command:
+    - `app/Console/Commands/SendGradeDeadlineRemindersCommand.php`
+    - signature: `grading:send-deadline-reminders`
+4. Scheduler entry added in `routes/console.php`:
+    - runs daily at `07:00`
+    - sends "due tomorrow" and "due today" reminders
+5. Reminder recipients exclude teachers with no pending class-quarter submissions.
+6. Deadline is announcement-only and does NOT auto-lock grades on due date.
+
+### 26.8 School Year Close Guard Update
+
+1. School year close now blocks when grade verification queue still has pending statuses (`submitted` or `returned`).
+2. Existing promotion and grade-completeness close guards remain in effect.
+
+### 26.9 UI Refinements in This Wave
+
+1. Notification preview in dropdown limited to one line.
+2. Announcement list no longer displays "posted by" text.
+3. Announcement management dialogs were reduced from oversized behavior during iteration.
+4. Sidebar now includes Announcements links for publishing roles and Grade Verification link for admin.
+
+### 26.10 Tests Added/Updated in This Wave
+
+1. `tests/Feature/Admin/GradeVerificationTest.php`
+2. `tests/Feature/AnnouncementNotificationsTest.php`
+3. `tests/Feature/AnnouncementManagementAccessTest.php`
+4. `tests/Feature/Admin/AdminFeaturesTest.php`
+5. `tests/Feature/Teacher/TeacherFeaturesTest.php`
+6. `tests/Feature/SuperAdmin/AnnouncementTest.php`
+
+---
+
+## 27. Updated Pull / Update / Setup Instructions (Required)
+
+Use this when continuing work on another device or after pulling this wave.
+
+### 27.1 Pull + Dependency Sync
+
+1. `git pull origin main`
+2. `composer install`
+3. `npm install`
+
+### 27.2 Database and Runtime Setup
+
+1. Run migrations (required for notifications/attachments/grade verification):
+    - `php artisan migrate`
+2. Clear stale caches after pulling backend changes:
+    - `php artisan optimize:clear`
+
+### 27.3 Scheduler Requirement for Deadline Reminders
+
+Pick one in development:
+
+1. `php artisan schedule:work` (recommended while developing), or
+2. `php artisan schedule:run` manually for spot checks.
+
+Production-equivalent expectation:
+
+1. Ensure Laravel scheduler is running every minute (cron/systemd), so `grading:send-deadline-reminders` daily schedule can execute.
+
+### 27.4 Dev Loop
+
+1. `composer run dev`
+2. If frontend updates are not visible:
+    - `npm run dev` or `npm run build`
+
+### 27.5 Quality Gate Before Push
+
+1. `vendor/bin/pint --dirty --format agent`
+2. `npm run -s types`
+3. `php artisan test --compact <targeted suites>`
+
+### 27.6 Important Note for Next AI Session
+
+The next AI is allowed to run required project setup/install commands (Composer, npm, migrations, cache clear, scheduler worker, tests) to make the environment operational before implementing features.
+

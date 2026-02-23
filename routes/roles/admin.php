@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\ClassListController;
 use App\Http\Controllers\Admin\CurriculumController;
+use App\Http\Controllers\Admin\GradeVerificationController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\SchoolYearController;
 use App\Http\Controllers\Admin\SectionController;
@@ -35,6 +36,10 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::delete('/schedule-builder/{schedule}', [ScheduleController::class, 'destroy'])->name('schedule_builder.destroy');
 
     Route::get('/class-lists', [ClassListController::class, 'index'])->name('class_lists');
+    Route::get('/grade-verification', [GradeVerificationController::class, 'index'])->name('grade_verification');
+    Route::post('/grade-verification/deadline', [GradeVerificationController::class, 'updateDeadline'])->name('grade_verification.update_deadline');
+    Route::post('/grade-verification/{gradeSubmission}/verify', [GradeVerificationController::class, 'verify'])->name('grade_verification.verify');
+    Route::post('/grade-verification/{gradeSubmission}/return', [GradeVerificationController::class, 'returnSubmission'])->name('grade_verification.return');
 
     Route::get('/deped-reports', function () {
         return Inertia::render('admin/deped-reports/index');
