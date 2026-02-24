@@ -15,6 +15,7 @@ class UpdateFeeRequest extends FormRequest
     {
         return [
             'grade_level_id' => ['required', 'exists:grade_levels,id'],
+            'academic_year_id' => ['required', 'exists:academic_years,id'],
             'type' => ['required', 'in:tuition,miscellaneous,books_modules'],
             'name' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0', 'max:999999.99'],

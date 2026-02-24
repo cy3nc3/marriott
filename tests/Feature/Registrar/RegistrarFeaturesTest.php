@@ -2,7 +2,10 @@
 
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
+use App\Models\BillingSchedule;
+use App\Models\Discount;
 use App\Models\Enrollment;
+use App\Models\Fee;
 use App\Models\FinalGrade;
 use App\Models\GradeLevel;
 use App\Models\PermanentRecord;
@@ -11,6 +14,7 @@ use App\Models\Section;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Models\StudentDeparture;
+use App\Models\StudentDiscount;
 use App\Models\Subject;
 use App\Models\SubjectAssignment;
 use App\Models\TeacherSubject;
@@ -85,6 +89,139 @@ test('registrar sf1 upload reconciles student directory by lrn', function () {
             ->where('summary.matched', 1)
             ->where('summary.pending', 0)
             ->where('summary.discrepancy', 0)
+        );
+});
+
+test('registrar enrollment page filters queue by selected school year', function () {
+    $completedYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $sectionCurrent = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Current',
+    ]);
+
+    $sectionCompleted = Section::query()->create([
+        'academic_year_id' => $completedYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Completed',
+    ]);
+
+    $currentStudent = Student::query()->create([
+        'lrn' => '111122223333',
+        'first_name' => 'Current',
+        'last_name' => 'Student',
+    ]);
+
+    $completedStudent = Student::query()->create([
+        'lrn' => '444455556666',
+        'first_name' => 'Completed',
+        'last_name' => 'Student',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $currentStudent->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $sectionCurrent->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'pending_intake',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $completedStudent->id,
+        'academic_year_id' => $completedYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $sectionCompleted->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'pending_intake',
+    ]);
+
+    $this->get("/registrar/enrollment?academic_year_id={$completedYear->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/enrollment/index')
+            ->where('selected_school_year_id', $completedYear->id)
+            ->where('filters.academic_year_id', $completedYear->id)
+            ->has('enrollments', 1)
+            ->where('enrollments.0.lrn', '444455556666')
+        );
+});
+
+test('registrar student directory filters students by selected school year', function () {
+    $completedYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $sectionCurrent = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Current',
+    ]);
+
+    $sectionCompleted = Section::query()->create([
+        'academic_year_id' => $completedYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Completed',
+    ]);
+
+    $currentStudent = Student::query()->create([
+        'lrn' => '777788889999',
+        'first_name' => 'Current',
+        'last_name' => 'Directory',
+        'is_lis_synced' => true,
+        'sync_error_flag' => false,
+    ]);
+
+    $completedStudent = Student::query()->create([
+        'lrn' => '999900001111',
+        'first_name' => 'Completed',
+        'last_name' => 'Directory',
+        'is_lis_synced' => false,
+        'sync_error_flag' => false,
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $currentStudent->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $sectionCurrent->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $completedStudent->id,
+        'academic_year_id' => $completedYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $sectionCompleted->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $this->get("/registrar/student-directory?academic_year_id={$completedYear->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/student-directory/index')
+            ->where('selected_school_year_id', $completedYear->id)
+            ->has('students', 1)
+            ->where('students.0.lrn', '999900001111')
+            ->where('summary.matched', 0)
+            ->where('summary.pending', 1)
         );
 });
 
@@ -279,12 +416,37 @@ test('registrar dashboard renders empty chart-safe payloads with no queue or tra
 
 test('registrar enrollment intake supports create update and delete', function () {
     $lrn = '123123123123';
+    $firstSection = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Emerald',
+    ]);
+    $secondSection = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Ruby',
+    ]);
+
+    Fee::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'type' => 'tuition',
+        'name' => 'Tuition Fee',
+        'amount' => 7000,
+    ]);
+
+    Fee::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'type' => 'miscellaneous',
+        'name' => 'Miscellaneous Fee',
+        'amount' => 2000,
+    ]);
 
     $this->post('/registrar/enrollment', [
         'lrn' => $lrn,
         'first_name' => 'Maria',
         'last_name' => 'Santos',
         'emergency_contact' => '09171234567',
+        'section_id' => $firstSection->id,
         'payment_term' => 'monthly',
         'downpayment' => 1500,
     ])->assertRedirect();
@@ -302,6 +464,20 @@ test('registrar enrollment intake supports create update and delete', function (
     expect($enrollment)->not->toBeNull();
     expect($enrollment->status)->toBe('pending_intake');
     expect((float) $enrollment->downpayment)->toBe(1500.0);
+    expect($enrollment->section_id)->toBe($firstSection->id);
+    expect($enrollment->grade_level_id)->toBe($firstSection->grade_level_id);
+
+    $monthlySchedules = BillingSchedule::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->orderBy('due_date')
+        ->get();
+
+    expect($monthlySchedules)->toHaveCount(9);
+    expect($monthlySchedules->first()?->due_date?->toDateString())->toBe('2025-07-01');
+    expect($monthlySchedules->last()?->due_date?->toDateString())->toBe('2026-03-01');
+    expect(round((float) $monthlySchedules->sum('amount_due'), 2))->toBe(7500.0);
+    expect($monthlySchedules->every(fn (BillingSchedule $billingSchedule): bool => $billingSchedule->status === 'unpaid'))->toBeTrue();
 
     expect(User::query()->where('email', "student.{$lrn}@marriott.edu")->exists())->toBeTrue();
     expect(User::query()->where('email', "parent.{$lrn}@marriott.edu")->exists())->toBeTrue();
@@ -312,6 +488,7 @@ test('registrar enrollment intake supports create update and delete', function (
         'first_name' => 'Maria',
         'last_name' => 'Reyes',
         'emergency_contact' => '09998887777',
+        'section_id' => $secondSection->id,
         'payment_term' => 'quarterly',
         'downpayment' => 2500,
         'status' => 'for_cashier_payment',
@@ -322,7 +499,61 @@ test('registrar enrollment intake supports create update and delete', function (
     expect($enrollment->status)->toBe('for_cashier_payment');
     expect($enrollment->payment_term)->toBe('quarterly');
     expect((float) $enrollment->downpayment)->toBe(2500.0);
+    expect($enrollment->section_id)->toBe($secondSection->id);
     expect($student->fresh()->last_name)->toBe('Reyes');
+
+    $quarterlySchedules = BillingSchedule::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->orderBy('due_date')
+        ->get();
+
+    expect($quarterlySchedules)->toHaveCount(4);
+    expect($quarterlySchedules->pluck('due_date')->map(fn ($date) => $date?->toDateString())->all())->toBe([
+        '2025-07-01',
+        '2025-10-01',
+        '2025-12-01',
+        '2026-03-01',
+    ]);
+    expect(round((float) $quarterlySchedules->sum('amount_due'), 2))->toBe(6500.0);
+
+    $this->patch("/registrar/enrollment/{$enrollment->id}", [
+        'first_name' => 'Maria',
+        'last_name' => 'Reyes',
+        'emergency_contact' => '09998887777',
+        'section_id' => '',
+        'payment_term' => 'semi-annual',
+        'downpayment' => 3000,
+        'status' => 'for_cashier_payment',
+    ])->assertRedirect();
+
+    $semiAnnualSchedules = BillingSchedule::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->orderBy('due_date')
+        ->get();
+
+    expect($semiAnnualSchedules)->toHaveCount(2);
+    expect($semiAnnualSchedules->pluck('due_date')->map(fn ($date) => $date?->toDateString())->all())->toBe([
+        '2025-07-01',
+        '2026-03-01',
+    ]);
+    expect(round((float) $semiAnnualSchedules->sum('amount_due'), 2))->toBe(6000.0);
+
+    $this->patch("/registrar/enrollment/{$enrollment->id}", [
+        'first_name' => 'Maria',
+        'last_name' => 'Reyes',
+        'emergency_contact' => '09998887777',
+        'section_id' => '',
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'for_cashier_payment',
+    ])->assertRedirect();
+
+    expect(BillingSchedule::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->count())->toBe(0);
 
     $this->delete("/registrar/enrollment/{$enrollment->id}")
         ->assertRedirect();
@@ -360,6 +591,146 @@ test('registrar enrollment intake rejects already enrolled student in active yea
         ->assertSessionHas('error');
 
     expect(Enrollment::query()->count())->toBe($beforeCount);
+});
+
+test('billing schedules are not regenerated when payment activity already exists', function () {
+    Fee::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'type' => 'tuition',
+        'name' => 'Tuition Fee',
+        'amount' => 9000,
+    ]);
+
+    $lrn = '888777666555';
+
+    $this->post('/registrar/enrollment', [
+        'lrn' => $lrn,
+        'first_name' => 'Lara',
+        'last_name' => 'Mercado',
+        'emergency_contact' => '09170000000',
+        'payment_term' => 'monthly',
+        'downpayment' => 1000,
+    ])->assertRedirect();
+
+    $student = Student::query()->where('lrn', $lrn)->firstOrFail();
+    $enrollment = Enrollment::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->firstOrFail();
+
+    $beforeSchedules = BillingSchedule::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->orderBy('due_date')
+        ->get();
+
+    expect($beforeSchedules)->toHaveCount(9);
+
+    $firstSchedule = $beforeSchedules->first();
+
+    expect($firstSchedule)->not->toBeNull();
+
+    $firstSchedule->update([
+        'amount_paid' => 500,
+        'status' => 'partially_paid',
+    ]);
+
+    $this->patch("/registrar/enrollment/{$enrollment->id}", [
+        'first_name' => 'Lara',
+        'last_name' => 'Mercado',
+        'emergency_contact' => '09170000000',
+        'payment_term' => 'quarterly',
+        'downpayment' => 1500,
+        'status' => 'for_cashier_payment',
+    ])->assertRedirect();
+
+    $afterSchedules = BillingSchedule::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->orderBy('due_date')
+        ->get();
+
+    expect($afterSchedules)->toHaveCount(9);
+    expect($afterSchedules->first()?->id)->toBe($firstSchedule->id);
+    expect((float) $afterSchedules->first()?->amount_paid)->toBe(500.0);
+    expect($afterSchedules->first()?->status)->toBe('partially_paid');
+    expect($afterSchedules->pluck('description')->contains('August Installment'))->toBeTrue();
+});
+
+test('billing schedules apply student discount on assessment total before downpayment', function () {
+    $section = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Emerald',
+    ]);
+
+    Fee::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'academic_year_id' => $this->academicYear->id,
+        'type' => 'tuition',
+        'name' => 'Tuition Fee',
+        'amount' => 7000,
+    ]);
+    Fee::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'academic_year_id' => $this->academicYear->id,
+        'type' => 'miscellaneous',
+        'name' => 'Miscellaneous Fee',
+        'amount' => 2000,
+    ]);
+    Fee::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'academic_year_id' => $this->academicYear->id,
+        'type' => 'books_modules',
+        'name' => 'Books Fee',
+        'amount' => 500,
+    ]);
+
+    $this->post('/registrar/enrollment', [
+        'lrn' => '899977766655',
+        'first_name' => 'Nora',
+        'last_name' => 'Castro',
+        'emergency_contact' => '09171231234',
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1000,
+    ])->assertRedirect();
+
+    $student = Student::query()->where('lrn', '899977766655')->firstOrFail();
+    $enrollment = Enrollment::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->firstOrFail();
+
+    $discount = Discount::query()->create([
+        'name' => 'Academic Scholarship',
+        'type' => 'percentage',
+        'value' => 10,
+    ]);
+
+    StudentDiscount::query()->create([
+        'student_id' => $student->id,
+        'discount_id' => $discount->id,
+        'academic_year_id' => $this->academicYear->id,
+    ]);
+
+    $this->patch("/registrar/enrollment/{$enrollment->id}", [
+        'first_name' => 'Nora',
+        'last_name' => 'Castro',
+        'emergency_contact' => '09171231234',
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1000,
+        'status' => 'for_cashier_payment',
+    ])->assertRedirect();
+
+    $discountedSchedules = BillingSchedule::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->get();
+
+    expect($discountedSchedules)->toHaveCount(9);
+    expect(round((float) $discountedSchedules->sum('amount_due'), 2))->toBe(7100.0);
 });
 
 test('registrar remedial entry stores recomputed grades and updates student flag', function () {

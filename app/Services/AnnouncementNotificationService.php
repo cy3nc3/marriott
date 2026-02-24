@@ -25,7 +25,9 @@ class AnnouncementNotificationService
      */
     public function buildPayload(User $user, int $limit = 8): array
     {
-        $announcements = $this->visibleAnnouncementsQuery($user)
+        $visibleAnnouncementsQuery = $this->visibleAnnouncementsForUserQuery($user);
+
+        $announcements = (clone $visibleAnnouncementsQuery)
             ->latest()
             ->limit($limit)
             ->get([
@@ -34,6 +36,7 @@ class AnnouncementNotificationService
                 'content',
                 'target_roles',
                 'expires_at',
+                'publish_at',
                 'created_at',
             ]);
 
@@ -62,8 +65,10 @@ class AnnouncementNotificationService
             })
             ->values();
 
-        $unreadCount = $serializedAnnouncements
-            ->where('is_read', false)
+        $unreadCount = (clone $visibleAnnouncementsQuery)
+            ->whereDoesntHave('reads', function (Builder $query) use ($user): void {
+                $query->where('user_id', $user->id);
+            })
             ->count();
 
         return [
@@ -79,6 +84,10 @@ class AnnouncementNotificationService
         }
 
         if ($announcement->expires_at && $announcement->expires_at->isPast()) {
+            return false;
+        }
+
+        if ($announcement->publish_at && $announcement->publish_at->isFuture()) {
             return false;
         }
 
@@ -105,7 +114,7 @@ class AnnouncementNotificationService
 
     public function markAllAsRead(User $user): void
     {
-        $announcementIds = $this->visibleAnnouncementsQuery($user)
+        $announcementIds = $this->visibleAnnouncementsForUserQuery($user)
             ->pluck('id');
 
         if ($announcementIds->isEmpty()) {
@@ -133,7 +142,7 @@ class AnnouncementNotificationService
         );
     }
 
-    private function visibleAnnouncementsQuery(User $user): Builder
+    public function visibleAnnouncementsForUserQuery(User $user): Builder
     {
         $userRole = $this->resolveUserRole($user);
         $userId = (int) $user->id;
@@ -144,6 +153,11 @@ class AnnouncementNotificationService
                 $query
                     ->whereNull('expires_at')
                     ->orWhere('expires_at', '>=', now());
+            })
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereNull('publish_at')
+                    ->orWhere('publish_at', '<=', now());
             })
             ->where(function (Builder $query) use ($userRole): void {
                 $query

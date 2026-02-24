@@ -15,18 +15,44 @@ use Inertia\Response;
 
 class StudentDirectoryController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $activeAcademicYearId = AcademicYear::query()
-            ->where('status', 'ongoing')
-            ->value('id');
+        $schoolYearOptions = AcademicYear::query()
+            ->orderByDesc('start_date')
+            ->get(['id', 'name', 'status', 'start_date'])
+            ->map(function (AcademicYear $academicYear) {
+                return [
+                    'id' => (int) $academicYear->id,
+                    'name' => $academicYear->name,
+                    'status' => $academicYear->status,
+                ];
+            })
+            ->values();
+
+        $selectedAcademicYearId = $request->integer('academic_year_id');
+        if (
+            $selectedAcademicYearId <= 0
+            || ! $schoolYearOptions->pluck('id')->contains($selectedAcademicYearId)
+        ) {
+            $selectedAcademicYearId = (int) ($schoolYearOptions->firstWhere('status', 'ongoing')['id']
+                ?? ($schoolYearOptions->first()['id'] ?? 0));
+        }
+
+        $selectedAcademicYear = $selectedAcademicYearId > 0
+            ? AcademicYear::query()->find($selectedAcademicYearId)
+            : null;
 
         $students = Student::query()
+            ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
+                $query->whereHas('enrollments', function ($enrollmentQuery) use ($selectedAcademicYear) {
+                    $enrollmentQuery->where('academic_year_id', $selectedAcademicYear->id);
+                });
+            })
             ->with([
-                'enrollments' => function ($query) use ($activeAcademicYearId) {
+                'enrollments' => function ($query) use ($selectedAcademicYear) {
                     $query
-                        ->when($activeAcademicYearId, function ($inner) use ($activeAcademicYearId) {
-                            $inner->where('academic_year_id', $activeAcademicYearId);
+                        ->when($selectedAcademicYear, function ($inner) use ($selectedAcademicYear) {
+                            $inner->where('academic_year_id', $selectedAcademicYear->id);
                         })
                         ->with(['gradeLevel:id,name', 'section:id,name'])
                         ->latest('id');
@@ -55,21 +81,17 @@ class StudentDirectoryController extends Controller
             })
             ->values();
 
+        $summary = [
+            'matched' => (int) $students->where('lis_status', 'matched')->count(),
+            'pending' => (int) $students->where('lis_status', 'pending')->count(),
+            'discrepancy' => (int) $students->where('lis_status', 'discrepancy')->count(),
+        ];
+
         return Inertia::render('registrar/student-directory/index', [
             'students' => $students,
-            'summary' => [
-                'matched' => Student::query()
-                    ->where('is_lis_synced', true)
-                    ->where('sync_error_flag', false)
-                    ->count(),
-                'pending' => Student::query()
-                    ->where('is_lis_synced', false)
-                    ->where('sync_error_flag', false)
-                    ->count(),
-                'discrepancy' => Student::query()
-                    ->where('sync_error_flag', true)
-                    ->count(),
-            ],
+            'summary' => $summary,
+            'school_year_options' => $schoolYearOptions->all(),
+            'selected_school_year_id' => $selectedAcademicYear?->id,
             'last_upload' => [
                 'at' => Setting::get('registrar_sf1_last_upload_at'),
                 'file_name' => Setting::get('registrar_sf1_last_upload_name'),

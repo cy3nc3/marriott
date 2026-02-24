@@ -191,3 +191,106 @@ test('finance student ledgers filters entries and can include paid dues', functi
             ->where('filters.date_to', '2026-06-20')
         );
 });
+
+test('finance student ledgers filters records by selected school year', function () {
+    $schoolYearOne = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $schoolYearTwo = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 9',
+        'level_order' => 9,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '723456789012',
+        'first_name' => 'School',
+        'last_name' => 'Year',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYearOne->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYearTwo->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    BillingSchedule::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYearOne->id,
+        'description' => 'SY One Due',
+        'due_date' => '2024-07-15',
+        'amount_due' => 1000,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    BillingSchedule::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYearTwo->id,
+        'description' => 'SY Two Due',
+        'due_date' => '2025-07-15',
+        'amount_due' => 2000,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    LedgerEntry::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYearOne->id,
+        'date' => '2024-06-10',
+        'description' => 'SY One Charge',
+        'debit' => 1000,
+        'credit' => null,
+        'running_balance' => 1000,
+        'reference_id' => null,
+    ]);
+
+    LedgerEntry::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYearTwo->id,
+        'date' => '2025-06-10',
+        'description' => 'SY Two Charge',
+        'debit' => 2000,
+        'credit' => null,
+        'running_balance' => 2000,
+        'reference_id' => null,
+    ]);
+
+    $this->get("/finance/student-ledgers?academic_year_id={$schoolYearOne->id}&student_id={$student->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/student-ledgers/index')
+            ->where('selected_school_year_id', $schoolYearOne->id)
+            ->where('filters.academic_year_id', $schoolYearOne->id)
+            ->has('dues_schedule', 1)
+            ->where('dues_schedule.0.description', 'SY One Due')
+            ->has('ledger_entries', 1)
+            ->where('ledger_entries.0.reference', 'SY One Charge')
+        );
+});

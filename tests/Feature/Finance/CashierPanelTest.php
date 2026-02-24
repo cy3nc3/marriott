@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AcademicYear;
+use App\Models\BillingSchedule;
 use App\Models\Enrollment;
 use App\Models\Fee;
 use App\Models\GradeLevel;
@@ -125,7 +126,7 @@ test('cashier can post transaction and update enrollment status to partial payme
         'status' => 'for_cashier_payment',
     ]);
 
-    $fee = Fee::query()->create([
+    Fee::query()->create([
         'grade_level_id' => $gradeLevel->id,
         'type' => 'tuition',
         'name' => 'Tuition Downpayment',
@@ -158,10 +159,9 @@ test('cashier can post transaction and update enrollment status to partial payme
         'tendered_amount' => 2500,
         'items' => [
             [
-                'type' => 'fee',
-                'description' => 'Tuition Downpayment',
+                'type' => 'assessment_fee',
+                'description' => 'Assessment Fee',
                 'amount' => 2000,
-                'fee_id' => $fee->id,
             ],
             [
                 'type' => 'inventory',
@@ -292,4 +292,172 @@ test('cashier transaction validates tendered amount', function () {
         ->assertSessionHasErrors(['tendered_amount']);
 
     expect(Transaction::query()->where('or_number', 'OR-2026-0003')->exists())->toBeFalse();
+});
+
+test('cashier payment allocates to oldest dues first and carries partial balance forward', function () {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 9',
+        'level_order' => 9,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '567890123456',
+        'first_name' => 'Paolo',
+        'last_name' => 'Garcia',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 12000,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    Fee::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'type' => 'tuition',
+        'name' => 'Tuition',
+        'amount' => 10000,
+    ]);
+
+    $augustDue = BillingSchedule::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'description' => 'August Installment',
+        'due_date' => '2025-08-01',
+        'amount_due' => 5000,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    $septemberDue = BillingSchedule::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'description' => 'September Installment',
+        'due_date' => '2025-09-01',
+        'amount_due' => 5000,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    $this->post('/finance/cashier-panel/transactions', [
+        'student_id' => $student->id,
+        'or_number' => 'OR-2026-1001',
+        'payment_mode' => 'cash',
+        'reference_no' => null,
+        'remarks' => 'First partial monthly payment',
+        'tendered_amount' => 3000,
+        'items' => [
+            [
+                'type' => 'assessment_fee',
+                'description' => 'Assessment Fee',
+                'amount' => 3000,
+            ],
+        ],
+    ])->assertRedirect();
+
+    $augustDue->refresh();
+    $septemberDue->refresh();
+
+    expect((float) $augustDue->amount_paid)->toBe(3000.0);
+    expect($augustDue->status)->toBe('partially_paid');
+    expect((float) $septemberDue->amount_paid)->toBe(0.0);
+    expect($septemberDue->status)->toBe('unpaid');
+
+    $this->post('/finance/cashier-panel/transactions', [
+        'student_id' => $student->id,
+        'or_number' => 'OR-2026-1002',
+        'payment_mode' => 'gcash',
+        'reference_no' => 'GCASH-SECOND',
+        'remarks' => 'Second monthly payment',
+        'tendered_amount' => 5000,
+        'items' => [
+            [
+                'type' => 'assessment_fee',
+                'description' => 'Assessment Fee',
+                'amount' => 5000,
+            ],
+        ],
+    ])->assertRedirect();
+
+    $augustDue->refresh();
+    $septemberDue->refresh();
+
+    expect((float) $augustDue->amount_paid)->toBe(5000.0);
+    expect($augustDue->status)->toBe('paid');
+    expect((float) $septemberDue->amount_paid)->toBe(3000.0);
+    expect($septemberDue->status)->toBe('partially_paid');
+});
+
+test('cashier custom line items do not settle dues schedule', function () {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 8',
+        'level_order' => 8,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '678901234567',
+        'first_name' => 'Nina',
+        'last_name' => 'Lopez',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    $due = BillingSchedule::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'description' => 'August Installment',
+        'due_date' => '2025-08-01',
+        'amount_due' => 5000,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    $this->post('/finance/cashier-panel/transactions', [
+        'student_id' => $student->id,
+        'or_number' => 'OR-2026-1003',
+        'payment_mode' => 'cash',
+        'reference_no' => null,
+        'remarks' => 'ID replacement payment',
+        'tendered_amount' => 500,
+        'items' => [
+            [
+                'type' => 'custom',
+                'description' => 'ID Replacement',
+                'amount' => 500,
+            ],
+        ],
+    ])->assertRedirect();
+
+    $due->refresh();
+
+    expect((float) $due->amount_paid)->toBe(0.0);
+    expect($due->status)->toBe('unpaid');
 });

@@ -23,19 +23,27 @@ export function AppSidebarHeader({
     const unreadNotificationCount = notifications?.unread_count ?? 0;
 
     const handleMarkAsRead = (announcementId: number) => {
-        router.post(notificationsAnnouncements.read.url(announcementId), {}, {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-        });
+        router.post(
+            notificationsAnnouncements.read.url(announcementId),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
     };
 
     const handleMarkAllAsRead = () => {
-        router.post(notificationsAnnouncements.read_all.url(), {}, {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-        });
+        router.post(
+            notificationsAnnouncements.read_all.url(),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
     };
 
     const formatNotificationDate = (value: string | null) => {
@@ -61,7 +69,7 @@ export function AppSidebarHeader({
                     >
                         <Bell className="size-5 opacity-80" />
                         {unreadNotificationCount > 0 && (
-                            <span className="absolute top-1 right-1 inline-flex min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-none text-white">
+                            <span className="absolute top-1 right-1 inline-flex min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] leading-none font-semibold text-white">
                                 {unreadNotificationCount > 9
                                     ? '9+'
                                     : unreadNotificationCount}
@@ -144,6 +152,18 @@ export function AppSidebarHeader({
                             ))}
                         </div>
                     )}
+                    <div className="border-t px-4 py-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            asChild
+                        >
+                            <Link href="/notifications">
+                                Open Notification Inbox
+                            </Link>
+                        </Button>
+                    </div>
                 </DropdownMenuContent>
             </DropdownMenu>
         </header>

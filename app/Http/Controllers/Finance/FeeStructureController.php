@@ -5,18 +5,64 @@ namespace App\Http\Controllers\Finance;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\StoreFeeRequest;
 use App\Http\Requests\Finance\UpdateFeeRequest;
+use App\Models\AcademicYear;
 use App\Models\Fee;
 use App\Models\GradeLevel;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class FeeStructureController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $schoolYearOptions = AcademicYear::query()
+            ->orderByDesc('start_date')
+            ->get(['id', 'name', 'status', 'start_date'])
+            ->map(function (AcademicYear $academicYear) {
+                return [
+                    'id' => (int) $academicYear->id,
+                    'name' => $academicYear->name,
+                    'status' => $academicYear->status,
+                ];
+            })
+            ->values();
+
+        $selectedAcademicYearId = $request->integer('academic_year_id');
+        if (
+            $selectedAcademicYearId <= 0
+            || ! $schoolYearOptions->pluck('id')->contains($selectedAcademicYearId)
+        ) {
+            $selectedAcademicYearId = (int) ($schoolYearOptions->firstWhere('status', 'ongoing')['id']
+                ?? ($schoolYearOptions->first()['id'] ?? 0));
+        }
+
+        $selectedAcademicYear = $selectedAcademicYearId > 0
+            ? AcademicYear::query()->find($selectedAcademicYearId)
+            : null;
+
+        $hasVersionedFeesForSelectedYear = $selectedAcademicYear
+            ? Fee::query()
+                ->where('academic_year_id', $selectedAcademicYear->id)
+                ->exists()
+            : false;
+
         $gradeLevelFees = GradeLevel::query()
-            ->with(['fees' => function ($query) {
+            ->with(['fees' => function ($query) use (
+                $selectedAcademicYear,
+                $hasVersionedFeesForSelectedYear
+            ) {
+                if ($selectedAcademicYear) {
+                    if ($hasVersionedFeesForSelectedYear) {
+                        $query->where('academic_year_id', $selectedAcademicYear->id);
+                    } else {
+                        $query->whereNull('academic_year_id');
+                    }
+                } else {
+                    $query->whereNull('academic_year_id');
+                }
+
                 $query
                     ->orderBy('type')
                     ->orderBy('name')
@@ -33,6 +79,7 @@ class FeeStructureController extends Controller
                             return [
                                 'id' => $fee->id,
                                 'grade_level_id' => $fee->grade_level_id,
+                                'academic_year_id' => $fee->academic_year_id,
                                 'label' => $fee->name,
                                 'type' => $fee->type,
                                 'category' => $this->formatCategory($fee->type),
@@ -46,28 +93,52 @@ class FeeStructureController extends Controller
 
         return Inertia::render('finance/fee-structure/index', [
             'grade_level_fees' => $gradeLevelFees,
+            'school_year_options' => $schoolYearOptions->all(),
+            'selected_school_year_id' => $selectedAcademicYear?->id,
         ]);
     }
 
     public function store(StoreFeeRequest $request): RedirectResponse
     {
-        Fee::query()->create($request->validated());
+        $validated = $request->validated();
 
-        return back()->with('success', 'Fee item added.');
+        Fee::query()->create($validated);
+
+        return redirect()
+            ->route('finance.fee_structure', [
+                'academic_year_id' => $validated['academic_year_id'],
+            ])
+            ->with('success', 'Fee item added.');
     }
 
     public function update(UpdateFeeRequest $request, Fee $fee): RedirectResponse
     {
-        $fee->update($request->validated());
+        $validated = $request->validated();
 
-        return back()->with('success', 'Fee item updated.');
+        $fee->update($validated);
+
+        return redirect()
+            ->route('finance.fee_structure', [
+                'academic_year_id' => $validated['academic_year_id'],
+            ])
+            ->with('success', 'Fee item updated.');
     }
 
-    public function destroy(Fee $fee): RedirectResponse
+    public function destroy(Request $request, Fee $fee): RedirectResponse
     {
+        $selectedAcademicYearId = $request->integer('academic_year_id');
+
         $fee->delete();
 
-        return back()->with('success', 'Fee item removed.');
+        $redirect = redirect()->route('finance.fee_structure');
+
+        if ($selectedAcademicYearId > 0) {
+            $redirect = redirect()->route('finance.fee_structure', [
+                'academic_year_id' => $selectedAcademicYearId,
+            ]);
+        }
+
+        return $redirect->with('success', 'Fee item removed.');
     }
 
     private function formatCategory(string $type): string

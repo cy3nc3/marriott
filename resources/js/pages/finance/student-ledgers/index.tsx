@@ -42,6 +42,12 @@ type StudentOption = {
     name: string;
 };
 
+type SchoolYearOption = {
+    id: number;
+    name: string;
+    status: string;
+};
+
 type SelectedStudent = {
     id: number;
     name: string;
@@ -83,6 +89,7 @@ type Summary = {
 };
 
 type Filters = {
+    academic_year_id: number | null;
     search: string | null;
     student_id: number | null;
     entry_type: 'all' | 'charge' | 'payment' | 'discount' | 'adjustment';
@@ -93,6 +100,8 @@ type Filters = {
 
 interface Props {
     students: StudentOption[];
+    school_year_options: SchoolYearOption[];
+    selected_school_year_id: number | null;
     selected_student: SelectedStudent | null;
     dues_schedule: DueScheduleRow[];
     ledger_entries: LedgerEntryRow[];
@@ -121,6 +130,8 @@ const parseDateInput = (value: string | null) => {
 
 export default function StudentLedgers({
     students,
+    school_year_options,
+    selected_school_year_id,
     selected_student,
     dues_schedule,
     ledger_entries,
@@ -138,6 +149,9 @@ export default function StudentLedgers({
             : undefined;
 
     const [searchQuery, setSearchQuery] = useState(filters.search ?? '');
+    const [selectedSchoolYearId, setSelectedSchoolYearId] = useState(
+        selected_school_year_id ? String(selected_school_year_id) : '',
+    );
     const [selectedStudentId, setSelectedStudentId] = useState(
         selected_student?.id
             ? String(selected_student.id)
@@ -159,6 +173,7 @@ export default function StudentLedgers({
             student_ledgers.url({
                 query: {
                     search: searchQuery || undefined,
+                    academic_year_id: selectedSchoolYearId || undefined,
                     student_id: studentId || undefined,
                     show_paid_dues: paidFlag ? 1 : undefined,
                     entry_type:
@@ -185,6 +200,34 @@ export default function StudentLedgers({
         applyFilters(value);
     };
 
+    const handleSelectSchoolYear = (value: string) => {
+        setSelectedSchoolYearId(value);
+        setSelectedStudentId('');
+        router.get(
+            student_ledgers.url({
+                query: {
+                    academic_year_id: value || undefined,
+                    search: searchQuery || undefined,
+                    show_paid_dues: showPaidDues ? 1 : undefined,
+                    entry_type:
+                        entryTypeFilter === 'all' ? undefined : entryTypeFilter,
+                    date_from: entryDateRange?.from
+                        ? format(entryDateRange.from, 'yyyy-MM-dd')
+                        : undefined,
+                    date_to: entryDateRange?.to
+                        ? format(entryDateRange.to, 'yyyy-MM-dd')
+                        : undefined,
+                },
+            }),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
     const handleToggleShowPaid = (checked: boolean) => {
         setShowPaidDues(checked);
         applyFilters(selectedStudentId, checked);
@@ -198,6 +241,7 @@ export default function StudentLedgers({
             student_ledgers.url({
                 query: {
                     search: searchQuery || undefined,
+                    academic_year_id: selectedSchoolYearId || undefined,
                     student_id: selectedStudentId || undefined,
                     show_paid_dues: showPaidDues ? 1 : undefined,
                     entry_type: value === 'all' ? undefined : value,
@@ -226,6 +270,7 @@ export default function StudentLedgers({
             student_ledgers.url({
                 query: {
                     search: searchQuery || undefined,
+                    academic_year_id: selectedSchoolYearId || undefined,
                     student_id: selectedStudentId || undefined,
                     show_paid_dues: showPaidDues ? 1 : undefined,
                 },
@@ -273,7 +318,25 @@ export default function StudentLedgers({
                         <CardTitle>Ledger Lookup</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                        <div className="grid gap-3 lg:grid-cols-[1fr_20rem_auto]">
+                        <div className="grid gap-3 lg:grid-cols-[14rem_1fr_20rem_auto]">
+                            <Select
+                                value={selectedSchoolYearId}
+                                onValueChange={handleSelectSchoolYear}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="School Year" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {school_year_options.map((schoolYear) => (
+                                        <SelectItem
+                                            key={schoolYear.id}
+                                            value={String(schoolYear.id)}
+                                        >
+                                            {schoolYear.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             <div className="relative">
                                 <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
                                 <Input

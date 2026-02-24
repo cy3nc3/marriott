@@ -9,6 +9,7 @@ use App\Services\AnnouncementNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -16,6 +17,75 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class AnnouncementNotificationController extends Controller
 {
     public function __construct(private AnnouncementNotificationService $announcementNotificationService) {}
+
+    public function index(Request $request): Response
+    {
+        $user = $request->user();
+        if (! $user instanceof User) {
+            abort(403);
+        }
+
+        $search = trim((string) $request->input('search', ''));
+        $status = (string) $request->input('status', 'all');
+
+        if (! in_array($status, ['all', 'unread', 'read'], true)) {
+            $status = 'all';
+        }
+
+        $announcementsQuery = $this->announcementNotificationService
+            ->visibleAnnouncementsForUserQuery($user)
+            ->with([
+                'reads' => function ($query) use ($user): void {
+                    $query
+                        ->where('user_id', $user->id)
+                        ->select(['id', 'announcement_id', 'user_id', 'read_at']);
+                },
+            ])
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($searchQuery) use ($search): void {
+                    $searchQuery
+                        ->where('title', 'like', "%{$search}%")
+                        ->orWhere('content', 'like', "%{$search}%");
+                });
+            })
+            ->when($status === 'unread', function ($query) use ($user): void {
+                $query->whereDoesntHave('reads', function ($readQuery) use ($user): void {
+                    $readQuery->where('user_id', $user->id);
+                });
+            })
+            ->when($status === 'read', function ($query) use ($user): void {
+                $query->whereHas('reads', function ($readQuery) use ($user): void {
+                    $readQuery->where('user_id', $user->id);
+                });
+            })
+            ->latest();
+
+        $announcements = $announcementsQuery
+            ->paginate(15)
+            ->withQueryString()
+            ->through(function (Announcement $announcement): array {
+                return [
+                    'id' => (int) $announcement->id,
+                    'title' => (string) $announcement->title,
+                    'content_preview' => Str::limit(trim((string) $announcement->content), 180),
+                    'created_at' => $announcement->created_at?->toIso8601String(),
+                    'publish_at' => $announcement->publish_at?->toIso8601String(),
+                    'expires_at' => $announcement->expires_at?->toIso8601String(),
+                    'is_read' => $announcement->reads->isNotEmpty(),
+                    'show_url' => route('notifications.announcements.show', [
+                        'announcement' => $announcement->id,
+                    ]),
+                ];
+            });
+
+        return Inertia::render('notifications/inbox/index', [
+            'announcements' => $announcements,
+            'filters' => [
+                'search' => $search !== '' ? $search : null,
+                'status' => $status,
+            ],
+        ]);
+    }
 
     public function show(Request $request, Announcement $announcement): Response
     {

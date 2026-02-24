@@ -1,4 +1,4 @@
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     Megaphone,
     Plus,
@@ -11,6 +11,7 @@ import {
     Paperclip,
     UploadCloud,
     X,
+    BarChart3,
 } from 'lucide-react';
 import { type ChangeEvent, useRef, useState } from 'react';
 import { format } from 'date-fns';
@@ -38,8 +39,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
 import { RolesCombobox } from '@/components/ui/roles-combobox';
 import AppLayout from '@/layouts/app-layout';
+import { due_reminder_settings } from '@/routes/finance';
 import announcementsRoutes from '@/routes/announcements';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -55,9 +57,17 @@ interface Announcement {
     target_roles: string[] | null;
     is_active: boolean;
     created_at: string;
+    publish_at?: string | null;
     expires_at?: string;
     user: { name: string };
     attachments: AnnouncementAttachment[];
+    analytics: {
+        recipient_count: number;
+        read_count: number;
+        unread_count: number;
+        read_rate: number;
+    };
+    report_url: string;
 }
 
 interface AnnouncementAttachment {
@@ -84,13 +94,24 @@ interface Props {
         search?: string;
         role?: string;
     };
+    summary: {
+        visible_announcements: number;
+        scheduled_announcements: number;
+        recipients: number;
+        unread: number;
+    };
 }
 
 export default function Announcements({
     announcements,
     roles,
     filters,
+    summary,
 }: Props) {
+    const page = usePage<SharedData>();
+    const userRole = (page.props.auth.user.role as string) || '';
+    const isFinanceUser = userRole === 'finance';
+
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<Announcement | null>(null);
     const [existingAttachments, setExistingAttachments] = useState<
@@ -108,10 +129,30 @@ export default function Announcements({
         title: '',
         content: '',
         target_roles: [] as string[],
+        publish_at: '',
         expires_at: '',
         attachments: [] as File[],
         removed_attachment_ids: [] as number[],
     });
+
+    const toDateTimeLocalValue = (value?: string | null) => {
+        if (!value) {
+            return '';
+        }
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return '';
+        }
+
+        const year = date.getFullYear();
+        const month = `${date.getMonth() + 1}`.padStart(2, '0');
+        const day = `${date.getDate()}`.padStart(2, '0');
+        const hours = `${date.getHours()}`.padStart(2, '0');
+        const minutes = `${date.getMinutes()}`.padStart(2, '0');
+
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
 
     const handleOpenDialog = (item?: Announcement) => {
         if (item) {
@@ -121,6 +162,7 @@ export default function Announcements({
                 title: item.title,
                 content: item.content,
                 target_roles: item.target_roles || [],
+                publish_at: toDateTimeLocalValue(item.publish_at),
                 expires_at: item.expires_at || '',
                 attachments: [],
                 removed_attachment_ids: [],
@@ -129,6 +171,7 @@ export default function Announcements({
             setEditingItem(null);
             setExistingAttachments([]);
             form.reset();
+            form.setData('publish_at', '');
             form.setData('attachments', []);
             form.setData('removed_attachment_ids', []);
         }
@@ -288,113 +331,239 @@ export default function Announcements({
                         )}
                     </div>
 
-                    <Button onClick={() => handleOpenDialog()}>
-                        <Plus className="size-4" />
-                        New Announcement
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        {isFinanceUser && (
+                            <Button variant="outline" asChild>
+                                <Link href={due_reminder_settings()}>
+                                    Manage Due Reminders
+                                </Link>
+                            </Button>
+                        )}
+                        <Button onClick={() => handleOpenDialog()}>
+                            <Plus className="size-4" />
+                            New Announcement
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Visible Announcements
+                        </p>
+                        <p className="text-lg font-semibold">
+                            {summary.visible_announcements}
+                        </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Scheduled
+                        </p>
+                        <p className="text-lg font-semibold">
+                            {summary.scheduled_announcements}
+                        </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Target Recipients
+                        </p>
+                        <p className="text-lg font-semibold">
+                            {summary.recipients}
+                        </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Unread Notices
+                        </p>
+                        <p className="text-lg font-semibold">
+                            {summary.unread}
+                        </p>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
                     {announcements.data.map((item) => (
                         <Card key={item.id} className="gap-2">
                             <CardContent className="space-y-4 p-6">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="rounded-lg border p-2">
-                                            <Bell className="size-4" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-semibold">
-                                                {item.title}
-                                            </p>
-                                            <div className="flex items-center gap-2">
-                                                <p className="text-xs text-muted-foreground">
-                                                    {new Date(
-                                                        item.created_at,
-                                                    ).toLocaleDateString()}
-                                                </p>
-                                                {item.target_roles &&
-                                                    item.target_roles.length >
-                                                        0 && (
-                                                        <div className="flex items-center gap-1.5 border-l pl-2">
-                                                            <Users className="size-3 text-muted-foreground" />
-                                                            <div className="flex flex-wrap gap-1">
-                                                                {item.target_roles.map(
-                                                                    (role) => (
-                                                                        <Badge
-                                                                            key={
-                                                                                role
-                                                                            }
-                                                                            variant="outline"
-                                                                        >
-                                                                            {roles.find(
+                                {(() => {
+                                    const publishDate = item.publish_at
+                                        ? new Date(item.publish_at)
+                                        : null;
+                                    const isScheduled =
+                                        publishDate !== null &&
+                                        !Number.isNaN(publishDate.getTime()) &&
+                                        publishDate.getTime() > Date.now();
+
+                                    return (
+                                        <>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="rounded-lg border p-2">
+                                                        <Bell className="size-4" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-semibold">
+                                                            {item.title}
+                                                        </p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {new Date(
+                                                                    item.created_at,
+                                                                ).toLocaleDateString()}
+                                                            </p>
+                                                            {item.target_roles &&
+                                                                item
+                                                                    .target_roles
+                                                                    .length >
+                                                                    0 && (
+                                                                    <div className="flex items-center gap-1.5 border-l pl-2">
+                                                                        <Users className="size-3 text-muted-foreground" />
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {item.target_roles.map(
                                                                                 (
-                                                                                    r,
-                                                                                ) =>
-                                                                                    r.value ===
                                                                                     role,
-                                                                            )
-                                                                                ?.label ||
-                                                                                role}
-                                                                        </Badge>
-                                                                    ),
+                                                                                ) => (
+                                                                                    <Badge
+                                                                                        key={
+                                                                                            role
+                                                                                        }
+                                                                                        variant="outline"
+                                                                                    >
+                                                                                        {roles.find(
+                                                                                            (
+                                                                                                r,
+                                                                                            ) =>
+                                                                                                r.value ===
+                                                                                                role,
+                                                                                        )
+                                                                                            ?.label ||
+                                                                                            role}
+                                                                                    </Badge>
+                                                                                ),
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
                                                                 )}
-                                                            </div>
                                                         </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        asChild
+                                                    >
+                                                        <Link
+                                                            href={
+                                                                item.report_url
+                                                            }
+                                                        >
+                                                            <BarChart3 className="size-4" />
+                                                            View Report
+                                                        </Link>
+                                                    </Button>
+                                                    <Badge
+                                                        variant={
+                                                            isScheduled
+                                                                ? 'secondary'
+                                                                : 'outline'
+                                                        }
+                                                    >
+                                                        {isScheduled
+                                                            ? `Scheduled: ${publishDate?.toLocaleString()}`
+                                                            : 'Published'}
+                                                    </Badge>
+                                                    {item.target_roles &&
+                                                    item.target_roles.length >
+                                                        0 ? (
+                                                        <Badge variant="outline">
+                                                            {
+                                                                item
+                                                                    .target_roles
+                                                                    .length
+                                                            }{' '}
+                                                            Target
+                                                            {item.target_roles
+                                                                .length === 1
+                                                                ? ''
+                                                                : 's'}
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="outline">
+                                                            All Roles
+                                                        </Badge>
                                                     )}
+                                                    {item.attachments.length >
+                                                        0 && (
+                                                        <Badge variant="outline">
+                                                            <Paperclip className="size-3" />
+                                                            {
+                                                                item.attachments
+                                                                    .length
+                                                            }{' '}
+                                                            Attachment
+                                                            {item.attachments
+                                                                .length === 1
+                                                                ? ''
+                                                                : 's'}
+                                                        </Badge>
+                                                    )}
+                                                    <div className="flex items-center gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() =>
+                                                                handleOpenDialog(
+                                                                    item,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Pencil className="size-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            onClick={() =>
+                                                                handleDelete(
+                                                                    item.id,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Trash2 className="size-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        {item.target_roles &&
-                                        item.target_roles.length > 0 ? (
-                                            <Badge variant="outline">
-                                                {item.target_roles.length}{' '}
-                                                Target
-                                                {item.target_roles.length === 1
-                                                    ? ''
-                                                    : 's'}
-                                            </Badge>
-                                        ) : (
-                                            <Badge variant="outline">
-                                                All Roles
-                                            </Badge>
-                                        )}
-                                        {item.attachments.length > 0 && (
-                                            <Badge variant="outline">
-                                                <Paperclip className="size-3" />
-                                                {item.attachments.length}{' '}
-                                                Attachment
-                                                {item.attachments.length === 1
-                                                    ? ''
-                                                    : 's'}
-                                            </Badge>
-                                        )}
-                                        <div className="flex items-center gap-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() =>
-                                                    handleOpenDialog(item)
-                                                }
-                                            >
-                                                <Pencil className="size-4" />
-                                            </Button>
-                                            <Button
-                                                variant="destructive"
-                                                size="icon"
-                                                onClick={() =>
-                                                    handleDelete(item.id)
-                                                }
-                                            >
-                                                <Trash2 className="size-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <p className="text-sm whitespace-pre-wrap text-muted-foreground">
-                                    {item.content}
-                                </p>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Badge variant="outline">
+                                                    Recipients:{' '}
+                                                    {
+                                                        item.analytics
+                                                            .recipient_count
+                                                    }
+                                                </Badge>
+                                                <Badge variant="outline">
+                                                    Read:{' '}
+                                                    {item.analytics.read_count}
+                                                </Badge>
+                                                <Badge variant="outline">
+                                                    Unread:{' '}
+                                                    {
+                                                        item.analytics
+                                                            .unread_count
+                                                    }
+                                                </Badge>
+                                                <Badge variant="outline">
+                                                    Read Rate:{' '}
+                                                    {item.analytics.read_rate}%
+                                                </Badge>
+                                            </div>
+                                            <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                                                {item.content}
+                                            </p>
+                                        </>
+                                    );
+                                })()}
                             </CardContent>
                         </Card>
                     ))}
@@ -523,7 +692,9 @@ export default function Announcements({
                                 type="button"
                                 variant="outline"
                                 className="justify-start"
-                                onClick={() => attachmentInputRef.current?.click()}
+                                onClick={() =>
+                                    attachmentInputRef.current?.click()
+                                }
                             >
                                 <UploadCloud className="size-4" />
                                 Add Files
@@ -592,6 +763,23 @@ export default function Announcements({
                                         </p>
                                     )}
                             </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label>Publish Schedule</Label>
+                            <Input
+                                type="datetime-local"
+                                value={form.data.publish_at}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'publish_at',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Leave blank to publish immediately.
+                            </p>
                         </div>
 
                         <div className="grid gap-2">

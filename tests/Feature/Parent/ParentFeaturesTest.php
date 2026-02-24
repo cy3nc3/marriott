@@ -108,6 +108,116 @@ test('parent schedule page renders linked student schedule', function () {
         );
 });
 
+test('parent schedule page can switch school year history', function () {
+    $currentYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '2',
+    ]);
+
+    $previousYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $teacher = User::factory()->teacher()->create([
+        'first_name' => 'Arthur',
+        'last_name' => 'Santos',
+    ]);
+
+    $currentSection = Section::query()->create([
+        'academic_year_id' => $currentYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $previousSection = Section::query()->create([
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Bonifacio',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'SCI7',
+        'subject_name' => 'Science 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $currentAssignment = SubjectAssignment::query()->create([
+        'section_id' => $currentSection->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $previousAssignment = SubjectAssignment::query()->create([
+        'section_id' => $previousSection->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $currentSection->id,
+        'subject_assignment_id' => $currentAssignment->id,
+        'type' => 'academic',
+        'day' => 'Monday',
+        'start_time' => '09:00:00',
+        'end_time' => '10:00:00',
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $previousSection->id,
+        'subject_assignment_id' => $previousAssignment->id,
+        'type' => 'academic',
+        'day' => 'Thursday',
+        'start_time' => '13:00:00',
+        'end_time' => '14:00:00',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $currentYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $currentSection->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1000,
+        'status' => 'enrolled',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $previousSection->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1000,
+        'status' => 'enrolled',
+    ]);
+
+    $this->get("/parent/schedule?academic_year_id={$previousYear->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('parent/schedule/index')
+            ->where('selected_school_year_id', $previousYear->id)
+            ->has('school_year_options', 2)
+            ->where('schedule_items.0.day', 'Thursday')
+        );
+});
+
 test('parent grades page renders linked student grade and conduct data', function () {
     $schoolYear = AcademicYear::query()->create([
         'name' => '2025-2026',
@@ -192,6 +302,115 @@ test('parent grades page renders linked student grade and conduct data', functio
             ->has('subject_rows', 1)
             ->where('subject_rows.0.subject', 'Science 7')
             ->where('conduct_rows.0.q1', 'AO')
+        );
+});
+
+test('parent grades page can switch school year history', function () {
+    $currentYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $previousYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $adviser = User::factory()->teacher()->create([
+        'first_name' => 'Arthur',
+        'last_name' => 'Santos',
+    ]);
+
+    $currentSection = Section::query()->create([
+        'academic_year_id' => $currentYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => $adviser->id,
+    ]);
+
+    $previousSection = Section::query()->create([
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Bonifacio',
+        'adviser_id' => $adviser->id,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'ENG7',
+        'subject_name' => 'English 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $adviser->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $currentAssignment = SubjectAssignment::query()->create([
+        'section_id' => $currentSection->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $previousAssignment = SubjectAssignment::query()->create([
+        'section_id' => $previousSection->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $currentEnrollment = Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $currentYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $currentSection->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1000,
+        'status' => 'enrolled',
+    ]);
+
+    $previousEnrollment = Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $previousSection->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1000,
+        'status' => 'enrolled',
+    ]);
+
+    FinalGrade::query()->create([
+        'enrollment_id' => $currentEnrollment->id,
+        'subject_assignment_id' => $currentAssignment->id,
+        'quarter' => '1',
+        'grade' => 90,
+        'is_locked' => true,
+    ]);
+
+    FinalGrade::query()->create([
+        'enrollment_id' => $previousEnrollment->id,
+        'subject_assignment_id' => $previousAssignment->id,
+        'quarter' => '1',
+        'grade' => 84,
+        'is_locked' => true,
+    ]);
+
+    $this->get("/parent/grades?academic_year_id={$previousYear->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('parent/grades/index')
+            ->where('selected_school_year_id', $previousYear->id)
+            ->where('context.school_year', '2024-2025')
+            ->where('summary.general_average', '84.00')
+            ->has('school_year_options', 2)
         );
 });
 
@@ -285,10 +504,96 @@ test('parent billing information page renders dues and recent payments', functio
             ->where('account_summary.student_name', 'Juan Dela Cruz')
             ->where('account_summary.payment_plan', 'monthly')
             ->where('account_summary.outstanding_balance', 'PHP 7,000.00')
-            ->has('dues_by_plan.monthly', 2)
-            ->where('dues_by_plan.monthly.1.status', 'Unpaid')
+            ->has('dues_by_plan.monthly', 1)
+            ->where('dues_by_plan.monthly.0.status', 'Unpaid')
+            ->where('dues_by_plan.monthly.0.outstanding_amount', 'PHP 2,500.00')
             ->has('recent_payments', 1)
             ->where('recent_payments.0.or_number', 'OR-1001')
+        );
+});
+
+test('parent billing information can switch school year history', function () {
+    $currentYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $previousYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $currentSection = Section::query()->create([
+        'academic_year_id' => $currentYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+    ]);
+
+    $previousSection = Section::query()->create([
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Bonifacio',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $currentYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $currentSection->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1000,
+        'status' => 'enrolled',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $previousSection->id,
+        'payment_term' => 'quarterly',
+        'downpayment' => 500,
+        'status' => 'enrolled',
+    ]);
+
+    BillingSchedule::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $currentYear->id,
+        'description' => 'Current Year Due',
+        'due_date' => '2025-08-01',
+        'amount_due' => 2000,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    BillingSchedule::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $previousYear->id,
+        'description' => 'Previous Year Due',
+        'due_date' => '2024-08-01',
+        'amount_due' => 1800,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    $this->get("/parent/billing-information?academic_year_id={$previousYear->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('parent/billing-information/index')
+            ->where('selected_school_year_id', $previousYear->id)
+            ->where('dues_by_plan.quarterly.0.due_date', '08/01/2024')
+            ->where('dues_by_plan.quarterly.0.amount', 'PHP 1,800.00')
+            ->has('school_year_options', 2)
         );
 });
 

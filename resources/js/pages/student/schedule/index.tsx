@@ -1,8 +1,15 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { AlertTriangle, CalendarDays, Clock } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
@@ -37,12 +44,16 @@ type BreakItem = {
 interface Props {
     schedule_items: ScheduleItem[];
     break_items: BreakItem[];
+    school_year_options: { id: number; name: string; status: string }[];
+    selected_school_year_id: number | null;
     is_departed_read_only: boolean;
 }
 
 export default function Schedule({
     schedule_items,
     break_items,
+    school_year_options,
+    selected_school_year_id,
     is_departed_read_only,
 }: Props) {
     const classCount = schedule_items.filter(
@@ -61,6 +72,14 @@ export default function Schedule({
         ((timeToMinutes(time) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
     const getHeight = (start: string, end: string) =>
         ((timeToMinutes(end) - timeToMinutes(start)) / 60) * HOUR_HEIGHT;
+
+    const handleSchoolYearChange = (value: string) => {
+        router.get(
+            '/student/schedule',
+            { academic_year_id: Number(value) },
+            { preserveScroll: true },
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -89,6 +108,36 @@ export default function Schedule({
                                 <Badge variant="outline">Student View</Badge>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
+                                {school_year_options.length > 0 && (
+                                    <Select
+                                        value={
+                                            selected_school_year_id
+                                                ? String(
+                                                      selected_school_year_id,
+                                                  )
+                                                : undefined
+                                        }
+                                        onValueChange={handleSchoolYearChange}
+                                    >
+                                        <SelectTrigger className="w-[180px]">
+                                            <SelectValue placeholder="School Year" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {school_year_options.map(
+                                                (schoolYear) => (
+                                                    <SelectItem
+                                                        key={schoolYear.id}
+                                                        value={String(
+                                                            schoolYear.id,
+                                                        )}
+                                                    >
+                                                        {schoolYear.name}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                                 <Badge variant="secondary">
                                     {schedule_items.length} Slots
                                 </Badge>

@@ -63,12 +63,16 @@ Route::middleware(['auth', 'verified', 'role:super_admin,admin,registrar,finance
             ->name('update');
         Route::delete('/{announcement}', [AnnouncementManagementController::class, 'destroy'])
             ->name('destroy');
+        Route::get('/{announcement}/report', [AnnouncementManagementController::class, 'showReport'])
+            ->name('report');
     });
 
 Route::middleware(['auth', 'verified'])
     ->prefix('notifications')
     ->name('notifications.')
     ->group(function () {
+        Route::get('/', [AnnouncementNotificationController::class, 'index'])
+            ->name('index');
         Route::get('/announcements/{announcement}', [AnnouncementNotificationController::class, 'show'])
             ->name('announcements.show');
         Route::get('/announcements/{announcement}/attachments/{attachment}', [AnnouncementNotificationController::class, 'showAttachment'])

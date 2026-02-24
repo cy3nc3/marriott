@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import type { DateRange } from 'react-day-picker';
@@ -36,7 +36,8 @@ type PaymentPlan = 'monthly' | 'quarterly' | 'semi-annual' | 'cash';
 type DueItem = {
     due_date: string | null;
     amount: string;
-    status: 'Paid' | 'Unpaid';
+    outstanding_amount: string;
+    status: 'Paid' | 'Partially Paid' | 'Unpaid';
 };
 
 type PaymentRow = {
@@ -58,6 +59,8 @@ interface Props {
     dues_by_plan: Record<PaymentPlan, DueItem[]>;
     default_plan: PaymentPlan;
     recent_payments: PaymentRow[];
+    school_year_options: { id: number; name: string; status: string }[];
+    selected_school_year_id: number | null;
     is_departed_read_only: boolean;
 }
 
@@ -66,6 +69,8 @@ export default function BillingInformation({
     dues_by_plan,
     default_plan,
     recent_payments,
+    school_year_options,
+    selected_school_year_id,
     is_departed_read_only,
 }: Props) {
     const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>(default_plan);
@@ -88,6 +93,18 @@ export default function BillingInformation({
         );
     });
 
+    const handleSchoolYearChange = (value: string) => {
+        router.get(
+            '/parent/billing-information',
+            {
+                academic_year_id: Number(value),
+            },
+            {
+                preserveScroll: true,
+            },
+        );
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Billing Information" />
@@ -106,7 +123,37 @@ export default function BillingInformation({
 
                 <Card className="gap-2">
                     <CardHeader className="border-b">
-                        <CardTitle>Account Summary</CardTitle>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <CardTitle>Account Summary</CardTitle>
+                            {school_year_options.length > 0 && (
+                                <Select
+                                    value={
+                                        selected_school_year_id
+                                            ? String(selected_school_year_id)
+                                            : undefined
+                                    }
+                                    onValueChange={handleSchoolYearChange}
+                                >
+                                    <SelectTrigger className="w-full sm:w-[220px]">
+                                        <SelectValue placeholder="School Year" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {school_year_options.map(
+                                            (schoolYear) => (
+                                                <SelectItem
+                                                    key={schoolYear.id}
+                                                    value={String(
+                                                        schoolYear.id,
+                                                    )}
+                                                >
+                                                    {schoolYear.name}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        </div>
                     </CardHeader>
                     <CardContent className="pt-6">
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -182,7 +229,10 @@ export default function BillingInformation({
                                         Due Date
                                     </TableHead>
                                     <TableHead className="text-right">
-                                        Amount
+                                        Amount Due
+                                    </TableHead>
+                                    <TableHead className="text-right">
+                                        Outstanding
                                     </TableHead>
                                     <TableHead className="pr-6 text-right">
                                         Status
@@ -194,7 +244,7 @@ export default function BillingInformation({
                                     <TableRow>
                                         <TableCell
                                             className="py-8 text-center text-sm text-muted-foreground"
-                                            colSpan={3}
+                                            colSpan={4}
                                         >
                                             No dues for the selected plan.
                                         </TableCell>
@@ -210,12 +260,18 @@ export default function BillingInformation({
                                             <TableCell className="text-right">
                                                 {due.amount}
                                             </TableCell>
+                                            <TableCell className="text-right">
+                                                {due.outstanding_amount}
+                                            </TableCell>
                                             <TableCell className="pr-6 text-right">
                                                 <Badge
                                                     variant={
-                                                        due.status === 'Paid'
-                                                            ? 'secondary'
-                                                            : 'outline'
+                                                        due.status === 'Unpaid'
+                                                            ? 'outline'
+                                                            : due.status ===
+                                                                'Partially Paid'
+                                                              ? 'secondary'
+                                                              : 'default'
                                                     }
                                                 >
                                                     {due.status}

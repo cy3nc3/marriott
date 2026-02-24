@@ -38,6 +38,12 @@ type CashierOption = {
     name: string;
 };
 
+type SchoolYearOption = {
+    id: number;
+    name: string;
+    status: string;
+};
+
 type BreakdownRow = {
     category: string;
     transaction_count: number;
@@ -51,6 +57,7 @@ type TransactionRow = {
     payment_type: string;
     payment_mode: string;
     payment_mode_label: string;
+    status: string;
     amount: number;
     cashier_name: string;
     posted_at: string | null;
@@ -65,6 +72,7 @@ type Summary = {
 };
 
 type Filters = {
+    academic_year_id: number | null;
     cashier_id: number | null;
     payment_mode: 'cash' | 'gcash' | 'bank_transfer' | null;
     date_from: string | null;
@@ -73,6 +81,8 @@ type Filters = {
 
 interface Props {
     cashiers: CashierOption[];
+    school_year_options: SchoolYearOption[];
+    selected_school_year_id: number | null;
     breakdown_rows: BreakdownRow[];
     transaction_rows: {
         data: TransactionRow[];
@@ -125,6 +135,8 @@ const formatPostedAt = (value: string | null) => {
 
 export default function DailyReports({
     cashiers,
+    school_year_options,
+    selected_school_year_id,
     breakdown_rows,
     transaction_rows,
     summary,
@@ -143,6 +155,9 @@ export default function DailyReports({
     const [reportDateRange, setReportDateRange] = useState<
         DateRange | undefined
     >(initialDateRange);
+    const [selectedSchoolYearId, setSelectedSchoolYearId] = useState(
+        selected_school_year_id ? String(selected_school_year_id) : '',
+    );
     const [cashierFilter, setCashierFilter] = useState(
         filters.cashier_id ? String(filters.cashier_id) : 'cashier-all',
     );
@@ -154,6 +169,7 @@ export default function DailyReports({
         router.get(
             daily_reports.url({
                 query: {
+                    academic_year_id: selectedSchoolYearId || undefined,
                     cashier_id:
                         cashierFilter === 'cashier-all'
                             ? undefined
@@ -181,11 +197,18 @@ export default function DailyReports({
 
     const resetFilters = () => {
         setReportDateRange(undefined);
+        setSelectedSchoolYearId(
+            selected_school_year_id ? String(selected_school_year_id) : '',
+        );
         setCashierFilter('cashier-all');
         setPaymentModeFilter('mode-all');
 
         router.get(
-            daily_reports.url(),
+            daily_reports.url({
+                query: {
+                    academic_year_id: selected_school_year_id ?? undefined,
+                },
+            }),
             {},
             {
                 preserveState: true,
@@ -227,6 +250,24 @@ export default function DailyReports({
                                 setDateRange={setReportDateRange}
                                 className="w-fit max-w-full"
                             />
+                            <Select
+                                value={selectedSchoolYearId}
+                                onValueChange={setSelectedSchoolYearId}
+                            >
+                                <SelectTrigger className="w-full sm:w-44">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {school_year_options.map((schoolYear) => (
+                                        <SelectItem
+                                            key={schoolYear.id}
+                                            value={String(schoolYear.id)}
+                                        >
+                                            {schoolYear.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             <Select
                                 value={cashierFilter}
                                 onValueChange={setCashierFilter}

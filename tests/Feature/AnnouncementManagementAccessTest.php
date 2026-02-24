@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Announcement;
+use App\Models\AnnouncementRead;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -161,4 +162,67 @@ it('blocks student from creating announcements', function (): void {
     $this->assertDatabaseMissing('announcements', [
         'title' => 'Invalid Notice',
     ]);
+});
+
+it('allows publisher to view announcement read report', function (): void {
+    $admin = User::factory()->admin()->create();
+    $teacher = User::factory()->teacher()->create([
+        'name' => 'Teacher Recipient',
+    ]);
+    $student = User::factory()->student()->create([
+        'name' => 'Student Recipient',
+    ]);
+
+    $announcement = Announcement::query()->create([
+        'user_id' => $admin->id,
+        'title' => 'Quarter Advisory',
+        'content' => 'Please review your quarter deliverables.',
+        'target_roles' => ['teacher', 'student'],
+        'is_active' => true,
+        'expires_at' => now()->addDay(),
+    ]);
+
+    AnnouncementRead::query()->create([
+        'announcement_id' => $announcement->id,
+        'user_id' => $teacher->id,
+        'read_at' => now(),
+    ]);
+
+    $this->actingAs($admin)
+        ->get("/announcements/{$announcement->id}/report")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('super_admin/announcements/report')
+            ->where('announcement.id', $announcement->id)
+            ->where('analytics.recipient_count', 2)
+            ->where('analytics.read_count', 1)
+            ->where('analytics.unread_count', 1)
+            ->where('recipients.data', function ($recipients): bool {
+                return collect($recipients)->contains(
+                    fn (array $recipient): bool => $recipient['name'] === 'Teacher Recipient'
+                        && $recipient['is_read'] === true
+                ) && collect($recipients)->contains(
+                    fn (array $recipient): bool => $recipient['name'] === 'Student Recipient'
+                        && $recipient['is_read'] === false
+                );
+            })
+        );
+});
+
+it('blocks non-owner publisher from viewing another publishers announcement report', function (): void {
+    $admin = User::factory()->admin()->create();
+    $registrar = User::factory()->registrar()->create();
+
+    $announcement = Announcement::query()->create([
+        'user_id' => $registrar->id,
+        'title' => 'Registrar Only',
+        'content' => 'Owned by registrar.',
+        'target_roles' => ['student'],
+        'is_active' => true,
+        'expires_at' => now()->addDay(),
+    ]);
+
+    $this->actingAs($admin)
+        ->get("/announcements/{$announcement->id}/report")
+        ->assertForbidden();
 });

@@ -49,10 +49,26 @@ interface EnrollmentRow {
     payment_term: string;
     downpayment: number;
     status: string;
+    section_id: number | null;
+    section_label: string | null;
+}
+
+interface SectionOption {
+    id: number;
+    grade_level_id: number;
+    label: string;
 }
 
 interface Props {
     enrollments: EnrollmentRow[];
+    section_options: SectionOption[];
+    school_year_options: {
+        id: number;
+        name: string;
+        status: string;
+    }[];
+    selected_school_year_id: number | null;
+    selected_school_year_status: string | null;
     summary: {
         pending_intake: number;
         for_cashier_payment: number;
@@ -60,18 +76,34 @@ interface Props {
     };
     filters: {
         search?: string;
+        academic_year_id?: number;
     };
 }
 
-export default function Enrollment({ enrollments, summary, filters }: Props) {
+export default function Enrollment({
+    enrollments,
+    section_options,
+    school_year_options,
+    selected_school_year_id,
+    selected_school_year_status,
+    summary,
+    filters,
+}: Props) {
     const [editingItem, setEditingItem] = useState<EnrollmentRow | null>(null);
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
+    const [selectedSchoolYearId, setSelectedSchoolYearId] = useState(
+        selected_school_year_id ? String(selected_school_year_id) : '',
+    );
 
     const createForm = useForm({
+        academic_year_id: selected_school_year_id
+            ? String(selected_school_year_id)
+            : '',
         lrn: '',
         first_name: '',
         last_name: '',
         emergency_contact: '',
+        section_id: '',
         payment_term: 'monthly',
         downpayment: '',
     });
@@ -80,6 +112,7 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
         first_name: '',
         last_name: '',
         emergency_contact: '',
+        section_id: '',
         payment_term: 'monthly',
         downpayment: '',
         status: 'pending_intake',
@@ -90,6 +123,7 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
         router.get(
             registrar.enrollment.url({
                 query: {
+                    academic_year_id: selectedSchoolYearId || undefined,
                     search: value || undefined,
                 },
             }),
@@ -106,8 +140,11 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
         createForm.post(store().url, {
             preserveScroll: true,
             onSuccess: () => {
+                const yearId = createForm.data.academic_year_id;
                 createForm.reset();
+                createForm.setData('academic_year_id', yearId);
                 createForm.setData('payment_term', 'monthly');
+                createForm.setData('section_id', '');
             },
         });
     };
@@ -118,6 +155,7 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
             first_name: item.first_name,
             last_name: item.last_name,
             emergency_contact: item.emergency_contact || '',
+            section_id: item.section_id ? String(item.section_id) : '',
             payment_term: item.payment_term,
             downpayment: String(item.downpayment ?? 0),
             status: normalizeStatus(item.status),
@@ -182,6 +220,25 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
             <Badge variant="outline">
                 {labelMap[normalized] || normalized}
             </Badge>
+        );
+    };
+
+    const switchSchoolYear = (value: string) => {
+        setSelectedSchoolYearId(value);
+        createForm.setData('academic_year_id', value);
+        router.get(
+            registrar.enrollment.url({
+                query: {
+                    academic_year_id: value || undefined,
+                    search: searchQuery || undefined,
+                },
+            }),
+            {},
+            {
+                preserveState: true,
+                replace: true,
+                preserveScroll: true,
+            },
         );
     };
 
@@ -262,6 +319,43 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
                             </div>
 
                             <div className="space-y-2">
+                                <Label>Section Assignment</Label>
+                                <Select
+                                    value={
+                                        createForm.data.section_id ||
+                                        'unassigned'
+                                    }
+                                    onValueChange={(value) =>
+                                        createForm.setData(
+                                            'section_id',
+                                            value === 'unassigned' ? '' : value,
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="unassigned">
+                                            Unassigned
+                                        </SelectItem>
+                                        {section_options.map(
+                                            (sectionOption) => (
+                                                <SelectItem
+                                                    key={sectionOption.id}
+                                                    value={String(
+                                                        sectionOption.id,
+                                                    )}
+                                                >
+                                                    {sectionOption.label}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
                                 <Label>Payment Plan</Label>
                                 <Select
                                     value={createForm.data.payment_term}
@@ -322,10 +416,19 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
                             <Button
                                 className="w-full"
                                 onClick={submitCreate}
-                                disabled={createForm.processing}
+                                disabled={
+                                    createForm.processing ||
+                                    selected_school_year_status === 'completed'
+                                }
                             >
                                 Save Enrollment Intake
                             </Button>
+                            {selected_school_year_status === 'completed' && (
+                                <p className="text-sm text-muted-foreground">
+                                    Intake creation is disabled for completed
+                                    school years.
+                                </p>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -346,16 +449,40 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
                                         {summary.partial_payment}
                                     </Badge>
                                 </div>
-                                <div className="relative w-full max-w-sm">
-                                    <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Search by LRN or name..."
-                                        className="pl-9"
-                                        value={searchQuery}
-                                        onChange={(event) =>
-                                            applySearch(event.target.value)
-                                        }
-                                    />
+                                <div className="flex flex-col gap-3 sm:flex-row">
+                                    <Select
+                                        value={selectedSchoolYearId}
+                                        onValueChange={switchSchoolYear}
+                                    >
+                                        <SelectTrigger className="w-full sm:w-44">
+                                            <SelectValue placeholder="School Year" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {school_year_options.map(
+                                                (schoolYear) => (
+                                                    <SelectItem
+                                                        key={schoolYear.id}
+                                                        value={String(
+                                                            schoolYear.id,
+                                                        )}
+                                                    >
+                                                        {schoolYear.name}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                    <div className="relative w-full sm:max-w-sm">
+                                        <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Search by LRN or name..."
+                                            className="pl-9"
+                                            value={searchQuery}
+                                            onChange={(event) =>
+                                                applySearch(event.target.value)
+                                            }
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </CardHeader>
@@ -367,6 +494,7 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
                                             LRN
                                         </TableHead>
                                         <TableHead>Student</TableHead>
+                                        <TableHead>Section</TableHead>
                                         <TableHead>Plan</TableHead>
                                         <TableHead>Downpayment</TableHead>
                                         <TableHead>Cashier Status</TableHead>
@@ -384,6 +512,9 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
                                             <TableCell>
                                                 {item.first_name}{' '}
                                                 {item.last_name}
+                                            </TableCell>
+                                            <TableCell>
+                                                {item.section_label ?? '-'}
                                             </TableCell>
                                             <TableCell>
                                                 {formatPaymentTerm(
@@ -427,7 +558,7 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
                                     {enrollments.length === 0 && (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={6}
+                                                colSpan={7}
                                                 className="h-24 text-center text-sm text-muted-foreground"
                                             >
                                                 No enrollment intakes in queue.
@@ -488,6 +619,36 @@ export default function Enrollment({ enrollments, summary, filters }: Props) {
                                     )
                                 }
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Section Assignment</Label>
+                            <Select
+                                value={editForm.data.section_id || 'unassigned'}
+                                onValueChange={(value) =>
+                                    editForm.setData(
+                                        'section_id',
+                                        value === 'unassigned' ? '' : value,
+                                    )
+                                }
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="unassigned">
+                                        Unassigned
+                                    </SelectItem>
+                                    {section_options.map((sectionOption) => (
+                                        <SelectItem
+                                            key={sectionOption.id}
+                                            value={String(sectionOption.id)}
+                                        >
+                                            {sectionOption.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">

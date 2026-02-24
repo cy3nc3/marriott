@@ -1,11 +1,18 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Search } from 'lucide-react';
+import { RefreshCcw, Search, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { DateRangePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import {
@@ -23,6 +30,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { transaction_history } from '@/routes/finance';
 import type { BreadcrumbItem } from '@/types';
@@ -47,16 +55,34 @@ type TransactionRow = {
     cashier_name: string;
     amount: number;
     posted_at: string | null;
+    voided_at: string | null;
+    void_reason: string | null;
+    refunded_at: string | null;
+    refund_reason: string | null;
+    reissued_at: string | null;
+    reissue_reason: string | null;
+    reissued_transaction_or_number: string | null;
+    can_void: boolean;
+    can_refund: boolean;
+    can_reissue: boolean;
+};
+
+type SchoolYearOption = {
+    id: number;
+    name: string;
+    status: string;
 };
 
 type Summary = {
     count: number;
     posted_amount: number;
     voided_amount: number;
+    corrected_amount: number;
     net_amount: number;
 };
 
 type Filters = {
+    academic_year_id: number | null;
     search: string | null;
     payment_mode: 'cash' | 'gcash' | 'bank_transfer' | null;
     date_from: string | null;
@@ -64,6 +90,8 @@ type Filters = {
 };
 
 interface Props {
+    school_year_options: SchoolYearOption[];
+    selected_school_year_id: number | null;
     transactions: {
         data: TransactionRow[];
         links: {
@@ -114,6 +142,8 @@ const formatPostedAt = (value: string | null) => {
 };
 
 export default function TransactionHistory({
+    school_year_options,
+    selected_school_year_id,
     transactions,
     summary,
     filters,
@@ -129,18 +159,41 @@ export default function TransactionHistory({
             : undefined;
 
     const [searchQuery, setSearchQuery] = useState(filters.search ?? '');
+    const [selectedSchoolYearId, setSelectedSchoolYearId] = useState(
+        selected_school_year_id ? String(selected_school_year_id) : '',
+    );
     const [paymentModeFilter, setPaymentModeFilter] = useState(
         filters.payment_mode ?? 'all-modes',
     );
     const [dateRange, setDateRange] = useState<DateRange | undefined>(
         initialDateRange,
     );
+    const [voidingTransaction, setVoidingTransaction] =
+        useState<TransactionRow | null>(null);
+    const [refundingTransaction, setRefundingTransaction] =
+        useState<TransactionRow | null>(null);
+    const [reissuingTransaction, setReissuingTransaction] =
+        useState<TransactionRow | null>(null);
+    const voidForm = useForm({
+        reason: '',
+    });
+    const refundForm = useForm({
+        reason: '',
+    });
+    const reissueForm = useForm({
+        reason: '',
+        or_number: '',
+        payment_mode: 'cash',
+        reference_no: '',
+        remarks: '',
+    });
 
     const applyFilters = () => {
         router.get(
             transaction_history.url({
                 query: {
                     search: searchQuery || undefined,
+                    academic_year_id: selectedSchoolYearId || undefined,
                     payment_mode:
                         paymentModeFilter === 'all-modes'
                             ? undefined
@@ -168,7 +221,11 @@ export default function TransactionHistory({
         setDateRange(undefined);
 
         router.get(
-            transaction_history.url(),
+            transaction_history.url({
+                query: {
+                    academic_year_id: selectedSchoolYearId || undefined,
+                },
+            }),
             {},
             {
                 preserveState: true,
@@ -176,6 +233,107 @@ export default function TransactionHistory({
                 replace: true,
             },
         );
+    };
+
+    const openVoidDialog = (transaction: TransactionRow) => {
+        voidForm.reset();
+        voidForm.clearErrors();
+        setVoidingTransaction(transaction);
+    };
+
+    const submitVoid = () => {
+        if (!voidingTransaction) {
+            return;
+        }
+
+        voidForm.post(
+            `/finance/transaction-history/${voidingTransaction.id}/void`,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setVoidingTransaction(null);
+                    voidForm.reset();
+                },
+            },
+        );
+    };
+
+    const openRefundDialog = (transaction: TransactionRow) => {
+        refundForm.reset();
+        refundForm.clearErrors();
+        setRefundingTransaction(transaction);
+    };
+
+    const submitRefund = () => {
+        if (!refundingTransaction) {
+            return;
+        }
+
+        refundForm.post(
+            `/finance/transaction-history/${refundingTransaction.id}/refund`,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setRefundingTransaction(null);
+                    refundForm.reset();
+                },
+            },
+        );
+    };
+
+    const openReissueDialog = (transaction: TransactionRow) => {
+        reissueForm.setData({
+            reason: '',
+            or_number: '',
+            payment_mode: transaction.payment_mode,
+            reference_no: '',
+            remarks: '',
+        });
+        reissueForm.clearErrors();
+        setReissuingTransaction(transaction);
+    };
+
+    const submitReissue = () => {
+        if (!reissuingTransaction) {
+            return;
+        }
+
+        reissueForm.post(
+            `/finance/transaction-history/${reissuingTransaction.id}/reissue`,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setReissuingTransaction(null);
+                    reissueForm.reset();
+                },
+            },
+        );
+    };
+
+    const correctionLabel = (transaction: TransactionRow) => {
+        if (transaction.status === 'voided') {
+            return transaction.voided_at
+                ? `Voided ${formatPostedAt(transaction.voided_at)}`
+                : 'Voided';
+        }
+
+        if (transaction.status === 'refunded') {
+            return transaction.refunded_at
+                ? `Refunded ${formatPostedAt(transaction.refunded_at)}`
+                : 'Refunded';
+        }
+
+        if (transaction.status === 'reissued') {
+            if (transaction.reissued_transaction_or_number) {
+                return `Reissued to ${transaction.reissued_transaction_or_number}`;
+            }
+
+            return transaction.reissued_at
+                ? `Reissued ${formatPostedAt(transaction.reissued_at)}`
+                : 'Reissued';
+        }
+
+        return '';
     };
 
     return (
@@ -223,6 +381,64 @@ export default function TransactionHistory({
                                     setDateRange={setDateRange}
                                     className="w-fit max-w-full"
                                 />
+                                <Select
+                                    value={selectedSchoolYearId}
+                                    onValueChange={(value) => {
+                                        setSelectedSchoolYearId(value);
+                                        router.get(
+                                            transaction_history.url({
+                                                query: {
+                                                    academic_year_id:
+                                                        value || undefined,
+                                                    search:
+                                                        searchQuery ||
+                                                        undefined,
+                                                    payment_mode:
+                                                        paymentModeFilter ===
+                                                        'all-modes'
+                                                            ? undefined
+                                                            : paymentModeFilter,
+                                                    date_from: dateRange?.from
+                                                        ? format(
+                                                              dateRange.from,
+                                                              'yyyy-MM-dd',
+                                                          )
+                                                        : undefined,
+                                                    date_to: dateRange?.to
+                                                        ? format(
+                                                              dateRange.to,
+                                                              'yyyy-MM-dd',
+                                                          )
+                                                        : undefined,
+                                                },
+                                            }),
+                                            {},
+                                            {
+                                                preserveState: true,
+                                                preserveScroll: true,
+                                                replace: true,
+                                            },
+                                        );
+                                    }}
+                                >
+                                    <SelectTrigger className="w-full sm:w-44">
+                                        <SelectValue placeholder="School Year" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {school_year_options.map(
+                                            (schoolYear) => (
+                                                <SelectItem
+                                                    key={schoolYear.id}
+                                                    value={String(
+                                                        schoolYear.id,
+                                                    )}
+                                                >
+                                                    {schoolYear.name}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
                                 <Select
                                     value={paymentModeFilter}
                                     onValueChange={(value) =>
@@ -283,13 +499,16 @@ export default function TransactionHistory({
                                     <TableHead className="border-l pr-6 text-right">
                                         Amount
                                     </TableHead>
+                                    <TableHead className="border-l pr-6 text-right">
+                                        Actions
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {transactions.data.length === 0 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={7}
+                                            colSpan={8}
                                             className="h-24 text-center text-sm text-muted-foreground"
                                         >
                                             No transactions found.
@@ -311,7 +530,16 @@ export default function TransactionHistory({
                                                 {transaction.payment_mode_label}
                                             </TableCell>
                                             <TableCell className="border-l">
-                                                <Badge variant="secondary">
+                                                <Badge
+                                                    variant={
+                                                        transaction.status ===
+                                                            'voided' ||
+                                                        transaction.status ===
+                                                            'refunded'
+                                                            ? 'destructive'
+                                                            : 'secondary'
+                                                    }
+                                                >
                                                     {transaction.status_label}
                                                 </Badge>
                                             </TableCell>
@@ -323,6 +551,58 @@ export default function TransactionHistory({
                                             <TableCell className="border-l pr-6 text-right">
                                                 {formatCurrency(
                                                     transaction.amount,
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="border-l pr-6 text-right">
+                                                {transaction.can_void ||
+                                                transaction.can_refund ||
+                                                transaction.can_reissue ? (
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                openVoidDialog(
+                                                                    transaction,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Undo2 className="mr-2 size-4" />
+                                                            Void
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                openRefundDialog(
+                                                                    transaction,
+                                                                )
+                                                            }
+                                                        >
+                                                            Refund
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                openReissueDialog(
+                                                                    transaction,
+                                                                )
+                                                            }
+                                                        >
+                                                            <RefreshCcw className="mr-2 size-4" />
+                                                            Reissue
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {correctionLabel(
+                                                            transaction,
+                                                        )}
+                                                    </span>
                                                 )}
                                             </TableCell>
                                         </TableRow>
@@ -396,10 +676,10 @@ export default function TransactionHistory({
                         </div>
                         <div className="space-y-1">
                             <p className="text-muted-foreground">
-                                Voided Amount
+                                Corrected Amount
                             </p>
                             <p className="font-medium">
-                                {formatCurrency(summary.voided_amount)}
+                                {formatCurrency(summary.corrected_amount)}
                             </p>
                         </div>
                         <div className="space-y-1 text-left sm:text-right">
@@ -411,6 +691,308 @@ export default function TransactionHistory({
                     </div>
                 </Card>
             </div>
+
+            <Dialog
+                open={!!voidingTransaction}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setVoidingTransaction(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-[480px]">
+                    <DialogHeader>
+                        <DialogTitle>Void Transaction</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        <div className="rounded-md border p-3 text-sm">
+                            <p className="font-medium">
+                                OR {voidingTransaction?.or_number}
+                            </p>
+                            <p className="text-muted-foreground">
+                                {voidingTransaction?.student_name} ·{' '}
+                                {voidingTransaction
+                                    ? formatCurrency(voidingTransaction.amount)
+                                    : '-'}
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">
+                                Void Reason
+                            </label>
+                            <Textarea
+                                rows={4}
+                                value={voidForm.data.reason}
+                                onChange={(event) =>
+                                    voidForm.setData(
+                                        'reason',
+                                        event.target.value,
+                                    )
+                                }
+                                placeholder="State why this transaction is being voided."
+                            />
+                            {voidForm.errors.reason && (
+                                <p className="text-sm text-destructive">
+                                    {voidForm.errors.reason}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setVoidingTransaction(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={submitVoid}
+                            disabled={voidForm.processing}
+                        >
+                            Confirm Void
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={!!refundingTransaction}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setRefundingTransaction(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-[480px]">
+                    <DialogHeader>
+                        <DialogTitle>Refund Transaction</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        <div className="rounded-md border p-3 text-sm">
+                            <p className="font-medium">
+                                OR {refundingTransaction?.or_number}
+                            </p>
+                            <p className="text-muted-foreground">
+                                {refundingTransaction?.student_name} ·{' '}
+                                {refundingTransaction
+                                    ? formatCurrency(refundingTransaction.amount)
+                                    : '-'}
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">
+                                Refund Reason
+                            </label>
+                            <Textarea
+                                rows={4}
+                                value={refundForm.data.reason}
+                                onChange={(event) =>
+                                    refundForm.setData(
+                                        'reason',
+                                        event.target.value,
+                                    )
+                                }
+                                placeholder="State why this transaction is being refunded."
+                            />
+                            {refundForm.errors.reason && (
+                                <p className="text-sm text-destructive">
+                                    {refundForm.errors.reason}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setRefundingTransaction(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={submitRefund}
+                            disabled={refundForm.processing}
+                        >
+                            Confirm Refund
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={!!reissuingTransaction}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setReissuingTransaction(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-[560px]">
+                    <DialogHeader>
+                        <DialogTitle>Reissue Transaction</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        <div className="rounded-md border p-3 text-sm">
+                            <p className="font-medium">
+                                Current OR {reissuingTransaction?.or_number}
+                            </p>
+                            <p className="text-muted-foreground">
+                                {reissuingTransaction?.student_name} ·{' '}
+                                {reissuingTransaction
+                                    ? formatCurrency(reissuingTransaction.amount)
+                                    : '-'}
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">
+                                Reissue Reason
+                            </label>
+                            <Textarea
+                                rows={3}
+                                value={reissueForm.data.reason}
+                                onChange={(event) =>
+                                    reissueForm.setData(
+                                        'reason',
+                                        event.target.value,
+                                    )
+                                }
+                                placeholder="State why this transaction is being reissued."
+                            />
+                            {reissueForm.errors.reason && (
+                                <p className="text-sm text-destructive">
+                                    {reissueForm.errors.reason}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">
+                                    New OR Number
+                                </label>
+                                <Input
+                                    value={reissueForm.data.or_number}
+                                    onChange={(event) =>
+                                        reissueForm.setData(
+                                            'or_number',
+                                            event.target.value,
+                                        )
+                                    }
+                                    placeholder="OR-2026-XXXX"
+                                />
+                                {reissueForm.errors.or_number && (
+                                    <p className="text-sm text-destructive">
+                                        {reissueForm.errors.or_number}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">
+                                    Payment Mode
+                                </label>
+                                <Select
+                                    value={reissueForm.data.payment_mode}
+                                    onValueChange={(value) =>
+                                        reissueForm.setData(
+                                            'payment_mode',
+                                            value as
+                                                | 'cash'
+                                                | 'gcash'
+                                                | 'bank_transfer',
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="cash">
+                                            Cash
+                                        </SelectItem>
+                                        <SelectItem value="gcash">
+                                            GCash
+                                        </SelectItem>
+                                        <SelectItem value="bank_transfer">
+                                            Bank Transfer
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {reissueForm.errors.payment_mode && (
+                                    <p className="text-sm text-destructive">
+                                        {reissueForm.errors.payment_mode}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">
+                                Reference Number
+                            </label>
+                            <Input
+                                value={reissueForm.data.reference_no}
+                                onChange={(event) =>
+                                    reissueForm.setData(
+                                        'reference_no',
+                                        event.target.value,
+                                    )
+                                }
+                                placeholder="Optional"
+                            />
+                            {reissueForm.errors.reference_no && (
+                                <p className="text-sm text-destructive">
+                                    {reissueForm.errors.reference_no}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">
+                                Remarks
+                            </label>
+                            <Textarea
+                                rows={3}
+                                value={reissueForm.data.remarks}
+                                onChange={(event) =>
+                                    reissueForm.setData(
+                                        'remarks',
+                                        event.target.value,
+                                    )
+                                }
+                                placeholder="Optional"
+                            />
+                            {reissueForm.errors.remarks && (
+                                <p className="text-sm text-destructive">
+                                    {reissueForm.errors.remarks}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setReissuingTransaction(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={submitReissue}
+                            disabled={reissueForm.processing}
+                        >
+                            Confirm Reissue
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

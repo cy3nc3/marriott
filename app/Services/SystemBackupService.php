@@ -32,6 +32,7 @@ class SystemBackupService
                 'settings' => Setting::count(),
             ],
             'tables' => $this->snapshotTables(),
+            'files' => $this->snapshotFiles(),
         ];
 
         Storage::disk('local')->put($path, json_encode($payload, JSON_PRETTY_PRINT));
@@ -114,6 +115,7 @@ class SystemBackupService
         }
 
         $tables = $decoded['tables'] ?? null;
+        $files = $decoded['files'] ?? null;
 
         if (! is_array($tables) || count($tables) === 0) {
             return $this->restoreLegacySettingsBackup($decoded, $safeFileName);
@@ -123,7 +125,7 @@ class SystemBackupService
             DB::beginTransaction();
             Schema::disableForeignKeyConstraints();
 
-            foreach (array_keys($tables) as $table) {
+            foreach ($this->managedTables() as $table) {
                 if (! Schema::hasTable($table)) {
                     continue;
                 }
@@ -140,6 +142,8 @@ class SystemBackupService
                     DB::table($table)->insert($chunk);
                 }
             }
+
+            $this->restoreFiles(is_array($files) ? $files : []);
 
             Schema::enableForeignKeyConstraints();
             DB::commit();
@@ -213,6 +217,7 @@ class SystemBackupService
             'billing_schedules',
             'transactions',
             'transaction_items',
+            'transaction_due_allocations',
             'ledger_entries',
             'attendances',
             'permanent_records',
@@ -220,9 +225,91 @@ class SystemBackupService
             'final_grades',
             'student_departures',
             'announcements',
+            'announcement_reads',
+            'announcement_attachments',
+            'grade_submissions',
+            'conduct_ratings',
+            'finance_due_reminder_rules',
+            'finance_due_reminder_dispatches',
             'settings',
             'audit_logs',
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function managedFileDirectories(): array
+    {
+        return [
+            'announcements',
+        ];
+    }
+
+    /**
+     * @return array<int, array{path: string, content_base64: string}>
+     */
+    private function snapshotFiles(): array
+    {
+        $disk = Storage::disk('local');
+        $files = [];
+
+        foreach ($this->managedFileDirectories() as $directory) {
+            if (! $disk->exists($directory)) {
+                continue;
+            }
+
+            foreach ($disk->allFiles($directory) as $filePath) {
+                $content = $disk->get($filePath);
+                $files[] = [
+                    'path' => $filePath,
+                    'content_base64' => base64_encode($content),
+                ];
+            }
+        }
+
+        return $files;
+    }
+
+    /**
+     * @param  array<int, array{path?: mixed, content_base64?: mixed}>  $files
+     */
+    private function restoreFiles(array $files): void
+    {
+        $disk = Storage::disk('local');
+
+        foreach ($this->managedFileDirectories() as $directory) {
+            if ($disk->exists($directory)) {
+                $disk->deleteDirectory($directory);
+            }
+        }
+
+        foreach ($files as $fileRow) {
+            $path = (string) ($fileRow['path'] ?? '');
+            $encodedContent = (string) ($fileRow['content_base64'] ?? '');
+
+            if (! $this->isManagedFilePath($path) || $encodedContent === '') {
+                continue;
+            }
+
+            $decoded = base64_decode($encodedContent, true);
+            if ($decoded === false) {
+                continue;
+            }
+
+            $disk->put($path, $decoded);
+        }
+    }
+
+    private function isManagedFilePath(string $path): bool
+    {
+        foreach ($this->managedFileDirectories() as $directory) {
+            if ($path === $directory || str_starts_with($path, "{$directory}/")) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

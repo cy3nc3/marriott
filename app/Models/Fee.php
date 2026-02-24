@@ -9,6 +9,7 @@ class Fee extends Model
 {
     protected $fillable = [
         'grade_level_id',
+        'academic_year_id',
         'type',
         'name',
         'amount',
@@ -21,5 +22,10 @@ class Fee extends Model
     public function gradeLevel(): BelongsTo
     {
         return $this->belongsTo(GradeLevel::class);
+    }
+
+    public function academicYear(): BelongsTo
+    {
+        return $this->belongsTo(AcademicYear::class);
     }
 }

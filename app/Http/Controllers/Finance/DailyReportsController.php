@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Finance;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\IndexDailyReportsRequest;
+use App\Models\AcademicYear;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\User;
@@ -17,6 +18,34 @@ class DailyReportsController extends Controller
     public function index(IndexDailyReportsRequest $request): Response
     {
         $validated = $request->validated();
+
+        $schoolYearOptions = AcademicYear::query()
+            ->orderByDesc('start_date')
+            ->get(['id', 'name', 'status', 'start_date'])
+            ->map(function (AcademicYear $academicYear) {
+                return [
+                    'id' => (int) $academicYear->id,
+                    'name' => $academicYear->name,
+                    'status' => $academicYear->status,
+                ];
+            })
+            ->values();
+
+        $selectedAcademicYearId = isset($validated['academic_year_id'])
+            ? (int) $validated['academic_year_id']
+            : 0;
+
+        if (
+            $selectedAcademicYearId <= 0
+            || ! $schoolYearOptions->pluck('id')->contains($selectedAcademicYearId)
+        ) {
+            $selectedAcademicYearId = (int) ($schoolYearOptions->firstWhere('status', 'ongoing')['id']
+                ?? ($schoolYearOptions->first()['id'] ?? 0));
+        }
+
+        $selectedAcademicYear = $selectedAcademicYearId > 0
+            ? AcademicYear::query()->find($selectedAcademicYearId)
+            : null;
 
         $cashierId = isset($validated['cashier_id'])
             ? (int) $validated['cashier_id']
@@ -32,6 +61,12 @@ class DailyReportsController extends Controller
             ->when($paymentMode, function ($query, $paymentMode) {
                 $query->where('payment_mode', $paymentMode);
             })
+            ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
+                $query->whereBetween('created_at', [
+                    "{$selectedAcademicYear->start_date} 00:00:00",
+                    "{$selectedAcademicYear->end_date} 23:59:59",
+                ]);
+            })
             ->when($dateFrom, function ($query, $dateFrom) {
                 $query->whereDate('created_at', '>=', $dateFrom);
             })
@@ -41,15 +76,23 @@ class DailyReportsController extends Controller
             ->latest('created_at')
             ->latest('id');
 
+        $correctedStatuses = ['voided', 'refunded', 'reissued'];
         $summaryQuery = clone $transactionQuery;
         $transactionCount = (int) (clone $summaryQuery)->count();
-        $grossCollection = round((float) (clone $summaryQuery)->sum('total_amount'), 2);
+        $voidAdjustments = round((float) (clone $summaryQuery)
+            ->whereIn('status', $correctedStatuses)
+            ->sum('total_amount'), 2);
+        $grossCollection = round((float) (clone $summaryQuery)
+            ->whereNotIn('status', $correctedStatuses)
+            ->sum('total_amount'), 2);
         $cashOnHand = round((float) (clone $summaryQuery)
+            ->whereNotIn('status', $correctedStatuses)
             ->where('payment_mode', 'cash')
             ->sum('total_amount'), 2);
         $digitalCollection = round($grossCollection - $cashOnHand, 2);
 
         $transactionsForBreakdown = (clone $transactionQuery)
+            ->whereNotIn('status', $correctedStatuses)
             ->with([
                 'items:id,transaction_id,fee_id,inventory_item_id,description,amount',
                 'items.fee:id,type',
@@ -94,6 +137,7 @@ class DailyReportsController extends Controller
                     'payment_type' => $this->resolvePaymentType($transaction),
                     'payment_mode' => $transaction->payment_mode,
                     'payment_mode_label' => $this->formatPaymentMode($transaction->payment_mode),
+                    'status' => $transaction->status ?: 'posted',
                     'amount' => (float) $transaction->total_amount,
                     'cashier_name' => $cashierName !== '' ? $cashierName : ($transaction->cashier?->name ?? '-'),
                     'posted_at' => $transaction->created_at?->toIso8601String(),
@@ -102,6 +146,8 @@ class DailyReportsController extends Controller
 
         return Inertia::render('finance/daily-reports/index', [
             'cashiers' => $cashiers,
+            'school_year_options' => $schoolYearOptions->all(),
+            'selected_school_year_id' => $selectedAcademicYear?->id,
             'breakdown_rows' => $breakdownRows,
             'transaction_rows' => $transactionRows,
             'summary' => [
@@ -109,9 +155,10 @@ class DailyReportsController extends Controller
                 'gross_collection' => $grossCollection,
                 'cash_on_hand' => $cashOnHand,
                 'digital_collection' => $digitalCollection,
-                'void_adjustments' => 0.0,
+                'void_adjustments' => $voidAdjustments,
             ],
             'filters' => [
+                'academic_year_id' => $selectedAcademicYear?->id,
                 'cashier_id' => $cashierId,
                 'payment_mode' => $paymentMode,
                 'date_from' => $dateFrom,

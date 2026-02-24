@@ -10,15 +10,26 @@ use App\Models\LedgerEntry;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class BillingInformationController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $student = $this->resolveStudent(auth()->user());
-        $enrollment = $student ? $this->resolveCurrentEnrollment($student) : null;
+        $schoolYearOptions = $student
+            ? $this->resolveSchoolYearOptions($student)
+            : collect();
+        $selectedSchoolYearId = $this->resolveSelectedSchoolYearId(
+            $schoolYearOptions,
+            $request->integer('academic_year_id')
+        );
+        $enrollment = $student
+            ? $this->resolveCurrentEnrollment($student, $selectedSchoolYearId)
+            : null;
         $academicYear = $enrollment?->academicYear ?: $this->resolveActiveAcademicYear();
         $isDepartedReadOnly = $enrollment
             ? in_array($enrollment->status, ['transferred_out', 'dropped_out', 'dropped'], true)
@@ -51,15 +62,37 @@ class BillingInformationController extends Controller
                 ->when($academicYear, function ($query) use ($academicYear) {
                     $query->where('academic_year_id', $academicYear->id);
                 })
+                ->where(function ($query): void {
+                    $query
+                        ->whereColumn('amount_paid', '<', 'amount_due')
+                        ->orWhereIn('status', ['unpaid', 'partially_paid']);
+                })
                 ->orderBy('due_date')
                 ->orderBy('id')
                 ->get()
                 ->map(function (BillingSchedule $billingSchedule) {
+                    $status = 'Unpaid';
+
+                    if ((float) $billingSchedule->amount_paid >= (float) $billingSchedule->amount_due) {
+                        $status = 'Paid';
+                    } elseif ((float) $billingSchedule->amount_paid > 0) {
+                        $status = 'Partially Paid';
+                    }
+
+                    $outstanding = max(
+                        (float) $billingSchedule->amount_due - (float) $billingSchedule->amount_paid,
+                        0
+                    );
+
                     return [
                         'due_date' => $billingSchedule->due_date?->format('m/d/Y'),
                         'amount' => $this->formatCurrency((float) $billingSchedule->amount_due),
-                        'status' => $billingSchedule->status === 'paid' ? 'Paid' : 'Unpaid',
+                        'outstanding_amount' => $this->formatCurrency($outstanding),
+                        'status' => $status,
                     ];
+                })
+                ->reject(function (array $dueRow): bool {
+                    return $dueRow['status'] === 'Paid';
                 })
                 ->values()
                 ->all();
@@ -94,6 +127,8 @@ class BillingInformationController extends Controller
             'dues_by_plan' => $duesByPlan,
             'default_plan' => $defaultPlan,
             'recent_payments' => $recentPayments,
+            'school_year_options' => $schoolYearOptions->all(),
+            'selected_school_year_id' => $selectedSchoolYearId,
             'is_departed_read_only' => $isDepartedReadOnly,
         ]);
     }
@@ -110,8 +145,22 @@ class BillingInformationController extends Controller
             ->first();
     }
 
-    private function resolveCurrentEnrollment(Student $student): ?Enrollment
+    private function resolveCurrentEnrollment(Student $student, ?int $academicYearId = null): ?Enrollment
     {
+        if ($academicYearId) {
+            $selectedEnrollment = Enrollment::query()
+                ->with('academicYear:id,name,status')
+                ->where('student_id', $student->id)
+                ->where('academic_year_id', $academicYearId)
+                ->whereIn('status', ['enrolled', 'transferred_out', 'dropped_out', 'dropped'])
+                ->latest('id')
+                ->first();
+
+            if ($selectedEnrollment) {
+                return $selectedEnrollment;
+            }
+        }
+
         $activeYearId = AcademicYear::query()
             ->where('status', 'ongoing')
             ->value('id');
@@ -135,6 +184,40 @@ class BillingInformationController extends Controller
             ->whereIn('status', ['enrolled', 'transferred_out', 'dropped_out', 'dropped'])
             ->latest('id')
             ->first();
+    }
+
+    private function resolveSchoolYearOptions(Student $student): Collection
+    {
+        return AcademicYear::query()
+            ->select(['academic_years.id', 'academic_years.name', 'academic_years.status', 'academic_years.start_date'])
+            ->join('enrollments', 'enrollments.academic_year_id', '=', 'academic_years.id')
+            ->where('enrollments.student_id', $student->id)
+            ->whereIn('enrollments.status', ['enrolled', 'transferred_out', 'dropped_out', 'dropped'])
+            ->distinct()
+            ->orderByDesc('academic_years.start_date')
+            ->get()
+            ->map(function (AcademicYear $academicYear): array {
+                return [
+                    'id' => (int) $academicYear->id,
+                    'name' => $academicYear->name,
+                    'status' => $academicYear->status,
+                ];
+            })
+            ->values();
+    }
+
+    private function resolveSelectedSchoolYearId(Collection $schoolYearOptions, ?int $requestedSchoolYearId): ?int
+    {
+        if ($requestedSchoolYearId && $schoolYearOptions->pluck('id')->contains($requestedSchoolYearId)) {
+            return $requestedSchoolYearId;
+        }
+
+        $ongoingOption = $schoolYearOptions->firstWhere('status', 'ongoing');
+        if ($ongoingOption) {
+            return (int) $ongoingOption['id'];
+        }
+
+        return $schoolYearOptions->first()['id'] ?? null;
     }
 
     private function resolveActiveAcademicYear(): ?AcademicYear

@@ -7,9 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\GradeLevel;
+use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\DashboardCacheService;
+use App\Services\Finance\BillingScheduleService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,17 +22,40 @@ use Inertia\Response;
 
 class EnrollmentController extends Controller
 {
+    public function __construct(private BillingScheduleService $billingScheduleService) {}
+
     public function index(Request $request): Response
     {
-        $activeAcademicYearId = AcademicYear::query()
-            ->where('status', 'ongoing')
-            ->value('id');
+        $schoolYearOptions = AcademicYear::query()
+            ->orderByDesc('start_date')
+            ->get(['id', 'name', 'status', 'start_date'])
+            ->map(function (AcademicYear $academicYear) {
+                return [
+                    'id' => (int) $academicYear->id,
+                    'name' => $academicYear->name,
+                    'status' => $academicYear->status,
+                ];
+            })
+            ->values();
+
+        $selectedAcademicYearId = $request->integer('academic_year_id');
+        if (
+            $selectedAcademicYearId <= 0
+            || ! $schoolYearOptions->pluck('id')->contains($selectedAcademicYearId)
+        ) {
+            $selectedAcademicYearId = (int) ($schoolYearOptions->firstWhere('status', 'ongoing')['id']
+                ?? ($schoolYearOptions->first()['id'] ?? 0));
+        }
+
+        $selectedAcademicYear = $selectedAcademicYearId > 0
+            ? AcademicYear::query()->find($selectedAcademicYearId)
+            : null;
 
         $queueStatuses = ['pending', 'pending_intake', 'for_cashier_payment', 'partial_payment'];
 
         $baseQuery = Enrollment::query()
-            ->when($activeAcademicYearId, function ($query) use ($activeAcademicYearId) {
-                $query->where('academic_year_id', $activeAcademicYearId);
+            ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
+                $query->where('academic_year_id', $selectedAcademicYear->id);
             })
             ->whereIn('status', $queueStatuses);
 
@@ -39,6 +64,8 @@ class EnrollmentController extends Controller
         $enrollments = (clone $baseQuery)
             ->with([
                 'student:id,lrn,first_name,last_name,contact_number',
+                'section:id,grade_level_id,name',
+                'section.gradeLevel:id,name',
             ])
             ->when($search, function ($query, $search) {
                 $query->whereHas('student', function ($studentQuery) use ($search) {
@@ -60,18 +87,50 @@ class EnrollmentController extends Controller
                     'payment_term' => $enrollment->payment_term,
                     'downpayment' => (float) $enrollment->downpayment,
                     'status' => $enrollment->status,
+                    'section_id' => $enrollment->section_id,
+                    'section_label' => $enrollment->section?->gradeLevel?->name && $enrollment->section?->name
+                        ? "{$enrollment->section->gradeLevel->name} - {$enrollment->section->name}"
+                        : null,
+                ];
+            })
+            ->values();
+
+        $sectionOptions = Section::query()
+            ->with('gradeLevel:id,name')
+            ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
+                $query->where('academic_year_id', $selectedAcademicYear->id);
+            })
+            ->orderBy('grade_level_id')
+            ->orderBy('name')
+            ->get(['id', 'grade_level_id', 'name'])
+            ->map(function (Section $section) {
+                $label = $section->gradeLevel?->name
+                    ? "{$section->gradeLevel->name} - {$section->name}"
+                    : $section->name;
+
+                return [
+                    'id' => $section->id,
+                    'grade_level_id' => $section->grade_level_id,
+                    'label' => $label,
                 ];
             })
             ->values();
 
         return Inertia::render('registrar/enrollment/index', [
             'enrollments' => $enrollments,
+            'section_options' => $sectionOptions,
+            'school_year_options' => $schoolYearOptions->all(),
+            'selected_school_year_id' => $selectedAcademicYear?->id,
+            'selected_school_year_status' => $selectedAcademicYear?->status,
             'summary' => [
                 'pending_intake' => (clone $baseQuery)->whereIn('status', ['pending', 'pending_intake'])->count(),
                 'for_cashier_payment' => (clone $baseQuery)->where('status', 'for_cashier_payment')->count(),
                 'partial_payment' => (clone $baseQuery)->where('status', 'partial_payment')->count(),
             ],
-            'filters' => $request->only(['search']),
+            'filters' => [
+                'search' => $search,
+                'academic_year_id' => $selectedAcademicYear?->id,
+            ],
         ]);
     }
 
@@ -84,14 +143,26 @@ class EnrollmentController extends Controller
             'emergency_contact' => 'required|string|max:255',
             'payment_term' => 'required|string|in:cash,full,monthly,quarterly,semi-annual',
             'downpayment' => 'nullable|numeric|min:0|max:999999.99',
+            'section_id' => 'nullable|integer|exists:sections,id',
+            'academic_year_id' => 'nullable|integer|exists:academic_years,id',
         ]);
 
-        $activeAcademicYear = AcademicYear::query()
-            ->where('status', 'ongoing')
-            ->first() ?? AcademicYear::query()->latest('start_date')->first();
+        $activeAcademicYear = isset($validated['academic_year_id'])
+            ? AcademicYear::query()->find((int) $validated['academic_year_id'])
+            : null;
+
+        if (! $activeAcademicYear) {
+            $activeAcademicYear = AcademicYear::query()
+                ->where('status', 'ongoing')
+                ->first() ?? AcademicYear::query()->latest('start_date')->first();
+        }
 
         if (! $activeAcademicYear) {
             return back()->with('error', 'No academic year found. Please configure one first.');
+        }
+
+        if ($activeAcademicYear->status === 'completed') {
+            return back()->with('error', 'Cannot create intake records for a completed school year.');
         }
 
         $gradeLevelId = GradeLevel::query()->orderBy('level_order')->value('id');
@@ -101,6 +172,11 @@ class EnrollmentController extends Controller
 
         try {
             DB::transaction(function () use ($validated, $activeAcademicYear, $gradeLevelId) {
+                $selectedSection = $this->resolveSectionForIntake(
+                    isset($validated['section_id']) ? (int) $validated['section_id'] : null,
+                    (int) $activeAcademicYear->id
+                );
+
                 $student = Student::query()->updateOrCreate(
                     ['lrn' => $validated['lrn']],
                     [
@@ -126,23 +202,31 @@ class EnrollmentController extends Controller
 
                 if ($existingEnrollment) {
                     $existingEnrollment->update([
+                        'grade_level_id' => $selectedSection?->grade_level_id
+                            ?: $this->resolveGradeLevelId($student, $gradeLevelId),
+                        'section_id' => $selectedSection?->id,
                         'payment_term' => $paymentTerm,
                         'downpayment' => $downpayment,
                         'status' => 'pending_intake',
                     ]);
 
+                    $this->billingScheduleService->syncForEnrollment($existingEnrollment);
+
                     return;
                 }
 
-                Enrollment::query()->create([
+                $enrollment = Enrollment::query()->create([
                     'student_id' => $student->id,
                     'academic_year_id' => $activeAcademicYear->id,
-                    'grade_level_id' => $this->resolveGradeLevelId($student, $gradeLevelId),
-                    'section_id' => null,
+                    'grade_level_id' => $selectedSection?->grade_level_id
+                        ?: $this->resolveGradeLevelId($student, $gradeLevelId),
+                    'section_id' => $selectedSection?->id,
                     'payment_term' => $paymentTerm,
                     'downpayment' => $downpayment,
                     'status' => 'pending_intake',
                 ]);
+
+                $this->billingScheduleService->syncForEnrollment($enrollment);
             });
         } catch (\RuntimeException $exception) {
             return back()->with('error', $exception->getMessage());
@@ -172,30 +256,43 @@ class EnrollmentController extends Controller
             'payment_term' => 'required|string|in:cash,full,monthly,quarterly,semi-annual',
             'downpayment' => 'nullable|numeric|min:0|max:999999.99',
             'status' => 'required|string|in:pending,pending_intake,for_cashier_payment,partial_payment',
+            'section_id' => 'nullable|integer|exists:sections,id',
         ]);
 
         $paymentTerm = $this->normalizePaymentTerm($validated['payment_term']);
         $downpayment = $this->normalizeDownpayment($paymentTerm, $validated['downpayment'] ?? null);
 
-        DB::transaction(function () use ($enrollment, $validated, $paymentTerm, $downpayment) {
-            $student = $enrollment->student;
+        try {
+            DB::transaction(function () use ($enrollment, $validated, $paymentTerm, $downpayment) {
+                $student = $enrollment->student;
+                $selectedSection = $this->resolveSectionForIntake(
+                    isset($validated['section_id']) ? (int) $validated['section_id'] : null,
+                    (int) $enrollment->academic_year_id
+                );
 
-            if ($student) {
-                $student->update([
-                    'first_name' => $validated['first_name'],
-                    'last_name' => $validated['last_name'],
-                    'contact_number' => $validated['emergency_contact'],
+                if ($student) {
+                    $student->update([
+                        'first_name' => $validated['first_name'],
+                        'last_name' => $validated['last_name'],
+                        'contact_number' => $validated['emergency_contact'],
+                    ]);
+
+                    $this->ensureAccounts($student);
+                }
+
+                $enrollment->update([
+                    'grade_level_id' => $selectedSection?->grade_level_id ?: $enrollment->grade_level_id,
+                    'section_id' => $selectedSection?->id,
+                    'payment_term' => $paymentTerm,
+                    'downpayment' => $downpayment,
+                    'status' => $validated['status'],
                 ]);
 
-                $this->ensureAccounts($student);
-            }
-
-            $enrollment->update([
-                'payment_term' => $paymentTerm,
-                'downpayment' => $downpayment,
-                'status' => $validated['status'],
-            ]);
-        });
+                $this->billingScheduleService->syncForEnrollment($enrollment);
+            });
+        } catch (\RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
 
         DashboardCacheService::bust();
 
@@ -301,5 +398,23 @@ class EnrollmentController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function resolveSectionForIntake(?int $sectionId, int $academicYearId): ?Section
+    {
+        if (! $sectionId) {
+            return null;
+        }
+
+        $section = Section::query()
+            ->whereKey($sectionId)
+            ->where('academic_year_id', $academicYearId)
+            ->first();
+
+        if (! $section) {
+            throw new \RuntimeException('Selected section is not available for the active school year.');
+        }
+
+        return $section;
     }
 }

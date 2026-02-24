@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BillingSchedule extends Model
 {
@@ -35,5 +36,15 @@ class BillingSchedule extends Model
     public function academicYear(): BelongsTo
     {
         return $this->belongsTo(AcademicYear::class);
+    }
+
+    public function dueReminderDispatches(): HasMany
+    {
+        return $this->hasMany(FinanceDueReminderDispatch::class);
+    }
+
+    public function transactionDueAllocations(): HasMany
+    {
+        return $this->hasMany(TransactionDueAllocation::class);
     }
 }

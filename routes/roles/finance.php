@@ -3,6 +3,7 @@
 use App\Http\Controllers\Finance\CashierPanelController;
 use App\Http\Controllers\Finance\DailyReportsController;
 use App\Http\Controllers\Finance\DiscountManagerController;
+use App\Http\Controllers\Finance\DueReminderSettingsController;
 use App\Http\Controllers\Finance\FeeStructureController;
 use App\Http\Controllers\Finance\ProductInventoryController;
 use App\Http\Controllers\Finance\StudentLedgersController;
@@ -16,6 +17,9 @@ Route::middleware(['auth', 'verified', 'role:finance'])->prefix('finance')->name
     Route::post('/cashier-panel/transactions', [CashierPanelController::class, 'storeTransaction'])->name('cashier_panel.store_transaction');
 
     Route::get('/transaction-history', [TransactionHistoryController::class, 'index'])->name('transaction_history');
+    Route::post('/transaction-history/{transaction}/void', [TransactionHistoryController::class, 'void'])->name('transaction_history.void');
+    Route::post('/transaction-history/{transaction}/refund', [TransactionHistoryController::class, 'refund'])->name('transaction_history.refund');
+    Route::post('/transaction-history/{transaction}/reissue', [TransactionHistoryController::class, 'reissue'])->name('transaction_history.reissue');
 
     Route::get('/product-inventory', [ProductInventoryController::class, 'index'])->name('product_inventory');
     Route::post('/product-inventory', [ProductInventoryController::class, 'store'])->name('product_inventory.store');
@@ -35,4 +39,9 @@ Route::middleware(['auth', 'verified', 'role:finance'])->prefix('finance')->name
     Route::delete('/fee-structure/{fee}', [FeeStructureController::class, 'destroy'])->name('fee_structure.destroy');
 
     Route::get('/daily-reports', [DailyReportsController::class, 'index'])->name('daily_reports');
+
+    Route::get('/due-reminder-settings', [DueReminderSettingsController::class, 'index'])->name('due_reminder_settings');
+    Route::post('/due-reminder-settings', [DueReminderSettingsController::class, 'store'])->name('due_reminder_settings.store');
+    Route::patch('/due-reminder-settings/{financeDueReminderRule}', [DueReminderSettingsController::class, 'update'])->name('due_reminder_settings.update');
+    Route::delete('/due-reminder-settings/{financeDueReminderRule}', [DueReminderSettingsController::class, 'destroy'])->name('due_reminder_settings.destroy');
 });

@@ -1,9 +1,16 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { CheckCircle2, Clock3, TriangleAlert, UploadCloud } from 'lucide-react';
 import type { ChangeEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -13,6 +20,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import registrar from '@/routes/registrar';
 import { sf1_upload } from '@/routes/registrar/student_directory';
 import type { BreadcrumbItem } from '@/types';
 
@@ -33,6 +41,12 @@ interface StudentRow {
 
 interface Props {
     students: StudentRow[];
+    school_year_options: {
+        id: number;
+        name: string;
+        status: string;
+    }[];
+    selected_school_year_id: number | null;
     summary: {
         matched: number;
         pending: number;
@@ -46,6 +60,8 @@ interface Props {
 
 export default function StudentDirectory({
     students,
+    school_year_options,
+    selected_school_year_id,
     summary,
     last_upload,
 }: Props) {
@@ -119,6 +135,49 @@ export default function StudentDirectory({
                     <CardHeader className="flex flex-col gap-1 border-b sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <div className="space-y-1">
                             <CardTitle>Student Directory</CardTitle>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Select
+                                    value={
+                                        selected_school_year_id
+                                            ? String(selected_school_year_id)
+                                            : ''
+                                    }
+                                    onValueChange={(value) => {
+                                        router.get(
+                                            registrar.student_directory.url({
+                                                query: {
+                                                    academic_year_id:
+                                                        value || undefined,
+                                                },
+                                            }),
+                                            {},
+                                            {
+                                                preserveState: true,
+                                                preserveScroll: true,
+                                                replace: true,
+                                            },
+                                        );
+                                    }}
+                                >
+                                    <SelectTrigger className="w-[13rem]">
+                                        <SelectValue placeholder="School Year" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {school_year_options.map(
+                                            (schoolYear) => (
+                                                <SelectItem
+                                                    key={schoolYear.id}
+                                                    value={String(
+                                                        schoolYear.id,
+                                                    )}
+                                                >
+                                                    {schoolYear.name}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <div className="flex flex-wrap items-center gap-2 text-sm">
                                 <Badge variant="secondary">
                                     Matched: {summary.matched}
@@ -198,7 +257,9 @@ export default function StudentDirectory({
                                                 {student.grade_section}
                                             </TableCell>
                                             <TableCell className="border-l pr-6">
-                                                {statusBadge(student.lis_status)}
+                                                {statusBadge(
+                                                    student.lis_status,
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))

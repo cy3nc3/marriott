@@ -37,7 +37,8 @@ class StoreAnnouncementRequest extends FormRequest
             'content' => ['required', 'string'],
             'target_roles' => ['nullable', 'array'],
             'target_roles.*' => ['string', Rule::in($this->roleValues())],
-            'expires_at' => ['nullable', 'date'],
+            'publish_at' => ['nullable', 'date'],
+            'expires_at' => ['nullable', 'date', 'after_or_equal:publish_at'],
             'attachments' => ['nullable', 'array', 'max:5'],
             'attachments.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,webp,gif,pdf,doc,docx,xls,xlsx,csv,txt'],
         ];
@@ -52,6 +53,7 @@ class StoreAnnouncementRequest extends FormRequest
             'attachments.max' => 'You can upload up to 5 attachments per announcement.',
             'attachments.*.max' => 'Each attachment must be 10MB or smaller.',
             'attachments.*.mimes' => 'Allowed attachment types: images, PDF, Word, Excel, CSV, and TXT files.',
+            'expires_at.after_or_equal' => 'Expiry must be on or after the publish schedule.',
         ];
     }
 

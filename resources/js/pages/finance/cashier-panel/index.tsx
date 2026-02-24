@@ -71,7 +71,7 @@ type InventoryOption = {
 
 type CurrentTransactionItem = {
     id: string;
-    type: 'fee' | 'inventory' | 'custom';
+    type: 'assessment_fee' | 'inventory' | 'custom';
     description: string;
     amount: number;
     fee_id: number | null;
@@ -132,9 +132,11 @@ export default function CashierPanel({
     const [isAddItemOpen, setIsAddItemOpen] = useState(false);
     const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
 
-    const [itemType, setItemType] = useState<'fee' | 'inventory' | 'custom'>(
+    const [itemType, setItemType] = useState<
+        'assessment_fee' | 'inventory' | 'custom'
+    >(
         fee_options.length > 0
-            ? 'fee'
+            ? 'assessment_fee'
             : inventory_options.length > 0
               ? 'inventory'
               : 'custom',
@@ -156,7 +158,7 @@ export default function CashierPanel({
         remarks: '',
         tendered_amount: '',
         items: [] as Array<{
-            type: 'fee' | 'inventory' | 'custom';
+            type: 'assessment_fee' | 'inventory' | 'custom';
             description: string;
             amount: number;
             fee_id?: number;
@@ -210,7 +212,7 @@ export default function CashierPanel({
         if (fee_options.length > 0) {
             const defaultFee = fee_options[0];
 
-            setItemType('fee');
+            setItemType('assessment_fee');
             setSelectedFeeId(String(defaultFee.id));
             setItemDescription(defaultFee.name);
             setItemAmount(String(defaultFee.amount));
@@ -267,7 +269,7 @@ export default function CashierPanel({
                 type: itemType,
                 description: itemDescription.trim(),
                 amount: Number(parsedAmount.toFixed(2)),
-                fee_id: itemType === 'fee' ? Number(selectedFeeId) : null,
+                fee_id: null,
                 inventory_item_id:
                     itemType === 'inventory'
                         ? Number(selectedInventoryId)
@@ -503,8 +505,9 @@ export default function CashierPanel({
                                                 {item.description}
                                             </TableCell>
                                             <TableCell className="border-l">
-                                                {item.type === 'fee'
-                                                    ? 'Fee'
+                                                {item.type ===
+                                                  'assessment_fee'
+                                                    ? 'Assessment Fee'
                                                     : item.type === 'inventory'
                                                       ? 'Inventory'
                                                       : 'Custom'}
@@ -577,11 +580,17 @@ export default function CashierPanel({
                             <Select
                                 value={itemType}
                                 onValueChange={(
-                                    value: 'fee' | 'inventory' | 'custom',
+                                    value:
+                                        | 'assessment_fee'
+                                        | 'inventory'
+                                        | 'custom',
                                 ) => {
                                     setItemType(value);
 
-                                    if (value === 'fee' && selectedFee) {
+                                    if (
+                                        value === 'assessment_fee' &&
+                                        selectedFee
+                                    ) {
                                         setItemDescription(selectedFee.name);
                                         setItemAmount(
                                             String(selectedFee.amount),
@@ -610,7 +619,11 @@ export default function CashierPanel({
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="fee">Fee</SelectItem>
+                                    {fee_options.length > 0 && (
+                                        <SelectItem value="assessment_fee">
+                                            Assessment Fee
+                                        </SelectItem>
+                                    )}
                                     <SelectItem value="inventory">
                                         Inventory
                                     </SelectItem>
@@ -621,9 +634,9 @@ export default function CashierPanel({
                             </Select>
                         </div>
 
-                        {itemType === 'fee' && (
+                        {itemType === 'assessment_fee' && (
                             <div className="space-y-2">
-                                <Label>Fee Item</Label>
+                                <Label>Assessment Item</Label>
                                 <Select
                                     value={selectedFeeId}
                                     onValueChange={applyFeeSelection}

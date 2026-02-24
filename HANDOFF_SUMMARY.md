@@ -1,9 +1,9 @@
 # HANDOFF SUMMARY
 
-Last updated: 2026-02-23
+Last updated: 2026-02-24
 Project path: `/home/lomonol/projects/marriott` (active), `C:\Users\jadeg\Documents\Capstone\marriott` (previous Windows path)
 Primary branch target: `main`
-Latest pushed commit (before this update): `b6de4ca`
+Latest local commit before this update: `4ac2736`
 
 ---
 
@@ -1063,3 +1063,126 @@ Production-equivalent expectation:
 
 The next AI is allowed to run required project setup/install commands (Composer, npm, migrations, cache clear, scheduler worker, tests) to make the environment operational before implementing features.
 
+---
+
+## 28. Latest Finance + Notifications Hardening Wave (2026-02-24, pending push)
+
+### 28.1 Fee Structure is Now School-Year Versioned
+
+1. Added `fees.academic_year_id` with FK/index and backfill migration:
+    - `database/migrations/2026_02_24_201627_add_academic_year_id_to_fees_table.php`
+2. `Fee` model now includes academic year relation/fillable:
+    - `app/Models/Fee.php`
+3. Fee structure backend now resolves selected school year context and returns filtered rows:
+    - `app/Http/Controllers/Finance/FeeStructureController.php`
+4. Fee create/update validation now requires `academic_year_id`:
+    - `app/Http/Requests/Finance/StoreFeeRequest.php`
+    - `app/Http/Requests/Finance/UpdateFeeRequest.php`
+5. Fee structure frontend now has SY selector and preserves SY in create/edit/delete flow:
+    - `resources/js/pages/finance/fee-structure/index.tsx`
+6. Compatibility behavior:
+    - if selected SY has versioned fee rows, those are used
+    - otherwise falls back to legacy rows (`academic_year_id = null`) for smooth transition
+
+### 28.2 Billing Breakdown Now Applies Student Discounts First
+
+1. Billing schedule generation now computes:
+    - assessment total (`tuition + miscellaneous`) scoped by grade + school year
+    - minus tagged student discounts for same school year
+    - minus enrollment downpayment
+2. Updated service:
+    - `app/Services/Finance/BillingScheduleService.php`
+3. Supports both discount types:
+    - `percentage`
+    - `fixed`
+4. Total discount is capped so net assessment never drops below zero.
+
+### 28.3 Cashier Assessment Fee Lookup Updated for School-Year Fees
+
+1. Cashier panel assessment option now resolves SY-aware fee totals:
+    - `app/Http/Controllers/Finance/CashierPanelController.php`
+2. Assessment fee logic remains single-item UX (`Assessment Fee`) for allocation safety and cleaner cashier flow.
+
+### 28.4 Notification Unread Count Fix (No More Under-Count Beyond 8)
+
+1. Notification dropdown still loads latest limited records for UI.
+2. Unread badge now counts across all visible announcements, not just dropdown slice.
+3. Updated service:
+    - `app/Services/AnnouncementNotificationService.php`
+
+### 28.5 Cashier Correction Workflow Expanded (Void + Refund + Reissue)
+
+1. Added correction routes:
+    - `POST /finance/transaction-history/{transaction}/refund`
+    - `POST /finance/transaction-history/{transaction}/reissue`
+    - existing void kept
+2. Routes file:
+    - `routes/roles/finance.php`
+3. Added requests:
+    - `app/Http/Requests/Finance/RefundTransactionRequest.php`
+    - `app/Http/Requests/Finance/ReissueTransactionRequest.php`
+4. Added transaction correction metadata columns:
+    - refund: reason/at/by
+    - reissue: reason/at/by + linked replacement transaction
+    - migration: `database/migrations/2026_02_24_201632_add_refund_and_reissue_columns_to_transactions_table.php`
+5. Transaction model updated for new fields/casts/relations:
+    - `app/Models/Transaction.php`
+6. Transaction history backend now supports:
+    - void/reverse
+    - refund/reverse
+    - reissue (reverse old + create replacement posted transaction + reallocate due impact)
+    - updated summary semantics with corrected amount
+    - updated status labels and action eligibility
+    - file: `app/Http/Controllers/Finance/TransactionHistoryController.php`
+7. Transaction history frontend now includes:
+    - Void dialog
+    - Refund dialog
+    - Reissue dialog (reason + new OR + mode + optional reference/remarks)
+    - corrected status/action rendering
+    - file: `resources/js/pages/finance/transaction-history/index.tsx`
+
+### 28.6 Correction Status Consistency in Finance Metrics
+
+1. Daily reports now treat `voided/refunded/reissued` as corrected statuses for net collection stats:
+    - `app/Http/Controllers/Finance/DailyReportsController.php`
+2. Cashier enrollment-status payment checks now exclude corrected transactions:
+    - `app/Http/Controllers/Finance/CashierPanelController.php`
+
+### 28.7 Tests Added/Updated in This Wave
+
+1. `tests/Feature/Finance/FeeStructureTest.php`
+    - school-year filtering and SY-aware CRUD assertions
+2. `tests/Feature/Registrar/RegistrarFeaturesTest.php`
+    - billing schedule recomputation with student discount applied
+3. `tests/Feature/AnnouncementNotificationsTest.php`
+    - unread count remains correct when unread announcements exceed dropdown limit
+4. `tests/Feature/Finance/TransactionHistoryTest.php`
+    - summary corrected amount assertion
+    - refund rollback scenario
+    - reissue replacement scenario
+
+### 28.8 Verification Runs Executed
+
+1. `vendor/bin/pint --dirty --format=agent` passed.
+2. `npm run -s types` passed.
+3. `php artisan test --compact tests/Feature/Finance/FeeStructureTest.php tests/Feature/AnnouncementNotificationsTest.php tests/Feature/Finance/TransactionHistoryTest.php tests/Feature/Registrar/RegistrarFeaturesTest.php` passed (`35 passed`).
+4. `php artisan test --compact tests/Feature/Finance/CashierPanelTest.php tests/Feature/Finance/DailyReportsTest.php` passed (`9 passed`).
+
+### 28.9 Pull / Setup Impact for Other Device
+
+After pulling this wave:
+
+1. `git pull origin main`
+2. `composer install`
+3. `npm install`
+4. `php artisan migrate`
+5. `php artisan optimize:clear`
+6. If UI looks stale: `npm run build` (or run `npm run dev`)
+
+If reminder automation is used in dev:
+
+1. Keep scheduler worker running:
+    - `php artisan schedule:work`
+2. Existing grade-deadline reminder schedule still applies.
+3. Finance due reminder command exists and should run via scheduler in normal operations:
+    - `app/Console/Commands/SendFinanceDueRemindersCommand.php`

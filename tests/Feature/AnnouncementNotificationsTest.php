@@ -81,6 +81,38 @@ test('dashboard shared notifications include only active role-matched announceme
         );
 });
 
+test('notification unread count is not capped by dropdown item limit', function () {
+    $announcements = collect(range(1, 12))
+        ->map(function (int $index) {
+            return Announcement::query()->create([
+                'user_id' => $this->poster->id,
+                'title' => "Teacher Notice {$index}",
+                'content' => "Notification content {$index}",
+                'target_roles' => ['teacher'],
+                'is_active' => true,
+                'expires_at' => now()->addDay(),
+            ]);
+        });
+
+    AnnouncementRead::query()->create([
+        'announcement_id' => $announcements[0]->id,
+        'user_id' => $this->teacher->id,
+        'read_at' => now(),
+    ]);
+    AnnouncementRead::query()->create([
+        'announcement_id' => $announcements[1]->id,
+        'user_id' => $this->teacher->id,
+        'read_at' => now(),
+    ]);
+
+    $this->get('/dashboard')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('notifications.unread_count', 10)
+            ->has('notifications.announcements', 8)
+        );
+});
+
 test('marking announcement as read updates shared unread count', function () {
     $announcement = Announcement::query()->create([
         'user_id' => $this->poster->id,
@@ -276,4 +308,85 @@ test('announcement attachments cannot be viewed by non-targeted users', function
     $this->actingAs($student)
         ->get("/notifications/announcements/{$announcement->id}/attachments/{$attachment->id}")
         ->assertForbidden();
+});
+
+test('scheduled announcements are hidden until publish time', function () {
+    Announcement::query()->create([
+        'user_id' => $this->poster->id,
+        'title' => 'Future Release',
+        'content' => 'This should only appear after publish schedule.',
+        'target_roles' => ['teacher'],
+        'publish_at' => now()->addDay(),
+        'is_active' => true,
+        'expires_at' => now()->addDays(2),
+    ]);
+
+    Announcement::query()->create([
+        'user_id' => $this->poster->id,
+        'title' => 'Immediate Release',
+        'content' => 'Visible right away.',
+        'target_roles' => ['teacher'],
+        'publish_at' => now()->subMinute(),
+        'is_active' => true,
+        'expires_at' => now()->addDays(2),
+    ]);
+
+    $this->get('/dashboard')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('notifications.unread_count', 1)
+            ->where('notifications.announcements.0.title', 'Immediate Release')
+        );
+
+    $this->get('/notifications')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('notifications/inbox/index')
+            ->has('announcements.data', 1)
+            ->where('announcements.data.0.title', 'Immediate Release')
+        );
+});
+
+test('notification inbox filters unread entries', function () {
+    $firstAnnouncement = Announcement::query()->create([
+        'user_id' => $this->poster->id,
+        'title' => 'Unread Entry',
+        'content' => 'Needs acknowledgement.',
+        'target_roles' => ['teacher'],
+        'is_active' => true,
+        'expires_at' => now()->addDay(),
+    ]);
+
+    $secondAnnouncement = Announcement::query()->create([
+        'user_id' => $this->poster->id,
+        'title' => 'Read Entry',
+        'content' => 'Already read.',
+        'target_roles' => ['teacher'],
+        'is_active' => true,
+        'expires_at' => now()->addDay(),
+    ]);
+
+    AnnouncementRead::query()->create([
+        'announcement_id' => $secondAnnouncement->id,
+        'user_id' => $this->teacher->id,
+        'read_at' => now(),
+    ]);
+
+    $this->get('/notifications?status=unread')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('notifications/inbox/index')
+            ->has('announcements.data', 1)
+            ->where('announcements.data.0.id', $firstAnnouncement->id)
+            ->where('announcements.data.0.is_read', false)
+        );
+
+    $this->get('/notifications?status=read')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('notifications/inbox/index')
+            ->has('announcements.data', 1)
+            ->where('announcements.data.0.id', $secondAnnouncement->id)
+            ->where('announcements.data.0.is_read', true)
+        );
 });

@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
+import { fee_structure } from '@/routes/finance';
 import { destroy, store, update } from '@/routes/finance/fee_structure';
 import type { BreadcrumbItem } from '@/types';
 
@@ -56,8 +57,16 @@ type GradeLevelFee = {
     fee_items: FeeItem[];
 };
 
+type SchoolYearOption = {
+    id: number;
+    name: string;
+    status: string;
+};
+
 interface Props {
     grade_level_fees: GradeLevelFee[];
+    school_year_options: SchoolYearOption[];
+    selected_school_year_id: number | null;
 }
 
 const feeTypeOptions: { value: FeeType; label: string }[] = [
@@ -72,15 +81,25 @@ const formatCurrency = (amount: number) =>
         currency: 'PHP',
     }).format(amount || 0);
 
-export default function FeeStructure({ grade_level_fees }: Props) {
+export default function FeeStructure({
+    grade_level_fees,
+    school_year_options,
+    selected_school_year_id,
+}: Props) {
     const [isAddFeeDialogOpen, setIsAddFeeDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<FeeItem | null>(null);
     const [activeTab, setActiveTab] = useState<string>(
         String(grade_level_fees[0]?.id ?? ''),
     );
+    const [selectedSchoolYearId, setSelectedSchoolYearId] = useState(
+        selected_school_year_id ? String(selected_school_year_id) : '',
+    );
 
     const createForm = useForm({
         grade_level_id: String(grade_level_fees[0]?.id ?? ''),
+        academic_year_id: selected_school_year_id
+            ? String(selected_school_year_id)
+            : '',
         type: 'miscellaneous' as FeeType,
         name: '',
         amount: '',
@@ -88,6 +107,9 @@ export default function FeeStructure({ grade_level_fees }: Props) {
 
     const editForm = useForm({
         grade_level_id: '',
+        academic_year_id: selected_school_year_id
+            ? String(selected_school_year_id)
+            : '',
         type: 'miscellaneous' as FeeType,
         name: '',
         amount: '',
@@ -108,6 +130,7 @@ export default function FeeStructure({ grade_level_fees }: Props) {
 
         createForm.setData({
             grade_level_id: String(defaultGradeLevelId ?? ''),
+            academic_year_id: selectedSchoolYearId,
             type: 'miscellaneous',
             name: '',
             amount: '',
@@ -129,6 +152,7 @@ export default function FeeStructure({ grade_level_fees }: Props) {
                         String(selectedGradeLevel.id),
                     );
                 }
+                createForm.setData('academic_year_id', selectedSchoolYearId);
             },
         });
     };
@@ -137,6 +161,7 @@ export default function FeeStructure({ grade_level_fees }: Props) {
         setEditingItem(feeItem);
         editForm.setData({
             grade_level_id: String(feeItem.grade_level_id),
+            academic_year_id: selectedSchoolYearId,
             type: feeItem.type,
             name: feeItem.label,
             amount: String(feeItem.amount),
@@ -164,8 +189,29 @@ export default function FeeStructure({ grade_level_fees }: Props) {
         }
 
         router.delete(destroy({ fee: feeItem.id }).url, {
+            data: {
+                academic_year_id: selectedSchoolYearId || undefined,
+            },
             preserveScroll: true,
         });
+    };
+
+    const handleSchoolYearChange = (value: string) => {
+        setSelectedSchoolYearId(value);
+
+        router.get(
+            fee_structure.url({
+                query: {
+                    academic_year_id: value || undefined,
+                },
+            }),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
     };
 
     return (
@@ -177,13 +223,36 @@ export default function FeeStructure({ grade_level_fees }: Props) {
                     <CardHeader className="border-b">
                         <div className="flex items-center justify-between gap-3">
                             <CardTitle>Fee Breakdown by Grade</CardTitle>
-                            <Button
-                                onClick={openAddDialog}
-                                disabled={grade_level_fees.length === 0}
-                            >
-                                <Plus className="size-4" />
-                                Add Fee Item
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Select
+                                    value={selectedSchoolYearId}
+                                    onValueChange={handleSchoolYearChange}
+                                >
+                                    <SelectTrigger className="w-[160px]">
+                                        <SelectValue placeholder="School Year" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {school_year_options.map((schoolYear) => (
+                                            <SelectItem
+                                                key={schoolYear.id}
+                                                value={String(schoolYear.id)}
+                                            >
+                                                {schoolYear.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    onClick={openAddDialog}
+                                    disabled={
+                                        grade_level_fees.length === 0 ||
+                                        selectedSchoolYearId === ''
+                                    }
+                                >
+                                    <Plus className="size-4" />
+                                    Add Fee Item
+                                </Button>
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -425,6 +494,11 @@ export default function FeeStructure({ grade_level_fees }: Props) {
                                         {createForm.errors.grade_level_id}
                                     </p>
                                 )}
+                                {createForm.errors.academic_year_id && (
+                                    <p className="text-sm text-destructive">
+                                        {createForm.errors.academic_year_id}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="space-y-2">
@@ -553,6 +627,11 @@ export default function FeeStructure({ grade_level_fees }: Props) {
                                 {editForm.errors.grade_level_id && (
                                     <p className="text-sm text-destructive">
                                         {editForm.errors.grade_level_id}
+                                    </p>
+                                )}
+                                {editForm.errors.academic_year_id && (
+                                    <p className="text-sm text-destructive">
+                                        {editForm.errors.academic_year_id}
                                     </p>
                                 )}
                             </div>

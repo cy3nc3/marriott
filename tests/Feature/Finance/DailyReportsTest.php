@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AcademicYear;
 use App\Models\Fee;
 use App\Models\GradeLevel;
 use App\Models\InventoryItem;
@@ -250,5 +251,76 @@ test('finance daily reports filters by cashier payment mode and date range', fun
             ->where('filters.payment_mode', 'gcash')
             ->where('filters.date_from', '2026-02-20')
             ->where('filters.date_to', '2026-02-20')
+        );
+});
+
+test('finance daily reports filters by school year', function () {
+    $schoolYearOne = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '771234567890',
+        'first_name' => 'Daily',
+        'last_name' => 'Scope',
+    ]);
+
+    $transactionOne = Transaction::query()->create([
+        'or_number' => 'OR-DAILY-SY-1',
+        'student_id' => $student->id,
+        'cashier_id' => $this->finance->id,
+        'total_amount' => 1800,
+        'payment_mode' => 'cash',
+    ]);
+
+    $transactionOne->items()->create([
+        'description' => 'Assessment Fee',
+        'amount' => 1800,
+    ]);
+
+    $transactionTwo = Transaction::query()->create([
+        'or_number' => 'OR-DAILY-SY-2',
+        'student_id' => $student->id,
+        'cashier_id' => $this->finance->id,
+        'total_amount' => 2600,
+        'payment_mode' => 'gcash',
+    ]);
+
+    $transactionTwo->items()->create([
+        'description' => 'Assessment Fee',
+        'amount' => 2600,
+    ]);
+
+    Transaction::query()->whereKey($transactionOne->id)->update([
+        'created_at' => '2024-10-10 09:00:00',
+        'updated_at' => '2024-10-10 09:00:00',
+    ]);
+    Transaction::query()->whereKey($transactionTwo->id)->update([
+        'created_at' => '2025-10-10 09:00:00',
+        'updated_at' => '2025-10-10 09:00:00',
+    ]);
+
+    $this->get("/finance/daily-reports?academic_year_id={$schoolYearOne->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/daily-reports/index')
+            ->where('selected_school_year_id', $schoolYearOne->id)
+            ->where('summary.transaction_count', 1)
+            ->where('summary.gross_collection', 1800)
+            ->where('filters.academic_year_id', $schoolYearOne->id)
+            ->has('transaction_rows.data', 1)
+            ->where('transaction_rows.data.0.or_number', 'OR-DAILY-SY-1')
         );
 });

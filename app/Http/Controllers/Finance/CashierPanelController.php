@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Finance;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\StoreCashierTransactionRequest;
 use App\Models\AcademicYear;
+use App\Models\BillingSchedule;
 use App\Models\Enrollment;
 use App\Models\Fee;
 use App\Models\InventoryItem;
@@ -101,22 +102,24 @@ class CashierPanelController extends Controller
             }
         }
 
-        $feeOptions = Fee::query()
-            ->when($selectedEnrollment?->grade_level_id, function ($query) use ($selectedEnrollment) {
-                $query->where('grade_level_id', $selectedEnrollment->grade_level_id);
-            })
-            ->orderBy('type')
-            ->orderBy('name')
-            ->get(['id', 'name', 'type', 'amount'])
-            ->map(function (Fee $fee) {
-                return [
-                    'id' => $fee->id,
-                    'name' => $fee->name,
-                    'type' => $fee->type,
-                    'amount' => (float) $fee->amount,
-                ];
-            })
-            ->values();
+        $assessmentFeeTotal = 0.0;
+
+        if ($selectedEnrollment?->grade_level_id) {
+            $assessmentFeeTotal = $this->resolveAssessmentFeeTotal(
+                (int) $selectedEnrollment->grade_level_id,
+                (int) ($selectedEnrollment->academic_year_id ?? $selectedAcademicYear?->id ?? 0)
+            );
+        }
+
+        $feeOptions = collect();
+        if ($assessmentFeeTotal > 0) {
+            $feeOptions->push([
+                'id' => 1,
+                'name' => 'Assessment Fee',
+                'type' => 'assessment_fee',
+                'amount' => round($assessmentFeeTotal, 2),
+            ]);
+        }
 
         $inventoryOptions = InventoryItem::query()
             ->orderBy('name')
@@ -165,6 +168,12 @@ class CashierPanelController extends Controller
         $totalAmount = round((float) $items->sum('amount'), 2);
 
         DB::transaction(function () use ($validated, $student, $academicYear, $items, $totalAmount) {
+            $allocatablePaymentAmount = round((float) $items
+                ->filter(function (array $item): bool {
+                    return $item['type'] === 'assessment_fee';
+                })
+                ->sum('amount'), 2);
+
             $transaction = Transaction::query()->create([
                 'or_number' => $validated['or_number'],
                 'student_id' => $student->id,
@@ -187,6 +196,8 @@ class CashierPanelController extends Controller
                     })
                     ->all()
             );
+
+            $this->allocatePaymentAcrossDues($transaction, $student, $academicYear, $allocatablePaymentAmount);
 
             $previousRunningBalance = (float) (LedgerEntry::query()
                 ->where('student_id', $student->id)
@@ -286,6 +297,7 @@ class CashierPanelController extends Controller
                 "{$academicYear->start_date} 00:00:00",
                 "{$academicYear->end_date} 23:59:59",
             ])
+            ->whereNotIn('status', ['voided', 'refunded', 'reissued'])
             ->sum('total_amount');
 
         $newStatus = $totalPaidInYear >= (float) $enrollment->downpayment
@@ -293,5 +305,81 @@ class CashierPanelController extends Controller
             : 'partial_payment';
 
         $enrollment->update(['status' => $newStatus]);
+    }
+
+    private function allocatePaymentAcrossDues(
+        Transaction $transaction,
+        Student $student,
+        AcademicYear $academicYear,
+        float $paymentAmount
+    ): void {
+        $remainingPaymentCents = (int) round(max($paymentAmount, 0) * 100);
+
+        $transaction->dueAllocations()->delete();
+
+        if ($remainingPaymentCents <= 0) {
+            return;
+        }
+
+        $billingSchedules = BillingSchedule::query()
+            ->where('student_id', $student->id)
+            ->where('academic_year_id', $academicYear->id)
+            ->whereIn('status', ['unpaid', 'partially_paid'])
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($billingSchedules as $billingSchedule) {
+            if ($remainingPaymentCents <= 0) {
+                break;
+            }
+
+            $amountDueCents = (int) round((float) $billingSchedule->amount_due * 100);
+            $amountPaidCents = (int) round((float) $billingSchedule->amount_paid * 100);
+            $outstandingCents = max($amountDueCents - $amountPaidCents, 0);
+
+            if ($outstandingCents <= 0) {
+                continue;
+            }
+
+            $appliedCents = min($remainingPaymentCents, $outstandingCents);
+            $newPaidCents = $amountPaidCents + $appliedCents;
+
+            $billingSchedule->update([
+                'amount_paid' => round($newPaidCents / 100, 2),
+                'status' => $newPaidCents >= $amountDueCents ? 'paid' : 'partially_paid',
+            ]);
+
+            $transaction->dueAllocations()->create([
+                'billing_schedule_id' => $billingSchedule->id,
+                'amount' => round($appliedCents / 100, 2),
+            ]);
+
+            $remainingPaymentCents -= $appliedCents;
+        }
+    }
+
+    private function resolveAssessmentFeeTotal(int $gradeLevelId, int $academicYearId): float
+    {
+        $baseQuery = Fee::query()
+            ->where('grade_level_id', $gradeLevelId)
+            ->whereIn('type', ['tuition', 'miscellaneous']);
+
+        $hasVersionedRows = $academicYearId > 0
+            ? (clone $baseQuery)
+                ->where('academic_year_id', $academicYearId)
+                ->exists()
+            : false;
+
+        if ($hasVersionedRows) {
+            return round((float) (clone $baseQuery)
+                ->where('academic_year_id', $academicYearId)
+                ->sum('amount'), 2);
+        }
+
+        return round((float) (clone $baseQuery)
+            ->whereNull('academic_year_id')
+            ->sum('amount'), 2);
     }
 }

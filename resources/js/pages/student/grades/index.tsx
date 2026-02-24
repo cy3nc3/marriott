@@ -1,8 +1,20 @@
-import { Head } from '@inertiajs/react';
-import { AlertTriangle, Heart, Info, ShieldCheck, TrendingUp } from 'lucide-react';
+import { Head, router } from '@inertiajs/react';
+import {
+    AlertTriangle,
+    Heart,
+    Info,
+    ShieldCheck,
+    TrendingUp,
+} from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -51,6 +63,8 @@ interface Props {
     };
     subject_rows: SubjectRow[];
     conduct_rows: ConductRow[];
+    school_year_options: { id: number; name: string; status: string }[];
+    selected_school_year_id: number | null;
     is_departed_read_only: boolean;
 }
 
@@ -59,8 +73,18 @@ export default function Grades({
     context,
     subject_rows,
     conduct_rows,
+    school_year_options,
+    selected_school_year_id,
     is_departed_read_only,
 }: Props) {
+    const handleSchoolYearChange = (value: string) => {
+        router.get(
+            '/student/grades',
+            { academic_year_id: Number(value) },
+            { preserveScroll: true },
+        );
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My Grades" />
@@ -98,10 +122,38 @@ export default function Grades({
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <CardTitle>Report Context</CardTitle>
                                 <div className="flex items-center gap-2">
-                                    <Badge variant="outline">
-                                        {context.school_year ??
-                                            'No school year'}
-                                    </Badge>
+                                    {school_year_options.length > 0 && (
+                                        <Select
+                                            value={
+                                                selected_school_year_id
+                                                    ? String(
+                                                          selected_school_year_id,
+                                                      )
+                                                    : undefined
+                                            }
+                                            onValueChange={
+                                                handleSchoolYearChange
+                                            }
+                                        >
+                                            <SelectTrigger className="w-[180px]">
+                                                <SelectValue placeholder="School Year" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {school_year_options.map(
+                                                    (schoolYear) => (
+                                                        <SelectItem
+                                                            key={schoolYear.id}
+                                                            value={String(
+                                                                schoolYear.id,
+                                                            )}
+                                                        >
+                                                            {schoolYear.name}
+                                                        </SelectItem>
+                                                    ),
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
                                 </div>
                             </div>
                         </CardHeader>

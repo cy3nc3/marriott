@@ -14,6 +14,7 @@ class Announcement extends Model
         'content',
         'target_roles',
         'target_user_ids',
+        'publish_at',
         'expires_at',
         'is_active',
     ];
@@ -21,6 +22,7 @@ class Announcement extends Model
     protected $casts = [
         'target_roles' => 'array',
         'target_user_ids' => 'array',
+        'publish_at' => 'datetime',
         'expires_at' => 'datetime',
         'is_active' => 'boolean',
     ];

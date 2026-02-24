@@ -120,6 +120,116 @@ test('student schedule page renders class schedule from enrolled section', funct
         );
 });
 
+test('student schedule page can switch school year history', function () {
+    $currentYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '2',
+    ]);
+
+    $previousYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $teacher = User::factory()->teacher()->create([
+        'first_name' => 'Arthur',
+        'last_name' => 'Santos',
+    ]);
+
+    $currentSection = Section::query()->create([
+        'academic_year_id' => $currentYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $previousSection = Section::query()->create([
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Bonifacio',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'ENG7',
+        'subject_name' => 'English 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $currentAssignment = SubjectAssignment::query()->create([
+        'section_id' => $currentSection->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $previousAssignment = SubjectAssignment::query()->create([
+        'section_id' => $previousSection->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $currentSection->id,
+        'subject_assignment_id' => $currentAssignment->id,
+        'type' => 'academic',
+        'day' => 'Monday',
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $previousSection->id,
+        'subject_assignment_id' => $previousAssignment->id,
+        'type' => 'academic',
+        'day' => 'Tuesday',
+        'start_time' => '10:00:00',
+        'end_time' => '11:00:00',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $currentYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $currentSection->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $previousSection->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $this->get("/student/schedule?academic_year_id={$previousYear->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('student/schedule/index')
+            ->where('selected_school_year_id', $previousYear->id)
+            ->has('school_year_options', 2)
+            ->where('schedule_items.0.day', 'Tuesday')
+        );
+});
+
 test('student grades page renders computed subject rows and conduct ratings', function () {
     $schoolYear = AcademicYear::query()->create([
         'name' => '2025-2026',
@@ -259,6 +369,115 @@ test('student grades page renders computed subject rows and conduct ratings', fu
             ->where('conduct_rows.2.core_value', 'Makakalikasan')
             ->where('conduct_rows.2.q1', 'SO')
             ->where('conduct_rows.2.q2', 'AO')
+        );
+});
+
+test('student grades page can switch school year history', function () {
+    $currentYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '2',
+    ]);
+
+    $previousYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $teacher = User::factory()->teacher()->create([
+        'first_name' => 'Arthur',
+        'last_name' => 'Santos',
+    ]);
+
+    $currentSection = Section::query()->create([
+        'academic_year_id' => $currentYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $previousSection = Section::query()->create([
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Bonifacio',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'SCI7',
+        'subject_name' => 'Science 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $currentAssignment = SubjectAssignment::query()->create([
+        'section_id' => $currentSection->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $previousAssignment = SubjectAssignment::query()->create([
+        'section_id' => $previousSection->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $currentEnrollment = Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $currentYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $currentSection->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $previousEnrollment = Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $previousSection->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    FinalGrade::query()->create([
+        'enrollment_id' => $currentEnrollment->id,
+        'subject_assignment_id' => $currentAssignment->id,
+        'quarter' => '1',
+        'grade' => 92,
+        'is_locked' => true,
+    ]);
+
+    FinalGrade::query()->create([
+        'enrollment_id' => $previousEnrollment->id,
+        'subject_assignment_id' => $previousAssignment->id,
+        'quarter' => '1',
+        'grade' => 80,
+        'is_locked' => true,
+    ]);
+
+    $this->get("/student/grades?academic_year_id={$previousYear->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('student/grades/index')
+            ->where('selected_school_year_id', $previousYear->id)
+            ->where('context.school_year', '2024-2025')
+            ->where('summary.general_average', '80.00')
+            ->has('school_year_options', 2)
         );
 });
 

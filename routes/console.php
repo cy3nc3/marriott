@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 Schedule::command('grading:send-deadline-reminders')
     ->dailyAt('07:00');
+
+Schedule::command('finance:send-due-reminders')
+    ->dailyAt('07:30');

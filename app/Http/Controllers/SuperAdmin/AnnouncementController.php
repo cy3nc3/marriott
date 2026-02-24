@@ -9,7 +9,9 @@ use App\Http\Requests\SuperAdmin\UpdateAnnouncementRequest;
 use App\Models\Announcement;
 use App\Models\AnnouncementAttachment;
 use App\Models\User;
+use App\Services\AnnouncementAnalyticsService;
 use App\Services\AuditLogService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +23,8 @@ use Inertia\Response;
 
 class AnnouncementController extends Controller
 {
+    public function __construct(private AnnouncementAnalyticsService $announcementAnalyticsService) {}
+
     public function index(Request $request): Response
     {
         $user = $this->resolveRequestUser($request);
@@ -58,6 +62,49 @@ class AnnouncementController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        $analyticsByAnnouncementId = $this->announcementAnalyticsService->buildSummaries(
+            $announcements->getCollection()
+        );
+        $announcements->setCollection(
+            $announcements->getCollection()
+                ->map(function (Announcement $announcement) use ($analyticsByAnnouncementId): array {
+                    $analytics = $analyticsByAnnouncementId[(int) $announcement->id] ?? [
+                        'recipient_count' => 0,
+                        'read_count' => 0,
+                        'unread_count' => 0,
+                        'read_rate' => 0.0,
+                    ];
+
+                    return [
+                        'id' => (int) $announcement->id,
+                        'title' => (string) $announcement->title,
+                        'content' => (string) $announcement->content,
+                        'target_roles' => $announcement->target_roles,
+                        'is_active' => (bool) $announcement->is_active,
+                        'created_at' => $announcement->created_at?->toIso8601String(),
+                        'publish_at' => $announcement->publish_at?->toIso8601String(),
+                        'expires_at' => $announcement->expires_at?->toIso8601String(),
+                        'user' => [
+                            'name' => (string) ($announcement->user?->name ?? ''),
+                        ],
+                        'attachments' => $announcement->attachments
+                            ->map(fn (AnnouncementAttachment $attachment): array => [
+                                'id' => (int) $attachment->id,
+                                'original_name' => (string) $attachment->original_name,
+                                'mime_type' => $attachment->mime_type,
+                                'file_size' => (int) $attachment->file_size,
+                            ])
+                            ->values()
+                            ->all(),
+                        'analytics' => $analytics,
+                        'report_url' => route('announcements.report', [
+                            'announcement' => $announcement->id,
+                        ]),
+                    ];
+                })
+                ->values()
+        );
+
         $roles = collect(UserRole::cases())
             ->when(
                 ! $this->isSuperAdmin($user),
@@ -70,10 +117,94 @@ class AnnouncementController extends Controller
                 'label' => $role->label(),
             ]);
 
+        $announcementData = collect($announcements->items());
+
         return Inertia::render('super_admin/announcements/index', [
             'announcements' => $announcements,
             'roles' => $roles->values()->all(),
             'filters' => $request->only(['search', 'role']),
+            'summary' => [
+                'visible_announcements' => (int) $announcements->total(),
+                'scheduled_announcements' => (int) $announcementData
+                    ->filter(function (array $announcement): bool {
+                        $publishAt = $announcement['publish_at'] ?? null;
+
+                        if (! is_string($publishAt)) {
+                            return false;
+                        }
+
+                        return now()->lt($publishAt);
+                    })
+                    ->count(),
+                'recipients' => (int) $announcementData
+                    ->sum(fn (array $announcement): int => (int) ($announcement['analytics']['recipient_count'] ?? 0)),
+                'unread' => (int) $announcementData
+                    ->sum(fn (array $announcement): int => (int) ($announcement['analytics']['unread_count'] ?? 0)),
+            ],
+        ]);
+    }
+
+    public function showReport(Request $request, Announcement $announcement): Response
+    {
+        $user = $this->resolveRequestUser($request);
+        if (! $this->canManageAnnouncement($user, $announcement)) {
+            abort(403);
+        }
+
+        $search = trim((string) $request->input('search', ''));
+        $status = (string) $request->input('status', 'all');
+        if (! in_array($status, ['all', 'read', 'unread'], true)) {
+            $status = 'all';
+        }
+
+        $recipients = $this->announcementAnalyticsService
+            ->reportQuery($announcement)
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $query->where(function (Builder $searchQuery) use ($search): void {
+                    $searchQuery
+                        ->where('users.name', 'like', "%{$search}%")
+                        ->orWhere('users.email', 'like', "%{$search}%");
+                });
+            })
+            ->when($status === 'read', function (Builder $query): void {
+                $query->whereNotNull('announcement_reads.read_at');
+            })
+            ->when($status === 'unread', function (Builder $query): void {
+                $query->whereNull('announcement_reads.read_at');
+            })
+            ->orderBy('users.name')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(function (User $recipient): array {
+                $roleValue = $this->resolveRoleValue($recipient);
+                $role = UserRole::tryFrom($roleValue);
+
+                return [
+                    'id' => (int) $recipient->id,
+                    'name' => (string) $recipient->name,
+                    'email' => (string) $recipient->email,
+                    'role' => $roleValue,
+                    'role_label' => $role?->label() ?? ucfirst(str_replace('_', ' ', $roleValue)),
+                    'is_read' => (bool) $recipient->getAttribute('is_read'),
+                    'read_at' => $recipient->getAttribute('announcement_read_at'),
+                ];
+            });
+
+        return Inertia::render('super_admin/announcements/report', [
+            'announcement' => [
+                'id' => (int) $announcement->id,
+                'title' => (string) $announcement->title,
+                'publish_at' => $announcement->publish_at?->toIso8601String(),
+                'expires_at' => $announcement->expires_at?->toIso8601String(),
+            ],
+            'analytics' => $this->announcementAnalyticsService->buildSummary($announcement) + [
+                'role_breakdown' => $this->announcementAnalyticsService->buildRoleBreakdown($announcement),
+            ],
+            'recipients' => $recipients,
+            'filters' => [
+                'search' => $search !== '' ? $search : null,
+                'status' => $status,
+            ],
         ]);
     }
 
@@ -98,6 +229,7 @@ class AnnouncementController extends Controller
             'id',
             'title',
             'target_roles',
+            'publish_at',
             'expires_at',
             'is_active',
         ]) + [
@@ -126,6 +258,7 @@ class AnnouncementController extends Controller
             'title',
             'content',
             'target_roles',
+            'publish_at',
             'expires_at',
             'is_active',
         ]) + [
@@ -145,6 +278,7 @@ class AnnouncementController extends Controller
             'title',
             'content',
             'target_roles',
+            'publish_at',
             'expires_at',
             'is_active',
         ]) + [
@@ -166,6 +300,7 @@ class AnnouncementController extends Controller
             'title',
             'content',
             'target_roles',
+            'publish_at',
             'expires_at',
             'is_active',
         ]) + [

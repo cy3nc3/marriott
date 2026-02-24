@@ -20,10 +20,24 @@ class Transaction extends Model
         'payment_mode',
         'reference_no',
         'remarks',
+        'status',
+        'void_reason',
+        'voided_at',
+        'voided_by',
+        'refund_reason',
+        'refunded_at',
+        'refunded_by',
+        'reissue_reason',
+        'reissued_at',
+        'reissued_by',
+        'reissued_transaction_id',
     ];
 
     protected $casts = [
         'total_amount' => 'decimal:2',
+        'voided_at' => 'datetime',
+        'refunded_at' => 'datetime',
+        'reissued_at' => 'datetime',
     ];
 
     public function student(): BelongsTo
@@ -36,8 +50,33 @@ class Transaction extends Model
         return $this->belongsTo(User::class, 'cashier_id');
     }
 
+    public function voidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
+    }
+
+    public function refundedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'refunded_by');
+    }
+
+    public function reissuedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reissued_by');
+    }
+
+    public function reissuedTransaction(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reissued_transaction_id');
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(TransactionItem::class);
+    }
+
+    public function dueAllocations(): HasMany
+    {
+        return $this->hasMany(TransactionDueAllocation::class);
     }
 }

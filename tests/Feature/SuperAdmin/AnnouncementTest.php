@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Announcement;
+use App\Models\AnnouncementRead;
 use App\Models\AuditLog;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -149,4 +150,43 @@ test('super admin announcement store normalizes duplicate target roles', functio
 
     expect($announcement)->not->toBeNull();
     expect($announcement->target_roles)->toBe(['teacher', 'student']);
+});
+
+test('announcement index includes analytics summary and report links', function () {
+    $teacher = User::factory()->teacher()->create([
+        'name' => 'Read Recipient',
+    ]);
+    $student = User::factory()->student()->create([
+        'name' => 'Unread Recipient',
+    ]);
+
+    $announcement = Announcement::query()->create([
+        'user_id' => $this->superAdmin->id,
+        'title' => 'Analytics Notice',
+        'content' => 'Tracking read metrics.',
+        'target_roles' => ['teacher', 'student'],
+        'is_active' => true,
+        'expires_at' => now()->addDays(2),
+    ]);
+
+    AnnouncementRead::query()->create([
+        'announcement_id' => $announcement->id,
+        'user_id' => $teacher->id,
+        'read_at' => now(),
+    ]);
+
+    $this->get('/announcements')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('super_admin/announcements/index')
+            ->where('announcements.data.0.id', $announcement->id)
+            ->where('announcements.data.0.analytics.recipient_count', 2)
+            ->where('announcements.data.0.analytics.read_count', 1)
+            ->where('announcements.data.0.analytics.unread_count', 1)
+            ->where('announcements.data.0.report_url', route('announcements.report', [
+                'announcement' => $announcement->id,
+            ]))
+            ->where('summary.recipients', 2)
+            ->where('summary.unread', 1)
+        );
 });
