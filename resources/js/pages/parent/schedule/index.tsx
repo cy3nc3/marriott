@@ -101,8 +101,8 @@ export default function Schedule({
                 )}
 
                 <Card className="gap-2">
-                    <CardContent className="space-y-4 p-4 sm:p-6">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CardContent className="p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                                 <CalendarDays className="size-4 text-muted-foreground" />
                                 <p className="text-sm font-medium">
@@ -158,6 +158,7 @@ export default function Schedule({
                                 <Badge variant="outline">Read-only</Badge>
                                 <Button
                                     variant="outline"
+                                    size="sm"
                                     onClick={() => window.print()}
                                 >
                                     <Printer className="size-4" />
@@ -165,11 +166,6 @@ export default function Schedule({
                                 </Button>
                             </div>
                         </div>
-
-                        <p className="text-xs text-muted-foreground">
-                            Read-only schedule view aligned with the academic
-                            schedule builder layout.
-                        </p>
                     </CardContent>
                 </Card>
 

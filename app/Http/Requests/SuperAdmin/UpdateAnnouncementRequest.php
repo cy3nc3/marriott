@@ -35,9 +35,21 @@ class UpdateAnnouncementRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string'],
+            'type' => ['nullable', 'string', Rule::in(['notice', 'event'])],
+            'response_mode' => [
+                'nullable',
+                'string',
+                Rule::in(['none', 'ack_rsvp']),
+            ],
             'target_roles' => ['nullable', 'array'],
             'target_roles.*' => ['string', Rule::in($this->roleValues())],
+            'target_user_ids' => ['nullable', 'array'],
+            'target_user_ids.*' => ['integer', 'exists:users,id'],
+            'audience_academic_year_id' => ['nullable', 'integer', 'exists:academic_years,id'],
             'publish_at' => ['nullable', 'date'],
+            'event_starts_at' => [Rule::requiredIf($this->input('type', 'notice') === 'event'), 'nullable', 'date'],
+            'event_ends_at' => ['nullable', 'date', 'after_or_equal:event_starts_at'],
+            'response_deadline_at' => ['nullable', 'date', 'before_or_equal:event_starts_at'],
             'expires_at' => ['nullable', 'date', 'after_or_equal:publish_at'],
             'attachments' => ['nullable', 'array', 'max:5'],
             'attachments.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,webp,gif,pdf,doc,docx,xls,xlsx,csv,txt'],
@@ -56,6 +68,9 @@ class UpdateAnnouncementRequest extends FormRequest
             'attachments.*.max' => 'Each attachment must be 10MB or smaller.',
             'attachments.*.mimes' => 'Allowed attachment types: images, PDF, Word, Excel, CSV, and TXT files.',
             'expires_at.after_or_equal' => 'Expiry must be on or after the publish schedule.',
+            'event_starts_at.required' => 'Event start date and time is required for event announcements.',
+            'event_ends_at.after_or_equal' => 'Event end time must be on or after the event start time.',
+            'response_deadline_at.before_or_equal' => 'Response deadline must be on or before the event start time.',
         ];
     }
 

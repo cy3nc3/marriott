@@ -209,7 +209,7 @@ it('allows publisher to view announcement read report', function (): void {
         );
 });
 
-it('blocks non-owner publisher from viewing another publishers announcement report', function (): void {
+it('allows admin to view reports for announcements published by other roles', function (): void {
     $admin = User::factory()->admin()->create();
     $registrar = User::factory()->registrar()->create();
 
@@ -223,6 +223,24 @@ it('blocks non-owner publisher from viewing another publishers announcement repo
     ]);
 
     $this->actingAs($admin)
+        ->get("/announcements/{$announcement->id}/report")
+        ->assertSuccessful();
+});
+
+it('blocks non-admin non-owner publisher from viewing another publishers announcement report', function (): void {
+    $finance = User::factory()->finance()->create();
+    $registrar = User::factory()->registrar()->create();
+
+    $announcement = Announcement::query()->create([
+        'user_id' => $registrar->id,
+        'title' => 'Registrar Only',
+        'content' => 'Owned by registrar.',
+        'target_roles' => ['student'],
+        'is_active' => true,
+        'expires_at' => now()->addDay(),
+    ]);
+
+    $this->actingAs($finance)
         ->get("/announcements/{$announcement->id}/report")
         ->assertForbidden();
 });

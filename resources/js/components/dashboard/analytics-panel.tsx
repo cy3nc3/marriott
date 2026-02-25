@@ -1,5 +1,6 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { AlertCircle, ArrowRight, Bell, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
 import {
     Area,
     AreaChart,
@@ -25,12 +26,15 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from '@/components/ui/chart';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import type {
     DashboardActionLink,
     DashboardAlert,
     DashboardTrend,
     DashboardTrendPoint,
     DashboardKpi,
+    SharedData,
 } from '@/types';
 
 interface DashboardAnalyticsPanelProps {
@@ -183,7 +187,16 @@ const renderTrendTooltipContent = (trend: DashboardTrend) => {
     return <ChartTooltipContent indicator="dot" />;
 };
 
-const renderListTrend = (trend: DashboardTrend) => {
+type ListTrendRenderOptions = {
+    isHandheld: boolean;
+    isExpanded: boolean;
+    onToggle: () => void;
+};
+
+const renderListTrend = (
+    trend: DashboardTrend,
+    options: ListTrendRenderOptions,
+) => {
     const points = trend.points ?? [];
 
     if (points.length === 0) {
@@ -195,26 +208,53 @@ const renderListTrend = (trend: DashboardTrend) => {
         );
     }
 
-    return points.map((point, index) => (
-        <div
-            key={`${trend.id}-${point.label}-${index}`}
-            className="flex items-center justify-between text-sm"
-        >
-            <span className="text-muted-foreground">{point.label}</span>
-            <span className="font-medium">{formatTrendValue(point.value)}</span>
+    const visiblePoints =
+        options.isHandheld && !options.isExpanded
+            ? points.slice(0, 4)
+            : points;
+    const hasMorePoints = options.isHandheld && points.length > 4;
+
+    return (
+        <div className="space-y-2">
+            {visiblePoints.map((point, index) => (
+                <div
+                    key={`${trend.id}-${point.label}-${index}`}
+                    className="flex items-center justify-between text-sm"
+                >
+                    <span className="text-muted-foreground">{point.label}</span>
+                    <span className="font-medium">
+                        {formatTrendValue(point.value)}
+                    </span>
+                </div>
+            ))}
+
+            {hasMorePoints ? (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-0 text-xs"
+                    onClick={options.onToggle}
+                >
+                    {options.isExpanded ? 'Show less' : 'Show more'}
+                </Button>
+            ) : null}
         </div>
-    ));
+    );
 };
 
-const renderLineTrend = (trend: DashboardTrend) => {
+const renderLineTrend = (
+    trend: DashboardTrend,
+    isHandheld: boolean,
+) => {
     if (!trend.chart || !hasChartData(trend)) {
-        return renderListTrend(trend);
+        return null;
     }
 
     const chartConfig = buildTrendChartConfig(trend);
 
     return (
-        <div className="h-56 w-full">
+        <div className={cn('w-full', isHandheld ? 'h-44' : 'h-48')}>
             <ChartContainer
                 config={chartConfig}
                 className="!aspect-auto h-full w-full !justify-start"
@@ -260,15 +300,18 @@ const renderLineTrend = (trend: DashboardTrend) => {
     );
 };
 
-const renderBarTrend = (trend: DashboardTrend) => {
+const renderBarTrend = (
+    trend: DashboardTrend,
+    isHandheld: boolean,
+) => {
     if (!trend.chart || !hasChartData(trend)) {
-        return renderListTrend(trend);
+        return null;
     }
 
     const chartConfig = buildTrendChartConfig(trend);
 
     return (
-        <div className="h-56 w-full">
+        <div className={cn('w-full', isHandheld ? 'h-44' : 'h-48')}>
             <ChartContainer
                 config={chartConfig}
                 className="!aspect-auto h-full w-full !justify-start"
@@ -310,15 +353,18 @@ const renderBarTrend = (trend: DashboardTrend) => {
     );
 };
 
-const renderAreaTrend = (trend: DashboardTrend) => {
+const renderAreaTrend = (
+    trend: DashboardTrend,
+    isHandheld: boolean,
+) => {
     if (!trend.chart || !hasChartData(trend)) {
-        return renderListTrend(trend);
+        return null;
     }
 
     const chartConfig = buildTrendChartConfig(trend);
 
     return (
-        <div className="h-56 w-full">
+        <div className={cn('w-full', isHandheld ? 'h-44' : 'h-48')}>
             <ChartContainer
                 config={chartConfig}
                 className="!aspect-auto h-full w-full !justify-start"
@@ -397,9 +443,12 @@ const renderAreaTrend = (trend: DashboardTrend) => {
     );
 };
 
-const renderPieTrend = (trend: DashboardTrend) => {
+const renderPieTrend = (
+    trend: DashboardTrend,
+    isHandheld: boolean,
+) => {
     if (!trend.chart || !hasChartData(trend)) {
-        return renderListTrend(trend);
+        return null;
     }
 
     const chart = trend.chart;
@@ -407,11 +456,11 @@ const renderPieTrend = (trend: DashboardTrend) => {
     const valueKey = chart.series[0]?.key;
 
     if (!valueKey) {
-        return renderListTrend(trend);
+        return null;
     }
 
     return (
-        <div className="h-56 w-full">
+        <div className={cn('w-full', isHandheld ? 'h-44' : 'h-48')}>
             <ChartContainer
                 config={chartConfig}
                 className="!aspect-auto h-full w-full !justify-start"
@@ -458,25 +507,40 @@ const renderPieTrend = (trend: DashboardTrend) => {
     );
 };
 
-const renderTrendBody = (trend: DashboardTrend) => {
+const renderTrendBody = (
+    trend: DashboardTrend,
+    options: ListTrendRenderOptions,
+) => {
     const display = resolveTrendDisplay(trend);
     if (display === 'line') {
-        return renderLineTrend(trend);
+        return (
+            renderLineTrend(trend, options.isHandheld) ??
+            renderListTrend(trend, options)
+        );
     }
 
     if (display === 'bar') {
-        return renderBarTrend(trend);
+        return (
+            renderBarTrend(trend, options.isHandheld) ??
+            renderListTrend(trend, options)
+        );
     }
 
     if (display === 'area') {
-        return renderAreaTrend(trend);
+        return (
+            renderAreaTrend(trend, options.isHandheld) ??
+            renderListTrend(trend, options)
+        );
     }
 
     if (display === 'pie') {
-        return renderPieTrend(trend);
+        return (
+            renderPieTrend(trend, options.isHandheld) ??
+            renderListTrend(trend, options)
+        );
     }
 
-    return renderListTrend(trend);
+    return renderListTrend(trend, options);
 };
 
 export function DashboardAnalyticsPanel({
@@ -486,108 +550,221 @@ export function DashboardAnalyticsPanel({
     actionLinks,
     children,
 }: DashboardAnalyticsPanelProps) {
+    const page = usePage<SharedData>();
+    const isHandheld = Boolean(page.props.ui?.is_handheld);
+    const [handheldTab, setHandheldTab] = useState<'alerts' | 'trends' | 'actions'>(
+        'alerts',
+    );
+    const [expandedTrendIds, setExpandedTrendIds] = useState<
+        Record<string, boolean>
+    >({});
+
+    const toggleTrendExpansion = (trendId: string) => {
+        setExpandedTrendIds((previous) => ({
+            ...previous,
+            [trendId]: !previous[trendId],
+        }));
+    };
+
+    const renderAlertsPanel = () => {
+        if (alerts.length === 0) {
+            return (
+                <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                    No active alerts.
+                </div>
+            );
+        }
+
+        return alerts.map((alert) => (
+            <div key={alert.id} className="rounded-md border p-3">
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">{alert.title}</p>
+                    <Badge variant={resolveAlertBadgeVariant(alert.severity)}>
+                        {alert.severity}
+                    </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">{alert.message}</p>
+            </div>
+        ));
+    };
+
+    const renderActionLinksPanel = () => {
+        if (actionLinks.length === 0) {
+            return (
+                <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                    No quick actions available.
+                </div>
+            );
+        }
+
+        return actionLinks.map((actionLink) => (
+            <Button
+                key={actionLink.id}
+                asChild
+                variant="outline"
+                className="h-9 justify-between"
+            >
+                <Link href={actionLink.href}>
+                    {actionLink.label}
+                    <ArrowRight className="size-4" />
+                </Link>
+            </Button>
+        ));
+    };
+
+    const renderTrendBlocks = (compact: boolean) => {
+        if (trends.length === 0) {
+            return (
+                <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                    No trend data available.
+                </div>
+            );
+        }
+
+        return trends.map((trend) => (
+            <div key={trend.id} className="rounded-md border">
+                <div className="border-b px-3 py-2.5">
+                    <p className="text-sm font-medium">{trend.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                        {trend.summary}
+                    </p>
+                </div>
+                <div className={cn('space-y-2', compact ? 'p-3' : 'p-3.5')}>
+                    {renderTrendBody(trend, {
+                        isHandheld: compact,
+                        isExpanded: Boolean(expandedTrendIds[trend.id]),
+                        onToggle: () => toggleTrendExpansion(trend.id),
+                    })}
+                </div>
+            </div>
+        ));
+    };
+
     return (
-        <div className="flex flex-col gap-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-4">
+            <div
+                className={cn(
+                    'grid gap-3',
+                    isHandheld ? 'grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-4',
+                )}
+            >
                 {kpis.map((kpi) => (
                     <Card key={kpi.id}>
-                        <CardHeader className="border-b py-4">
+                        <CardHeader className="border-b py-3">
                             <CardTitle className="text-sm font-medium">
                                 {kpi.label}
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-1 pt-4">
-                            <p className="text-2xl font-semibold">
+                        <CardContent className="space-y-0.5 pb-3 pt-3">
+                            <p
+                                className={cn(
+                                    'font-semibold leading-tight',
+                                    isHandheld ? 'text-xl' : 'text-2xl',
+                                )}
+                            >
                                 {kpi.value}
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                                {kpi.meta ?? ''}
-                            </p>
+                            {kpi.meta ? (
+                                <p className="text-xs text-muted-foreground">
+                                    {kpi.meta}
+                                </p>
+                            ) : null}
                         </CardContent>
                     </Card>
                 ))}
             </div>
 
-            {children}
+            {children ? <div className="grid gap-3">{children}</div> : null}
 
-            <div className="grid gap-4 lg:grid-cols-3">
-                <Card className="lg:col-span-2">
-                    <CardHeader className="flex flex-row items-center gap-2 border-b py-4">
-                        <Bell className="size-4 text-muted-foreground" />
-                        <CardTitle className="text-base">Alerts</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 pt-4">
-                        {alerts.map((alert) => (
-                            <div
-                                key={alert.id}
-                                className="rounded-md border p-3"
-                            >
-                                <div className="mb-2 flex items-center justify-between gap-2">
-                                    <p className="text-sm font-medium">
-                                        {alert.title}
-                                    </p>
-                                    <Badge
-                                        variant={resolveAlertBadgeVariant(
-                                            alert.severity,
-                                        )}
-                                    >
-                                        {alert.severity}
-                                    </Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    {alert.message}
-                                </p>
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
+            {isHandheld ? (
+                <Tabs
+                    value={handheldTab}
+                    onValueChange={(value) =>
+                        setHandheldTab(value as 'alerts' | 'trends' | 'actions')
+                    }
+                    className="flex flex-col gap-3"
+                >
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="alerts">Alerts</TabsTrigger>
+                        <TabsTrigger value="trends">Trends</TabsTrigger>
+                        <TabsTrigger value="actions">Actions</TabsTrigger>
+                    </TabsList>
 
-                <Card>
-                    <CardHeader className="flex flex-row items-center gap-2 border-b py-4">
-                        <ArrowRight className="size-4 text-muted-foreground" />
-                        <CardTitle className="text-base">
-                            Action Links
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-2 pt-4">
-                        {actionLinks.map((actionLink) => (
-                            <Button
-                                key={actionLink.id}
-                                asChild
-                                variant="outline"
-                            >
-                                <Link href={actionLink.href}>
-                                    {actionLink.label}
-                                </Link>
-                            </Button>
-                        ))}
-                    </CardContent>
-                </Card>
-            </div>
-
-            <Card>
-                <CardHeader className="flex flex-row items-center gap-2 border-b py-4">
-                    <TrendingUp className="size-4 text-muted-foreground" />
-                    <CardTitle className="text-base">Trends</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 pt-4 md:grid-cols-2">
-                    {trends.map((trend) => (
-                        <Card key={trend.id}>
-                            <CardHeader className="border-b py-4">
-                                <CardTitle className="text-sm font-medium">
-                                    {trend.label}
-                                </CardTitle>
-                                <p className="text-xs text-muted-foreground">
-                                    {trend.summary}
-                                </p>
+                    <TabsContent value="alerts" className="m-0">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
+                                <Bell className="size-4 text-muted-foreground" />
+                                <CardTitle className="text-sm">Alerts</CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-2 pt-4">
-                                {renderTrendBody(trend)}
+                            <CardContent className="space-y-2.5 pt-3">
+                                {renderAlertsPanel()}
                             </CardContent>
                         </Card>
-                    ))}
-                </CardContent>
-            </Card>
+                    </TabsContent>
+
+                    <TabsContent value="trends" className="m-0">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
+                                <TrendingUp className="size-4 text-muted-foreground" />
+                                <CardTitle className="text-sm">Trends</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2.5 pt-3">
+                                {renderTrendBlocks(true)}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="actions" className="m-0">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
+                                <ArrowRight className="size-4 text-muted-foreground" />
+                                <CardTitle className="text-sm">
+                                    Action Links
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid gap-2.5 pt-3">
+                                {renderActionLinksPanel()}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+            ) : (
+                <>
+                    <div className="grid gap-3 lg:grid-cols-3">
+                        <Card className="lg:col-span-2">
+                            <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
+                                <Bell className="size-4 text-muted-foreground" />
+                                <CardTitle className="text-base">Alerts</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2.5 pt-3">
+                                {renderAlertsPanel()}
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
+                                <ArrowRight className="size-4 text-muted-foreground" />
+                                <CardTitle className="text-base">
+                                    Action Links
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid gap-2.5 pt-3">
+                                {renderActionLinksPanel()}
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
+                            <TrendingUp className="size-4 text-muted-foreground" />
+                            <CardTitle className="text-base">Trends</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid gap-3 pt-3 md:grid-cols-2">
+                            {renderTrendBlocks(false)}
+                        </CardContent>
+                    </Card>
+                </>
+            )}
         </div>
     );
 }

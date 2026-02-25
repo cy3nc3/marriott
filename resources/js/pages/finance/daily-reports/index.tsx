@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
 import { Download, Printer } from 'lucide-react';
 import { useState } from 'react';
@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { daily_reports } from '@/routes/finance';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -142,6 +142,8 @@ export default function DailyReports({
     summary,
     filters,
 }: Props) {
+    const { ui } = usePage<SharedData>().props;
+    const isHandheld = Boolean(ui?.is_handheld);
     const initialFromDate = parseDateInput(filters.date_from);
     const initialToDate = parseDateInput(filters.date_to);
     const initialDateRange =
@@ -222,7 +224,7 @@ export default function DailyReports({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Daily Reports" />
 
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
                 <Card>
                     <CardHeader className="border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -359,111 +361,175 @@ export default function DailyReports({
                     </div>
 
                     <CardContent className="border-b p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="pl-6">
-                                        Category
-                                    </TableHead>
-                                    <TableHead className="border-l text-center">
-                                        Transactions
-                                    </TableHead>
-                                    <TableHead className="border-l pr-6 text-right">
-                                        Total Amount
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {breakdown_rows.map((row) => (
-                                    <TableRow key={row.category}>
-                                        <TableCell className="pl-6 font-medium">
-                                            {row.category}
-                                        </TableCell>
-                                        <TableCell className="border-l text-center">
-                                            {row.transaction_count}
-                                        </TableCell>
-                                        <TableCell className="border-l pr-6 text-right">
-                                            {formatCurrency(row.total_amount)}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {breakdown_rows.length === 0 && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={3}
-                                            className="py-8 text-center text-sm text-muted-foreground"
+                        {isHandheld ? (
+                            <div className="space-y-2.5 p-3">
+                                {breakdown_rows.length === 0 ? (
+                                    <div className="rounded-md border py-10 text-center text-sm text-muted-foreground">
+                                        No category breakdown available.
+                                    </div>
+                                ) : (
+                                    breakdown_rows.map((row) => (
+                                        <div
+                                            key={row.category}
+                                            className="space-y-1 rounded-md border p-3"
                                         >
-                                            No category breakdown available.
-                                        </TableCell>
-                                    </TableRow>
+                                            <p className="text-sm font-medium">
+                                                {row.category}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Transactions: {row.transaction_count}
+                                            </p>
+                                            <p className="text-sm font-semibold">
+                                                {formatCurrency(row.total_amount)}
+                                            </p>
+                                        </div>
+                                    ))
                                 )}
-                            </TableBody>
-                        </Table>
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="pl-6">
+                                            Category
+                                        </TableHead>
+                                        <TableHead className="border-l text-center">
+                                            Transactions
+                                        </TableHead>
+                                        <TableHead className="border-l pr-6 text-right">
+                                            Total Amount
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {breakdown_rows.map((row) => (
+                                        <TableRow key={row.category}>
+                                            <TableCell className="pl-6 font-medium">
+                                                {row.category}
+                                            </TableCell>
+                                            <TableCell className="border-l text-center">
+                                                {row.transaction_count}
+                                            </TableCell>
+                                            <TableCell className="border-l pr-6 text-right">
+                                                {formatCurrency(row.total_amount)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {breakdown_rows.length === 0 && (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={3}
+                                                className="py-8 text-center text-sm text-muted-foreground"
+                                            >
+                                                No category breakdown available.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        )}
                     </CardContent>
 
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="pl-6">
-                                        OR Number
-                                    </TableHead>
-                                    <TableHead>Student</TableHead>
-                                    <TableHead className="border-l">
-                                        Type
-                                    </TableHead>
-                                    <TableHead className="border-l">
-                                        Mode
-                                    </TableHead>
-                                    <TableHead className="border-l text-right">
-                                        Amount
-                                    </TableHead>
-                                    <TableHead className="border-l">
-                                        Cashier
-                                    </TableHead>
-                                    <TableHead className="border-l pr-6">
-                                        Date and Time
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {transaction_rows.data.map((row) => (
-                                    <TableRow key={row.id}>
-                                        <TableCell className="pl-6">
-                                            {row.or_number}
-                                        </TableCell>
-                                        <TableCell>
-                                            {row.student_name}
-                                        </TableCell>
-                                        <TableCell className="border-l">
-                                            {row.payment_type}
-                                        </TableCell>
-                                        <TableCell className="border-l">
-                                            {row.payment_mode_label}
-                                        </TableCell>
-                                        <TableCell className="border-l text-right">
-                                            {formatCurrency(row.amount)}
-                                        </TableCell>
-                                        <TableCell className="border-l">
-                                            {row.cashier_name}
-                                        </TableCell>
-                                        <TableCell className="border-l pr-6">
-                                            {formatPostedAt(row.posted_at)}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {transaction_rows.data.length === 0 && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={7}
-                                            className="py-8 text-center text-sm text-muted-foreground"
+                        {isHandheld ? (
+                            <div className="space-y-2.5 p-3">
+                                {transaction_rows.data.length === 0 ? (
+                                    <div className="rounded-md border py-10 text-center text-sm text-muted-foreground">
+                                        No transactions found.
+                                    </div>
+                                ) : (
+                                    transaction_rows.data.map((row) => (
+                                        <div
+                                            key={row.id}
+                                            className="space-y-1 rounded-md border p-3"
                                         >
-                                            No transactions found.
-                                        </TableCell>
-                                    </TableRow>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-sm font-medium">
+                                                    {row.or_number}
+                                                </p>
+                                                <p className="text-sm font-semibold">
+                                                    {formatCurrency(row.amount)}
+                                                </p>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                {row.student_name}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {row.payment_type} •{' '}
+                                                {row.payment_mode_label}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {row.cashier_name} •{' '}
+                                                {formatPostedAt(row.posted_at)}
+                                            </p>
+                                        </div>
+                                    ))
                                 )}
-                            </TableBody>
-                        </Table>
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="pl-6">
+                                            OR Number
+                                        </TableHead>
+                                        <TableHead>Student</TableHead>
+                                        <TableHead className="border-l">
+                                            Type
+                                        </TableHead>
+                                        <TableHead className="border-l">
+                                            Mode
+                                        </TableHead>
+                                        <TableHead className="border-l text-right">
+                                            Amount
+                                        </TableHead>
+                                        <TableHead className="border-l">
+                                            Cashier
+                                        </TableHead>
+                                        <TableHead className="border-l pr-6">
+                                            Date and Time
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {transaction_rows.data.map((row) => (
+                                        <TableRow key={row.id}>
+                                            <TableCell className="pl-6">
+                                                {row.or_number}
+                                            </TableCell>
+                                            <TableCell>
+                                                {row.student_name}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {row.payment_type}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {row.payment_mode_label}
+                                            </TableCell>
+                                            <TableCell className="border-l text-right">
+                                                {formatCurrency(row.amount)}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {row.cashier_name}
+                                            </TableCell>
+                                            <TableCell className="border-l pr-6">
+                                                {formatPostedAt(row.posted_at)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {transaction_rows.data.length === 0 && (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={7}
+                                                className="py-8 text-center text-sm text-muted-foreground"
+                                            >
+                                                No transactions found.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        )}
                     </CardContent>
 
                     {transaction_rows.links.length > 3 && (

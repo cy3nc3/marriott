@@ -30,6 +30,16 @@ type InboxItem = {
     created_at: string | null;
     publish_at: string | null;
     expires_at: string | null;
+    type: 'notice' | 'event';
+    response_mode: 'none' | 'ack_rsvp';
+    event_starts_at: string | null;
+    event_ends_at: string | null;
+    response_deadline_at: string | null;
+    is_cancelled: boolean;
+    cancelled_at: string | null;
+    cancel_reason: string | null;
+    viewer_response_status: 'none' | 'ack_only' | 'yes' | 'no' | 'maybe';
+    requires_action: boolean;
     is_read: boolean;
     show_url: string;
 };
@@ -108,7 +118,7 @@ export default function NotificationInbox({ announcements, filters }: Props) {
 
     const formatDate = (value: string | null) => {
         if (!value) {
-            return '-';
+            return '--';
         }
 
         return new Date(value).toLocaleString();
@@ -118,24 +128,28 @@ export default function NotificationInbox({ announcements, filters }: Props) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Notifications" />
 
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
                 <Card>
                     <CardHeader className="border-b">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <CardTitle className="flex items-center gap-2">
                                 <Bell className="size-4" />
                                 Notification Inbox
                             </CardTitle>
-                            <Button variant="outline" onClick={markAllAsRead}>
+                            <Button
+                                variant="outline"
+                                className="w-full sm:w-auto"
+                                onClick={markAllAsRead}
+                            >
                                 <Check className="size-4" />
                                 Mark all read
                             </Button>
                         </div>
                     </CardHeader>
-                    <CardContent className="space-y-4 p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                            <div className="relative w-full sm:max-w-sm">
-                                <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+                    <CardContent className="space-y-3 p-3">
+                        <div className="grid gap-3 sm:grid-cols-[1fr_180px] sm:items-center">
+                            <div className="relative w-full">
+                                <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Search notifications"
                                     value={search}
@@ -146,20 +160,18 @@ export default function NotificationInbox({ announcements, filters }: Props) {
                                 />
                             </div>
                             <Select value={status} onValueChange={handleStatus}>
-                                <SelectTrigger className="w-full sm:w-[180px]">
+                                <SelectTrigger className="w-full">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All</SelectItem>
-                                    <SelectItem value="unread">
-                                        Unread
-                                    </SelectItem>
+                                    <SelectItem value="unread">Unread</SelectItem>
                                     <SelectItem value="read">Read</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-2.5">
                             {announcements.data.length === 0 ? (
                                 <div className="rounded-md border py-10 text-center text-sm text-muted-foreground">
                                     No notifications found.
@@ -168,23 +180,50 @@ export default function NotificationInbox({ announcements, filters }: Props) {
                                 announcements.data.map((announcement) => (
                                     <div
                                         key={announcement.id}
-                                        className={`rounded-md border p-3 ${announcement.is_read ? '' : 'bg-muted/20'}`}
+                                        className={`rounded-md border p-2.5 ${announcement.is_read ? '' : 'bg-muted/20'}`}
                                     >
-                                        <div className="flex flex-wrap items-start justify-between gap-2">
-                                            <div className="space-y-1">
-                                                <Link
-                                                    href={announcement.show_url}
-                                                    className="text-sm font-medium hover:underline"
-                                                >
-                                                    {announcement.title}
-                                                </Link>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {
-                                                        announcement.content_preview
-                                                    }
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div className="min-w-0 space-y-1">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <Link
+                                                        href={announcement.show_url}
+                                                        className="line-clamp-1 text-sm font-medium hover:underline"
+                                                    >
+                                                        {announcement.title}
+                                                    </Link>
+                                                    {announcement.type ===
+                                                        'event' && (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="h-5 text-[10px]"
+                                                        >
+                                                            Event
+                                                        </Badge>
+                                                    )}
+                                                    {announcement.requires_action && (
+                                                        <Badge className="h-5 text-[10px]">
+                                                            Action Required
+                                                        </Badge>
+                                                    )}
+                                                    {announcement.is_cancelled && (
+                                                        <Badge variant="destructive">
+                                                            Cancelled
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <p className="line-clamp-1 text-xs text-muted-foreground">
+                                                    {announcement.content_preview}
                                                 </p>
+                                                {announcement.type === 'event' && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Start:{' '}
+                                                        {formatDate(
+                                                            announcement.event_starts_at,
+                                                        )}
+                                                    </p>
+                                                )}
                                             </div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                                                 <Badge
                                                     variant={
                                                         announcement.is_read
@@ -209,15 +248,22 @@ export default function NotificationInbox({ announcements, filters }: Props) {
                                                         Mark read
                                                     </Button>
                                                 )}
+                                                <Button variant="outline" size="sm" asChild>
+                                                    <Link href={announcement.show_url}>
+                                                        Open
+                                                    </Link>
+                                                </Button>
                                             </div>
                                         </div>
-                                        <p className="mt-2 text-xs text-muted-foreground">
-                                            Published:{' '}
-                                            {formatDate(
-                                                announcement.publish_at ??
-                                                    announcement.created_at,
-                                            )}
-                                        </p>
+                                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                            <span>Published:</span>
+                                            <span>
+                                                {formatDate(
+                                                    announcement.publish_at ??
+                                                        announcement.created_at,
+                                                )}
+                                            </span>
+                                        </div>
                                     </div>
                                 ))
                             )}
@@ -228,8 +274,8 @@ export default function NotificationInbox({ announcements, filters }: Props) {
                 {announcements.links.length > 3 && (
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <p className="text-sm text-muted-foreground">
-                            {announcements.from ?? 0}-{announcements.to ?? 0}{' '}
-                            out of {announcements.total}
+                            {announcements.from ?? 0}-{announcements.to ?? 0} out
+                            of {announcements.total}
                         </p>
                         <div className="flex flex-wrap items-center gap-2">
                             {announcements.links.map((link, index) => {
@@ -239,17 +285,13 @@ export default function NotificationInbox({ announcements, filters }: Props) {
                                 } else if (label.includes('Next')) {
                                     label = 'Next';
                                 } else {
-                                    label = label
-                                        .replace(/&[^;]+;/g, '')
-                                        .trim();
+                                    label = label.replace(/&[^;]+;/g, '').trim();
                                 }
 
                                 return (
                                     <Button
                                         key={`${link.label}-${index}`}
-                                        variant={
-                                            link.active ? 'default' : 'outline'
-                                        }
+                                        variant={link.active ? 'default' : 'outline'}
                                         size="sm"
                                         disabled={!link.url || link.active}
                                         onClick={() => {

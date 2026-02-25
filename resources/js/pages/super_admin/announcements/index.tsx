@@ -1,33 +1,29 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
-    Megaphone,
-    Plus,
-    Trash2,
-    Users,
-    Bell,
-    Pencil,
-    Search,
-    XCircle,
-    Paperclip,
-    UploadCloud,
-    X,
     BarChart3,
+    Bell,
+    CalendarClock,
+    Megaphone,
+    Paperclip,
+    Pencil,
+    Plus,
+    Search,
+    Trash2,
+    UploadCloud,
+    Users,
+    X,
+    XCircle,
 } from 'lucide-react';
 import { type ChangeEvent, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveFormDialog } from '@/components/ui/responsive-form-dialog';
+import { RolesCombobox } from '@/components/ui/roles-combobox';
 import {
     Select,
     SelectContent,
@@ -36,8 +32,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { DatePicker } from '@/components/ui/date-picker';
-import { RolesCombobox } from '@/components/ui/roles-combobox';
+import { UsersCombobox } from '@/components/ui/users-combobox';
 import AppLayout from '@/layouts/app-layout';
 import { due_reminder_settings } from '@/routes/finance';
 import announcementsRoutes from '@/routes/announcements';
@@ -50,15 +45,31 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-interface Announcement {
+interface AnnouncementAttachment {
+    id: number;
+    original_name: string;
+    mime_type: string | null;
+    file_size: number;
+}
+
+interface AnnouncementRecord {
     id: number;
     title: string;
     content: string;
+    type: 'notice' | 'event';
+    response_mode: 'none' | 'ack_rsvp';
     target_roles: string[] | null;
+    target_user_ids: number[] | null;
     is_active: boolean;
     created_at: string;
-    publish_at?: string | null;
-    expires_at?: string;
+    publish_at: string | null;
+    event_starts_at: string | null;
+    event_ends_at: string | null;
+    response_deadline_at: string | null;
+    expires_at: string | null;
+    is_cancelled: boolean;
+    cancelled_at: string | null;
+    cancel_reason: string | null;
     user: { name: string };
     attachments: AnnouncementAttachment[];
     analytics: {
@@ -68,18 +79,30 @@ interface Announcement {
         read_rate: number;
     };
     report_url: string;
+    can_cancel: boolean;
 }
 
-interface AnnouncementAttachment {
+interface RoleOption {
+    value: string;
+    label: string;
+}
+
+interface AudienceOption {
     id: number;
-    original_name: string;
-    mime_type: string | null;
-    file_size: number;
+    label: string;
+    role: string;
+    role_label: string;
+}
+
+interface AcademicYearOption {
+    id: number;
+    name: string;
+    status: string;
 }
 
 interface Props {
     announcements: {
-        data: Announcement[];
+        data: AnnouncementRecord[];
         links: {
             url: string | null;
             label: string;
@@ -89,10 +112,17 @@ interface Props {
         to: number | null;
         total: number;
     };
-    roles: { value: string; label: string }[];
+    roles: RoleOption[];
+    audience: {
+        roles: RoleOption[];
+        users: AudienceOption[];
+        selected_academic_year_id: number | null;
+        academic_year_options: AcademicYearOption[];
+    };
     filters: {
         search?: string;
         role?: string;
+        audience_academic_year_id?: number | null;
     };
     summary: {
         visible_announcements: number;
@@ -105,37 +135,52 @@ interface Props {
 export default function Announcements({
     announcements,
     roles,
+    audience,
     filters,
     summary,
 }: Props) {
     const page = usePage<SharedData>();
     const userRole = (page.props.auth.user.role as string) || '';
+    const isHandheld = Boolean(page.props.ui?.is_handheld);
     const isFinanceUser = userRole === 'finance';
 
-    const [isAddOpen, setIsAddOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState<Announcement | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState<AnnouncementRecord | null>(
+        null,
+    );
     const [existingAttachments, setExistingAttachments] = useState<
         AnnouncementAttachment[]
     >([]);
-    const attachmentInputRef = useRef<HTMLInputElement | null>(null);
-
-    // Filters
     const [filterRole, setFilterRole] = useState<string>(filters.role || 'all');
-    const [searchQuery, setSearchQuery] = useState<string>(
-        filters.search || '',
+    const [searchQuery, setSearchQuery] = useState<string>(filters.search || '');
+    const [audienceAcademicYearId, setAudienceAcademicYearId] = useState<
+        string
+    >(
+        filters.audience_academic_year_id
+            ? String(filters.audience_academic_year_id)
+            : audience.selected_academic_year_id
+              ? String(audience.selected_academic_year_id)
+              : 'none',
     );
+    const attachmentInputRef = useRef<HTMLInputElement | null>(null);
 
     const form = useForm({
         title: '',
         content: '',
+        type: 'notice' as 'notice' | 'event',
         target_roles: [] as string[],
+        target_user_ids: [] as number[],
         publish_at: '',
+        event_starts_at: '',
+        event_ends_at: '',
+        response_deadline_at: '',
         expires_at: '',
+        audience_academic_year_id: audience.selected_academic_year_id,
         attachments: [] as File[],
         removed_attachment_ids: [] as number[],
     });
 
-    const toDateTimeLocalValue = (value?: string | null) => {
+    const toDateTimeLocalValue = (value?: string | null): string => {
         if (!value) {
             return '';
         }
@@ -154,16 +199,37 @@ export default function Announcements({
         return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
 
-    const handleOpenDialog = (item?: Announcement) => {
+    const toDateOnlyValue = (value?: string | null): string => {
+        if (!value) {
+            return '';
+        }
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return '';
+        }
+
+        return format(date, 'yyyy-MM-dd');
+    };
+
+    const openDialog = (item?: AnnouncementRecord) => {
         if (item) {
             setEditingItem(item);
-            setExistingAttachments(item.attachments || []);
+            setExistingAttachments(item.attachments);
             form.setData({
                 title: item.title,
                 content: item.content,
-                target_roles: item.target_roles || [],
+                type: item.type,
+                target_roles: item.target_roles ?? [],
+                target_user_ids: item.target_user_ids ?? [],
                 publish_at: toDateTimeLocalValue(item.publish_at),
-                expires_at: item.expires_at || '',
+                event_starts_at: toDateTimeLocalValue(item.event_starts_at),
+                event_ends_at: toDateTimeLocalValue(item.event_ends_at),
+                response_deadline_at: toDateTimeLocalValue(
+                    item.response_deadline_at,
+                ),
+                expires_at: toDateOnlyValue(item.expires_at),
+                audience_academic_year_id: audience.selected_academic_year_id,
                 attachments: [],
                 removed_attachment_ids: [],
             });
@@ -171,44 +237,120 @@ export default function Announcements({
             setEditingItem(null);
             setExistingAttachments([]);
             form.reset();
-            form.setData('publish_at', '');
-            form.setData('attachments', []);
-            form.setData('removed_attachment_ids', []);
+            form.setData({
+                title: '',
+                content: '',
+                type: 'notice',
+                target_roles: [],
+                target_user_ids: [],
+                publish_at: '',
+                event_starts_at: '',
+                event_ends_at: '',
+                response_deadline_at: '',
+                expires_at: '',
+                audience_academic_year_id: audience.selected_academic_year_id,
+                attachments: [],
+                removed_attachment_ids: [],
+            });
         }
-        setIsAddOpen(true);
+
+        setIsDialogOpen(true);
+    };
+
+    const closeDialog = () => {
+        setIsDialogOpen(false);
+        setEditingItem(null);
+        setExistingAttachments([]);
+        form.clearErrors();
     };
 
     const handleSubmit = () => {
         if (editingItem) {
             form.put(announcementsRoutes.update.url(editingItem.id), {
                 forceFormData: true,
-                onSuccess: () => {
-                    setIsAddOpen(false);
-                    form.reset();
-                    setExistingAttachments([]);
-                    setEditingItem(null);
-                },
+                onSuccess: closeDialog,
             });
-        } else {
-            form.post(announcementsRoutes.store.url(), {
-                forceFormData: true,
-                onSuccess: () => {
-                    setIsAddOpen(false);
-                    form.reset();
-                    setExistingAttachments([]);
-                },
-            });
+
+            return;
         }
+
+        form.post(announcementsRoutes.store.url(), {
+            forceFormData: true,
+            onSuccess: closeDialog,
+        });
     };
 
-    const handleDelete = (id: number) => {
-        if (confirm('Delete this announcement?')) {
-            router.delete(announcementsRoutes.destroy.url(id));
+    const handleDelete = (announcementId: number) => {
+        if (!confirm('Delete this announcement?')) {
+            return;
         }
+
+        router.delete(announcementsRoutes.destroy.url(announcementId));
     };
 
-    const handleDateChange = (date?: Date) => {
-        form.setData('expires_at', date ? format(date, 'yyyy-MM-dd') : '');
+    const handleCancelEvent = (announcementId: number) => {
+        const cancelReason = window.prompt(
+            'Optional cancellation reason for recipients:',
+        );
+
+        router.post(
+            announcementsRoutes.cancel.url(announcementId),
+            {
+                cancel_reason: cancelReason ?? undefined,
+            },
+            {
+                preserveScroll: true,
+            },
+        );
+    };
+
+    const applyFilters = (
+        search: string,
+        role: string,
+        selectedAcademicYearId: string,
+    ) => {
+        router.get(
+            announcementsRoutes.index.url(),
+            {
+                search: search || undefined,
+                role: role === 'all' ? undefined : role,
+                audience_academic_year_id:
+                    selectedAcademicYearId === 'none'
+                        ? undefined
+                        : selectedAcademicYearId,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const handleSearch = (value: string) => {
+        setSearchQuery(value);
+        applyFilters(value, filterRole, audienceAcademicYearId);
+    };
+
+    const handleRoleFilter = (value: string) => {
+        setFilterRole(value);
+        applyFilters(searchQuery, value, audienceAcademicYearId);
+    };
+
+    const handleAudienceYearFilter = (value: string) => {
+        setAudienceAcademicYearId(value);
+        applyFilters(searchQuery, filterRole, value);
+        form.setData(
+            'audience_academic_year_id',
+            value === 'none' ? null : Number(value),
+        );
+    };
+
+    const resetFilters = () => {
+        setSearchQuery('');
+        setFilterRole('all');
+        setAudienceAcademicYearId('none');
+        applyFilters('', 'all', 'none');
     };
 
     const addSelectedAttachments = (event: ChangeEvent<HTMLInputElement>) => {
@@ -250,58 +392,44 @@ export default function Announcements({
         return `${(size / (1024 * 1024)).toFixed(1)} MB`;
     };
 
-    const applyFilters = (search: string, role: string) => {
-        router.get(
-            announcementsRoutes.index.url(),
-            {
-                search: search || undefined,
-                role: role === 'all' ? undefined : role,
-            },
-            {
-                preserveState: true,
-                replace: true,
-                preserveScroll: true,
-            },
-        );
+    const formatDateTime = (value?: string | null) => {
+        if (!value) {
+            return '--';
+        }
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+            return '--';
+        }
+
+        return date.toLocaleString();
     };
 
-    const handleSearch = (value: string) => {
-        setSearchQuery(value);
-        applyFilters(value, filterRole);
-    };
-
-    const handleRoleFilter = (value: string) => {
-        setFilterRole(value);
-        applyFilters(searchQuery, value);
-    };
-
-    const resetFilters = () => {
-        setFilterRole('all');
-        setSearchQuery('');
-        applyFilters('', 'all');
-    };
+    const hasFilters =
+        searchQuery !== '' || filterRole !== 'all' || audienceAcademicYearId !== 'none';
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Announcements" />
-            <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
-                        <div className="relative w-full sm:w-72">
-                            <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="Search announcements..."
                                 className="pl-9"
                                 value={searchQuery}
-                                onChange={(e) => handleSearch(e.target.value)}
+                                onChange={(event) =>
+                                    handleSearch(event.target.value)
+                                }
                             />
                         </div>
 
-                        <Select
-                            value={filterRole}
-                            onValueChange={handleRoleFilter}
-                        >
-                            <SelectTrigger className="w-[160px]">
+                        <Select value={filterRole} onValueChange={handleRoleFilter}>
+                            <SelectTrigger className="w-[150px]">
                                 <div className="flex items-center gap-2">
                                     <Users className="size-4" />
                                     <SelectValue placeholder="Target Role" />
@@ -310,17 +438,36 @@ export default function Announcements({
                             <SelectContent>
                                 <SelectItem value="all">All Roles</SelectItem>
                                 {roles.map((role) => (
-                                    <SelectItem
-                                        key={role.value}
-                                        value={role.value}
-                                    >
+                                    <SelectItem key={role.value} value={role.value}>
                                         {role.label}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
 
-                        {(searchQuery || filterRole !== 'all') && (
+                        <Select
+                            value={audienceAcademicYearId}
+                            onValueChange={handleAudienceYearFilter}
+                        >
+                            <SelectTrigger className="w-[190px]">
+                                <SelectValue placeholder="Audience School Year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Current Scope</SelectItem>
+                                {audience.academic_year_options.map(
+                                    (academicYear) => (
+                                        <SelectItem
+                                            key={academicYear.id}
+                                            value={String(academicYear.id)}
+                                        >
+                                            {academicYear.name}
+                                        </SelectItem>
+                                    ),
+                                )}
+                            </SelectContent>
+                        </Select>
+
+                        {hasFilters && (
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -339,255 +486,166 @@ export default function Announcements({
                                 </Link>
                             </Button>
                         )}
-                        <Button onClick={() => handleOpenDialog()}>
+                        <Button onClick={() => openDialog()}>
                             <Plus className="size-4" />
                             New Announcement
                         </Button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
                     <div className="rounded-md border p-3">
                         <p className="text-xs text-muted-foreground">
                             Visible Announcements
                         </p>
-                        <p className="text-lg font-semibold">
+                        <p className="text-base font-semibold">
                             {summary.visible_announcements}
                         </p>
                     </div>
                     <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">
-                            Scheduled
-                        </p>
-                        <p className="text-lg font-semibold">
+                        <p className="text-xs text-muted-foreground">Scheduled</p>
+                        <p className="text-base font-semibold">
                             {summary.scheduled_announcements}
                         </p>
                     </div>
                     <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">
-                            Target Recipients
-                        </p>
-                        <p className="text-lg font-semibold">
+                        <p className="text-xs text-muted-foreground">Recipients</p>
+                        <p className="text-base font-semibold">
                             {summary.recipients}
                         </p>
                     </div>
                     <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">
-                            Unread Notices
-                        </p>
-                        <p className="text-lg font-semibold">
-                            {summary.unread}
-                        </p>
+                        <p className="text-xs text-muted-foreground">Unread</p>
+                        <p className="text-base font-semibold">{summary.unread}</p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                    {announcements.data.map((item) => (
-                        <Card key={item.id} className="gap-2">
-                            <CardContent className="space-y-4 p-6">
-                                {(() => {
-                                    const publishDate = item.publish_at
-                                        ? new Date(item.publish_at)
-                                        : null;
-                                    const isScheduled =
-                                        publishDate !== null &&
-                                        !Number.isNaN(publishDate.getTime()) &&
-                                        publishDate.getTime() > Date.now();
-
-                                    return (
-                                        <>
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="rounded-lg border p-2">
-                                                        <Bell className="size-4" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-semibold">
-                                                            {item.title}
-                                                        </p>
-                                                        <div className="flex items-center gap-2">
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {new Date(
-                                                                    item.created_at,
-                                                                ).toLocaleDateString()}
-                                                            </p>
-                                                            {item.target_roles &&
-                                                                item
-                                                                    .target_roles
-                                                                    .length >
-                                                                    0 && (
-                                                                    <div className="flex items-center gap-1.5 border-l pl-2">
-                                                                        <Users className="size-3 text-muted-foreground" />
-                                                                        <div className="flex flex-wrap gap-1">
-                                                                            {item.target_roles.map(
-                                                                                (
-                                                                                    role,
-                                                                                ) => (
-                                                                                    <Badge
-                                                                                        key={
-                                                                                            role
-                                                                                        }
-                                                                                        variant="outline"
-                                                                                    >
-                                                                                        {roles.find(
-                                                                                            (
-                                                                                                r,
-                                                                                            ) =>
-                                                                                                r.value ===
-                                                                                                role,
-                                                                                        )
-                                                                                            ?.label ||
-                                                                                            role}
-                                                                                    </Badge>
-                                                                                ),
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        asChild
-                                                    >
-                                                        <Link
-                                                            href={
-                                                                item.report_url
-                                                            }
-                                                        >
-                                                            <BarChart3 className="size-4" />
-                                                            View Report
-                                                        </Link>
-                                                    </Button>
-                                                    <Badge
-                                                        variant={
-                                                            isScheduled
-                                                                ? 'secondary'
-                                                                : 'outline'
-                                                        }
-                                                    >
-                                                        {isScheduled
-                                                            ? `Scheduled: ${publishDate?.toLocaleString()}`
-                                                            : 'Published'}
-                                                    </Badge>
-                                                    {item.target_roles &&
-                                                    item.target_roles.length >
-                                                        0 ? (
-                                                        <Badge variant="outline">
-                                                            {
-                                                                item
-                                                                    .target_roles
-                                                                    .length
-                                                            }{' '}
-                                                            Target
-                                                            {item.target_roles
-                                                                .length === 1
-                                                                ? ''
-                                                                : 's'}
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="outline">
-                                                            All Roles
-                                                        </Badge>
-                                                    )}
-                                                    {item.attachments.length >
-                                                        0 && (
-                                                        <Badge variant="outline">
-                                                            <Paperclip className="size-3" />
-                                                            {
-                                                                item.attachments
-                                                                    .length
-                                                            }{' '}
-                                                            Attachment
-                                                            {item.attachments
-                                                                .length === 1
-                                                                ? ''
-                                                                : 's'}
-                                                        </Badge>
-                                                    )}
-                                                    <div className="flex items-center gap-1">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() =>
-                                                                handleOpenDialog(
-                                                                    item,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Pencil className="size-4" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="destructive"
-                                                            size="icon"
-                                                            onClick={() =>
-                                                                handleDelete(
-                                                                    item.id,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Trash2 className="size-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <Badge variant="outline">
-                                                    Recipients:{' '}
-                                                    {
-                                                        item.analytics
-                                                            .recipient_count
-                                                    }
-                                                </Badge>
-                                                <Badge variant="outline">
-                                                    Read:{' '}
-                                                    {item.analytics.read_count}
-                                                </Badge>
-                                                <Badge variant="outline">
-                                                    Unread:{' '}
-                                                    {
-                                                        item.analytics
-                                                            .unread_count
-                                                    }
-                                                </Badge>
-                                                <Badge variant="outline">
-                                                    Read Rate:{' '}
-                                                    {item.analytics.read_rate}%
-                                                </Badge>
-                                            </div>
-                                            <p className="text-sm whitespace-pre-wrap text-muted-foreground">
-                                                {item.content}
-                                            </p>
-                                        </>
-                                    );
-                                })()}
-                            </CardContent>
-                        </Card>
-                    ))}
-
-                    {announcements.data.length === 0 && (
-                        <Card className="gap-2">
-                            <CardContent className="flex flex-col items-center justify-center gap-2 py-16 text-center text-muted-foreground">
+                <Card className="gap-2">
+                    <CardContent className="p-0">
+                        {announcements.data.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-muted-foreground">
                                 <Megaphone className="size-10 opacity-40" />
                                 <p className="text-sm font-medium">
-                                    No broadcasts found.
+                                    No announcements found.
                                 </p>
-                                <p className="text-sm">
-                                    Adjust your filters or post a new message to
-                                    inform the school community.
-                                </p>
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
+                            </div>
+                        ) : (
+                            <div className="divide-y">
+                                {announcements.data.map((item) => (
+                                    <div key={item.id} className="space-y-2.5 px-4 py-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0 space-y-1">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <div className="rounded-md border p-1.5">
+                                                        {item.type === 'event' ? (
+                                                            <CalendarClock className="size-3.5" />
+                                                        ) : (
+                                                            <Bell className="size-3.5" />
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm font-semibold">
+                                                        {item.title}
+                                                    </p>
+                                                    <Badge variant="outline" className="h-5 text-[10px]">
+                                                        {item.type === 'event' ? 'Event' : 'Notice'}
+                                                    </Badge>
+                                                    {item.is_cancelled ? (
+                                                        <Badge variant="destructive" className="h-5 text-[10px]">
+                                                            Cancelled
+                                                        </Badge>
+                                                    ) : null}
+                                                </div>
+                                                <p className="line-clamp-1 text-xs text-muted-foreground">
+                                                    {item.content}
+                                                </p>
+                                                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                                    <span>
+                                                        Published: {formatDateTime(item.publish_at ?? item.created_at)}
+                                                    </span>
+                                                    {item.type === 'event' && item.event_starts_at ? (
+                                                        <span>
+                                                            Starts: {formatDateTime(item.event_starts_at)}
+                                                        </span>
+                                                    ) : null}
+                                                    <span>
+                                                        Read: {item.analytics.read_count}/{item.analytics.recipient_count}
+                                                    </span>
+                                                    {item.attachments.length > 0 ? (
+                                                        <span className="inline-flex items-center gap-1">
+                                                            <Paperclip className="size-3" />
+                                                            {item.attachments.length}
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex shrink-0 items-center gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    asChild
+                                                >
+                                                    <Link href={item.report_url}>
+                                                        <BarChart3 className="size-4" />
+                                                    </Link>
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={() => openDialog(item)}
+                                                >
+                                                    <Pencil className="size-4" />
+                                                </Button>
+                                                {!isHandheld && item.can_cancel ? (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={() =>
+                                                            handleCancelEvent(item.id)
+                                                        }
+                                                    >
+                                                        <XCircle className="size-4" />
+                                                    </Button>
+                                                ) : null}
+                                                <Button
+                                                    variant="destructive"
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={() => handleDelete(item.id)}
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {item.can_cancel && isHandheld ? (
+                                            <div className="flex justify-end">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        handleCancelEvent(item.id)
+                                                    }
+                                                >
+                                                    Cancel Event
+                                                </Button>
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
                 {announcements.links.length > 3 && (
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <p className="text-sm text-muted-foreground">
-                            {announcements.from ?? 0}-{announcements.to ?? 0}{' '}
-                            out of {announcements.total}
+                            {announcements.from ?? 0}-{announcements.to ?? 0} out of{' '}
+                            {announcements.total}
                         </p>
                         <div className="flex flex-wrap items-center gap-2">
                             {announcements.links.map((link, index) => {
@@ -597,17 +655,13 @@ export default function Announcements({
                                 } else if (label.includes('Next')) {
                                     label = 'Next';
                                 } else {
-                                    label = label
-                                        .replace(/&[^;]+;/g, '')
-                                        .trim();
+                                    label = label.replace(/&[^;]+;/g, '').trim();
                                 }
 
                                 return (
                                     <Button
                                         key={`${link.label}-${index}`}
-                                        variant={
-                                            link.active ? 'default' : 'outline'
-                                        }
+                                        variant={link.active ? 'default' : 'outline'}
                                         size="sm"
                                         disabled={!link.url || link.active}
                                         onClick={() => {
@@ -632,49 +686,225 @@ export default function Announcements({
                 )}
             </div>
 
-            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-[450px]">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {editingItem ? 'Edit' : 'New'} Broadcast
-                        </DialogTitle>
-                        <DialogDescription>
-                            Define the message content and visibility
-                            parameters.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid max-h-[60vh] gap-4 overflow-y-auto py-4 pr-1">
+            <ResponsiveFormDialog
+                open={isDialogOpen}
+                onOpenChange={setIsDialogOpen}
+                title={`${editingItem ? 'Edit' : 'New'} Announcement`}
+                contentClassName="sm:max-w-[560px]"
+                bodyClassName="grid max-h-[70vh] gap-4 overflow-y-auto py-4 pr-1"
+                footer={(
+                    <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <Button variant="outline" onClick={closeDialog}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSubmit} disabled={form.processing}>
+                            {editingItem ? 'Update' : 'Publish'}
+                        </Button>
+                    </div>
+                )}
+            >
+                    <div className="grid gap-4">
                         <div className="grid gap-2">
-                            <Label>Broadcast Title</Label>
+                            <Label>Title</Label>
                             <Input
-                                placeholder="e.g., System Maintenance Notice"
                                 value={form.data.title}
-                                onChange={(e) =>
-                                    form.setData('title', e.target.value)
+                                onChange={(event) =>
+                                    form.setData('title', event.target.value)
                                 }
                             />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Message Content</Label>
-                            <Textarea
-                                placeholder="Describe the announcement in detail..."
-                                className="min-h-[120px]"
-                                value={form.data.content}
-                                onChange={(e) =>
-                                    form.setData('content', e.target.value)
-                                }
-                            />
+                            {form.errors.title && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.title}
+                                </p>
+                            )}
                         </div>
 
                         <div className="grid gap-2">
-                            <Label>Target Audience (Roles)</Label>
+                            <Label>Type</Label>
+                            <Select
+                                value={form.data.type}
+                                onValueChange={(value: 'notice' | 'event') => {
+                                    form.setData('type', value);
+
+                                    if (value === 'notice') {
+                                        form.setData('event_starts_at', '');
+                                        form.setData('event_ends_at', '');
+                                        form.setData('response_deadline_at', '');
+                                    }
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="notice">Notice</SelectItem>
+                                    <SelectItem value="event">Event</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label>Content</Label>
+                            <Textarea
+                                className="min-h-[120px]"
+                                value={form.data.content}
+                                onChange={(event) =>
+                                    form.setData('content', event.target.value)
+                                }
+                            />
+                            {form.errors.content && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.content}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label>Audience School Year</Label>
+                            <Select
+                                value={
+                                    form.data.audience_academic_year_id
+                                        ? String(form.data.audience_academic_year_id)
+                                        : 'none'
+                                }
+                                onValueChange={(value) =>
+                                    form.setData(
+                                        'audience_academic_year_id',
+                                        value === 'none' ? null : Number(value),
+                                    )
+                                }
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Current Scope" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Current Scope</SelectItem>
+                                    {audience.academic_year_options.map(
+                                        (academicYear) => (
+                                            <SelectItem
+                                                key={academicYear.id}
+                                                value={String(academicYear.id)}
+                                            >
+                                                {academicYear.name}
+                                            </SelectItem>
+                                        ),
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label>Target Roles</Label>
                             <RolesCombobox
-                                options={roles}
+                                options={audience.roles}
                                 selected={form.data.target_roles}
                                 onChange={(selected) =>
                                     form.setData('target_roles', selected)
                                 }
-                                placeholder="Target all roles..."
+                                placeholder="All allowed roles"
+                            />
+                            {form.errors.target_roles && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.target_roles}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label>Target Users</Label>
+                            <UsersCombobox
+                                options={audience.users}
+                                selected={form.data.target_user_ids}
+                                onChange={(selected) =>
+                                    form.setData('target_user_ids', selected)
+                                }
+                                placeholder="All matched users"
+                            />
+                            {form.errors.target_user_ids && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.target_user_ids}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label>Publish Schedule</Label>
+                            <Input
+                                type="datetime-local"
+                                value={form.data.publish_at}
+                                onChange={(event) =>
+                                    form.setData('publish_at', event.target.value)
+                                }
+                            />
+                        </div>
+
+                        {form.data.type === 'event' && (
+                            <>
+                                <div className="grid gap-2">
+                                    <Label>Event Starts At</Label>
+                                    <Input
+                                        type="datetime-local"
+                                        value={form.data.event_starts_at}
+                                        onChange={(event) =>
+                                            form.setData(
+                                                'event_starts_at',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {form.errors.event_starts_at && (
+                                        <p className="text-xs text-destructive">
+                                            {form.errors.event_starts_at}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label>Event Ends At (Optional)</Label>
+                                    <Input
+                                        type="datetime-local"
+                                        value={form.data.event_ends_at}
+                                        onChange={(event) =>
+                                            form.setData(
+                                                'event_ends_at',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label>Response Deadline (Optional)</Label>
+                                    <Input
+                                        type="datetime-local"
+                                        value={form.data.response_deadline_at}
+                                        onChange={(event) =>
+                                            form.setData(
+                                                'response_deadline_at',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        <div className="grid gap-2">
+                            <Label>Auto Expiry Date</Label>
+                            <DatePicker
+                                className="w-full"
+                                date={
+                                    form.data.expires_at
+                                        ? new Date(form.data.expires_at)
+                                        : undefined
+                                }
+                                setDate={(date) =>
+                                    form.setData(
+                                        'expires_at',
+                                        date ? format(date, 'yyyy-MM-dd') : '',
+                                    )
+                                }
+                                placeholder="No Expiry"
                             />
                         </div>
 
@@ -692,13 +922,12 @@ export default function Announcements({
                                 type="button"
                                 variant="outline"
                                 className="justify-start"
-                                onClick={() =>
-                                    attachmentInputRef.current?.click()
-                                }
+                                onClick={() => attachmentInputRef.current?.click()}
                             >
                                 <UploadCloud className="size-4" />
                                 Add Files
                             </Button>
+
                             <div className="max-h-36 space-y-2 overflow-y-auto pr-1">
                                 {existingAttachments.map((attachment) => (
                                     <div
@@ -730,6 +959,7 @@ export default function Announcements({
                                         </Button>
                                     </div>
                                 ))}
+
                                 {form.data.attachments.map((file, index) => (
                                     <div
                                         key={`${file.name}-${index}`}
@@ -756,62 +986,10 @@ export default function Announcements({
                                         </Button>
                                     </div>
                                 ))}
-                                {existingAttachments.length === 0 &&
-                                    form.data.attachments.length === 0 && (
-                                        <p className="text-xs text-muted-foreground">
-                                            No attachments added.
-                                        </p>
-                                    )}
                             </div>
                         </div>
-
-                        <div className="grid gap-2">
-                            <Label>Publish Schedule</Label>
-                            <Input
-                                type="datetime-local"
-                                value={form.data.publish_at}
-                                onChange={(event) =>
-                                    form.setData(
-                                        'publish_at',
-                                        event.target.value,
-                                    )
-                                }
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                Leave blank to publish immediately.
-                            </p>
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label>Auto-Expiry Date</Label>
-                            <DatePicker
-                                date={
-                                    form.data.expires_at
-                                        ? new Date(form.data.expires_at)
-                                        : undefined
-                                }
-                                setDate={handleDateChange}
-                                className="w-full"
-                                placeholder="No Expiry"
-                            />
-                        </div>
                     </div>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsAddOpen(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={form.processing}
-                        >
-                            {editingItem ? 'Update' : 'Launch'} Broadcast
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            </ResponsiveFormDialog>
         </AppLayout>
     );
 }

@@ -10,7 +10,18 @@ export type AnnouncementNotification = {
     title: string;
     content_preview: string;
     created_at: string | null;
+    publish_at: string | null;
     expires_at: string | null;
+    type: 'notice' | 'event';
+    response_mode: 'none' | 'ack_rsvp';
+    event_starts_at: string | null;
+    event_ends_at: string | null;
+    response_deadline_at: string | null;
+    is_cancelled: boolean;
+    cancelled_at: string | null;
+    cancel_reason: string | null;
+    viewer_response_status: 'none' | 'ack_only' | 'yes' | 'no' | 'maybe';
+    requires_action: boolean;
     is_read: boolean;
 };
 
@@ -23,6 +34,9 @@ export type SharedData = {
     name: string;
     auth: Auth;
     notifications: NotificationPayload;
+    ui: {
+        is_handheld: boolean;
+    };
     sidebarOpen: boolean;
     [key: string]: unknown;
 };

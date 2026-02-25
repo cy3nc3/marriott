@@ -89,6 +89,21 @@ class User extends Authenticatable
         return $this->hasMany(AnnouncementRead::class);
     }
 
+    public function announcementRecipients(): HasMany
+    {
+        return $this->hasMany(AnnouncementRecipient::class);
+    }
+
+    public function announcementEventResponses(): HasMany
+    {
+        return $this->hasMany(AnnouncementEventResponse::class);
+    }
+
+    public function announcementReminderDispatches(): HasMany
+    {
+        return $this->hasMany(AnnouncementReminderDispatch::class);
+    }
+
     public function cashierTransactions(): HasMany
     {
         return $this->hasMany(Transaction::class, 'cashier_id');

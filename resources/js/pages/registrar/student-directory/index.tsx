@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { CheckCircle2, Clock3, TriangleAlert, UploadCloud } from 'lucide-react';
 import type { ChangeEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +22,7 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import registrar from '@/routes/registrar';
 import { sf1_upload } from '@/routes/registrar/student_directory';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -65,6 +65,8 @@ export default function StudentDirectory({
     summary,
     last_upload,
 }: Props) {
+    const { ui } = usePage<SharedData>().props;
+    const isHandheld = Boolean(ui?.is_handheld);
     const uploadForm = useForm<{
         sf1_file: File | null;
     }>({
@@ -130,7 +132,7 @@ export default function StudentDirectory({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Student Directory" />
 
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
                 <Card>
                     <CardHeader className="flex flex-col gap-1 border-b sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <div className="space-y-1">
@@ -178,7 +180,7 @@ export default function StudentDirectory({
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
                                 <Badge variant="secondary">
                                     Matched: {summary.matched}
                                 </Badge>
@@ -219,53 +221,81 @@ export default function StudentDirectory({
                     </CardHeader>
 
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="pl-6">LRN</TableHead>
-                                    <TableHead className="border-l">
-                                        Student
-                                    </TableHead>
-                                    <TableHead className="border-l">
-                                        Grade and Section
-                                    </TableHead>
-                                    <TableHead className="border-l pr-6">
-                                        LIS Status
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                        {isHandheld ? (
+                            <div className="space-y-2.5 p-3">
                                 {students.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={4}
-                                            className="h-24 text-center text-sm text-muted-foreground"
-                                        >
-                                            No students found.
-                                        </TableCell>
-                                    </TableRow>
+                                    <div className="rounded-md border py-10 text-center text-sm text-muted-foreground">
+                                        No students found.
+                                    </div>
                                 ) : (
                                     students.map((student) => (
-                                        <TableRow key={student.id}>
-                                            <TableCell className="pl-6 font-medium">
-                                                {student.lrn}
-                                            </TableCell>
-                                            <TableCell className="border-l">
+                                        <div
+                                            key={student.id}
+                                            className="space-y-1 rounded-md border p-2.5"
+                                        >
+                                            <p className="text-sm font-semibold">
                                                 {student.student_name}
-                                            </TableCell>
-                                            <TableCell className="border-l">
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                LRN: {student.lrn}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
                                                 {student.grade_section}
-                                            </TableCell>
-                                            <TableCell className="border-l pr-6">
-                                                {statusBadge(
-                                                    student.lis_status,
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
+                                            </p>
+                                            <div>{statusBadge(student.lis_status)}</div>
+                                        </div>
                                     ))
                                 )}
-                            </TableBody>
-                        </Table>
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="pl-6">LRN</TableHead>
+                                        <TableHead className="border-l">
+                                            Student
+                                        </TableHead>
+                                        <TableHead className="border-l">
+                                            Grade and Section
+                                        </TableHead>
+                                        <TableHead className="border-l pr-6">
+                                            LIS Status
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {students.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={4}
+                                                className="h-24 text-center text-sm text-muted-foreground"
+                                            >
+                                                No students found.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        students.map((student) => (
+                                            <TableRow key={student.id}>
+                                                <TableCell className="pl-6 font-medium">
+                                                    {student.lrn}
+                                                </TableCell>
+                                                <TableCell className="border-l">
+                                                    {student.student_name}
+                                                </TableCell>
+                                                <TableCell className="border-l">
+                                                    {student.grade_section}
+                                                </TableCell>
+                                                <TableCell className="border-l pr-6">
+                                                    {statusBadge(
+                                                        student.lis_status,
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        )}
                     </CardContent>
                 </Card>
             </div>

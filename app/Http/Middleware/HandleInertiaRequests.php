@@ -4,12 +4,16 @@ namespace App\Http\Middleware;
 
 use App\Models\User;
 use App\Services\AnnouncementNotificationService;
+use App\Services\HandheldDeviceDetector;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
-    public function __construct(private AnnouncementNotificationService $announcementNotificationService) {}
+    public function __construct(
+        private AnnouncementNotificationService $announcementNotificationService,
+        private HandheldDeviceDetector $handheldDeviceDetector,
+    ) {}
 
     /**
      * The root template that's loaded on the first page visit.
@@ -53,6 +57,9 @@ class HandleInertiaRequests extends Middleware
                     'announcements' => [],
                     'unread_count' => 0,
                 ],
+            'ui' => [
+                'is_handheld' => $this->handheldDeviceDetector->isHandheldRequest($request),
+            ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

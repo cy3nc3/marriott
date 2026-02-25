@@ -1,6 +1,5 @@
 import { Head } from '@inertiajs/react';
 import { DashboardAnalyticsPanel } from '@/components/dashboard/analytics-panel';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type {
@@ -48,39 +47,32 @@ export default function Dashboard({
                 trends={trends}
                 actionLinks={action_links}
             >
-                <Card>
-                    <CardHeader className="border-b py-4">
-                        <CardTitle className="text-base">
-                            Quarter Grade Completion
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 pt-4 md:grid-cols-3">
-                        <div>
-                            <p className="text-xs text-muted-foreground">
-                                Total Classes
-                            </p>
-                            <p className="text-2xl font-semibold">
-                                {quarter_grade_completion.total_classes}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">
-                                Finalized Classes
-                            </p>
-                            <p className="text-2xl font-semibold">
-                                {quarter_grade_completion.finalized_classes}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">
-                                Unfinalized Classes
-                            </p>
-                            <p className="text-2xl font-semibold">
-                                {quarter_grade_completion.unfinalized_classes}
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
+                <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Total Classes
+                        </p>
+                        <p className="text-xl font-semibold">
+                            {quarter_grade_completion.total_classes}
+                        </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Finalized Classes
+                        </p>
+                        <p className="text-xl font-semibold">
+                            {quarter_grade_completion.finalized_classes}
+                        </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Unfinalized Classes
+                        </p>
+                        <p className="text-xl font-semibold">
+                            {quarter_grade_completion.unfinalized_classes}
+                        </p>
+                    </div>
+                </div>
             </DashboardAnalyticsPanel>
         </AppLayout>
     );

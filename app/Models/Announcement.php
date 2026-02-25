@@ -8,21 +8,43 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Announcement extends Model
 {
+    public const TYPE_NOTICE = 'notice';
+
+    public const TYPE_EVENT = 'event';
+
+    public const RESPONSE_MODE_NONE = 'none';
+
+    public const RESPONSE_MODE_ACK_RSVP = 'ack_rsvp';
+
     protected $fillable = [
         'user_id',
         'title',
         'content',
+        'type',
+        'response_mode',
         'target_roles',
         'target_user_ids',
         'publish_at',
+        'event_starts_at',
+        'event_ends_at',
+        'response_deadline_at',
+        'cancelled_at',
+        'cancelled_by',
+        'cancel_reason',
         'expires_at',
         'is_active',
     ];
 
     protected $casts = [
+        'type' => 'string',
+        'response_mode' => 'string',
         'target_roles' => 'array',
         'target_user_ids' => 'array',
         'publish_at' => 'datetime',
+        'event_starts_at' => 'datetime',
+        'event_ends_at' => 'datetime',
+        'response_deadline_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'expires_at' => 'datetime',
         'is_active' => 'boolean',
     ];
@@ -40,5 +62,30 @@ class Announcement extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(AnnouncementAttachment::class);
+    }
+
+    public function recipients(): HasMany
+    {
+        return $this->hasMany(AnnouncementRecipient::class);
+    }
+
+    public function eventResponses(): HasMany
+    {
+        return $this->hasMany(AnnouncementEventResponse::class);
+    }
+
+    public function reminderDispatches(): HasMany
+    {
+        return $this->hasMany(AnnouncementReminderDispatch::class);
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function isEventType(): bool
+    {
+        return $this->type === self::TYPE_EVENT;
     }
 }

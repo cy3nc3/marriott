@@ -119,9 +119,21 @@ export function AppSidebarHeader({
                                         prefetch
                                     >
                                         <div className="mb-1">
-                                            <p className="text-sm font-medium">
-                                                {announcement.title}
-                                            </p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm font-medium">
+                                                    {announcement.title}
+                                                </p>
+                                                {announcement.type === 'event' && (
+                                                    <Badge variant="outline" className="h-5 text-[10px]">
+                                                        Event
+                                                    </Badge>
+                                                )}
+                                                {announcement.requires_action && (
+                                                    <Badge className="h-5 text-[10px]">
+                                                        Action Required
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </div>
                                         <p className="truncate text-xs text-muted-foreground">
                                             {announcement.content_preview}

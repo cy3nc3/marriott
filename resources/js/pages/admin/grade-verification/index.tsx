@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { CheckCircle2, Clock3, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -142,6 +142,8 @@ const statusBadgeVariant = (
 };
 
 export default function GradeVerification({ context, summary, submissions }: Props) {
+    const { ui } = usePage<SharedData>().props;
+    const isHandheld = Boolean(ui?.is_handheld);
     const [activeTab, setActiveTab] = useState<
         'submitted' | 'returned' | 'verified'
     >('submitted');
@@ -218,12 +220,12 @@ export default function GradeVerification({ context, summary, submissions }: Pro
         });
     };
 
-    const renderRows = (rows: SubmissionRow[]) => {
+    const renderRows = (rows: SubmissionRow[], showActions: boolean) => {
         if (rows.length === 0) {
             return (
                 <TableRow>
                     <TableCell
-                        colSpan={10}
+                        colSpan={showActions ? 10 : 9}
                         className="px-6 py-6 text-center text-sm text-muted-foreground"
                     >
                         No records in this queue.
@@ -264,40 +266,125 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                 <TableCell className="max-w-[280px] whitespace-normal text-xs text-muted-foreground">
                     {row.return_notes || '-'}
                 </TableCell>
-                <TableCell className="pr-6 text-right">
-                    {row.status === 'submitted' ? (
-                        <div className="flex justify-end gap-2">
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openReturnDialog(row)}
-                                disabled={!row.can_return}
-                            >
-                                <RotateCcw className="size-4" />
-                                Return
-                            </Button>
-                            <Button
-                                size="sm"
-                                onClick={() => handleVerify(row)}
-                                disabled={!row.can_verify}
-                            >
-                                <CheckCircle2 className="size-4" />
-                                Verify
-                            </Button>
-                        </div>
-                    ) : (
-                        <span className="text-xs text-muted-foreground">No actions</span>
-                    )}
-                </TableCell>
+                {showActions ? (
+                    <TableCell className="pr-6 text-right">
+                        {row.status === 'submitted' ? (
+                            <div className="flex justify-end gap-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openReturnDialog(row)}
+                                    disabled={!row.can_return}
+                                >
+                                    <RotateCcw className="size-4" />
+                                    Return
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    onClick={() => handleVerify(row)}
+                                    disabled={!row.can_verify}
+                                >
+                                    <CheckCircle2 className="size-4" />
+                                    Verify
+                                </Button>
+                            </div>
+                        ) : (
+                            <span className="text-xs text-muted-foreground">No actions</span>
+                        )}
+                    </TableCell>
+                ) : null}
             </TableRow>
         ));
+    };
+
+    const renderCards = (rows: SubmissionRow[]) => {
+        if (rows.length === 0) {
+            return (
+                <div className="px-6 py-6 text-center text-sm text-muted-foreground">
+                    No records in this queue.
+                </div>
+            );
+        }
+
+        return (
+            <div className="divide-y">
+                {rows.map((row) => (
+                    <div key={row.id} className="space-y-3 px-6 py-4">
+                        <div className="flex items-center justify-between gap-2">
+                            <div>
+                                <p className="text-sm font-medium">{row.class_label}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {row.teacher_name}
+                                </p>
+                            </div>
+                            <Badge variant={statusBadgeVariant(row.status)}>
+                                {row.status_label}
+                            </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                            <p className="text-muted-foreground">Quarter</p>
+                            <p className="text-right font-medium">{row.quarter_label}</p>
+                            <p className="text-muted-foreground">Posted / Expected</p>
+                            <p className="text-right font-medium">
+                                {row.posted_rows} / {row.expected_rows}
+                            </p>
+                            <p className="text-muted-foreground">Locked</p>
+                            <p className="text-right font-medium">{row.locked_rows}</p>
+                            <p className="text-muted-foreground">Average</p>
+                            <p className="text-right font-medium">
+                                {row.average_grade !== null
+                                    ? row.average_grade.toFixed(2)
+                                    : '-'}
+                            </p>
+                            <p className="text-muted-foreground">Below 75</p>
+                            <p className="text-right font-medium">{row.at_risk_count}</p>
+                            <p className="text-muted-foreground">Submitted</p>
+                            <p className="text-right font-medium">
+                                {formatDateTime(row.submitted_at)}
+                            </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Return notes: {row.return_notes || '-'}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    const renderTabContent = (rows: SubmissionRow[]) => {
+        if (isHandheld) {
+            return renderCards(rows);
+        }
+
+        return (
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="pl-6">Class</TableHead>
+                        <TableHead>Teacher</TableHead>
+                        <TableHead className="text-center">
+                            Posted / Expected
+                        </TableHead>
+                        <TableHead className="text-center">Locked</TableHead>
+                        <TableHead className="text-center">Average</TableHead>
+                        <TableHead className="text-center">&lt;75</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                        <TableHead className="text-center">Submitted</TableHead>
+                        <TableHead>Return Notes</TableHead>
+                        <TableHead className="pr-6 text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>{renderRows(rows, true)}</TableBody>
+            </Table>
+        );
     };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Grade Verification" />
 
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
                 <Card>
                     <CardContent className="p-0">
                         <div className="flex flex-col gap-4 border-b p-6 lg:flex-row lg:items-end lg:justify-between">
@@ -323,13 +410,19 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                                         {formatDeadline(context.submission_deadline)}
                                     </p>
                                 </div>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setDeadlineDialogOpen(true)}
-                                >
-                                    <Clock3 className="size-4" />
-                                    {deadlineButtonLabel}
-                                </Button>
+                                {isHandheld ? (
+                                    <p className="text-xs text-muted-foreground">
+                                        Desktop only
+                                    </p>
+                                ) : (
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setDeadlineDialogOpen(true)}
+                                    >
+                                        <Clock3 className="size-4" />
+                                        {deadlineButtonLabel}
+                                    </Button>
+                                )}
                             </div>
                         </div>
 
@@ -352,72 +445,23 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                                         Verified ({summary.verified_count})
                                     </TabsTrigger>
                                 </TabsList>
+                                {isHandheld ? (
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                        Review is available on mobile. Verify/return actions require desktop.
+                                    </p>
+                                ) : null}
                             </div>
 
                             <TabsContent value="submitted" className="m-0">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="pl-6">Class</TableHead>
-                                            <TableHead>Teacher</TableHead>
-                                            <TableHead className="text-center">
-                                                Posted / Expected
-                                            </TableHead>
-                                            <TableHead className="text-center">Locked</TableHead>
-                                            <TableHead className="text-center">Average</TableHead>
-                                            <TableHead className="text-center">&lt;75</TableHead>
-                                            <TableHead className="text-center">Status</TableHead>
-                                            <TableHead className="text-center">Submitted</TableHead>
-                                            <TableHead>Return Notes</TableHead>
-                                            <TableHead className="pr-6 text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>{renderRows(submittedRows)}</TableBody>
-                                </Table>
+                                {renderTabContent(submittedRows)}
                             </TabsContent>
 
                             <TabsContent value="returned" className="m-0">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="pl-6">Class</TableHead>
-                                            <TableHead>Teacher</TableHead>
-                                            <TableHead className="text-center">
-                                                Posted / Expected
-                                            </TableHead>
-                                            <TableHead className="text-center">Locked</TableHead>
-                                            <TableHead className="text-center">Average</TableHead>
-                                            <TableHead className="text-center">&lt;75</TableHead>
-                                            <TableHead className="text-center">Status</TableHead>
-                                            <TableHead className="text-center">Submitted</TableHead>
-                                            <TableHead>Return Notes</TableHead>
-                                            <TableHead className="pr-6 text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>{renderRows(returnedRows)}</TableBody>
-                                </Table>
+                                {renderTabContent(returnedRows)}
                             </TabsContent>
 
                             <TabsContent value="verified" className="m-0">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="pl-6">Class</TableHead>
-                                            <TableHead>Teacher</TableHead>
-                                            <TableHead className="text-center">
-                                                Posted / Expected
-                                            </TableHead>
-                                            <TableHead className="text-center">Locked</TableHead>
-                                            <TableHead className="text-center">Average</TableHead>
-                                            <TableHead className="text-center">&lt;75</TableHead>
-                                            <TableHead className="text-center">Status</TableHead>
-                                            <TableHead className="text-center">Submitted</TableHead>
-                                            <TableHead>Return Notes</TableHead>
-                                            <TableHead className="pr-6 text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>{renderRows(verifiedRows)}</TableBody>
-                                </Table>
+                                {renderTabContent(verifiedRows)}
                             </TabsContent>
                         </Tabs>
                     </CardContent>

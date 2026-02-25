@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
 import { Download, Printer, Search } from 'lucide-react';
 import { useState } from 'react';
@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { student_ledgers } from '@/routes/finance';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -138,6 +138,8 @@ export default function StudentLedgers({
     summary,
     filters,
 }: Props) {
+    const { ui } = usePage<SharedData>().props;
+    const isHandheld = Boolean(ui?.is_handheld);
     const initialFromDate = parseDateInput(filters.date_from);
     const initialToDate = parseDateInput(filters.date_to);
     const initialDateRange =
@@ -312,7 +314,7 @@ export default function StudentLedgers({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Student Ledgers" />
 
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
                 <Card className="gap-2">
                     <CardHeader className="border-b">
                         <CardTitle>Ledger Lookup</CardTitle>
@@ -498,61 +500,96 @@ export default function StudentLedgers({
                             </div>
                         </CardHeader>
                         <CardContent className="p-0">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="pl-6">
-                                            Due Date
-                                        </TableHead>
-                                        <TableHead className="border-l">
-                                            Description
-                                        </TableHead>
-                                        <TableHead className="border-l text-right">
-                                            Amount
-                                        </TableHead>
-                                        <TableHead className="border-l pr-6 text-right">
-                                            Status
-                                        </TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
+                            {isHandheld ? (
+                                <div className="space-y-2.5 p-3">
                                     {dues_schedule.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={4}
-                                                className="h-24 text-center text-sm text-muted-foreground"
-                                            >
-                                                No dues found for this student.
-                                            </TableCell>
-                                        </TableRow>
+                                        <div className="rounded-md border py-10 text-center text-sm text-muted-foreground">
+                                            No dues found for this student.
+                                        </div>
                                     ) : (
                                         dues_schedule.map((due) => (
-                                            <TableRow key={due.id}>
-                                                <TableCell className="pl-6">
-                                                    {due.due_date_label || '-'}
-                                                </TableCell>
-                                                <TableCell className="border-l">
+                                            <div
+                                                key={due.id}
+                                                className="space-y-1 rounded-md border p-3"
+                                            >
+                                                <p className="text-sm font-medium">
                                                     {due.description}
-                                                </TableCell>
-                                                <TableCell className="border-l text-right">
-                                                    {formatCurrency(
-                                                        due.amount_due,
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Due: {due.due_date_label || '-'}
+                                                </p>
+                                                <p className="text-sm font-semibold">
+                                                    {formatCurrency(due.amount_due)}
+                                                </p>
+                                                <Badge
+                                                    variant={dueBadgeVariant(
+                                                        due.status,
                                                     )}
-                                                </TableCell>
-                                                <TableCell className="border-l pr-6 text-right">
-                                                    <Badge
-                                                        variant={dueBadgeVariant(
-                                                            due.status,
-                                                        )}
-                                                    >
-                                                        {due.status_label}
-                                                    </Badge>
-                                                </TableCell>
-                                            </TableRow>
+                                                >
+                                                    {due.status_label}
+                                                </Badge>
+                                            </div>
                                         ))
                                     )}
-                                </TableBody>
-                            </Table>
+                                </div>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="pl-6">
+                                                Due Date
+                                            </TableHead>
+                                            <TableHead className="border-l">
+                                                Description
+                                            </TableHead>
+                                            <TableHead className="border-l text-right">
+                                                Amount
+                                            </TableHead>
+                                            <TableHead className="border-l pr-6 text-right">
+                                                Status
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {dues_schedule.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell
+                                                    colSpan={4}
+                                                    className="h-24 text-center text-sm text-muted-foreground"
+                                                >
+                                                    No dues found for this student.
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            dues_schedule.map((due) => (
+                                                <TableRow key={due.id}>
+                                                    <TableCell className="pl-6">
+                                                        {due.due_date_label ||
+                                                            '-'}
+                                                    </TableCell>
+                                                    <TableCell className="border-l">
+                                                        {due.description}
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-right">
+                                                        {formatCurrency(
+                                                            due.amount_due,
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="border-l pr-6 text-right">
+                                                        <Badge
+                                                            variant={dueBadgeVariant(
+                                                                due.status,
+                                                            )}
+                                                        >
+                                                            {due.status_label}
+                                                        </Badge>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -609,47 +646,22 @@ export default function StudentLedgers({
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="pl-6">Date</TableHead>
-                                    <TableHead className="border-l">
-                                        Reference
-                                    </TableHead>
-                                    <TableHead className="border-l">
-                                        Entry Type
-                                    </TableHead>
-                                    <TableHead className="border-l text-right">
-                                        Charge
-                                    </TableHead>
-                                    <TableHead className="border-l text-right">
-                                        Payment
-                                    </TableHead>
-                                    <TableHead className="border-l pr-6 text-right">
-                                        Running Balance
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                        {isHandheld ? (
+                            <div className="space-y-2.5 p-3">
                                 {ledger_entries.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={6}
-                                            className="h-24 text-center text-sm text-muted-foreground"
-                                        >
-                                            No ledger entries found.
-                                        </TableCell>
-                                    </TableRow>
+                                    <div className="rounded-md border py-10 text-center text-sm text-muted-foreground">
+                                        No ledger entries found.
+                                    </div>
                                 ) : (
                                     ledger_entries.map((entry) => (
-                                        <TableRow key={entry.id}>
-                                            <TableCell className="pl-6">
-                                                {entry.date_label || '-'}
-                                            </TableCell>
-                                            <TableCell className="border-l">
-                                                {entry.reference}
-                                            </TableCell>
-                                            <TableCell className="border-l">
+                                        <div
+                                            key={entry.id}
+                                            className="space-y-1 rounded-md border p-3"
+                                        >
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-sm font-medium">
+                                                    {entry.reference}
+                                                </p>
                                                 <Badge
                                                     variant={ledgerBadgeVariant(
                                                         entry.entry_type,
@@ -657,31 +669,113 @@ export default function StudentLedgers({
                                                 >
                                                     {entry.entry_type_label}
                                                 </Badge>
-                                            </TableCell>
-                                            <TableCell className="border-l text-right">
-                                                {entry.charge > 0
-                                                    ? formatCurrency(
-                                                          entry.charge,
-                                                      )
-                                                    : '-'}
-                                            </TableCell>
-                                            <TableCell className="border-l text-right">
-                                                {entry.payment > 0
-                                                    ? formatCurrency(
-                                                          entry.payment,
-                                                      )
-                                                    : '-'}
-                                            </TableCell>
-                                            <TableCell className="border-l pr-6 text-right">
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                Date: {entry.date_label || '-'}
+                                            </p>
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <p>
+                                                    Charge:{' '}
+                                                    {entry.charge > 0
+                                                        ? formatCurrency(
+                                                              entry.charge,
+                                                          )
+                                                        : '-'}
+                                                </p>
+                                                <p>
+                                                    Payment:{' '}
+                                                    {entry.payment > 0
+                                                        ? formatCurrency(
+                                                              entry.payment,
+                                                          )
+                                                        : '-'}
+                                                </p>
+                                            </div>
+                                            <p className="text-sm font-semibold">
+                                                Balance:{' '}
                                                 {formatCurrency(
                                                     entry.running_balance,
                                                 )}
-                                            </TableCell>
-                                        </TableRow>
+                                            </p>
+                                        </div>
                                     ))
                                 )}
-                            </TableBody>
-                        </Table>
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="pl-6">Date</TableHead>
+                                        <TableHead className="border-l">
+                                            Reference
+                                        </TableHead>
+                                        <TableHead className="border-l">
+                                            Entry Type
+                                        </TableHead>
+                                        <TableHead className="border-l text-right">
+                                            Charge
+                                        </TableHead>
+                                        <TableHead className="border-l text-right">
+                                            Payment
+                                        </TableHead>
+                                        <TableHead className="border-l pr-6 text-right">
+                                            Running Balance
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {ledger_entries.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={6}
+                                                className="h-24 text-center text-sm text-muted-foreground"
+                                            >
+                                                No ledger entries found.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        ledger_entries.map((entry) => (
+                                            <TableRow key={entry.id}>
+                                                <TableCell className="pl-6">
+                                                    {entry.date_label || '-'}
+                                                </TableCell>
+                                                <TableCell className="border-l">
+                                                    {entry.reference}
+                                                </TableCell>
+                                                <TableCell className="border-l">
+                                                    <Badge
+                                                        variant={ledgerBadgeVariant(
+                                                            entry.entry_type,
+                                                        )}
+                                                    >
+                                                        {entry.entry_type_label}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="border-l text-right">
+                                                    {entry.charge > 0
+                                                        ? formatCurrency(
+                                                              entry.charge,
+                                                          )
+                                                        : '-'}
+                                                </TableCell>
+                                                <TableCell className="border-l text-right">
+                                                    {entry.payment > 0
+                                                        ? formatCurrency(
+                                                              entry.payment,
+                                                          )
+                                                        : '-'}
+                                                </TableCell>
+                                                <TableCell className="border-l pr-6 text-right">
+                                                    {formatCurrency(
+                                                        entry.running_balance,
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        )}
                     </CardContent>
                     <div className="grid gap-2 border-t p-4 text-sm sm:grid-cols-3">
                         <div className="space-y-1">

@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     Heart,
@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -77,6 +77,9 @@ export default function Grades({
     selected_school_year_id,
     is_departed_read_only,
 }: Props) {
+    const { ui } = usePage<SharedData>().props;
+    const isHandheld = Boolean(ui?.is_handheld);
+
     const handleSchoolYearChange = (value: string) => {
         router.get(
             '/student/grades',
@@ -89,7 +92,7 @@ export default function Grades({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="My Grades" />
 
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
                 {is_departed_read_only && (
                     <Alert>
                         <AlertTriangle className="size-4" />
@@ -187,65 +190,93 @@ export default function Grades({
                                 <CardTitle>Subjects</CardTitle>
                             </CardHeader>
                             <CardContent className="p-0">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="pl-6">
-                                                Subject
-                                            </TableHead>
-                                            <TableHead className="border-l text-center">
-                                                Q1
-                                            </TableHead>
-                                            <TableHead className="border-l text-center">
-                                                Q2
-                                            </TableHead>
-                                            <TableHead className="border-l text-center">
-                                                Q3
-                                            </TableHead>
-                                            <TableHead className="border-l text-center">
-                                                Q4
-                                            </TableHead>
-                                            <TableHead className="border-l pr-6 text-right">
-                                                Final
-                                            </TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
+                                {isHandheld ? (
+                                    <div className="space-y-2.5 p-3">
                                         {subject_rows.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell
-                                                    className="py-8 text-center text-sm text-muted-foreground"
-                                                    colSpan={6}
-                                                >
-                                                    No grade records available.
-                                                </TableCell>
-                                            </TableRow>
+                                            <div className="rounded-md border py-10 text-center text-sm text-muted-foreground">
+                                                No grade records available.
+                                            </div>
                                         ) : (
                                             subject_rows.map((row) => (
-                                                <TableRow key={row.subject}>
-                                                    <TableCell className="pl-6 font-medium">
+                                                <div
+                                                    key={row.subject}
+                                                    className="space-y-1 rounded-md border p-3"
+                                                >
+                                                    <p className="text-sm font-medium">
                                                         {row.subject}
-                                                    </TableCell>
-                                                    <TableCell className="border-l text-center">
-                                                        {row.q1}
-                                                    </TableCell>
-                                                    <TableCell className="border-l text-center">
-                                                        {row.q2}
-                                                    </TableCell>
-                                                    <TableCell className="border-l text-center text-muted-foreground">
-                                                        {row.q3}
-                                                    </TableCell>
-                                                    <TableCell className="border-l text-center text-muted-foreground">
-                                                        {row.q4}
-                                                    </TableCell>
-                                                    <TableCell className="border-l pr-6 text-right text-muted-foreground">
-                                                        {row.final}
-                                                    </TableCell>
-                                                </TableRow>
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Q1: {row.q1} • Q2: {row.q2}{' '}
+                                                        • Q3: {row.q3} • Q4: {row.q4}
+                                                    </p>
+                                                    <p className="text-sm font-semibold">
+                                                        Final: {row.final}
+                                                    </p>
+                                                </div>
                                             ))
                                         )}
-                                    </TableBody>
-                                </Table>
+                                    </div>
+                                ) : (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="pl-6">
+                                                    Subject
+                                                </TableHead>
+                                                <TableHead className="border-l text-center">
+                                                    Q1
+                                                </TableHead>
+                                                <TableHead className="border-l text-center">
+                                                    Q2
+                                                </TableHead>
+                                                <TableHead className="border-l text-center">
+                                                    Q3
+                                                </TableHead>
+                                                <TableHead className="border-l text-center">
+                                                    Q4
+                                                </TableHead>
+                                                <TableHead className="border-l pr-6 text-right">
+                                                    Final
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {subject_rows.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell
+                                                        className="py-8 text-center text-sm text-muted-foreground"
+                                                        colSpan={6}
+                                                    >
+                                                        No grade records available.
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                subject_rows.map((row) => (
+                                                    <TableRow key={row.subject}>
+                                                        <TableCell className="pl-6 font-medium">
+                                                            {row.subject}
+                                                        </TableCell>
+                                                        <TableCell className="border-l text-center">
+                                                            {row.q1}
+                                                        </TableCell>
+                                                        <TableCell className="border-l text-center">
+                                                            {row.q2}
+                                                        </TableCell>
+                                                        <TableCell className="border-l text-center text-muted-foreground">
+                                                            {row.q3}
+                                                        </TableCell>
+                                                        <TableCell className="border-l text-center text-muted-foreground">
+                                                            {row.q4}
+                                                        </TableCell>
+                                                        <TableCell className="border-l pr-6 text-right text-muted-foreground">
+                                                            {row.final}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -264,48 +295,67 @@ export default function Grades({
                                 </div>
                             </CardHeader>
                             <CardContent className="p-0">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="pl-6">
-                                                Core Value
-                                            </TableHead>
-                                            <TableHead className="border-l text-center">
-                                                Q1
-                                            </TableHead>
-                                            <TableHead className="border-l text-center">
-                                                Q2
-                                            </TableHead>
-                                            <TableHead className="border-l text-center">
-                                                Q3
-                                            </TableHead>
-                                            <TableHead className="border-l pr-6 text-center">
-                                                Q4
-                                            </TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
+                                {isHandheld ? (
+                                    <div className="space-y-2.5 p-3">
                                         {conduct_rows.map((row) => (
-                                            <TableRow key={row.core_value}>
-                                                <TableCell className="pl-6 font-medium">
+                                            <div
+                                                key={row.core_value}
+                                                className="space-y-1 rounded-md border p-3"
+                                            >
+                                                <p className="text-sm font-medium">
                                                     {row.core_value}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    {row.q1}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    {row.q2}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center text-muted-foreground">
-                                                    {row.q3}
-                                                </TableCell>
-                                                <TableCell className="border-l pr-6 text-center text-muted-foreground">
-                                                    {row.q4}
-                                                </TableCell>
-                                            </TableRow>
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Q1: {row.q1} • Q2: {row.q2} •
+                                                    Q3: {row.q3} • Q4: {row.q4}
+                                                </p>
+                                            </div>
                                         ))}
-                                    </TableBody>
-                                </Table>
+                                    </div>
+                                ) : (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="pl-6">
+                                                    Core Value
+                                                </TableHead>
+                                                <TableHead className="border-l text-center">
+                                                    Q1
+                                                </TableHead>
+                                                <TableHead className="border-l text-center">
+                                                    Q2
+                                                </TableHead>
+                                                <TableHead className="border-l text-center">
+                                                    Q3
+                                                </TableHead>
+                                                <TableHead className="border-l pr-6 text-center">
+                                                    Q4
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {conduct_rows.map((row) => (
+                                                <TableRow key={row.core_value}>
+                                                    <TableCell className="pl-6 font-medium">
+                                                        {row.core_value}
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center">
+                                                        {row.q1}
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center">
+                                                        {row.q2}
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center text-muted-foreground">
+                                                        {row.q3}
+                                                    </TableCell>
+                                                    <TableCell className="border-l pr-6 text-center text-muted-foreground">
+                                                        {row.q4}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>

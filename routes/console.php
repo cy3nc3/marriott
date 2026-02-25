@@ -13,3 +13,6 @@ Schedule::command('grading:send-deadline-reminders')
 
 Schedule::command('finance:send-due-reminders')
     ->dailyAt('07:30');
+
+Schedule::command('announcements:send-event-reminders')
+    ->dailyAt('08:00');

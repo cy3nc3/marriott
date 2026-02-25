@@ -1,6 +1,5 @@
 import { Head } from '@inertiajs/react';
 import { DashboardAnalyticsPanel } from '@/components/dashboard/analytics-panel';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type {
@@ -67,51 +66,44 @@ export default function Dashboard({
                 trends={trends}
                 actionLinks={action_links}
             >
-                <Card>
-                    <CardHeader className="border-b py-4">
-                        <CardTitle className="text-base">
-                            Learning Summary
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 pt-4 md:grid-cols-4">
-                        <div>
-                            <p className="text-xs text-muted-foreground">
-                                General Average Trend
-                            </p>
-                            <p className="text-xl font-semibold">
-                                {generalAverageTrendLabel}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">
-                                Recent Score Average
-                            </p>
-                            <p className="text-xl font-semibold">
-                                {learning_summary.recent_score_average}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                {learning_summary.recent_score_records_count}{' '}
-                                recent assessment(s)
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">
-                                Recent Score Trend
-                            </p>
-                            <p className="text-xl font-semibold">
-                                {recentScoreTrendLabel}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">
-                                Upcoming Class Items
-                            </p>
-                            <p className="text-xl font-semibold">
-                                {learning_summary.upcoming_items_count}
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            General Average Trend
+                        </p>
+                        <p className="text-xl font-semibold">
+                            {generalAverageTrendLabel}
+                        </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Recent Score Average
+                        </p>
+                        <p className="text-xl font-semibold">
+                            {learning_summary.recent_score_average}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            {learning_summary.recent_score_records_count} recent
+                            assessment(s)
+                        </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Recent Score Trend
+                        </p>
+                        <p className="text-xl font-semibold">
+                            {recentScoreTrendLabel}
+                        </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Upcoming Class Items
+                        </p>
+                        <p className="text-xl font-semibold">
+                            {learning_summary.upcoming_items_count}
+                        </p>
+                    </div>
+                </div>
             </DashboardAnalyticsPanel>
         </AppLayout>
     );

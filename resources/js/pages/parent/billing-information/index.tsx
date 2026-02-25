@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import type { DateRange } from 'react-day-picker';
@@ -22,7 +22,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -73,6 +73,8 @@ export default function BillingInformation({
     selected_school_year_id,
     is_departed_read_only,
 }: Props) {
+    const { ui } = usePage<SharedData>().props;
+    const isHandheld = Boolean(ui?.is_handheld);
     const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>(default_plan);
     const [paymentDateRange, setPaymentDateRange] = useState<DateRange>();
 
@@ -109,7 +111,7 @@ export default function BillingInformation({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Billing Information" />
 
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
                 {is_departed_read_only && (
                     <Alert>
                         <AlertTriangle className="size-4" />
@@ -222,48 +224,22 @@ export default function BillingInformation({
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="pl-6">
-                                        Due Date
-                                    </TableHead>
-                                    <TableHead className="text-right">
-                                        Amount Due
-                                    </TableHead>
-                                    <TableHead className="text-right">
-                                        Outstanding
-                                    </TableHead>
-                                    <TableHead className="pr-6 text-right">
-                                        Status
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {dues_by_plan[selectedPlan]?.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            className="py-8 text-center text-sm text-muted-foreground"
-                                            colSpan={4}
-                                        >
-                                            No dues for the selected plan.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    dues_by_plan[selectedPlan]?.map((due) => (
-                                        <TableRow
+                        {isHandheld ? (
+                            dues_by_plan[selectedPlan]?.length === 0 ? (
+                                <div className="px-6 py-8 text-center text-sm text-muted-foreground">
+                                    No dues for the selected plan.
+                                </div>
+                            ) : (
+                                <div className="divide-y">
+                                    {dues_by_plan[selectedPlan]?.map((due) => (
+                                        <div
                                             key={`${selectedPlan}-${due.due_date}-${due.amount}`}
+                                            className="space-y-2 px-6 py-4"
                                         >
-                                            <TableCell className="pl-6">
-                                                {due.due_date ?? '-'}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {due.amount}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {due.outstanding_amount}
-                                            </TableCell>
-                                            <TableCell className="pr-6 text-right">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-sm font-medium">
+                                                    {due.due_date ?? '-'}
+                                                </p>
                                                 <Badge
                                                     variant={
                                                         due.status === 'Unpaid'
@@ -276,12 +252,87 @@ export default function BillingInformation({
                                                 >
                                                     {due.status}
                                                 </Badge>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <p className="text-muted-foreground">
+                                                    Amount Due
+                                                </p>
+                                                <p className="text-right font-medium">
+                                                    {due.amount}
+                                                </p>
+                                                <p className="text-muted-foreground">
+                                                    Outstanding
+                                                </p>
+                                                <p className="text-right font-medium">
+                                                    {due.outstanding_amount}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="pl-6">
+                                            Due Date
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            Amount Due
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            Outstanding
+                                        </TableHead>
+                                        <TableHead className="pr-6 text-right">
+                                            Status
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {dues_by_plan[selectedPlan]?.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                className="py-8 text-center text-sm text-muted-foreground"
+                                                colSpan={4}
+                                            >
+                                                No dues for the selected plan.
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+                                    ) : (
+                                        dues_by_plan[selectedPlan]?.map((due) => (
+                                            <TableRow
+                                                key={`${selectedPlan}-${due.due_date}-${due.amount}`}
+                                            >
+                                                <TableCell className="pl-6">
+                                                    {due.due_date ?? '-'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {due.amount}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {due.outstanding_amount}
+                                                </TableCell>
+                                                <TableCell className="pr-6 text-right">
+                                                    <Badge
+                                                        variant={
+                                                            due.status === 'Unpaid'
+                                                                ? 'outline'
+                                                                : due.status ===
+                                                                    'Partially Paid'
+                                                                  ? 'secondary'
+                                                                  : 'default'
+                                                        }
+                                                    >
+                                                        {due.status}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -297,58 +348,104 @@ export default function BillingInformation({
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="pl-6">Date</TableHead>
-                                    <TableHead>OR Number</TableHead>
-                                    <TableHead>Mode</TableHead>
-                                    <TableHead className="text-right">
-                                        Amount
-                                    </TableHead>
-                                    <TableHead className="pr-6 text-right">
-                                        Status
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {visiblePayments.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            className="py-8 text-center text-sm text-muted-foreground"
-                                            colSpan={5}
-                                        >
-                                            No payments for the selected date
-                                            range.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    visiblePayments.map((paymentRow) => (
-                                        <TableRow
+                        {isHandheld ? (
+                            visiblePayments.length === 0 ? (
+                                <div className="px-6 py-8 text-center text-sm text-muted-foreground">
+                                    No payments for the selected date range.
+                                </div>
+                            ) : (
+                                <div className="divide-y">
+                                    {visiblePayments.map((paymentRow) => (
+                                        <div
                                             key={`${paymentRow.date}-${paymentRow.or_number}-${paymentRow.amount}`}
+                                            className="space-y-2 px-6 py-4"
                                         >
-                                            <TableCell className="pl-6">
-                                                {paymentRow.date ?? '-'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {paymentRow.or_number ?? '-'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {paymentRow.payment_mode}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {paymentRow.amount}
-                                            </TableCell>
-                                            <TableCell className="pr-6 text-right">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-sm font-medium">
+                                                    {paymentRow.date ?? '-'}
+                                                </p>
                                                 <Badge variant="secondary">
                                                     {paymentRow.status}
                                                 </Badge>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <p className="text-muted-foreground">
+                                                    OR Number
+                                                </p>
+                                                <p className="text-right font-medium">
+                                                    {paymentRow.or_number ?? '-'}
+                                                </p>
+                                                <p className="text-muted-foreground">
+                                                    Payment Mode
+                                                </p>
+                                                <p className="text-right font-medium">
+                                                    {paymentRow.payment_mode}
+                                                </p>
+                                                <p className="text-muted-foreground">
+                                                    Amount
+                                                </p>
+                                                <p className="text-right font-medium">
+                                                    {paymentRow.amount}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="pl-6">Date</TableHead>
+                                        <TableHead>OR Number</TableHead>
+                                        <TableHead>Mode</TableHead>
+                                        <TableHead className="text-right">
+                                            Amount
+                                        </TableHead>
+                                        <TableHead className="pr-6 text-right">
+                                            Status
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {visiblePayments.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                className="py-8 text-center text-sm text-muted-foreground"
+                                                colSpan={5}
+                                            >
+                                                No payments for the selected date
+                                                range.
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+                                    ) : (
+                                        visiblePayments.map((paymentRow) => (
+                                            <TableRow
+                                                key={`${paymentRow.date}-${paymentRow.or_number}-${paymentRow.amount}`}
+                                            >
+                                                <TableCell className="pl-6">
+                                                    {paymentRow.date ?? '-'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {paymentRow.or_number ?? '-'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {paymentRow.payment_mode}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {paymentRow.amount}
+                                                </TableCell>
+                                                <TableCell className="pr-6 text-right">
+                                                    <Badge variant="secondary">
+                                                        {paymentRow.status}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        )}
                     </CardContent>
                 </Card>
             </div>

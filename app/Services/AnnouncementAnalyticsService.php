@@ -45,7 +45,7 @@ class AnnouncementAnalyticsService
      */
     public function buildSummary(Announcement $announcement): array
     {
-        $recipientScopeQuery = $this->eligibleRecipientsQuery($announcement);
+        $recipientScopeQuery = $this->recipientScopeQuery($announcement);
 
         $recipientCount = (clone $recipientScopeQuery)->count();
         $readCount = AnnouncementRead::query()
@@ -76,7 +76,7 @@ class AnnouncementAnalyticsService
      */
     public function buildRoleBreakdown(Announcement $announcement): array
     {
-        $recipientScopeQuery = $this->eligibleRecipientsQuery($announcement);
+        $recipientScopeQuery = $this->recipientScopeQuery($announcement);
 
         $recipientCountsByRole = (clone $recipientScopeQuery)
             ->selectRaw('users.role as role, COUNT(*) as aggregate')
@@ -117,8 +117,113 @@ class AnnouncementAnalyticsService
             ->all();
     }
 
+    /**
+     * @return array{
+     *     recipients: int,
+     *     viewed: int,
+     *     acknowledged: int,
+     *     pending: int,
+     *     yes: int,
+     *     no: int,
+     *     maybe: int,
+     *     ack_only: int
+     * }
+     */
+    public function buildResponseSummary(Announcement $announcement): array
+    {
+        if (! $announcement->isEventType()) {
+            return [
+                'recipients' => 0,
+                'viewed' => 0,
+                'acknowledged' => 0,
+                'pending' => 0,
+                'yes' => 0,
+                'no' => 0,
+                'maybe' => 0,
+                'ack_only' => 0,
+            ];
+        }
+
+        $recipientRows = $announcement->recipients()
+            ->get(['user_id', 'role']);
+
+        $recipientCount = (int) $recipientRows->count();
+        $recipientUserIds = $recipientRows
+            ->pluck('user_id')
+            ->map(fn (int|string $userId): int => (int) $userId)
+            ->values();
+
+        $viewedCount = AnnouncementRead::query()
+            ->where('announcement_id', $announcement->id)
+            ->whereIn('user_id', $recipientUserIds->all())
+            ->count();
+
+        $actionableRecipientIds = $recipientRows
+            ->filter(fn ($recipient): bool => $recipient->role !== UserRole::STUDENT->value)
+            ->pluck('user_id')
+            ->map(fn (int|string $userId): int => (int) $userId)
+            ->values();
+
+        $responseRows = $announcement->eventResponses()
+            ->whereIn('user_id', $actionableRecipientIds->all())
+            ->get(['response']);
+
+        $yesCount = (int) $responseRows->where('response', 'yes')->count();
+        $noCount = (int) $responseRows->where('response', 'no')->count();
+        $maybeCount = (int) $responseRows->where('response', 'maybe')->count();
+        $ackOnlyCount = (int) $responseRows->where('response', 'ack_only')->count();
+        $acknowledgedCount = (int) $responseRows->count();
+        $pendingCount = max((int) $actionableRecipientIds->count() - $acknowledgedCount, 0);
+
+        return [
+            'recipients' => $recipientCount,
+            'viewed' => (int) $viewedCount,
+            'acknowledged' => $acknowledgedCount,
+            'pending' => $pendingCount,
+            'yes' => $yesCount,
+            'no' => $noCount,
+            'maybe' => $maybeCount,
+            'ack_only' => $ackOnlyCount,
+        ];
+    }
+
     public function reportQuery(Announcement $announcement): Builder
     {
+        if ($announcement->isEventType()) {
+            return User::query()
+                ->join('announcement_recipients', function ($join) use ($announcement): void {
+                    $join->on('announcement_recipients.user_id', '=', 'users.id')
+                        ->where('announcement_recipients.announcement_id', '=', $announcement->id);
+                })
+                ->leftJoin('announcement_reads', function ($join) use ($announcement): void {
+                    $join->on('announcement_reads.user_id', '=', 'users.id')
+                        ->where('announcement_reads.announcement_id', '=', $announcement->id);
+                })
+                ->leftJoin('announcement_event_responses', function ($join) use ($announcement): void {
+                    $join->on('announcement_event_responses.user_id', '=', 'users.id')
+                        ->where('announcement_event_responses.announcement_id', '=', $announcement->id);
+                })
+                ->select([
+                    'users.id',
+                    'users.name',
+                    'users.email',
+                    'users.role',
+                    'announcement_recipients.role as recipient_role',
+                    'announcement_reads.read_at as announcement_read_at',
+                    'announcement_event_responses.response as announcement_response',
+                    'announcement_event_responses.responded_at as response_responded_at',
+                ])
+                ->selectRaw('CASE WHEN announcement_reads.id IS NULL THEN 0 ELSE 1 END as is_read')
+                ->selectRaw(
+                    "CASE
+                        WHEN announcement_event_responses.response IS NOT NULL THEN announcement_event_responses.response
+                        WHEN announcement_recipients.role = ? THEN 'none'
+                        ELSE 'pending'
+                    END as response_status",
+                    [UserRole::STUDENT->value]
+                );
+        }
+
         return $this->eligibleRecipientsQuery($announcement)
             ->leftJoin('announcement_reads', function ($join) use ($announcement): void {
                 $join->on('announcement_reads.user_id', '=', 'users.id')
@@ -131,7 +236,22 @@ class AnnouncementAnalyticsService
                 'users.role',
                 'announcement_reads.read_at as announcement_read_at',
             ])
-            ->selectRaw('CASE WHEN announcement_reads.id IS NULL THEN 0 ELSE 1 END as is_read');
+            ->selectRaw('CASE WHEN announcement_reads.id IS NULL THEN 0 ELSE 1 END as is_read')
+            ->selectRaw("'none' as response_status")
+            ->selectRaw('NULL as response_responded_at');
+    }
+
+    private function recipientScopeQuery(Announcement $announcement): Builder
+    {
+        if ($announcement->isEventType()) {
+            return User::query()
+                ->join('announcement_recipients', function ($join) use ($announcement): void {
+                    $join->on('announcement_recipients.user_id', '=', 'users.id')
+                        ->where('announcement_recipients.announcement_id', '=', $announcement->id);
+                });
+        }
+
+        return $this->eligibleRecipientsQuery($announcement);
     }
 
     private function eligibleRecipientsQuery(Announcement $announcement): Builder

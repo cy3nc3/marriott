@@ -4,15 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResponsiveFormDialog } from '@/components/ui/responsive-form-dialog';
 import {
     Select,
     SelectContent,
@@ -708,15 +702,25 @@ export default function GradingSheet({
                     </div>
                 </Card>
 
-                <Dialog
+                <ResponsiveFormDialog
                     open={isAssessmentModalOpen}
                     onOpenChange={setIsAssessmentModalOpen}
+                    title="Add Assessment"
+                    contentClassName="sm:max-w-lg"
+                    bodyClassName="grid gap-4 py-2"
+                    footer={
+                        <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsAssessmentModalOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button onClick={submitAssessment}>Add</Button>
+                        </div>
+                    }
                 >
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Add Assessment</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-2">
+                        <div className="grid gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="assessment-title">
                                     Assessment Title
@@ -774,27 +778,27 @@ export default function GradingSheet({
                                 </div>
                             </div>
                         </div>
-                        <DialogFooter>
+                </ResponsiveFormDialog>
+
+                <ResponsiveFormDialog
+                    open={isRubricModalOpen}
+                    onOpenChange={setIsRubricModalOpen}
+                    title="Configure Rubric"
+                    contentClassName="sm:max-w-lg"
+                    bodyClassName="grid gap-4 py-2"
+                    footer={
+                        <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                             <Button
                                 variant="outline"
-                                onClick={() => setIsAssessmentModalOpen(false)}
+                                onClick={() => setIsRubricModalOpen(false)}
                             >
                                 Cancel
                             </Button>
-                            <Button onClick={submitAssessment}>Add</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-
-                <Dialog
-                    open={isRubricModalOpen}
-                    onOpenChange={setIsRubricModalOpen}
+                            <Button onClick={submitRubric}>Apply</Button>
+                        </div>
+                    }
                 >
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Configure Rubric</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-2">
+                        <div className="grid gap-4">
                             <div className="grid gap-4 sm:grid-cols-3">
                                 <div className="space-y-2">
                                     <Label htmlFor="rubric-written">
@@ -844,17 +848,7 @@ export default function GradingSheet({
                                 </div>
                             </div>
                         </div>
-                        <DialogFooter>
-                            <Button
-                                variant="outline"
-                                onClick={() => setIsRubricModalOpen(false)}
-                            >
-                                Cancel
-                            </Button>
-                            <Button onClick={submitRubric}>Apply</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                </ResponsiveFormDialog>
             </div>
         </AppLayout>
     );

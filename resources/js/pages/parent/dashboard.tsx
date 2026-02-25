@@ -1,6 +1,5 @@
 import { Head } from '@inertiajs/react';
 import { DashboardAnalyticsPanel } from '@/components/dashboard/analytics-panel';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type {
@@ -51,46 +50,33 @@ export default function Dashboard({
                 trends={trends}
                 actionLinks={action_links}
             >
-                <Card>
-                    <CardHeader className="border-b py-4">
-                        <CardTitle className="text-base">
-                            Child Context
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 pt-4 md:grid-cols-2">
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">
-                                Student
-                            </p>
-                            <p className="text-sm font-semibold">
-                                {child_context.student_name ?? 'No linked student'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                {child_context.section_label}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                Adviser: {child_context.adviser_name}
-                            </p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">
-                                Next Due
-                            </p>
-                            <p className="text-sm font-semibold">
-                                {child_context.next_due_label}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                Due Risk
-                            </p>
-                            <p className="text-sm font-semibold">
-                                {child_context.due_risk_level}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                {child_context.due_risk_rate}
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1 rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Student</p>
+                        <p className="text-sm font-semibold">
+                            {child_context.student_name ?? 'No linked student'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            {child_context.section_label}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Adviser: {child_context.adviser_name}
+                        </p>
+                    </div>
+                    <div className="space-y-1 rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Next Due</p>
+                        <p className="text-sm font-semibold">
+                            {child_context.next_due_label}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Due Risk</p>
+                        <p className="text-sm font-semibold">
+                            {child_context.due_risk_level}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            {child_context.due_risk_rate}
+                        </p>
+                    </div>
+                </div>
             </DashboardAnalyticsPanel>
         </AppLayout>
     );

@@ -235,9 +235,55 @@ const roleNavItems: Record<string, NavItem[]> = {
     ],
 };
 
+const handheldAllowedHrefMap: Record<string, string[]> = {
+    super_admin: ['/announcements', '/super-admin/audit-logs'],
+    admin: ['/announcements', '/admin/grade-verification'],
+    registrar: ['/announcements', '/registrar/student-directory'],
+    finance: ['/announcements', '/finance/student-ledgers', '/finance/daily-reports'],
+    teacher: ['/announcements', '/teacher/schedule', '/teacher/grading-sheet', '/teacher/advisory-board'],
+    student: ['/student/schedule', '/student/grades'],
+    parent: ['/parent/schedule', '/parent/grades', '/parent/billing-information'],
+};
+
+const filterNavItemsForHandheld = (role: string, items: NavItem[]): NavItem[] => {
+    const allowedHrefs = handheldAllowedHrefMap[role];
+    if (!allowedHrefs) {
+        return items;
+    }
+
+    const visibleItems: NavItem[] = [];
+
+    for (const item of items) {
+        const filteredChildren = item.items
+            ? item.items.filter((subItem) => allowedHrefs.includes(String(subItem.href)))
+            : [];
+
+        if (filteredChildren.length > 0) {
+            visibleItems.push({
+                ...item,
+                items: filteredChildren,
+            });
+            continue;
+        }
+
+        if (allowedHrefs.includes(String(item.href))) {
+            visibleItems.push(item);
+        }
+    }
+
+    return visibleItems;
+};
+
 export function AppSidebar() {
-    const { auth } = usePage<SharedData>().props;
+    const page = usePage<SharedData>();
+    const { auth } = page.props;
     const role = (auth.user.role as string) || '';
+    const isHandheld = Boolean(page.props.ui?.is_handheld);
+
+    const roleItems = roleNavItems[role] || [];
+    const visibleRoleItems = isHandheld
+        ? filterNavItemsForHandheld(role, roleItems)
+        : roleItems;
 
     const mainNavItems: NavItem[] = [
         {
@@ -245,7 +291,7 @@ export function AppSidebar() {
             href: dashboard(),
             icon: LayoutGrid,
         },
-        ...(roleNavItems[role] || []),
+        ...visibleRoleItems,
     ];
 
     return (

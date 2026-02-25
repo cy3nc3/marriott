@@ -13,35 +13,35 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified', 'role:finance'])->prefix('finance')->name('finance.')->group(function () {
     Route::get('/student-ledgers', [StudentLedgersController::class, 'index'])->name('student_ledgers');
 
-    Route::get('/cashier-panel', [CashierPanelController::class, 'index'])->name('cashier_panel');
-    Route::post('/cashier-panel/transactions', [CashierPanelController::class, 'storeTransaction'])->name('cashier_panel.store_transaction');
+    Route::get('/cashier-panel', [CashierPanelController::class, 'index'])->middleware('desktop_only')->name('cashier_panel');
+    Route::post('/cashier-panel/transactions', [CashierPanelController::class, 'storeTransaction'])->middleware('desktop_only')->name('cashier_panel.store_transaction');
 
-    Route::get('/transaction-history', [TransactionHistoryController::class, 'index'])->name('transaction_history');
-    Route::post('/transaction-history/{transaction}/void', [TransactionHistoryController::class, 'void'])->name('transaction_history.void');
-    Route::post('/transaction-history/{transaction}/refund', [TransactionHistoryController::class, 'refund'])->name('transaction_history.refund');
-    Route::post('/transaction-history/{transaction}/reissue', [TransactionHistoryController::class, 'reissue'])->name('transaction_history.reissue');
+    Route::get('/transaction-history', [TransactionHistoryController::class, 'index'])->middleware('desktop_only')->name('transaction_history');
+    Route::post('/transaction-history/{transaction}/void', [TransactionHistoryController::class, 'void'])->middleware('desktop_only')->name('transaction_history.void');
+    Route::post('/transaction-history/{transaction}/refund', [TransactionHistoryController::class, 'refund'])->middleware('desktop_only')->name('transaction_history.refund');
+    Route::post('/transaction-history/{transaction}/reissue', [TransactionHistoryController::class, 'reissue'])->middleware('desktop_only')->name('transaction_history.reissue');
 
-    Route::get('/product-inventory', [ProductInventoryController::class, 'index'])->name('product_inventory');
-    Route::post('/product-inventory', [ProductInventoryController::class, 'store'])->name('product_inventory.store');
-    Route::patch('/product-inventory/{inventoryItem}', [ProductInventoryController::class, 'update'])->name('product_inventory.update');
-    Route::delete('/product-inventory/{inventoryItem}', [ProductInventoryController::class, 'destroy'])->name('product_inventory.destroy');
+    Route::get('/product-inventory', [ProductInventoryController::class, 'index'])->middleware('desktop_only')->name('product_inventory');
+    Route::post('/product-inventory', [ProductInventoryController::class, 'store'])->middleware('desktop_only')->name('product_inventory.store');
+    Route::patch('/product-inventory/{inventoryItem}', [ProductInventoryController::class, 'update'])->middleware('desktop_only')->name('product_inventory.update');
+    Route::delete('/product-inventory/{inventoryItem}', [ProductInventoryController::class, 'destroy'])->middleware('desktop_only')->name('product_inventory.destroy');
 
-    Route::get('/discount-manager', [DiscountManagerController::class, 'index'])->name('discount_manager');
-    Route::post('/discount-manager', [DiscountManagerController::class, 'store'])->name('discount_manager.store');
-    Route::patch('/discount-manager/{discount}', [DiscountManagerController::class, 'update'])->name('discount_manager.update');
-    Route::delete('/discount-manager/{discount}', [DiscountManagerController::class, 'destroy'])->name('discount_manager.destroy');
-    Route::post('/discount-manager/tag-student', [DiscountManagerController::class, 'tagStudent'])->name('discount_manager.tag_student');
-    Route::delete('/discount-manager/tag-student/{studentDiscount}', [DiscountManagerController::class, 'untagStudent'])->name('discount_manager.untag_student');
+    Route::get('/discount-manager', [DiscountManagerController::class, 'index'])->middleware('desktop_only')->name('discount_manager');
+    Route::post('/discount-manager', [DiscountManagerController::class, 'store'])->middleware('desktop_only')->name('discount_manager.store');
+    Route::patch('/discount-manager/{discount}', [DiscountManagerController::class, 'update'])->middleware('desktop_only')->name('discount_manager.update');
+    Route::delete('/discount-manager/{discount}', [DiscountManagerController::class, 'destroy'])->middleware('desktop_only')->name('discount_manager.destroy');
+    Route::post('/discount-manager/tag-student', [DiscountManagerController::class, 'tagStudent'])->middleware('desktop_only')->name('discount_manager.tag_student');
+    Route::delete('/discount-manager/tag-student/{studentDiscount}', [DiscountManagerController::class, 'untagStudent'])->middleware('desktop_only')->name('discount_manager.untag_student');
 
-    Route::get('/fee-structure', [FeeStructureController::class, 'index'])->name('fee_structure');
-    Route::post('/fee-structure', [FeeStructureController::class, 'store'])->name('fee_structure.store');
-    Route::patch('/fee-structure/{fee}', [FeeStructureController::class, 'update'])->name('fee_structure.update');
-    Route::delete('/fee-structure/{fee}', [FeeStructureController::class, 'destroy'])->name('fee_structure.destroy');
+    Route::get('/fee-structure', [FeeStructureController::class, 'index'])->middleware('desktop_only')->name('fee_structure');
+    Route::post('/fee-structure', [FeeStructureController::class, 'store'])->middleware('desktop_only')->name('fee_structure.store');
+    Route::patch('/fee-structure/{fee}', [FeeStructureController::class, 'update'])->middleware('desktop_only')->name('fee_structure.update');
+    Route::delete('/fee-structure/{fee}', [FeeStructureController::class, 'destroy'])->middleware('desktop_only')->name('fee_structure.destroy');
 
     Route::get('/daily-reports', [DailyReportsController::class, 'index'])->name('daily_reports');
 
-    Route::get('/due-reminder-settings', [DueReminderSettingsController::class, 'index'])->name('due_reminder_settings');
-    Route::post('/due-reminder-settings', [DueReminderSettingsController::class, 'store'])->name('due_reminder_settings.store');
-    Route::patch('/due-reminder-settings/{financeDueReminderRule}', [DueReminderSettingsController::class, 'update'])->name('due_reminder_settings.update');
-    Route::delete('/due-reminder-settings/{financeDueReminderRule}', [DueReminderSettingsController::class, 'destroy'])->name('due_reminder_settings.destroy');
+    Route::get('/due-reminder-settings', [DueReminderSettingsController::class, 'index'])->middleware('desktop_only')->name('due_reminder_settings');
+    Route::post('/due-reminder-settings', [DueReminderSettingsController::class, 'store'])->middleware('desktop_only')->name('due_reminder_settings.store');
+    Route::patch('/due-reminder-settings/{financeDueReminderRule}', [DueReminderSettingsController::class, 'update'])->middleware('desktop_only')->name('due_reminder_settings.update');
+    Route::delete('/due-reminder-settings/{financeDueReminderRule}', [DueReminderSettingsController::class, 'destroy'])->middleware('desktop_only')->name('due_reminder_settings.destroy');
 });

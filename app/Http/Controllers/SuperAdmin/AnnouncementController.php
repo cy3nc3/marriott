@@ -4,12 +4,15 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Announcements\CancelAnnouncementRequest;
 use App\Http\Requests\SuperAdmin\StoreAnnouncementRequest;
 use App\Http\Requests\SuperAdmin\UpdateAnnouncementRequest;
 use App\Models\Announcement;
 use App\Models\AnnouncementAttachment;
 use App\Models\User;
 use App\Services\AnnouncementAnalyticsService;
+use App\Services\AnnouncementAudienceResolver;
+use App\Services\AnnouncementEventService;
 use App\Services\AuditLogService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -23,13 +26,18 @@ use Inertia\Response;
 
 class AnnouncementController extends Controller
 {
-    public function __construct(private AnnouncementAnalyticsService $announcementAnalyticsService) {}
+    public function __construct(
+        private AnnouncementAnalyticsService $announcementAnalyticsService,
+        private AnnouncementEventService $announcementEventService,
+        private AnnouncementAudienceResolver $announcementAudienceResolver,
+    ) {}
 
     public function index(Request $request): Response
     {
         $user = $this->resolveRequestUser($request);
         $search = $request->input('search');
         $role = $request->input('role');
+        $audienceAcademicYearId = $this->resolveAudienceAcademicYearId($request->input('audience_academic_year_id'));
 
         $announcementsQuery = Announcement::query()
             ->with([
@@ -42,19 +50,19 @@ class AnnouncementController extends Controller
         }
 
         $announcements = $announcementsQuery
-            ->when($search, function ($query, $search) {
-                $query->where(function ($searchQuery) use ($search) {
+            ->when($search, function (Builder $query, string $search): void {
+                $query->where(function (Builder $searchQuery) use ($search): void {
                     $searchQuery->where('title', 'like', "%{$search}%")
                         ->orWhere('content', 'like', "%{$search}%")
-                        ->orWhereHas('user', function ($userQuery) use ($search) {
+                        ->orWhereHas('user', function (Builder $userQuery) use ($search): void {
                             $userQuery->where('name', 'like', "%{$search}%");
                         });
                 });
             })
-            ->when($role && $role !== 'all', function ($query) use ($role) {
-                $query->where(function ($roleQuery) use ($role) {
+            ->when($role && $role !== 'all', function (Builder $query) use ($role): void {
+                $query->where(function (Builder $roleQuery) use ($role): void {
                     $roleQuery->whereNull('target_roles')
-                        ->orWhere('target_roles', json_encode([]))
+                        ->orWhereJsonLength('target_roles', 0)
                         ->orWhereJsonContains('target_roles', $role);
                 });
             })
@@ -65,6 +73,7 @@ class AnnouncementController extends Controller
         $analyticsByAnnouncementId = $this->announcementAnalyticsService->buildSummaries(
             $announcements->getCollection()
         );
+
         $announcements->setCollection(
             $announcements->getCollection()
                 ->map(function (Announcement $announcement) use ($analyticsByAnnouncementId): array {
@@ -79,11 +88,20 @@ class AnnouncementController extends Controller
                         'id' => (int) $announcement->id,
                         'title' => (string) $announcement->title,
                         'content' => (string) $announcement->content,
+                        'type' => (string) ($announcement->type ?? Announcement::TYPE_NOTICE),
+                        'response_mode' => (string) ($announcement->response_mode ?? Announcement::RESPONSE_MODE_NONE),
                         'target_roles' => $announcement->target_roles,
+                        'target_user_ids' => $announcement->target_user_ids,
                         'is_active' => (bool) $announcement->is_active,
                         'created_at' => $announcement->created_at?->toIso8601String(),
                         'publish_at' => $announcement->publish_at?->toIso8601String(),
+                        'event_starts_at' => $announcement->event_starts_at?->toIso8601String(),
+                        'event_ends_at' => $announcement->event_ends_at?->toIso8601String(),
+                        'response_deadline_at' => $announcement->response_deadline_at?->toIso8601String(),
                         'expires_at' => $announcement->expires_at?->toIso8601String(),
+                        'is_cancelled' => $announcement->cancelled_at !== null,
+                        'cancelled_at' => $announcement->cancelled_at?->toIso8601String(),
+                        'cancel_reason' => $announcement->cancel_reason,
                         'user' => [
                             'name' => (string) ($announcement->user?->name ?? ''),
                         ],
@@ -100,6 +118,7 @@ class AnnouncementController extends Controller
                         'report_url' => route('announcements.report', [
                             'announcement' => $announcement->id,
                         ]),
+                        'can_cancel' => $announcement->isEventType() && $announcement->cancelled_at === null,
                     ];
                 })
                 ->values()
@@ -112,7 +131,7 @@ class AnnouncementController extends Controller
                     fn (UserRole $role) => $role === UserRole::SUPER_ADMIN
                 )
             )
-            ->map(fn (UserRole $role) => [
+            ->map(fn (UserRole $role): array => [
                 'value' => $role->value,
                 'label' => $role->label(),
             ]);
@@ -122,7 +141,14 @@ class AnnouncementController extends Controller
         return Inertia::render('super_admin/announcements/index', [
             'announcements' => $announcements,
             'roles' => $roles->values()->all(),
-            'filters' => $request->only(['search', 'role']),
+            'audience' => $this->announcementAudienceResolver->resolveAudienceOptions(
+                $user,
+                $audienceAcademicYearId
+            ),
+            'filters' => [
+                ...$request->only(['search', 'role']),
+                'audience_academic_year_id' => $audienceAcademicYearId,
+            ],
             'summary' => [
                 'visible_announcements' => (int) $announcements->total(),
                 'scheduled_announcements' => (int) $announcementData
@@ -147,15 +173,29 @@ class AnnouncementController extends Controller
     public function showReport(Request $request, Announcement $announcement): Response
     {
         $user = $this->resolveRequestUser($request);
-        if (! $this->canManageAnnouncement($user, $announcement)) {
+        if (! $this->canViewAnnouncementReport($user, $announcement)) {
             abort(403);
         }
 
         $search = trim((string) $request->input('search', ''));
         $status = (string) $request->input('status', 'all');
-        if (! in_array($status, ['all', 'read', 'unread'], true)) {
+
+        $allowedStatuses = [
+            'all',
+            'read',
+            'unread',
+            'pending',
+            'acknowledged',
+            'yes',
+            'no',
+            'maybe',
+        ];
+
+        if (! in_array($status, $allowedStatuses, true)) {
             $status = 'all';
         }
+
+        $isEvent = $announcement->isEventType();
 
         $recipients = $this->announcementAnalyticsService
             ->reportQuery($announcement)
@@ -165,19 +205,18 @@ class AnnouncementController extends Controller
                         ->where('users.name', 'like', "%{$search}%")
                         ->orWhere('users.email', 'like', "%{$search}%");
                 });
-            })
-            ->when($status === 'read', function (Builder $query): void {
-                $query->whereNotNull('announcement_reads.read_at');
-            })
-            ->when($status === 'unread', function (Builder $query): void {
-                $query->whereNull('announcement_reads.read_at');
-            })
+            });
+
+        $this->applyReportStatusFilter($recipients, $status, $isEvent);
+
+        $recipients = $recipients
             ->orderBy('users.name')
             ->paginate(20)
             ->withQueryString()
             ->through(function (User $recipient): array {
                 $roleValue = $this->resolveRoleValue($recipient);
                 $role = UserRole::tryFrom($roleValue);
+                $responseStatus = (string) ($recipient->getAttribute('response_status') ?? 'none');
 
                 return [
                     'id' => (int) $recipient->id,
@@ -187,6 +226,8 @@ class AnnouncementController extends Controller
                     'role_label' => $role?->label() ?? ucfirst(str_replace('_', ' ', $roleValue)),
                     'is_read' => (bool) $recipient->getAttribute('is_read'),
                     'read_at' => $recipient->getAttribute('announcement_read_at'),
+                    'response_status' => $responseStatus,
+                    'responded_at' => $recipient->getAttribute('response_responded_at'),
                 ];
             });
 
@@ -194,11 +235,19 @@ class AnnouncementController extends Controller
             'announcement' => [
                 'id' => (int) $announcement->id,
                 'title' => (string) $announcement->title,
+                'type' => (string) ($announcement->type ?? Announcement::TYPE_NOTICE),
+                'response_mode' => (string) ($announcement->response_mode ?? Announcement::RESPONSE_MODE_NONE),
                 'publish_at' => $announcement->publish_at?->toIso8601String(),
+                'event_starts_at' => $announcement->event_starts_at?->toIso8601String(),
+                'event_ends_at' => $announcement->event_ends_at?->toIso8601String(),
+                'response_deadline_at' => $announcement->response_deadline_at?->toIso8601String(),
                 'expires_at' => $announcement->expires_at?->toIso8601String(),
+                'is_cancelled' => $announcement->cancelled_at !== null,
+                'cancelled_at' => $announcement->cancelled_at?->toIso8601String(),
             ],
             'analytics' => $this->announcementAnalyticsService->buildSummary($announcement) + [
                 'role_breakdown' => $this->announcementAnalyticsService->buildRoleBreakdown($announcement),
+                'response_summary' => $this->announcementAnalyticsService->buildResponseSummary($announcement),
             ],
             'recipients' => $recipients,
             'filters' => [
@@ -213,34 +262,58 @@ class AnnouncementController extends Controller
         $user = $this->resolveRequestUser($request);
         $validated = $request->validated();
         $uploadedAttachments = $request->file('attachments', []);
+        $audienceAcademicYearId = $this->resolveAudienceAcademicYearId($validated['audience_academic_year_id'] ?? null);
 
-        $validated['target_roles'] = $this->normalizeTargetRoles($validated['target_roles'] ?? null);
-        unset($validated['attachments']);
+        $payload = $this->announcementEventService->normalizeAnnouncementPayload($validated);
+        unset($payload['attachments'], $payload['audience_academic_year_id']);
 
-        $announcement = DB::transaction(function () use ($user, $validated, $uploadedAttachments): Announcement {
-            $announcement = $user->announcements()->create($validated);
+        $announcement = DB::transaction(function () use (
+            $user,
+            $payload,
+            $uploadedAttachments,
+            $audienceAcademicYearId
+        ): Announcement {
+            $announcement = $user->announcements()->create($payload);
 
+            $this->announcementEventService->syncRecipients(
+                $announcement,
+                $user,
+                $audienceAcademicYearId,
+                false
+            );
             $this->storeUploadedAttachments($announcement, $uploadedAttachments);
 
             return $announcement;
         });
 
+        $announcement->loadCount('recipients');
+
         $auditLogService->log('announcement.created', $announcement, null, $announcement->only([
             'id',
             'title',
+            'type',
+            'response_mode',
             'target_roles',
+            'target_user_ids',
             'publish_at',
+            'event_starts_at',
+            'event_ends_at',
+            'response_deadline_at',
             'expires_at',
             'is_active',
         ]) + [
+            'recipient_count' => (int) $announcement->recipients_count,
             'attachment_count' => $announcement->attachments()->count(),
         ]);
 
         return back()->with('success', 'Announcement posted successfully.');
     }
 
-    public function update(UpdateAnnouncementRequest $request, Announcement $announcement, AuditLogService $auditLogService): RedirectResponse
-    {
+    public function update(
+        UpdateAnnouncementRequest $request,
+        Announcement $announcement,
+        AuditLogService $auditLogService
+    ): RedirectResponse {
         $user = $this->resolveRequestUser($request);
         if (! $this->canManageAnnouncement($user, $announcement)) {
             abort(403);
@@ -249,24 +322,51 @@ class AnnouncementController extends Controller
         $validated = $request->validated();
         $uploadedAttachments = $request->file('attachments', []);
         $removedAttachmentIds = $validated['removed_attachment_ids'] ?? [];
+        $audienceAcademicYearId = $this->resolveAudienceAcademicYearId($validated['audience_academic_year_id'] ?? null);
 
-        $validated['target_roles'] = $this->normalizeTargetRoles($validated['target_roles'] ?? null);
-        unset($validated['attachments'], $validated['removed_attachment_ids']);
+        $payload = $this->announcementEventService->normalizeAnnouncementPayload($validated);
+        unset(
+            $payload['attachments'],
+            $payload['removed_attachment_ids'],
+            $payload['audience_academic_year_id']
+        );
 
         $oldValues = $announcement->only([
             'id',
             'title',
             'content',
+            'type',
+            'response_mode',
             'target_roles',
+            'target_user_ids',
             'publish_at',
+            'event_starts_at',
+            'event_ends_at',
+            'response_deadline_at',
+            'cancelled_at',
+            'cancel_reason',
             'expires_at',
             'is_active',
         ]) + [
             'attachment_count' => $announcement->attachments()->count(),
+            'recipient_count' => $announcement->recipients()->count(),
         ];
 
-        DB::transaction(function () use ($announcement, $validated, $removedAttachmentIds, $uploadedAttachments): void {
-            $announcement->update($validated);
+        DB::transaction(function () use (
+            $announcement,
+            $payload,
+            $removedAttachmentIds,
+            $uploadedAttachments,
+            $user,
+            $audienceAcademicYearId
+        ): void {
+            $announcement->update($payload);
+            $this->announcementEventService->syncRecipients(
+                $announcement,
+                $user,
+                $audienceAcademicYearId,
+                true
+            );
             $this->removeAttachments($announcement, $removedAttachmentIds);
             $this->storeUploadedAttachments($announcement, $uploadedAttachments);
         });
@@ -277,15 +377,63 @@ class AnnouncementController extends Controller
             'id',
             'title',
             'content',
+            'type',
+            'response_mode',
             'target_roles',
+            'target_user_ids',
             'publish_at',
+            'event_starts_at',
+            'event_ends_at',
+            'response_deadline_at',
+            'cancelled_at',
+            'cancel_reason',
             'expires_at',
             'is_active',
         ]) + [
             'attachment_count' => $announcement->attachments()->count(),
+            'recipient_count' => $announcement->recipients()->count(),
         ]);
 
         return back()->with('success', 'Announcement updated successfully.');
+    }
+
+    public function cancel(
+        CancelAnnouncementRequest $request,
+        Announcement $announcement,
+        AuditLogService $auditLogService
+    ): RedirectResponse {
+        $user = $this->resolveRequestUser($request);
+        if (! $this->canManageAnnouncement($user, $announcement)) {
+            abort(403);
+        }
+
+        if (! $announcement->isEventType()) {
+            return back()->with('error', 'Only event announcements can be cancelled.');
+        }
+
+        $oldValues = $announcement->only([
+            'id',
+            'title',
+            'cancelled_at',
+            'cancel_reason',
+        ]);
+
+        $this->announcementEventService->cancelEvent(
+            $announcement,
+            $user,
+            $request->validated('cancel_reason')
+        );
+
+        $announcement->refresh();
+
+        $auditLogService->log('announcement.cancelled', $announcement, $oldValues, $announcement->only([
+            'id',
+            'title',
+            'cancelled_at',
+            'cancel_reason',
+        ]));
+
+        return back()->with('success', 'Event announcement was cancelled.');
     }
 
     public function destroy(Request $request, Announcement $announcement, AuditLogService $auditLogService): RedirectResponse
@@ -317,13 +465,45 @@ class AnnouncementController extends Controller
         return back()->with('success', 'Announcement removed successfully.');
     }
 
-    private function normalizeTargetRoles(?array $targetRoles): ?array
+    private function applyReportStatusFilter(Builder $query, string $status, bool $isEvent): void
     {
-        if (! $targetRoles || count($targetRoles) === 0) {
-            return null;
+        if ($status === 'all') {
+            return;
         }
 
-        return array_values(array_unique($targetRoles));
+        if ($status === 'read') {
+            $query->whereNotNull('announcement_reads.read_at');
+
+            return;
+        }
+
+        if ($status === 'unread') {
+            $query->whereNull('announcement_reads.read_at');
+
+            return;
+        }
+
+        if (! $isEvent) {
+            return;
+        }
+
+        if ($status === 'acknowledged') {
+            $query->whereNotNull('announcement_event_responses.responded_at');
+
+            return;
+        }
+
+        if ($status === 'pending') {
+            $query
+                ->whereNull('announcement_event_responses.responded_at')
+                ->where('announcement_recipients.role', '!=', UserRole::STUDENT->value);
+
+            return;
+        }
+
+        if (in_array($status, ['yes', 'no', 'maybe'], true)) {
+            $query->where('announcement_event_responses.response', $status);
+        }
     }
 
     /**
@@ -383,9 +563,21 @@ class AnnouncementController extends Controller
         return $this->isSuperAdmin($user) || $announcement->user_id === $user->id;
     }
 
+    private function canViewAnnouncementReport(User $user, Announcement $announcement): bool
+    {
+        return $this->isSuperAdmin($user)
+            || $this->isAdmin($user)
+            || $announcement->user_id === $user->id;
+    }
+
     private function isSuperAdmin(User $user): bool
     {
         return $this->resolveRoleValue($user) === UserRole::SUPER_ADMIN->value;
+    }
+
+    private function isAdmin(User $user): bool
+    {
+        return $this->resolveRoleValue($user) === UserRole::ADMIN->value;
     }
 
     private function resolveRequestUser(Request $request): User
@@ -414,5 +606,18 @@ class AnnouncementController extends Controller
         }
 
         return (string) $user->role;
+    }
+
+    private function resolveAudienceAcademicYearId(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && is_numeric($value)) {
+            return (int) $value;
+        }
+
+        return null;
     }
 }

@@ -14,7 +14,11 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('welcome');
+    if (auth()->check()) {
+        return redirect(route('dashboard', [], false));
+    }
+
+    return redirect(route('login', [], false));
 })->name('home');
 
 Route::get('dashboard', function () {
@@ -61,6 +65,8 @@ Route::middleware(['auth', 'verified', 'role:super_admin,admin,registrar,finance
             ->name('store');
         Route::put('/{announcement}', [AnnouncementManagementController::class, 'update'])
             ->name('update');
+        Route::post('/{announcement}/cancel', [AnnouncementManagementController::class, 'cancel'])
+            ->name('cancel');
         Route::delete('/{announcement}', [AnnouncementManagementController::class, 'destroy'])
             ->name('destroy');
         Route::get('/{announcement}/report', [AnnouncementManagementController::class, 'showReport'])
@@ -83,6 +89,10 @@ Route::middleware(['auth', 'verified'])
             ->name('announcements.read_all');
         Route::post('/announcements/{announcement}/read', [AnnouncementNotificationController::class, 'markAsRead'])
             ->name('announcements.read');
+        Route::post('/announcements/{announcement}/acknowledge', [AnnouncementNotificationController::class, 'acknowledge'])
+            ->name('announcements.acknowledge');
+        Route::post('/announcements/{announcement}/respond', [AnnouncementNotificationController::class, 'respond'])
+            ->name('announcements.respond');
     });
 
 Route::group([], __DIR__.'/roles/super_admin.php');
