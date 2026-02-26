@@ -9,10 +9,10 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('grading:send-deadline-reminders')
-    ->dailyAt('07:00');
+    ->everyMinute();
 
 Schedule::command('finance:send-due-reminders')
-    ->dailyAt('07:30');
+    ->everyMinute();
 
 Schedule::command('announcements:send-event-reminders')
     ->dailyAt('08:00');

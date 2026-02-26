@@ -7,6 +7,7 @@ import {
     CheckSquare,
     ClipboardList,
     CreditCard,
+    Download,
     FileSpreadsheet,
     FileText,
     Folder,
@@ -28,9 +29,18 @@ import {
     Users,
     Wallet,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { NavFooter } from '@/components/nav-footer';
+import { PwaInstallGuideDialog } from '@/components/pwa-install-guide-dialog';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
+import {
+    getDeferredInstallPrompt,
+    getInstallUnavailableMessage,
+    isLikelyAlreadyInstalled,
+    onInstallPromptAvailable,
+    onPwaAppInstalled,
+} from '@/lib/pwa-install';
 import {
     Sidebar,
     SidebarContent,
@@ -40,10 +50,9 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-// import { dashboard, super_admin as superAdminRoutes } from '@/routes';
+import { dashboard } from '@/routes';
 import type { NavItem, SharedData } from '@/types';
 import AppLogo from './app-logo';
-import { dashboard } from '@/routes';
 
 const footerNavItems: NavItem[] = [
     {
@@ -239,13 +248,29 @@ const handheldAllowedHrefMap: Record<string, string[]> = {
     super_admin: ['/announcements', '/super-admin/audit-logs'],
     admin: ['/announcements', '/admin/grade-verification'],
     registrar: ['/announcements', '/registrar/student-directory'],
-    finance: ['/announcements', '/finance/student-ledgers', '/finance/daily-reports'],
-    teacher: ['/announcements', '/teacher/schedule', '/teacher/grading-sheet', '/teacher/advisory-board'],
+    finance: [
+        '/announcements',
+        '/finance/student-ledgers',
+        '/finance/daily-reports',
+    ],
+    teacher: [
+        '/announcements',
+        '/teacher/schedule',
+        '/teacher/grading-sheet',
+        '/teacher/advisory-board',
+    ],
     student: ['/student/schedule', '/student/grades'],
-    parent: ['/parent/schedule', '/parent/grades', '/parent/billing-information'],
+    parent: [
+        '/parent/schedule',
+        '/parent/grades',
+        '/parent/billing-information',
+    ],
 };
 
-const filterNavItemsForHandheld = (role: string, items: NavItem[]): NavItem[] => {
+const filterNavItemsForHandheld = (
+    role: string,
+    items: NavItem[],
+): NavItem[] => {
     const allowedHrefs = handheldAllowedHrefMap[role];
     if (!allowedHrefs) {
         return items;
@@ -255,7 +280,9 @@ const filterNavItemsForHandheld = (role: string, items: NavItem[]): NavItem[] =>
 
     for (const item of items) {
         const filteredChildren = item.items
-            ? item.items.filter((subItem) => allowedHrefs.includes(String(subItem.href)))
+            ? item.items.filter((subItem) =>
+                  allowedHrefs.includes(String(subItem.href)),
+              )
             : [];
 
         if (filteredChildren.length > 0) {
@@ -274,11 +301,95 @@ const filterNavItemsForHandheld = (role: string, items: NavItem[]): NavItem[] =>
     return visibleItems;
 };
 
+const isStandaloneMode = (): boolean => {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    const standaloneMediaQuery = window.matchMedia(
+        '(display-mode: standalone)',
+    ).matches;
+    const iosStandalone = (
+        window.navigator as Navigator & { standalone?: boolean }
+    ).standalone;
+
+    return standaloneMediaQuery || iosStandalone === true;
+};
+
 export function AppSidebar() {
     const page = usePage<SharedData>();
     const { auth } = page.props;
     const role = (auth.user.role as string) || '';
     const isHandheld = Boolean(page.props.ui?.is_handheld);
+    const [deferredPrompt, setDeferredPrompt] = useState(
+        getDeferredInstallPrompt,
+    );
+    const [isInstalled, setIsInstalled] = useState(false);
+    const [isInstalling, setIsInstalling] = useState(false);
+    const [isGuideOpen, setIsGuideOpen] = useState(false);
+    const [installGuideMessage, setInstallGuideMessage] = useState('');
+
+    useEffect(() => {
+        if (!auth.user?.id || typeof window === 'undefined') {
+            return;
+        }
+
+        let isUnmounted = false;
+
+        if (isStandaloneMode()) {
+            setIsInstalled(true);
+
+            return;
+        }
+
+        void isLikelyAlreadyInstalled().then((alreadyInstalled) => {
+            if (alreadyInstalled && !isUnmounted) {
+                setIsInstalled(true);
+            }
+        });
+
+        const handleInstallPromptAvailable = () => {
+            setDeferredPrompt(getDeferredInstallPrompt());
+        };
+
+        const handleAppInstalled = () => {
+            setIsInstalled(true);
+            setDeferredPrompt(null);
+        };
+
+        handleInstallPromptAvailable();
+        const removeInstallPromptListener = onInstallPromptAvailable(
+            handleInstallPromptAvailable,
+        );
+        const removeAppInstalledListener =
+            onPwaAppInstalled(handleAppInstalled);
+
+        return () => {
+            isUnmounted = true;
+            removeInstallPromptListener();
+            removeAppInstalledListener();
+        };
+    }, [auth.user?.id]);
+
+    const installApp = async () => {
+        if (!deferredPrompt || isInstalling) {
+            const message = await getInstallUnavailableMessage();
+            setInstallGuideMessage(message);
+            setIsGuideOpen(true);
+
+            return;
+        }
+
+        setIsInstalling(true);
+        await deferredPrompt.prompt();
+        const result = await deferredPrompt.userChoice;
+        setIsInstalling(false);
+        setDeferredPrompt(null);
+
+        if (result.outcome === 'accepted') {
+            setIsInstalled(true);
+        }
+    };
 
     const roleItems = roleNavItems[role] || [];
     const visibleRoleItems = isHandheld
@@ -313,9 +424,32 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
+                {auth.user?.id && !isInstalled ? (
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                onClick={installApp}
+                                tooltip="Install App"
+                                disabled={isInstalling}
+                            >
+                                <Download className="h-5 w-5" />
+                                <span>
+                                    {isInstalling
+                                        ? 'Installing...'
+                                        : 'Install App'}
+                                </span>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                ) : null}
                 <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
+            <PwaInstallGuideDialog
+                open={isGuideOpen}
+                onOpenChange={setIsGuideOpen}
+                message={installGuideMessage}
+            />
         </Sidebar>
     );
 }

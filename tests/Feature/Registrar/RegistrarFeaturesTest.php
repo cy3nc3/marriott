@@ -151,6 +151,8 @@ test('registrar enrollment page filters queue by selected school year', function
             ->component('registrar/enrollment/index')
             ->where('selected_school_year_id', $completedYear->id)
             ->where('filters.academic_year_id', $completedYear->id)
+            ->has('grade_level_options', 1)
+            ->where('grade_level_options.0.id', $this->gradeLevel->id)
             ->has('enrollments', 1)
             ->where('enrollments.0.lrn', '444455556666')
         );
@@ -218,10 +220,50 @@ test('registrar student directory filters students by selected school year', fun
         ->assertInertia(fn (Assert $page) => $page
             ->component('registrar/student-directory/index')
             ->where('selected_school_year_id', $completedYear->id)
-            ->has('students', 1)
-            ->where('students.0.lrn', '999900001111')
+            ->has('students.data', 1)
+            ->where('students.data.0.lrn', '999900001111')
+            ->where('students.per_page', 15)
             ->where('summary.matched', 0)
             ->where('summary.pending', 1)
+        );
+});
+
+test('registrar student directory paginates to 15 entries per page', function () {
+    $section = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Paginated',
+    ]);
+
+    foreach (range(1, 16) as $index) {
+        $student = Student::query()->create([
+            'lrn' => str_pad((string) (760000000000 + $index), 12, '0', STR_PAD_LEFT),
+            'first_name' => "Student{$index}",
+            'last_name' => "Directory{$index}",
+            'is_lis_synced' => false,
+            'sync_error_flag' => false,
+        ]);
+
+        Enrollment::query()->create([
+            'student_id' => $student->id,
+            'academic_year_id' => $this->academicYear->id,
+            'grade_level_id' => $this->gradeLevel->id,
+            'section_id' => $section->id,
+            'payment_term' => 'cash',
+            'downpayment' => 0,
+            'status' => 'enrolled',
+        ]);
+    }
+
+    $this->get('/registrar/student-directory')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/student-directory/index')
+            ->has('students.data', 15)
+            ->where('students.per_page', 15)
+            ->where('students.from', 1)
+            ->where('students.to', 15)
+            ->where('students.total', 16)
         );
 });
 
@@ -446,6 +488,7 @@ test('registrar enrollment intake supports create update and delete', function (
         'first_name' => 'Maria',
         'last_name' => 'Santos',
         'emergency_contact' => '09171234567',
+        'grade_level_id' => $firstSection->grade_level_id,
         'section_id' => $firstSection->id,
         'payment_term' => 'monthly',
         'downpayment' => 1500,
@@ -488,6 +531,7 @@ test('registrar enrollment intake supports create update and delete', function (
         'first_name' => 'Maria',
         'last_name' => 'Reyes',
         'emergency_contact' => '09998887777',
+        'grade_level_id' => $secondSection->grade_level_id,
         'section_id' => $secondSection->id,
         'payment_term' => 'quarterly',
         'downpayment' => 2500,
@@ -591,6 +635,53 @@ test('registrar enrollment intake rejects already enrolled student in active yea
         ->assertSessionHas('error');
 
     expect(Enrollment::query()->count())->toBe($beforeCount);
+});
+
+test('registrar enrollment intake applies selected grade level without section and rejects section-grade mismatch', function () {
+    $gradeEight = GradeLevel::query()->create([
+        'name' => 'Grade 8',
+        'level_order' => 8,
+    ]);
+
+    $gradeSevenSection = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Topaz',
+    ]);
+
+    $this->post('/registrar/enrollment', [
+        'lrn' => '111100002222',
+        'first_name' => 'No',
+        'last_name' => 'Section',
+        'emergency_contact' => '09170000111',
+        'grade_level_id' => $gradeEight->id,
+        'section_id' => '',
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+    ])->assertRedirect();
+
+    $student = Student::query()->where('lrn', '111100002222')->firstOrFail();
+    $enrollment = Enrollment::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->firstOrFail();
+
+    expect($enrollment->grade_level_id)->toBe($gradeEight->id);
+    expect($enrollment->section_id)->toBeNull();
+
+    $this->post('/registrar/enrollment', [
+        'lrn' => '333300004444',
+        'first_name' => 'Mismatch',
+        'last_name' => 'Case',
+        'emergency_contact' => '09170000222',
+        'grade_level_id' => $gradeEight->id,
+        'section_id' => $gradeSevenSection->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+    ])->assertRedirect()
+        ->assertSessionHas('error', 'Selected section does not match the selected grade level.');
+
+    expect(Student::query()->where('lrn', '333300004444')->exists())->toBeFalse();
 });
 
 test('billing schedules are not regenerated when payment activity already exists', function () {

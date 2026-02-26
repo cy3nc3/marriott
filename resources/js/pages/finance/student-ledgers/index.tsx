@@ -1,14 +1,14 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Download, Printer, Search } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 import { useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRangePicker } from '@/components/ui/date-picker';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
     SelectContent,
@@ -166,6 +166,14 @@ export default function StudentLedgers({
     const [entryDateRange, setEntryDateRange] = useState<DateRange | undefined>(
         initialDateRange,
     );
+
+    const searchSuggestions = students.map((student) => ({
+        id: student.id,
+        label: student.name,
+        value: student.name,
+        description: `LRN: ${student.lrn}`,
+        keywords: student.lrn,
+    }));
 
     const applyFilters = (
         studentId = selectedStudentId,
@@ -339,23 +347,58 @@ export default function StudentLedgers({
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <div className="relative">
-                                <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search by student name or LRN"
-                                    className="pl-9"
-                                    value={searchQuery}
-                                    onChange={(event) =>
-                                        setSearchQuery(event.target.value)
-                                    }
-                                    onKeyDown={(event) => {
-                                        if (event.key === 'Enter') {
-                                            event.preventDefault();
-                                            applyFilters();
-                                        }
-                                    }}
-                                />
-                            </div>
+                            <SearchAutocompleteInput
+                                placeholder="Search by student name or LRN"
+                                value={searchQuery}
+                                onValueChange={setSearchQuery}
+                                suggestions={searchSuggestions}
+                                onEnterPress={() => applyFilters()}
+                                onSelectSuggestion={(option) => {
+                                    const selectedId = String(option.id);
+                                    const selectedSearch =
+                                        option.value ?? option.label;
+
+                                    setSearchQuery(selectedSearch);
+                                    setSelectedStudentId(selectedId);
+
+                                    router.get(
+                                        student_ledgers.url({
+                                            query: {
+                                                search: selectedSearch,
+                                                academic_year_id:
+                                                    selectedSchoolYearId ||
+                                                    undefined,
+                                                student_id: selectedId,
+                                                show_paid_dues: showPaidDues
+                                                    ? 1
+                                                    : undefined,
+                                                entry_type:
+                                                    entryTypeFilter === 'all'
+                                                        ? undefined
+                                                        : entryTypeFilter,
+                                                date_from: entryDateRange?.from
+                                                    ? format(
+                                                          entryDateRange.from,
+                                                          'yyyy-MM-dd',
+                                                      )
+                                                    : undefined,
+                                                date_to: entryDateRange?.to
+                                                    ? format(
+                                                          entryDateRange.to,
+                                                          'yyyy-MM-dd',
+                                                      )
+                                                    : undefined,
+                                            },
+                                        }),
+                                        {},
+                                        {
+                                            preserveState: true,
+                                            preserveScroll: true,
+                                            replace: true,
+                                        },
+                                    );
+                                }}
+                            />
                             <Select
                                 value={selectedStudentId}
                                 onValueChange={handleSelectStudent}
@@ -516,10 +559,13 @@ export default function StudentLedgers({
                                                     {due.description}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Due: {due.due_date_label || '-'}
+                                                    Due:{' '}
+                                                    {due.due_date_label || '-'}
                                                 </p>
                                                 <p className="text-sm font-semibold">
-                                                    {formatCurrency(due.amount_due)}
+                                                    {formatCurrency(
+                                                        due.amount_due,
+                                                    )}
                                                 </p>
                                                 <Badge
                                                     variant={dueBadgeVariant(
@@ -557,7 +603,8 @@ export default function StudentLedgers({
                                                     colSpan={4}
                                                     className="h-24 text-center text-sm text-muted-foreground"
                                                 >
-                                                    No dues found for this student.
+                                                    No dues found for this
+                                                    student.
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
@@ -705,7 +752,9 @@ export default function StudentLedgers({
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="pl-6">Date</TableHead>
+                                        <TableHead className="pl-6">
+                                            Date
+                                        </TableHead>
                                         <TableHead className="border-l">
                                             Reference
                                         </TableHead>

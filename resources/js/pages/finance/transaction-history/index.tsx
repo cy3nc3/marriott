@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { RefreshCcw, Search, Undo2 } from 'lucide-react';
+import { RefreshCcw, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { DateRangePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
     SelectContent,
@@ -336,6 +337,14 @@ export default function TransactionHistory({
         return '';
     };
 
+    const searchSuggestions = transactions.data.map((transaction) => ({
+        id: transaction.id,
+        label: transaction.or_number,
+        value: transaction.or_number,
+        description: transaction.student_name,
+        keywords: transaction.student_lrn ?? '',
+    }));
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Transaction History" />
@@ -354,23 +363,53 @@ export default function TransactionHistory({
                     <CardContent className="border-b p-4">
                         <div className="flex flex-col gap-3">
                             <div className="flex flex-col gap-3 sm:flex-row">
-                                <div className="relative w-full sm:flex-1">
-                                    <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="OR number or student"
-                                        className="pl-10"
-                                        value={searchQuery}
-                                        onChange={(event) =>
-                                            setSearchQuery(event.target.value)
-                                        }
-                                        onKeyDown={(event) => {
-                                            if (event.key === 'Enter') {
-                                                event.preventDefault();
-                                                applyFilters();
-                                            }
-                                        }}
-                                    />
-                                </div>
+                                <SearchAutocompleteInput
+                                    placeholder="OR number or student"
+                                    wrapperClassName="w-full sm:flex-1"
+                                    value={searchQuery}
+                                    onValueChange={setSearchQuery}
+                                    suggestions={searchSuggestions}
+                                    onEnterPress={applyFilters}
+                                    onSelectSuggestion={(option) => {
+                                        const selectedSearch =
+                                            option.value ?? option.label;
+                                        setSearchQuery(selectedSearch);
+
+                                        router.get(
+                                            transaction_history.url({
+                                                query: {
+                                                    search: selectedSearch,
+                                                    academic_year_id:
+                                                        selectedSchoolYearId ||
+                                                        undefined,
+                                                    payment_mode:
+                                                        paymentModeFilter ===
+                                                        'all-modes'
+                                                            ? undefined
+                                                            : paymentModeFilter,
+                                                    date_from: dateRange?.from
+                                                        ? format(
+                                                              dateRange.from,
+                                                              'yyyy-MM-dd',
+                                                          )
+                                                        : undefined,
+                                                    date_to: dateRange?.to
+                                                        ? format(
+                                                              dateRange.to,
+                                                              'yyyy-MM-dd',
+                                                          )
+                                                        : undefined,
+                                                },
+                                            }),
+                                            {},
+                                            {
+                                                preserveState: true,
+                                                preserveScroll: true,
+                                                replace: true,
+                                            },
+                                        );
+                                    }}
+                                />
                                 <Button type="button" onClick={applyFilters}>
                                     Apply
                                 </Button>
@@ -779,7 +818,9 @@ export default function TransactionHistory({
                             <p className="text-muted-foreground">
                                 {refundingTransaction?.student_name} ·{' '}
                                 {refundingTransaction
-                                    ? formatCurrency(refundingTransaction.amount)
+                                    ? formatCurrency(
+                                          refundingTransaction.amount,
+                                      )
                                     : '-'}
                             </p>
                         </div>
@@ -845,7 +886,9 @@ export default function TransactionHistory({
                             <p className="text-muted-foreground">
                                 {reissuingTransaction?.student_name} ·{' '}
                                 {reissuingTransaction
-                                    ? formatCurrency(reissuingTransaction.amount)
+                                    ? formatCurrency(
+                                          reissuingTransaction.amount,
+                                      )
                                     : '-'}
                             </p>
                         </div>

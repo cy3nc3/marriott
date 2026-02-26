@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Plus, Search, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
     SelectContent,
@@ -203,6 +204,18 @@ export default function CashierPanel({
         );
     };
 
+    const searchSuggestions = useMemo(
+        () =>
+            students.map((student) => ({
+                id: student.id,
+                label: student.name,
+                value: student.name,
+                description: `LRN: ${student.lrn}`,
+                keywords: student.lrn,
+            })),
+        [students],
+    );
+
     const selectStudent = (value: string) => {
         setSelectedStudentId(value);
         runSearch(value);
@@ -350,23 +363,36 @@ export default function CashierPanel({
                     </CardHeader>
                     <CardContent className="pt-6">
                         <div className="grid gap-3 lg:grid-cols-[1fr_20rem_auto]">
-                            <div className="relative">
-                                <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search by LRN or student name"
-                                    className="pl-9"
-                                    value={searchQuery}
-                                    onChange={(event) =>
-                                        setSearchQuery(event.target.value)
-                                    }
-                                    onKeyDown={(event) => {
-                                        if (event.key === 'Enter') {
-                                            event.preventDefault();
-                                            runSearch();
-                                        }
-                                    }}
-                                />
-                            </div>
+                            <SearchAutocompleteInput
+                                placeholder="Search by LRN or student name"
+                                value={searchQuery}
+                                onValueChange={setSearchQuery}
+                                suggestions={searchSuggestions}
+                                onEnterPress={() => runSearch()}
+                                onSelectSuggestion={(option) => {
+                                    const selectedId = String(option.id);
+                                    setSearchQuery(
+                                        option.value ?? option.label,
+                                    );
+                                    setSelectedStudentId(selectedId);
+                                    router.get(
+                                        cashier_panel.url({
+                                            query: {
+                                                search:
+                                                    option.value ??
+                                                    option.label,
+                                                student_id: selectedId,
+                                            },
+                                        }),
+                                        {},
+                                        {
+                                            preserveState: true,
+                                            preserveScroll: true,
+                                            replace: true,
+                                        },
+                                    );
+                                }}
+                            />
 
                             <Select
                                 value={selectedStudentId}
@@ -505,8 +531,7 @@ export default function CashierPanel({
                                                 {item.description}
                                             </TableCell>
                                             <TableCell className="border-l">
-                                                {item.type ===
-                                                  'assessment_fee'
+                                                {item.type === 'assessment_fee'
                                                     ? 'Assessment Fee'
                                                     : item.type === 'inventory'
                                                       ? 'Inventory'

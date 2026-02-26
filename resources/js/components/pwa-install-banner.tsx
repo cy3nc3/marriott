@@ -1,22 +1,20 @@
 import { usePage } from '@inertiajs/react';
 import { Download, Smartphone, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { PwaInstallGuideDialog } from '@/components/pwa-install-guide-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import {
+    getDeferredInstallPrompt,
+    getInstallUnavailableMessage,
+    isLikelyAlreadyInstalled,
+    onInstallPromptAvailable,
+    onPwaAppInstalled,
+} from '@/lib/pwa-install';
 import type { SharedData } from '@/types';
 
-const DISMISS_STORAGE_KEY = 'pwa_install_banner_dismissed_at';
+const DISMISS_STORAGE_KEY = 'pwa_install_banner_dismissed_at_handheld';
 const DISMISS_COOLDOWN_MS = 1000 * 60 * 60 * 24 * 7;
-const MOBILE_USER_AGENT_PATTERN =
-    /Android|iPhone|iPad|iPod|Mobile|IEMobile|Opera Mini/i;
-
-type BeforeInstallPromptEvent = Event & {
-    prompt: () => Promise<void>;
-    userChoice: Promise<{
-        outcome: 'accepted' | 'dismissed';
-        platform: string;
-    }>;
-};
 
 const isStandaloneMode = (): boolean => {
     const standaloneMediaQuery = window.matchMedia(
@@ -29,40 +27,40 @@ const isStandaloneMode = (): boolean => {
     return standaloneMediaQuery || iosStandalone === true;
 };
 
-const isLikelyMobileDevice = (): boolean => {
-    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-    const mobileUserAgent = MOBILE_USER_AGENT_PATTERN.test(
-        window.navigator.userAgent,
-    );
-
-    return coarsePointer || mobileUserAgent;
-};
-
 export function PwaInstallBanner() {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, ui } = usePage<SharedData>().props;
     const showForRole = Boolean(auth.user?.id);
+    const isHandheld = Boolean(ui?.is_handheld);
 
-    const [deferredPrompt, setDeferredPrompt] =
-        useState<BeforeInstallPromptEvent | null>(null);
+    const [deferredPrompt, setDeferredPrompt] = useState(
+        getDeferredInstallPrompt,
+    );
     const [isInstalled, setIsInstalled] = useState(false);
     const [isDismissed, setIsDismissed] = useState(false);
     const [isInstalling, setIsInstalling] = useState(false);
     const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
-    const [isMobileDevice, setIsMobileDevice] = useState(false);
+    const [isGuideOpen, setIsGuideOpen] = useState(false);
+    const [installGuideMessage, setInstallGuideMessage] = useState('');
 
     useEffect(() => {
         if (!showForRole || typeof window === 'undefined') {
             return;
         }
 
-        setIsMobileDevice(isLikelyMobileDevice());
+        let isUnmounted = false;
 
         if (isStandaloneMode()) {
             setIsInstalled(true);
 
             return;
         }
+
+        void isLikelyAlreadyInstalled().then((alreadyInstalled) => {
+            if (alreadyInstalled && !isUnmounted) {
+                setIsInstalled(true);
+            }
+        });
 
         const dismissedAtRaw = window.localStorage.getItem(DISMISS_STORAGE_KEY);
         if (dismissedAtRaw) {
@@ -77,10 +75,8 @@ export function PwaInstallBanner() {
             }
         }
 
-        const handleBeforeInstallPrompt = (event: Event) => {
-            const promptEvent = event as BeforeInstallPromptEvent;
-            promptEvent.preventDefault();
-            setDeferredPrompt(promptEvent);
+        const handleInstallPromptAvailable = () => {
+            setDeferredPrompt(getDeferredInstallPrompt());
         };
 
         const handleAppInstalled = () => {
@@ -90,11 +86,12 @@ export function PwaInstallBanner() {
             window.localStorage.removeItem(DISMISS_STORAGE_KEY);
         };
 
-        window.addEventListener(
-            'beforeinstallprompt',
-            handleBeforeInstallPrompt,
+        handleInstallPromptAvailable();
+        const removeInstallPromptListener = onInstallPromptAvailable(
+            handleInstallPromptAvailable,
         );
-        window.addEventListener('appinstalled', handleAppInstalled);
+        const removeAppInstalledListener =
+            onPwaAppInstalled(handleAppInstalled);
 
         const handleUpdateAvailable = () => {
             setIsUpdateAvailable(true);
@@ -103,11 +100,9 @@ export function PwaInstallBanner() {
         window.addEventListener('pwa:update-available', handleUpdateAvailable);
 
         return () => {
-            window.removeEventListener(
-                'beforeinstallprompt',
-                handleBeforeInstallPrompt,
-            );
-            window.removeEventListener('appinstalled', handleAppInstalled);
+            isUnmounted = true;
+            removeInstallPromptListener();
+            removeAppInstalledListener();
             window.removeEventListener(
                 'pwa:update-available',
                 handleUpdateAvailable,
@@ -118,6 +113,12 @@ export function PwaInstallBanner() {
     const dismiss = () => {
         setIsDismissed(true);
         window.localStorage.setItem(DISMISS_STORAGE_KEY, String(Date.now()));
+    };
+
+    const openInstallGuide = async () => {
+        const message = await getInstallUnavailableMessage();
+        setInstallGuideMessage(message);
+        setIsGuideOpen(true);
     };
 
     const install = async () => {
@@ -163,70 +164,90 @@ export function PwaInstallBanner() {
         registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     };
 
-    if (!showForRole || !isMobileDevice || isInstalled) {
+    if (!showForRole || !isHandheld || isInstalled) {
         return null;
     }
 
     if (isUpdateAvailable) {
         return (
+            <>
+                <Alert className="mb-4">
+                    <Smartphone className="size-4" />
+                    <AlertTitle>Update available</AlertTitle>
+                    <AlertDescription>
+                        <p>A new app version is ready to install.</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                className="h-8"
+                                onClick={applyUpdate}
+                                disabled={isUpdating}
+                            >
+                                <Download className="size-3.5" />
+                                {isUpdating ? 'Updating...' : 'Update now'}
+                            </Button>
+                        </div>
+                    </AlertDescription>
+                </Alert>
+                <PwaInstallGuideDialog
+                    open={isGuideOpen}
+                    onOpenChange={setIsGuideOpen}
+                    message={installGuideMessage}
+                />
+            </>
+        );
+    }
+
+    if (isDismissed) {
+        return null;
+    }
+
+    const canPromptInstall = deferredPrompt !== null;
+
+    return (
+        <>
             <Alert className="mb-4">
                 <Smartphone className="size-4" />
-                <AlertTitle>Update available</AlertTitle>
+                <AlertTitle>Install this app</AlertTitle>
                 <AlertDescription>
-                    <p>A new app version is ready to install.</p>
+                    <p>
+                        Install for faster access to announcements, grades, and
+                        reminders.
+                    </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                         <Button
                             type="button"
                             size="sm"
                             className="h-8"
-                            onClick={applyUpdate}
-                            disabled={isUpdating}
+                            onClick={
+                                canPromptInstall ? install : openInstallGuide
+                            }
+                            disabled={canPromptInstall && isInstalling}
                         >
                             <Download className="size-3.5" />
-                            {isUpdating ? 'Updating...' : 'Update now'}
+                            {canPromptInstall && isInstalling
+                                ? 'Installing...'
+                                : 'Install App'}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8"
+                            onClick={dismiss}
+                        >
+                            <X className="size-3.5" />
+                            Not now
                         </Button>
                     </div>
                 </AlertDescription>
             </Alert>
-        );
-    }
-
-    if (isDismissed || deferredPrompt === null) {
-        return null;
-    }
-
-    return (
-        <Alert className="mb-4">
-            <Smartphone className="size-4" />
-            <AlertTitle>Install this app</AlertTitle>
-            <AlertDescription>
-                <p>
-                    Install for faster access to announcements, grades, and
-                    reminders.
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                    <Button
-                        type="button"
-                        size="sm"
-                        className="h-8"
-                        onClick={install}
-                        disabled={isInstalling}
-                    >
-                        <Download className="size-3.5" />
-                        {isInstalling ? 'Installing...' : 'Install App'}
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8"
-                        onClick={dismiss}
-                    >
-                        <X className="size-3.5" />
-                        Not now
-                    </Button>
-                </div>
-            </AlertDescription>
-        </Alert>
+            <PwaInstallGuideDialog
+                open={isGuideOpen}
+                onOpenChange={setIsGuideOpen}
+                message={installGuideMessage}
+            />
+        </>
     );
 }

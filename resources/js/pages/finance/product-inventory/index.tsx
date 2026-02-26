@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Table,
     TableBody,
@@ -28,11 +29,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import {
-    destroy,
-    store,
-    update,
-} from '@/routes/finance/product_inventory';
+import { destroy, store, update } from '@/routes/finance/product_inventory';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -114,6 +111,17 @@ export default function ProductInventory({ product_items }: Props) {
         });
     }, [product_items, searchQuery, categoryFilter]);
 
+    const searchSuggestions = useMemo(
+        () =>
+            product_items.map((item) => ({
+                id: item.id,
+                label: item.name,
+                value: item.name,
+                description: `${item.type_label} • ${formatCurrency(item.price)}`,
+            })),
+        [product_items],
+    );
+
     const openAddDialog = () => {
         createForm.setData({
             name: '',
@@ -179,17 +187,13 @@ export default function ProductInventory({ product_items }: Props) {
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Product Price Catalog</CardTitle>
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                                <div className="relative">
-                                    <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Search product"
-                                        className="w-full pl-9 sm:w-56"
-                                        value={searchQuery}
-                                        onChange={(event) =>
-                                            setSearchQuery(event.target.value)
-                                        }
-                                    />
-                                </div>
+                                <SearchAutocompleteInput
+                                    placeholder="Search product"
+                                    wrapperClassName="w-full sm:w-56"
+                                    value={searchQuery}
+                                    onValueChange={setSearchQuery}
+                                    suggestions={searchSuggestions}
+                                />
                                 <Select
                                     value={categoryFilter}
                                     onValueChange={(

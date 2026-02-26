@@ -31,15 +31,23 @@
         </style>
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        @php
+            $serviceWorkerVersion = is_file(public_path('sw.js'))
+                ? (string) filemtime(public_path('sw.js'))
+                : (string) now()->timestamp;
+        @endphp
 
         <link rel="icon" href="/favicon.ico" sizes="any">
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-        <link rel="manifest" href="/manifest.webmanifest">
+        <link rel="manifest" href="{{ route('pwa.manifest', [], false) }}">
         <meta name="theme-color" content="#111827">
 
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
+        <script>
+            window.__PWA_VERSION__ = @json($serviceWorkerVersion);
+        </script>
 
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])

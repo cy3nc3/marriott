@@ -1,8 +1,7 @@
-const CACHE_NAME = 'marriott-pwa-v2';
+const CACHE_NAME = 'marriott-pwa-v4';
 const OFFLINE_URL = '/offline.html';
 const STATIC_ASSETS = [
     OFFLINE_URL,
-    '/manifest.webmanifest',
     '/icons/icon-192.png',
     '/icons/icon-512.png',
     '/icons/maskable-192.png',
@@ -51,6 +50,14 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    if (
+        url.pathname === '/manifest.webmanifest' ||
+        url.pathname === '/pwa-manifest.webmanifest' ||
+        url.pathname === '/sw.js'
+    ) {
+        return;
+    }
+
     if (request.mode === 'navigate') {
         event.respondWith(
             fetch(request).catch(() => caches.match(OFFLINE_URL)),
@@ -77,10 +84,28 @@ self.addEventListener('fetch', (event) => {
             }
 
             return fetch(request).then((networkResponse) => {
-                if (
-                    networkResponse.ok &&
-                    (request.destination || url.pathname.startsWith('/build/'))
-                ) {
+                const contentType = (
+                    networkResponse.headers.get('content-type') || ''
+                ).toLowerCase();
+
+                const validCachedAsset =
+                    (request.destination === 'script' &&
+                        (contentType.includes('javascript') ||
+                            contentType.includes('ecmascript'))) ||
+                    (request.destination === 'style' &&
+                        contentType.includes('text/css')) ||
+                    (request.destination === 'font' &&
+                        (contentType.startsWith('font/') ||
+                            contentType.includes('application/font') ||
+                            contentType.includes(
+                                'application/octet-stream',
+                            ))) ||
+                    (request.destination === 'image' &&
+                        contentType.startsWith('image/')) ||
+                    (url.pathname.startsWith('/build/') &&
+                        !contentType.includes('text/html'));
+
+                if (networkResponse.ok && validCachedAsset) {
                     const clone = networkResponse.clone();
                     caches
                         .open(CACHE_NAME)

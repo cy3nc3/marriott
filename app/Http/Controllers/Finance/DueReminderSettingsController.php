@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\StoreDueReminderRuleRequest;
+use App\Http\Requests\Finance\UpdateDueReminderAutomationSettingsRequest;
 use App\Http\Requests\Finance\UpdateDueReminderRuleRequest;
 use App\Models\FinanceDueReminderRule;
+use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -33,6 +35,11 @@ class DueReminderSettingsController extends Controller
 
         return Inertia::render('finance/due-reminder-settings/index', [
             'rules' => $rules,
+            'automation' => [
+                'auto_send_enabled' => Setting::enabled('finance_due_reminder_auto_send_enabled', true),
+                'send_time' => (string) Setting::get('finance_due_reminder_send_time', '07:30'),
+                'max_announcements_per_run' => $this->resolveMaxAnnouncementsPerRun(),
+            ],
         ]);
     }
 
@@ -72,6 +79,30 @@ class DueReminderSettingsController extends Controller
         return back()->with('success', 'Due reminder rule deleted.');
     }
 
+    public function updateAutomation(
+        UpdateDueReminderAutomationSettingsRequest $request
+    ): RedirectResponse {
+        $validated = $request->validated();
+
+        Setting::set(
+            'finance_due_reminder_auto_send_enabled',
+            (bool) $validated['auto_send_enabled'],
+            'finance_due_reminders'
+        );
+        Setting::set(
+            'finance_due_reminder_send_time',
+            $validated['send_time'],
+            'finance_due_reminders'
+        );
+        Setting::set(
+            'finance_due_reminder_max_announcements_per_run',
+            $validated['max_announcements_per_run'] ?? null,
+            'finance_due_reminders'
+        );
+
+        return back()->with('success', 'Reminder automation settings updated.');
+    }
+
     private function formatRuleLabel(int $daysBeforeDue): string
     {
         if ($daysBeforeDue === 0) {
@@ -83,5 +114,16 @@ class DueReminderSettingsController extends Controller
         }
 
         return "{$daysBeforeDue} days before due";
+    }
+
+    private function resolveMaxAnnouncementsPerRun(): ?int
+    {
+        $value = Setting::get('finance_due_reminder_max_announcements_per_run');
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return max((int) $value, 1);
     }
 }

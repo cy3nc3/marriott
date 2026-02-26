@@ -5,7 +5,6 @@ import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
-import { PwaInstallBanner } from '@/components/pwa-install-banner';
 import { cn } from '@/lib/utils';
 import type { AppLayoutProps } from '@/types';
 import type { SharedData } from '@/types';
@@ -23,21 +22,20 @@ export default function AppSidebarLayout({
             <AppSidebar />
             <AppContent
                 variant="sidebar"
-                className="flex flex-1 flex-col min-h-0 overflow-hidden"
+                className="flex min-h-0 flex-1 flex-col overflow-hidden"
             >
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
-                <div className="relative flex-1 min-h-0">
+                <div className="relative min-h-0 flex-1">
                     <SimpleBar
                         style={{ position: 'absolute', inset: 0 }}
                         className="overflow-x-hidden"
                     >
                         <div
                             className={cn(
-                                'flex flex-col p-4 [&_[data-slot=card]]:pt-0! [&_[data-slot=card]]:gap-0! [&_[data-slot=card-header].border-b]:pb-4! [&_[data-slot=card-header]:not(:has([data-slot=card-description])):not(:has(p)):not(:has(svg))]:gap-0!',
+                                'flex flex-col p-4 [&_[data-slot=card-header].border-b]:pb-4! [&_[data-slot=card-header]:not(:has([data-slot=card-description])):not(:has(p)):not(:has(svg))]:gap-0! [&_[data-slot=card]]:gap-0! [&_[data-slot=card]]:pt-0!',
                                 isHandheld && 'pb-20',
                             )}
                         >
-                            <PwaInstallBanner />
                             {children}
                         </div>
                     </SimpleBar>

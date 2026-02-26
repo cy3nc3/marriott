@@ -40,7 +40,17 @@ interface StudentRow {
 }
 
 interface Props {
-    students: StudentRow[];
+    students: {
+        data: StudentRow[];
+        links: {
+            url: string | null;
+            label: string;
+            active: boolean;
+        }[];
+        from: number | null;
+        to: number | null;
+        total: number;
+    };
     school_year_options: {
         id: number;
         name: string;
@@ -223,12 +233,12 @@ export default function StudentDirectory({
                     <CardContent className="p-0">
                         {isHandheld ? (
                             <div className="space-y-2.5 p-3">
-                                {students.length === 0 ? (
+                                {students.data.length === 0 ? (
                                     <div className="rounded-md border py-10 text-center text-sm text-muted-foreground">
                                         No students found.
                                     </div>
                                 ) : (
-                                    students.map((student) => (
+                                    students.data.map((student) => (
                                         <div
                                             key={student.id}
                                             className="space-y-1 rounded-md border p-2.5"
@@ -242,7 +252,11 @@ export default function StudentDirectory({
                                             <p className="text-xs text-muted-foreground">
                                                 {student.grade_section}
                                             </p>
-                                            <div>{statusBadge(student.lis_status)}</div>
+                                            <div>
+                                                {statusBadge(
+                                                    student.lis_status,
+                                                )}
+                                            </div>
                                         </div>
                                     ))
                                 )}
@@ -251,7 +265,9 @@ export default function StudentDirectory({
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="pl-6">LRN</TableHead>
+                                        <TableHead className="pl-6">
+                                            LRN
+                                        </TableHead>
                                         <TableHead className="border-l">
                                             Student
                                         </TableHead>
@@ -264,7 +280,7 @@ export default function StudentDirectory({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {students.length === 0 ? (
+                                    {students.data.length === 0 ? (
                                         <TableRow>
                                             <TableCell
                                                 colSpan={4}
@@ -274,7 +290,7 @@ export default function StudentDirectory({
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        students.map((student) => (
+                                        students.data.map((student) => (
                                             <TableRow key={student.id}>
                                                 <TableCell className="pl-6 font-medium">
                                                     {student.lrn}
@@ -297,6 +313,51 @@ export default function StudentDirectory({
                             </Table>
                         )}
                     </CardContent>
+                    <div className="flex items-center justify-between border-t p-4">
+                        <p className="text-sm text-muted-foreground">
+                            Showing {students.from ?? 0}-{students.to ?? 0} of{' '}
+                            {students.total} entries
+                        </p>
+                        {students.links.length > 3 && (
+                            <div className="flex items-center gap-2">
+                                {students.links.map((link, index) => {
+                                    let label = link.label;
+                                    if (label.includes('Previous')) {
+                                        label = 'Previous';
+                                    } else if (label.includes('Next')) {
+                                        label = 'Next';
+                                    } else {
+                                        label = label
+                                            .replace(/&[^;]+;/g, '')
+                                            .trim();
+                                    }
+
+                                    return (
+                                        <Button
+                                            key={`${link.label}-${index}`}
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={!link.url || link.active}
+                                            onClick={() => {
+                                                if (link.url) {
+                                                    router.get(
+                                                        link.url,
+                                                        {},
+                                                        {
+                                                            preserveState: true,
+                                                            preserveScroll: true,
+                                                        },
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            {label}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                 </Card>
             </div>
         </AppLayout>

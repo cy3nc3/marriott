@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\IndexGradeVerificationRequest;
 use App\Http\Requests\Admin\ReturnGradeSubmissionRequest;
+use App\Http\Requests\Admin\UpdateGradeReminderAutomationRequest;
 use App\Http\Requests\Admin\UpdateGradeSubmissionDeadlineRequest;
 use App\Http\Requests\Admin\VerifyGradeSubmissionRequest;
 use App\Models\AcademicYear;
@@ -154,6 +155,7 @@ class GradeVerificationController extends Controller
                 'current_quarter' => $currentQuarter,
                 'current_quarter_label' => $this->resolveQuarterLabel($currentQuarter),
                 'submission_deadline' => $this->resolveSubmissionDeadline($activeYear, $currentQuarter),
+                'reminder_automation' => $this->resolveReminderAutomation(),
             ],
             'summary' => [
                 'submitted_count' => $submissionRows->where('status', GradeSubmission::STATUS_SUBMITTED)->count(),
@@ -218,6 +220,25 @@ class GradeVerificationController extends Controller
         }
 
         return back()->with('success', $baseMessage);
+    }
+
+    public function updateReminderAutomation(
+        UpdateGradeReminderAutomationRequest $request
+    ): RedirectResponse {
+        $validated = $request->validated();
+
+        Setting::set(
+            'grade_deadline_reminder_auto_send_enabled',
+            (bool) $validated['auto_send_enabled'],
+            'grading'
+        );
+        Setting::set(
+            'grade_deadline_reminder_send_time',
+            $validated['send_time'],
+            'grading'
+        );
+
+        return back()->with('success', 'Grade reminder automation settings updated.');
     }
 
     public function verify(
@@ -335,6 +356,17 @@ class GradeVerificationController extends Controller
         }
 
         return (string) $value;
+    }
+
+    /**
+     * @return array{auto_send_enabled: bool, send_time: string}
+     */
+    private function resolveReminderAutomation(): array
+    {
+        return [
+            'auto_send_enabled' => Setting::enabled('grade_deadline_reminder_auto_send_enabled', true),
+            'send_time' => (string) Setting::get('grade_deadline_reminder_send_time', '07:00'),
+        ];
     }
 
     private function deadlineSettingKey(int $academicYearId, string $quarter): string

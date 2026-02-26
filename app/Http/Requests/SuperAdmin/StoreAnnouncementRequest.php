@@ -45,7 +45,6 @@ class StoreAnnouncementRequest extends FormRequest
             'target_roles.*' => ['string', Rule::in($this->roleValues())],
             'target_user_ids' => ['nullable', 'array'],
             'target_user_ids.*' => ['integer', 'exists:users,id'],
-            'audience_academic_year_id' => ['nullable', 'integer', 'exists:academic_years,id'],
             'publish_at' => ['nullable', 'date'],
             'event_starts_at' => [Rule::requiredIf($this->input('type', 'notice') === 'event'), 'nullable', 'date'],
             'event_ends_at' => ['nullable', 'date', 'after_or_equal:event_starts_at'],

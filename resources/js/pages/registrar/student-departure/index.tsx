@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
     SelectContent,
@@ -92,6 +93,13 @@ export default function StudentDeparture({
 }: Props) {
     const [searchValue, setSearchValue] = useState(filters.search ?? '');
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+    const searchSuggestions = student_lookup.map((student) => ({
+        id: student.id,
+        label: student.name,
+        value: student.name,
+        description: `LRN: ${student.lrn}`,
+        keywords: student.lrn,
+    }));
 
     const departureForm = useForm({
         student_id: selected_student?.id ?? 0,
@@ -153,16 +161,20 @@ export default function StudentDeparture({
                         <div className="grid gap-4 md:grid-cols-[1fr_300px_auto]">
                             <div className="space-y-2">
                                 <Label>Search</Label>
-                                <Input
+                                <SearchAutocompleteInput
                                     placeholder="Search by LRN or student name"
                                     value={searchValue}
-                                    onChange={(event) =>
-                                        setSearchValue(event.target.value)
-                                    }
-                                    onKeyDown={(event) => {
-                                        if (event.key === 'Enter') {
-                                            applyLookupFilters();
-                                        }
+                                    onValueChange={setSearchValue}
+                                    suggestions={searchSuggestions}
+                                    onEnterPress={applyLookupFilters}
+                                    onSelectSuggestion={(option) => {
+                                        const selectedSearch =
+                                            option.value ?? option.label;
+                                        setSearchValue(selectedSearch);
+                                        applyLookupFilters({
+                                            search: selectedSearch,
+                                            studentId: Number(option.id),
+                                        });
                                     }}
                                 />
                             </div>
@@ -308,7 +320,9 @@ export default function StudentDeparture({
                                     <Label>Effectivity Date</Label>
                                     <Input
                                         type="date"
-                                        value={departureForm.data.effective_date}
+                                        value={
+                                            departureForm.data.effective_date
+                                        }
                                         onChange={(event) =>
                                             departureForm.setData(
                                                 'effective_date',
@@ -350,8 +364,9 @@ export default function StudentDeparture({
                             <div className="rounded-md border p-3 text-sm text-muted-foreground">
                                 <p className="flex items-start gap-2">
                                     <AlertTriangle className="mt-0.5 size-4" />
-                                    Student history remains viewable in read-only
-                                    mode until the account expiry date.
+                                    Student history remains viewable in
+                                    read-only mode until the account expiry
+                                    date.
                                 </p>
                             </div>
                         </CardContent>
@@ -380,7 +395,9 @@ export default function StudentDeparture({
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="pl-6">Learner</TableHead>
+                                    <TableHead className="pl-6">
+                                        Learner
+                                    </TableHead>
                                     <TableHead>LRN</TableHead>
                                     <TableHead>Reason</TableHead>
                                     <TableHead>Effective Date</TableHead>
@@ -426,7 +443,10 @@ export default function StudentDeparture({
                 </Card>
             </div>
 
-            <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+            <Dialog
+                open={confirmDialogOpen}
+                onOpenChange={setConfirmDialogOpen}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Confirm Student Departure</DialogTitle>

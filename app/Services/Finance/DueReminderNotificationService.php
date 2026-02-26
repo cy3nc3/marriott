@@ -8,8 +8,8 @@ use App\Models\BillingSchedule;
 use App\Models\FinanceDueReminderDispatch;
 use App\Models\FinanceDueReminderRule;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class DueReminderNotificationService
@@ -21,11 +21,15 @@ class DueReminderNotificationService
      *     sent_announcements: int,
      *     skipped_without_parents: int,
      *     skipped_zero_outstanding: int,
-     *     skipped_duplicate_dispatches: int
+     *     skipped_duplicate_dispatches: int,
+     *     skipped_due_to_run_limit: int
      * }
      */
-    public function sendForDate(Carbon $referenceDate, User $actor): array
-    {
+    public function sendForDate(
+        CarbonInterface $referenceDate,
+        User $actor,
+        ?int $maxAnnouncementsPerRun = null
+    ): array {
         $runDate = $referenceDate->copy()->startOfDay();
 
         $rules = FinanceDueReminderRule::query()
@@ -40,6 +44,7 @@ class DueReminderNotificationService
             'skipped_without_parents' => 0,
             'skipped_zero_outstanding' => 0,
             'skipped_duplicate_dispatches' => 0,
+            'skipped_due_to_run_limit' => 0,
         ];
 
         foreach ($rules as $rule) {
@@ -61,6 +66,15 @@ class DueReminderNotificationService
             $summary['matched_schedules'] += (int) $schedules->count();
 
             foreach ($schedules as $schedule) {
+                if (
+                    $maxAnnouncementsPerRun !== null
+                    && $summary['sent_announcements'] >= $maxAnnouncementsPerRun
+                ) {
+                    $summary['skipped_due_to_run_limit']++;
+
+                    continue;
+                }
+
                 $outstandingAmount = max(
                     (float) $schedule->amount_due - (float) $schedule->amount_paid,
                     0

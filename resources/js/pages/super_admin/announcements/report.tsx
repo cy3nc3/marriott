@@ -1,10 +1,10 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, Search, Users } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, CheckCircle2, Users } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
     SelectContent,
@@ -194,6 +194,18 @@ export default function AnnouncementReport({
         maybe: 'Maybe',
     };
 
+    const searchSuggestions = useMemo(
+        () =>
+            recipients.data.map((recipient) => ({
+                id: recipient.id,
+                label: recipient.name,
+                value: recipient.name,
+                description: recipient.email,
+                keywords: `${recipient.role_label} ${recipient.response_status}`,
+            })),
+        [recipients.data],
+    );
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Announcement Report - ${announcement.title}`} />
@@ -206,7 +218,8 @@ export default function AnnouncementReport({
                                 <CardTitle>{announcement.title}</CardTitle>
                                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                     <span>
-                                        Published: {formatDate(announcement.publish_at)}
+                                        Published:{' '}
+                                        {formatDate(announcement.publish_at)}
                                     </span>
                                     {announcement.type === 'event' && (
                                         <>
@@ -225,7 +238,8 @@ export default function AnnouncementReport({
                                         </>
                                     )}
                                     <span>
-                                        Expires: {formatDate(announcement.expires_at)}
+                                        Expires:{' '}
+                                        {formatDate(announcement.expires_at)}
                                     </span>
                                     <Badge variant="outline">
                                         {announcement.type === 'event'
@@ -266,13 +280,17 @@ export default function AnnouncementReport({
                             </p>
                         </div>
                         <div className="rounded-md border p-3">
-                            <p className="text-xs text-muted-foreground">Unread</p>
+                            <p className="text-xs text-muted-foreground">
+                                Unread
+                            </p>
                             <p className="text-base font-semibold">
                                 {analytics.unread_count}
                             </p>
                         </div>
                         <div className="rounded-md border p-3">
-                            <p className="text-xs text-muted-foreground">Read Rate</p>
+                            <p className="text-xs text-muted-foreground">
+                                Read Rate
+                            </p>
                             <p className="text-base font-semibold">
                                 {analytics.read_rate}%
                             </p>
@@ -396,7 +414,8 @@ export default function AnnouncementReport({
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {analytics.role_breakdown.length === 0 ? (
+                                        {analytics.role_breakdown.length ===
+                                        0 ? (
                                             <TableRow>
                                                 <TableCell
                                                     className="py-6 text-center text-muted-foreground"
@@ -406,23 +425,29 @@ export default function AnnouncementReport({
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
-                                            analytics.role_breakdown.map((row) => (
-                                                <TableRow key={row.role}>
-                                                    <TableCell>{row.label}</TableCell>
-                                                    <TableCell className="text-right">
-                                                        {row.recipient_count}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        {row.read_count}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        {row.unread_count}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        {row.read_rate}%
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
+                                            analytics.role_breakdown.map(
+                                                (row) => (
+                                                    <TableRow key={row.role}>
+                                                        <TableCell>
+                                                            {row.label}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {
+                                                                row.recipient_count
+                                                            }
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {row.read_count}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {row.unread_count}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {row.read_rate}%
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ),
+                                            )
                                         )}
                                     </TableBody>
                                 </Table>
@@ -436,17 +461,13 @@ export default function AnnouncementReport({
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <CardTitle>Recipient Details</CardTitle>
                             <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                                <div className="relative w-full md:w-72">
-                                    <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                                    <Input
-                                        value={search}
-                                        onChange={(event) =>
-                                            handleSearch(event.target.value)
-                                        }
-                                        placeholder="Search name or email"
-                                        className="pl-9"
-                                    />
-                                </div>
+                                <SearchAutocompleteInput
+                                    wrapperClassName="w-full md:w-72"
+                                    value={search}
+                                    onValueChange={handleSearch}
+                                    placeholder="Search name or email"
+                                    suggestions={searchSuggestions}
+                                />
                                 <Select
                                     value={status}
                                     onValueChange={handleStatusChange}
@@ -456,8 +477,12 @@ export default function AnnouncementReport({
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All</SelectItem>
-                                        <SelectItem value="read">Read</SelectItem>
-                                        <SelectItem value="unread">Unread</SelectItem>
+                                        <SelectItem value="read">
+                                            Read
+                                        </SelectItem>
+                                        <SelectItem value="unread">
+                                            Unread
+                                        </SelectItem>
                                         {announcement.type === 'event' && (
                                             <>
                                                 <SelectItem value="pending">
@@ -516,7 +541,9 @@ export default function AnnouncementReport({
                                                             : 'secondary'
                                                     }
                                                 >
-                                                    {recipient.is_read ? 'Read' : 'Unread'}
+                                                    {recipient.is_read
+                                                        ? 'Read'
+                                                        : 'Unread'}
                                                 </Badge>
                                                 <Badge
                                                     variant={
@@ -528,12 +555,15 @@ export default function AnnouncementReport({
                                                 >
                                                     {
                                                         responseLabelByStatus[
-                                                            recipient.response_status
+                                                            recipient
+                                                                .response_status
                                                         ]
                                                     }
                                                 </Badge>
                                                 <span className="text-muted-foreground">
-                                                    {formatDate(recipient.responded_at)}
+                                                    {formatDate(
+                                                        recipient.responded_at,
+                                                    )}
                                                 </span>
                                             </div>
                                         </div>
@@ -559,7 +589,8 @@ export default function AnnouncementReport({
                                                     colSpan={5}
                                                     className="py-8 text-center text-muted-foreground"
                                                 >
-                                                    No recipients found for this filter.
+                                                    No recipients found for this
+                                                    filter.
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
@@ -571,11 +602,15 @@ export default function AnnouncementReport({
                                                                 {recipient.name}
                                                             </p>
                                                             <p className="text-xs text-muted-foreground">
-                                                                {recipient.email}
+                                                                {
+                                                                    recipient.email
+                                                                }
                                                             </p>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell>{recipient.role_label}</TableCell>
+                                                    <TableCell>
+                                                        {recipient.role_label}
+                                                    </TableCell>
                                                     <TableCell>
                                                         <Badge
                                                             variant={
@@ -605,13 +640,16 @@ export default function AnnouncementReport({
                                                         >
                                                             {
                                                                 responseLabelByStatus[
-                                                                    recipient.response_status
+                                                                    recipient
+                                                                        .response_status
                                                                 ]
                                                             }
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell>
-                                                        {formatDate(recipient.responded_at)}
+                                                        {formatDate(
+                                                            recipient.responded_at,
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             ))
@@ -637,13 +675,17 @@ export default function AnnouncementReport({
                                 } else if (label.includes('Next')) {
                                     label = 'Next';
                                 } else {
-                                    label = label.replace(/&[^;]+;/g, '').trim();
+                                    label = label
+                                        .replace(/&[^;]+;/g, '')
+                                        .trim();
                                 }
 
                                 return (
                                     <Button
                                         key={`${link.label}-${index}`}
-                                        variant={link.active ? 'default' : 'outline'}
+                                        variant={
+                                            link.active ? 'default' : 'outline'
+                                        }
                                         size="sm"
                                         disabled={!link.url || link.active}
                                         onClick={() => {

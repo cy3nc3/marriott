@@ -229,11 +229,13 @@ export default function CurriculumManager({
         const currentSelectedIds = isCertifyOpen
             ? certifyForm.data.teacher_ids
             : addForm.data.teacher_ids;
-        return teachers.filter(
-            (t) =>
-                t.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-                !currentSelectedIds.includes(t.id),
-        );
+        return teachers
+            .filter(
+                (t) =>
+                    t.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+                    !currentSelectedIds.includes(t.id),
+            )
+            .slice(0, 5);
     }, [
         teachers,
         searchQuery,

@@ -18,6 +18,7 @@ import {
     destroy,
     store,
     update,
+    update_automation,
 } from '@/routes/finance/due_reminder_settings';
 import type { BreadcrumbItem } from '@/types';
 
@@ -41,8 +42,15 @@ type ReminderRuleRow = {
     last_sent_at: string | null;
 };
 
+type ReminderAutomation = {
+    auto_send_enabled: boolean;
+    send_time: string;
+    max_announcements_per_run: number | null;
+};
+
 interface Props {
     rules: ReminderRuleRow[];
+    automation: ReminderAutomation;
 }
 
 const formatDateTime = (value: string | null) => {
@@ -60,9 +68,11 @@ const formatDateTime = (value: string | null) => {
     });
 };
 
-export default function DueReminderSettings({ rules }: Props) {
+export default function DueReminderSettings({ rules, automation }: Props) {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-    const [editingRule, setEditingRule] = useState<ReminderRuleRow | null>(null);
+    const [editingRule, setEditingRule] = useState<ReminderRuleRow | null>(
+        null,
+    );
 
     const createForm = useForm({
         days_before_due: '3',
@@ -72,6 +82,15 @@ export default function DueReminderSettings({ rules }: Props) {
     const editForm = useForm({
         days_before_due: '',
         is_active: true,
+    });
+
+    const automationForm = useForm({
+        auto_send_enabled: automation.auto_send_enabled,
+        send_time: automation.send_time,
+        max_announcements_per_run:
+            automation.max_announcements_per_run === null
+                ? ''
+                : String(automation.max_announcements_per_run),
     });
 
     const openCreateDialog = () => {
@@ -141,11 +160,106 @@ export default function DueReminderSettings({ rules }: Props) {
         });
     };
 
+    const submitAutomation = () => {
+        automationForm.submit(update_automation(), {
+            preserveScroll: true,
+            preserveState: true,
+        });
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Due Reminder Settings" />
 
             <div className="flex flex-col gap-6">
+                <Card>
+                    <CardHeader className="border-b">
+                        <CardTitle>Reminder Automation</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 p-4 sm:grid-cols-2">
+                        <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
+                            <p className="text-sm font-medium">
+                                Enable automatic due reminders
+                            </p>
+                            <Switch
+                                checked={automationForm.data.auto_send_enabled}
+                                onCheckedChange={(checked) =>
+                                    automationForm.setData(
+                                        'auto_send_enabled',
+                                        checked,
+                                    )
+                                }
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="automation-send-time">
+                                Daily Send Time
+                            </Label>
+                            <Input
+                                id="automation-send-time"
+                                type="time"
+                                value={automationForm.data.send_time}
+                                onChange={(event) =>
+                                    automationForm.setData(
+                                        'send_time',
+                                        event.target.value,
+                                    )
+                                }
+                                disabled={
+                                    !automationForm.data.auto_send_enabled
+                                }
+                            />
+                            {automationForm.errors.send_time && (
+                                <p className="text-sm text-destructive">
+                                    {automationForm.errors.send_time}
+                                </p>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="automation-max-announcements">
+                                Max Announcements Per Run
+                            </Label>
+                            <Input
+                                id="automation-max-announcements"
+                                type="number"
+                                min="1"
+                                max="1000"
+                                placeholder="No limit"
+                                value={
+                                    automationForm.data
+                                        .max_announcements_per_run
+                                }
+                                onChange={(event) =>
+                                    automationForm.setData(
+                                        'max_announcements_per_run',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Leave blank to send all matched reminders.
+                            </p>
+                            {automationForm.errors
+                                .max_announcements_per_run && (
+                                <p className="text-sm text-destructive">
+                                    {
+                                        automationForm.errors
+                                            .max_announcements_per_run
+                                    }
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex justify-end sm:col-span-2">
+                            <Button
+                                onClick={submitAutomation}
+                                disabled={automationForm.processing}
+                            >
+                                Save Automation
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 <Card>
                     <CardHeader className="border-b">
                         <div className="flex items-center justify-between gap-3">
@@ -168,8 +282,9 @@ export default function DueReminderSettings({ rules }: Props) {
                                     </p>
                                     <p className="text-xs text-muted-foreground">
                                         Sent {rule.dispatch_count} time
-                                        {rule.dispatch_count === 1 ? '' : 's'} •
-                                        Last sent {formatDateTime(rule.last_sent_at)}
+                                        {rule.dispatch_count === 1 ? '' : 's'} |
+                                        Last sent{' '}
+                                        {formatDateTime(rule.last_sent_at)}
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-1">
@@ -305,7 +420,9 @@ export default function DueReminderSettings({ rules }: Props) {
                                 )}
                             </div>
                             <div className="flex items-center justify-between rounded-md border p-3">
-                                <p className="text-sm font-medium">Rule Active</p>
+                                <p className="text-sm font-medium">
+                                    Rule Active
+                                </p>
                                 <Switch
                                     checked={editForm.data.is_active}
                                     onCheckedChange={(checked) =>

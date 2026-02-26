@@ -87,10 +87,23 @@ class EnrollmentController extends Controller
                     'payment_term' => $enrollment->payment_term,
                     'downpayment' => (float) $enrollment->downpayment,
                     'status' => $enrollment->status,
+                    'grade_level_id' => $enrollment->grade_level_id,
                     'section_id' => $enrollment->section_id,
                     'section_label' => $enrollment->section?->gradeLevel?->name && $enrollment->section?->name
                         ? "{$enrollment->section->gradeLevel->name} - {$enrollment->section->name}"
                         : null,
+                ];
+            })
+            ->values();
+
+        $gradeLevelOptions = GradeLevel::query()
+            ->orderBy('level_order')
+            ->orderBy('id')
+            ->get(['id', 'name'])
+            ->map(function (GradeLevel $gradeLevel) {
+                return [
+                    'id' => $gradeLevel->id,
+                    'name' => $gradeLevel->name,
                 ];
             })
             ->values();
@@ -104,20 +117,17 @@ class EnrollmentController extends Controller
             ->orderBy('name')
             ->get(['id', 'grade_level_id', 'name'])
             ->map(function (Section $section) {
-                $label = $section->gradeLevel?->name
-                    ? "{$section->gradeLevel->name} - {$section->name}"
-                    : $section->name;
-
                 return [
                     'id' => $section->id,
                     'grade_level_id' => $section->grade_level_id,
-                    'label' => $label,
+                    'label' => $section->name,
                 ];
             })
             ->values();
 
         return Inertia::render('registrar/enrollment/index', [
             'enrollments' => $enrollments,
+            'grade_level_options' => $gradeLevelOptions,
             'section_options' => $sectionOptions,
             'school_year_options' => $schoolYearOptions->all(),
             'selected_school_year_id' => $selectedAcademicYear?->id,
@@ -144,6 +154,7 @@ class EnrollmentController extends Controller
             'payment_term' => 'required|string|in:cash,full,monthly,quarterly,semi-annual',
             'downpayment' => 'nullable|numeric|min:0|max:999999.99',
             'section_id' => 'nullable|integer|exists:sections,id',
+            'grade_level_id' => 'nullable|integer|exists:grade_levels,id',
             'academic_year_id' => 'nullable|integer|exists:academic_years,id',
         ]);
 
@@ -176,6 +187,7 @@ class EnrollmentController extends Controller
                     isset($validated['section_id']) ? (int) $validated['section_id'] : null,
                     (int) $activeAcademicYear->id
                 );
+                $selectedGradeLevelId = isset($validated['grade_level_id']) ? (int) $validated['grade_level_id'] : null;
 
                 $student = Student::query()->updateOrCreate(
                     ['lrn' => $validated['lrn']],
@@ -199,11 +211,15 @@ class EnrollmentController extends Controller
 
                 $paymentTerm = $this->normalizePaymentTerm($validated['payment_term']);
                 $downpayment = $this->normalizeDownpayment($paymentTerm, $validated['downpayment'] ?? null);
+                $resolvedGradeLevelId = $this->resolveEnrollmentGradeLevelId(
+                    $selectedSection,
+                    $selectedGradeLevelId,
+                    $this->resolveGradeLevelId($student, $gradeLevelId)
+                );
 
                 if ($existingEnrollment) {
                     $existingEnrollment->update([
-                        'grade_level_id' => $selectedSection?->grade_level_id
-                            ?: $this->resolveGradeLevelId($student, $gradeLevelId),
+                        'grade_level_id' => $resolvedGradeLevelId,
                         'section_id' => $selectedSection?->id,
                         'payment_term' => $paymentTerm,
                         'downpayment' => $downpayment,
@@ -218,8 +234,7 @@ class EnrollmentController extends Controller
                 $enrollment = Enrollment::query()->create([
                     'student_id' => $student->id,
                     'academic_year_id' => $activeAcademicYear->id,
-                    'grade_level_id' => $selectedSection?->grade_level_id
-                        ?: $this->resolveGradeLevelId($student, $gradeLevelId),
+                    'grade_level_id' => $resolvedGradeLevelId,
                     'section_id' => $selectedSection?->id,
                     'payment_term' => $paymentTerm,
                     'downpayment' => $downpayment,
@@ -257,6 +272,7 @@ class EnrollmentController extends Controller
             'downpayment' => 'nullable|numeric|min:0|max:999999.99',
             'status' => 'required|string|in:pending,pending_intake,for_cashier_payment,partial_payment',
             'section_id' => 'nullable|integer|exists:sections,id',
+            'grade_level_id' => 'nullable|integer|exists:grade_levels,id',
         ]);
 
         $paymentTerm = $this->normalizePaymentTerm($validated['payment_term']);
@@ -268,6 +284,12 @@ class EnrollmentController extends Controller
                 $selectedSection = $this->resolveSectionForIntake(
                     isset($validated['section_id']) ? (int) $validated['section_id'] : null,
                     (int) $enrollment->academic_year_id
+                );
+                $selectedGradeLevelId = isset($validated['grade_level_id']) ? (int) $validated['grade_level_id'] : null;
+                $resolvedGradeLevelId = $this->resolveEnrollmentGradeLevelId(
+                    $selectedSection,
+                    $selectedGradeLevelId,
+                    (int) $enrollment->grade_level_id
                 );
 
                 if ($student) {
@@ -281,7 +303,7 @@ class EnrollmentController extends Controller
                 }
 
                 $enrollment->update([
-                    'grade_level_id' => $selectedSection?->grade_level_id ?: $enrollment->grade_level_id,
+                    'grade_level_id' => $resolvedGradeLevelId,
                     'section_id' => $selectedSection?->id,
                     'payment_term' => $paymentTerm,
                     'downpayment' => $downpayment,
@@ -416,5 +438,25 @@ class EnrollmentController extends Controller
         }
 
         return $section;
+    }
+
+    private function resolveEnrollmentGradeLevelId(?Section $selectedSection, ?int $selectedGradeLevelId, int $fallbackGradeLevelId): int
+    {
+        if ($selectedSection) {
+            if (
+                $selectedGradeLevelId
+                && (int) $selectedSection->grade_level_id !== $selectedGradeLevelId
+            ) {
+                throw new \RuntimeException('Selected section does not match the selected grade level.');
+            }
+
+            return (int) $selectedSection->grade_level_id;
+        }
+
+        if ($selectedGradeLevelId) {
+            return $selectedGradeLevelId;
+        }
+
+        return $fallbackGradeLevelId;
     }
 }

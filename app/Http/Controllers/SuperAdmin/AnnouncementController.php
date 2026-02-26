@@ -37,7 +37,6 @@ class AnnouncementController extends Controller
         $user = $this->resolveRequestUser($request);
         $search = $request->input('search');
         $role = $request->input('role');
-        $audienceAcademicYearId = $this->resolveAudienceAcademicYearId($request->input('audience_academic_year_id'));
 
         $announcementsQuery = Announcement::query()
             ->with([
@@ -142,13 +141,9 @@ class AnnouncementController extends Controller
             'announcements' => $announcements,
             'roles' => $roles->values()->all(),
             'audience' => $this->announcementAudienceResolver->resolveAudienceOptions(
-                $user,
-                $audienceAcademicYearId
+                $user
             ),
-            'filters' => [
-                ...$request->only(['search', 'role']),
-                'audience_academic_year_id' => $audienceAcademicYearId,
-            ],
+            'filters' => $request->only(['search', 'role']),
             'summary' => [
                 'visible_announcements' => (int) $announcements->total(),
                 'scheduled_announcements' => (int) $announcementData
@@ -262,24 +257,20 @@ class AnnouncementController extends Controller
         $user = $this->resolveRequestUser($request);
         $validated = $request->validated();
         $uploadedAttachments = $request->file('attachments', []);
-        $audienceAcademicYearId = $this->resolveAudienceAcademicYearId($validated['audience_academic_year_id'] ?? null);
 
         $payload = $this->announcementEventService->normalizeAnnouncementPayload($validated);
-        unset($payload['attachments'], $payload['audience_academic_year_id']);
+        unset($payload['attachments']);
 
         $announcement = DB::transaction(function () use (
             $user,
             $payload,
-            $uploadedAttachments,
-            $audienceAcademicYearId
+            $uploadedAttachments
         ): Announcement {
             $announcement = $user->announcements()->create($payload);
 
             $this->announcementEventService->syncRecipients(
                 $announcement,
-                $user,
-                $audienceAcademicYearId,
-                false
+                $user
             );
             $this->storeUploadedAttachments($announcement, $uploadedAttachments);
 
@@ -322,13 +313,11 @@ class AnnouncementController extends Controller
         $validated = $request->validated();
         $uploadedAttachments = $request->file('attachments', []);
         $removedAttachmentIds = $validated['removed_attachment_ids'] ?? [];
-        $audienceAcademicYearId = $this->resolveAudienceAcademicYearId($validated['audience_academic_year_id'] ?? null);
 
         $payload = $this->announcementEventService->normalizeAnnouncementPayload($validated);
         unset(
             $payload['attachments'],
-            $payload['removed_attachment_ids'],
-            $payload['audience_academic_year_id']
+            $payload['removed_attachment_ids']
         );
 
         $oldValues = $announcement->only([
@@ -357,14 +346,13 @@ class AnnouncementController extends Controller
             $payload,
             $removedAttachmentIds,
             $uploadedAttachments,
-            $user,
-            $audienceAcademicYearId
+            $user
         ): void {
             $announcement->update($payload);
             $this->announcementEventService->syncRecipients(
                 $announcement,
                 $user,
-                $audienceAcademicYearId,
+                null,
                 true
             );
             $this->removeAttachments($announcement, $removedAttachmentIds);
@@ -606,18 +594,5 @@ class AnnouncementController extends Controller
         }
 
         return (string) $user->role;
-    }
-
-    private function resolveAudienceAcademicYearId(mixed $value): ?int
-    {
-        if (is_int($value)) {
-            return $value;
-        }
-
-        if (is_string($value) && is_numeric($value)) {
-            return (int) $value;
-        }
-
-        return null;
     }
 }

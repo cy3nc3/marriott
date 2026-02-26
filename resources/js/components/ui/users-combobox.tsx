@@ -41,17 +41,19 @@ export function UsersCombobox({
         const normalizedSearch = search.trim().toLowerCase();
 
         if (normalizedSearch === '') {
-            return options;
+            return options.slice(0, 5);
         }
 
-        return options.filter((option) => {
-            const roleText = option.role_label ?? option.role ?? '';
+        return options
+            .filter((option) => {
+                const roleText = option.role_label ?? option.role ?? '';
 
-            return (
-                option.label.toLowerCase().includes(normalizedSearch) ||
-                roleText.toLowerCase().includes(normalizedSearch)
-            );
-        });
+                return (
+                    option.label.toLowerCase().includes(normalizedSearch) ||
+                    roleText.toLowerCase().includes(normalizedSearch)
+                );
+            })
+            .slice(0, 5);
     }, [options, search]);
 
     const removeUser = (userId: number) => {

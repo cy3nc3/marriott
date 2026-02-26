@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Table,
@@ -66,6 +67,10 @@ interface Props {
         current_quarter: string;
         current_quarter_label: string;
         submission_deadline: string | null;
+        reminder_automation: {
+            auto_send_enabled: boolean;
+            send_time: string;
+        };
     };
     summary: {
         submitted_count: number;
@@ -141,7 +146,11 @@ const statusBadgeVariant = (
     return 'outline';
 };
 
-export default function GradeVerification({ context, summary, submissions }: Props) {
+export default function GradeVerification({
+    context,
+    summary,
+    submissions,
+}: Props) {
     const { ui } = usePage<SharedData>().props;
     const isHandheld = Boolean(ui?.is_handheld);
     const [activeTab, setActiveTab] = useState<
@@ -149,9 +158,8 @@ export default function GradeVerification({ context, summary, submissions }: Pro
     >('submitted');
     const [returnDialogOpen, setReturnDialogOpen] = useState(false);
     const [deadlineDialogOpen, setDeadlineDialogOpen] = useState(false);
-    const [selectedSubmission, setSelectedSubmission] = useState<SubmissionRow | null>(
-        null,
-    );
+    const [selectedSubmission, setSelectedSubmission] =
+        useState<SubmissionRow | null>(null);
 
     const returnForm = useForm({
         return_notes: '',
@@ -159,6 +167,10 @@ export default function GradeVerification({ context, summary, submissions }: Pro
 
     const deadlineForm = useForm({
         submission_deadline: toDateTimeLocalValue(context.submission_deadline),
+    });
+    const reminderAutomationForm = useForm({
+        auto_send_enabled: context.reminder_automation.auto_send_enabled,
+        send_time: context.reminder_automation.send_time,
     });
 
     useEffect(() => {
@@ -168,16 +180,32 @@ export default function GradeVerification({ context, summary, submissions }: Pro
         );
     }, [context.submission_deadline]);
 
+    useEffect(() => {
+        reminderAutomationForm.setData({
+            auto_send_enabled: context.reminder_automation.auto_send_enabled,
+            send_time: context.reminder_automation.send_time,
+        });
+    }, [
+        context.reminder_automation.auto_send_enabled,
+        context.reminder_automation.send_time,
+    ]);
+
     const submittedRows = useMemo(() => {
-        return submissions.filter((submission) => submission.status === 'submitted');
+        return submissions.filter(
+            (submission) => submission.status === 'submitted',
+        );
     }, [submissions]);
 
     const returnedRows = useMemo(() => {
-        return submissions.filter((submission) => submission.status === 'returned');
+        return submissions.filter(
+            (submission) => submission.status === 'returned',
+        );
     }, [submissions]);
 
     const verifiedRows = useMemo(() => {
-        return submissions.filter((submission) => submission.status === 'verified');
+        return submissions.filter(
+            (submission) => submission.status === 'verified',
+        );
     }, [submissions]);
 
     const deadlineButtonLabel = context.submission_deadline
@@ -185,9 +213,13 @@ export default function GradeVerification({ context, summary, submissions }: Pro
         : 'Set Deadline';
 
     const handleVerify = (submission: SubmissionRow) => {
-        router.post(`/admin/grade-verification/${submission.id}/verify`, undefined, {
-            preserveScroll: true,
-        });
+        router.post(
+            `/admin/grade-verification/${submission.id}/verify`,
+            undefined,
+            {
+                preserveScroll: true,
+            },
+        );
     };
 
     const openReturnDialog = (submission: SubmissionRow) => {
@@ -201,14 +233,17 @@ export default function GradeVerification({ context, summary, submissions }: Pro
             return;
         }
 
-        returnForm.post(`/admin/grade-verification/${selectedSubmission.id}/return`, {
-            preserveScroll: true,
-            onSuccess: () => {
-                setReturnDialogOpen(false);
-                setSelectedSubmission(null);
-                returnForm.reset();
+        returnForm.post(
+            `/admin/grade-verification/${selectedSubmission.id}/return`,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setReturnDialogOpen(false);
+                    setSelectedSubmission(null);
+                    returnForm.reset();
+                },
             },
-        });
+        );
     };
 
     const submitDeadline = () => {
@@ -218,6 +253,16 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                 setDeadlineDialogOpen(false);
             },
         });
+    };
+
+    const submitReminderAutomation = () => {
+        reminderAutomationForm.patch(
+            '/admin/grade-verification/reminder-automation',
+            {
+                preserveScroll: true,
+                preserveState: true,
+            },
+        );
     };
 
     const renderRows = (rows: SubmissionRow[], showActions: boolean) => {
@@ -254,7 +299,9 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                         ? row.average_grade.toFixed(2)
                         : '-'}
                 </TableCell>
-                <TableCell className="text-center">{row.at_risk_count}</TableCell>
+                <TableCell className="text-center">
+                    {row.at_risk_count}
+                </TableCell>
                 <TableCell className="text-center">
                     <Badge variant={statusBadgeVariant(row.status)}>
                         {row.status_label}
@@ -263,7 +310,7 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                 <TableCell className="text-center text-xs text-muted-foreground">
                     {formatDateTime(row.submitted_at)}
                 </TableCell>
-                <TableCell className="max-w-[280px] whitespace-normal text-xs text-muted-foreground">
+                <TableCell className="max-w-[280px] text-xs whitespace-normal text-muted-foreground">
                     {row.return_notes || '-'}
                 </TableCell>
                 {showActions ? (
@@ -289,7 +336,9 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                                 </Button>
                             </div>
                         ) : (
-                            <span className="text-xs text-muted-foreground">No actions</span>
+                            <span className="text-xs text-muted-foreground">
+                                No actions
+                            </span>
                         )}
                     </TableCell>
                 ) : null}
@@ -312,7 +361,9 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                     <div key={row.id} className="space-y-3 px-6 py-4">
                         <div className="flex items-center justify-between gap-2">
                             <div>
-                                <p className="text-sm font-medium">{row.class_label}</p>
+                                <p className="text-sm font-medium">
+                                    {row.class_label}
+                                </p>
                                 <p className="text-xs text-muted-foreground">
                                     {row.teacher_name}
                                 </p>
@@ -323,13 +374,19 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                             <p className="text-muted-foreground">Quarter</p>
-                            <p className="text-right font-medium">{row.quarter_label}</p>
-                            <p className="text-muted-foreground">Posted / Expected</p>
+                            <p className="text-right font-medium">
+                                {row.quarter_label}
+                            </p>
+                            <p className="text-muted-foreground">
+                                Posted / Expected
+                            </p>
                             <p className="text-right font-medium">
                                 {row.posted_rows} / {row.expected_rows}
                             </p>
                             <p className="text-muted-foreground">Locked</p>
-                            <p className="text-right font-medium">{row.locked_rows}</p>
+                            <p className="text-right font-medium">
+                                {row.locked_rows}
+                            </p>
                             <p className="text-muted-foreground">Average</p>
                             <p className="text-right font-medium">
                                 {row.average_grade !== null
@@ -337,7 +394,9 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                                     : '-'}
                             </p>
                             <p className="text-muted-foreground">Below 75</p>
-                            <p className="text-right font-medium">{row.at_risk_count}</p>
+                            <p className="text-right font-medium">
+                                {row.at_risk_count}
+                            </p>
                             <p className="text-muted-foreground">Submitted</p>
                             <p className="text-right font-medium">
                                 {formatDateTime(row.submitted_at)}
@@ -372,7 +431,9 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                         <TableHead className="text-center">Status</TableHead>
                         <TableHead className="text-center">Submitted</TableHead>
                         <TableHead>Return Notes</TableHead>
-                        <TableHead className="pr-6 text-right">Actions</TableHead>
+                        <TableHead className="pr-6 text-right">
+                            Actions
+                        </TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>{renderRows(rows, true)}</TableBody>
@@ -390,13 +451,18 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                         <div className="flex flex-col gap-4 border-b p-6 lg:flex-row lg:items-end lg:justify-between">
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground">School Year</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        School Year
+                                    </p>
                                     <p className="text-sm font-semibold">
-                                        {context.academic_year || 'No active school year'}
+                                        {context.academic_year ||
+                                            'No active school year'}
                                     </p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground">Current Quarter</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Current Quarter
+                                    </p>
                                     <p className="text-sm font-semibold">
                                         {context.current_quarter_label}
                                     </p>
@@ -405,9 +471,13 @@ export default function GradeVerification({ context, summary, submissions }: Pro
 
                             <div className="flex items-end gap-3">
                                 <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground">Submission Deadline</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Submission Deadline
+                                    </p>
                                     <p className="text-sm font-semibold">
-                                        {formatDeadline(context.submission_deadline)}
+                                        {formatDeadline(
+                                            context.submission_deadline,
+                                        )}
                                     </p>
                                 </div>
                                 {isHandheld ? (
@@ -417,11 +487,74 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                                 ) : (
                                     <Button
                                         variant="outline"
-                                        onClick={() => setDeadlineDialogOpen(true)}
+                                        onClick={() =>
+                                            setDeadlineDialogOpen(true)
+                                        }
                                     >
                                         <Clock3 className="size-4" />
                                         {deadlineButtonLabel}
                                     </Button>
+                                )}
+                            </div>
+
+                            <div className="flex items-end gap-3">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground">
+                                        Auto Reminder
+                                    </p>
+                                    <p className="text-sm font-semibold">
+                                        {context.reminder_automation
+                                            .auto_send_enabled
+                                            ? `Enabled at ${context.reminder_automation.send_time}`
+                                            : 'Disabled'}
+                                    </p>
+                                </div>
+                                {isHandheld ? (
+                                    <p className="text-xs text-muted-foreground">
+                                        Desktop only
+                                    </p>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            checked={
+                                                reminderAutomationForm.data
+                                                    .auto_send_enabled
+                                            }
+                                            onCheckedChange={(checked) =>
+                                                reminderAutomationForm.setData(
+                                                    'auto_send_enabled',
+                                                    checked,
+                                                )
+                                            }
+                                        />
+                                        <Input
+                                            type="time"
+                                            className="w-32"
+                                            value={
+                                                reminderAutomationForm.data
+                                                    .send_time
+                                            }
+                                            onChange={(event) =>
+                                                reminderAutomationForm.setData(
+                                                    'send_time',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            disabled={
+                                                !reminderAutomationForm.data
+                                                    .auto_send_enabled
+                                            }
+                                        />
+                                        <Button
+                                            variant="outline"
+                                            onClick={submitReminderAutomation}
+                                            disabled={
+                                                reminderAutomationForm.processing
+                                            }
+                                        >
+                                            Save Reminder
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -429,14 +562,20 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                         <Tabs
                             value={activeTab}
                             onValueChange={(value) =>
-                                setActiveTab(value as 'submitted' | 'returned' | 'verified')
+                                setActiveTab(
+                                    value as
+                                        | 'submitted'
+                                        | 'returned'
+                                        | 'verified',
+                                )
                             }
                             className="flex w-full flex-col gap-0"
                         >
                             <div className="border-b px-6 py-4">
                                 <TabsList>
                                     <TabsTrigger value="submitted">
-                                        For Verification ({summary.submitted_count})
+                                        For Verification (
+                                        {summary.submitted_count})
                                     </TabsTrigger>
                                     <TabsTrigger value="returned">
                                         Returned ({summary.returned_count})
@@ -447,7 +586,8 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                                 </TabsList>
                                 {isHandheld ? (
                                     <p className="mt-2 text-xs text-muted-foreground">
-                                        Review is available on mobile. Verify/return actions require desktop.
+                                        Review is available on mobile.
+                                        Verify/return actions require desktop.
                                     </p>
                                 ) : null}
                             </div>
@@ -468,18 +608,27 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                 </Card>
             </div>
 
-            <Dialog open={deadlineDialogOpen} onOpenChange={setDeadlineDialogOpen}>
+            <Dialog
+                open={deadlineDialogOpen}
+                onOpenChange={setDeadlineDialogOpen}
+            >
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>{deadlineButtonLabel}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
                         <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">Quarter</Label>
-                            <p className="text-sm font-medium">{context.current_quarter_label}</p>
+                            <Label className="text-xs text-muted-foreground">
+                                Quarter
+                            </Label>
+                            <p className="text-sm font-medium">
+                                {context.current_quarter_label}
+                            </p>
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="submission-deadline">Deadline</Label>
+                            <Label htmlFor="submission-deadline">
+                                Deadline
+                            </Label>
                             <Input
                                 id="submission-deadline"
                                 type="datetime-local"
@@ -529,7 +678,10 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                             rows={5}
                             value={returnForm.data.return_notes}
                             onChange={(event) =>
-                                returnForm.setData('return_notes', event.target.value)
+                                returnForm.setData(
+                                    'return_notes',
+                                    event.target.value,
+                                )
                             }
                             placeholder="State what needs to be corrected before resubmission."
                         />
@@ -550,7 +702,10 @@ export default function GradeVerification({ context, summary, submissions }: Pro
                         >
                             Cancel
                         </Button>
-                        <Button onClick={submitReturn} disabled={returnForm.processing}>
+                        <Button
+                            onClick={submitReturn}
+                            disabled={returnForm.processing}
+                        >
                             Confirm Return
                         </Button>
                     </DialogFooter>

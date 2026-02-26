@@ -13,6 +13,7 @@ use App\Models\Subject;
 use App\Models\SubjectAssignment;
 use App\Models\TeacherSubject;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -220,6 +221,18 @@ test('editing deadline posts updated announcement', function () {
     expect($latestAnnouncement?->title)->toContain('Deadline Updated');
 });
 
+test('admin can update grade reminder automation settings', function () {
+    $this->actingAs($this->admin)
+        ->patch('/admin/grade-verification/reminder-automation', [
+            'auto_send_enabled' => false,
+            'send_time' => '09:15',
+        ])
+        ->assertRedirect();
+
+    expect(Setting::get('grade_deadline_reminder_auto_send_enabled'))->toBe('0');
+    expect(Setting::get('grade_deadline_reminder_send_time'))->toBe('09:15');
+});
+
 test('deadline reminder command posts tomorrow and today reminders without duplicates', function () {
     $fixture = createGradeSubmissionFixture(status: GradeSubmission::STATUS_DRAFT);
 
@@ -266,6 +279,57 @@ test('deadline reminder command skips announcements when no teacher has pending 
     ]);
 
     expect(Announcement::query()->count())->toBe(0);
+});
+
+test('deadline reminder command respects automation toggle and force option', function () {
+    $fixture = createGradeSubmissionFixture(status: GradeSubmission::STATUS_DRAFT);
+
+    Setting::set(
+        "grade_submission_deadline_{$fixture['academicYear']->id}_q1",
+        '2026-02-25 17:00:00',
+        'grading'
+    );
+    Setting::set('grade_deadline_reminder_auto_send_enabled', false, 'grading');
+
+    Carbon::setTestNow('2026-02-24 07:00:00');
+
+    Artisan::call('grading:send-deadline-reminders');
+
+    expect(Announcement::query()->count())->toBe(0);
+
+    Artisan::call('grading:send-deadline-reminders', [
+        '--force' => true,
+    ]);
+
+    expect(Announcement::query()->count())->toBe(1);
+
+    Carbon::setTestNow();
+});
+
+test('deadline reminder command only runs at configured send time', function () {
+    $fixture = createGradeSubmissionFixture(status: GradeSubmission::STATUS_DRAFT);
+
+    Setting::set(
+        "grade_submission_deadline_{$fixture['academicYear']->id}_q1",
+        '2026-02-25 17:00:00',
+        'grading'
+    );
+    Setting::set('grade_deadline_reminder_auto_send_enabled', true, 'grading');
+    Setting::set('grade_deadline_reminder_send_time', '09:15', 'grading');
+
+    Carbon::setTestNow('2026-02-24 09:14:00');
+
+    Artisan::call('grading:send-deadline-reminders');
+
+    expect(Announcement::query()->count())->toBe(0);
+
+    Carbon::setTestNow('2026-02-24 09:15:00');
+
+    Artisan::call('grading:send-deadline-reminders');
+
+    expect(Announcement::query()->count())->toBe(1);
+
+    Carbon::setTestNow();
 });
 
 test('year close is blocked when grade verifications are pending', function () {

@@ -42,6 +42,7 @@ Route::middleware(['auth', 'verified', 'role:finance'])->prefix('finance')->name
 
     Route::get('/due-reminder-settings', [DueReminderSettingsController::class, 'index'])->middleware('desktop_only')->name('due_reminder_settings');
     Route::post('/due-reminder-settings', [DueReminderSettingsController::class, 'store'])->middleware('desktop_only')->name('due_reminder_settings.store');
+    Route::patch('/due-reminder-settings/automation', [DueReminderSettingsController::class, 'updateAutomation'])->middleware('desktop_only')->name('due_reminder_settings.update_automation');
     Route::patch('/due-reminder-settings/{financeDueReminderRule}', [DueReminderSettingsController::class, 'update'])->middleware('desktop_only')->name('due_reminder_settings.update');
     Route::delete('/due-reminder-settings/{financeDueReminderRule}', [DueReminderSettingsController::class, 'destroy'])->middleware('desktop_only')->name('due_reminder_settings.destroy');
 });

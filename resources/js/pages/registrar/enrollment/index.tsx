@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Pencil, Search, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Table,
     TableBody,
@@ -49,8 +50,14 @@ interface EnrollmentRow {
     payment_term: string;
     downpayment: number;
     status: string;
+    grade_level_id: number | null;
     section_id: number | null;
     section_label: string | null;
+}
+
+interface GradeLevelOption {
+    id: number;
+    name: string;
 }
 
 interface SectionOption {
@@ -61,6 +68,7 @@ interface SectionOption {
 
 interface Props {
     enrollments: EnrollmentRow[];
+    grade_level_options: GradeLevelOption[];
     section_options: SectionOption[];
     school_year_options: {
         id: number;
@@ -82,6 +90,7 @@ interface Props {
 
 export default function Enrollment({
     enrollments,
+    grade_level_options,
     section_options,
     school_year_options,
     selected_school_year_id,
@@ -103,6 +112,7 @@ export default function Enrollment({
         first_name: '',
         last_name: '',
         emergency_contact: '',
+        grade_level_id: '',
         section_id: '',
         payment_term: 'monthly',
         downpayment: '',
@@ -112,11 +122,40 @@ export default function Enrollment({
         first_name: '',
         last_name: '',
         emergency_contact: '',
+        grade_level_id: '',
         section_id: '',
         payment_term: 'monthly',
         downpayment: '',
         status: 'pending_intake',
     });
+
+    const createSectionOptions = useMemo(() => {
+        const selectedGradeLevelId = Number(
+            createForm.data.grade_level_id || 0,
+        );
+
+        if (selectedGradeLevelId <= 0) {
+            return [];
+        }
+
+        return section_options.filter(
+            (sectionOption) =>
+                sectionOption.grade_level_id === selectedGradeLevelId,
+        );
+    }, [createForm.data.grade_level_id, section_options]);
+
+    const editSectionOptions = useMemo(() => {
+        const selectedGradeLevelId = Number(editForm.data.grade_level_id || 0);
+
+        if (selectedGradeLevelId <= 0) {
+            return [];
+        }
+
+        return section_options.filter(
+            (sectionOption) =>
+                sectionOption.grade_level_id === selectedGradeLevelId,
+        );
+    }, [editForm.data.grade_level_id, section_options]);
 
     const applySearch = (value: string) => {
         setSearchQuery(value);
@@ -144,17 +183,29 @@ export default function Enrollment({
                 createForm.reset();
                 createForm.setData('academic_year_id', yearId);
                 createForm.setData('payment_term', 'monthly');
+                createForm.setData('grade_level_id', '');
                 createForm.setData('section_id', '');
             },
         });
     };
 
     const openEdit = (item: EnrollmentRow) => {
+        const sectionGradeLevelId = item.section_id
+            ? section_options.find(
+                  (sectionOption) => sectionOption.id === item.section_id,
+              )?.grade_level_id
+            : null;
+
         setEditingItem(item);
         editForm.setData({
             first_name: item.first_name,
             last_name: item.last_name,
             emergency_contact: item.emergency_contact || '',
+            grade_level_id: item.grade_level_id
+                ? String(item.grade_level_id)
+                : sectionGradeLevelId
+                  ? String(sectionGradeLevelId)
+                  : '',
             section_id: item.section_id ? String(item.section_id) : '',
             payment_term: item.payment_term,
             downpayment: String(item.downpayment ?? 0),
@@ -223,6 +274,66 @@ export default function Enrollment({
         );
     };
 
+    const updateCreateGradeLevel = (value: string) => {
+        const gradeLevelId = value === 'unselected' ? '' : value;
+
+        createForm.setData('grade_level_id', gradeLevelId);
+
+        if (!gradeLevelId) {
+            if (createForm.data.section_id) {
+                createForm.setData('section_id', '');
+            }
+
+            return;
+        }
+
+        if (!createForm.data.section_id) {
+            return;
+        }
+
+        const selectedSection = section_options.find(
+            (sectionOption) =>
+                String(sectionOption.id) === createForm.data.section_id,
+        );
+
+        if (
+            selectedSection &&
+            String(selectedSection.grade_level_id) !== gradeLevelId
+        ) {
+            createForm.setData('section_id', '');
+        }
+    };
+
+    const updateEditGradeLevel = (value: string) => {
+        const gradeLevelId = value === 'unselected' ? '' : value;
+
+        editForm.setData('grade_level_id', gradeLevelId);
+
+        if (!gradeLevelId) {
+            if (editForm.data.section_id) {
+                editForm.setData('section_id', '');
+            }
+
+            return;
+        }
+
+        if (!editForm.data.section_id) {
+            return;
+        }
+
+        const selectedSection = section_options.find(
+            (sectionOption) =>
+                String(sectionOption.id) === editForm.data.section_id,
+        );
+
+        if (
+            selectedSection &&
+            String(selectedSection.grade_level_id) !== gradeLevelId
+        ) {
+            editForm.setData('section_id', '');
+        }
+    };
+
     const switchSchoolYear = (value: string) => {
         setSelectedSchoolYearId(value);
         createForm.setData('academic_year_id', value);
@@ -241,6 +352,18 @@ export default function Enrollment({
             },
         );
     };
+
+    const searchSuggestions = useMemo(
+        () =>
+            enrollments.map((enrollment) => ({
+                id: enrollment.id,
+                label: `${enrollment.first_name} ${enrollment.last_name}`,
+                value: `${enrollment.first_name} ${enrollment.last_name}`,
+                description: `LRN: ${enrollment.lrn}`,
+                keywords: enrollment.lrn,
+            })),
+        [enrollments],
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -318,99 +441,171 @@ export default function Enrollment({
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>Section Assignment</Label>
-                                <Select
-                                    value={
-                                        createForm.data.section_id ||
-                                        'unassigned'
-                                    }
-                                    onValueChange={(value) =>
-                                        createForm.setData(
-                                            'section_id',
-                                            value === 'unassigned' ? '' : value,
-                                        )
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="unassigned">
-                                            Unassigned
-                                        </SelectItem>
-                                        {section_options.map(
-                                            (sectionOption) => (
-                                                <SelectItem
-                                                    key={sectionOption.id}
-                                                    value={String(
-                                                        sectionOption.id,
-                                                    )}
-                                                >
-                                                    {sectionOption.label}
-                                                </SelectItem>
-                                            ),
-                                        )}
-                                    </SelectContent>
-                                </Select>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Grade Level</Label>
+                                    <Select
+                                        value={
+                                            createForm.data.grade_level_id ||
+                                            'unselected'
+                                        }
+                                        onValueChange={updateCreateGradeLevel}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select grade level" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="unselected">
+                                                Select grade level
+                                            </SelectItem>
+                                            {grade_level_options.map(
+                                                (gradeLevel) => (
+                                                    <SelectItem
+                                                        key={gradeLevel.id}
+                                                        value={String(
+                                                            gradeLevel.id,
+                                                        )}
+                                                    >
+                                                        {gradeLevel.name}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Section Assignment</Label>
+                                    <Select
+                                        value={
+                                            createForm.data.section_id ||
+                                            'unassigned'
+                                        }
+                                        onValueChange={(value) => {
+                                            if (value === 'unassigned') {
+                                                createForm.setData(
+                                                    'section_id',
+                                                    '',
+                                                );
+
+                                                return;
+                                            }
+
+                                            createForm.setData(
+                                                'section_id',
+                                                value,
+                                            );
+
+                                            const selectedSection =
+                                                section_options.find(
+                                                    (sectionOption) =>
+                                                        String(
+                                                            sectionOption.id,
+                                                        ) === value,
+                                                );
+
+                                            if (selectedSection) {
+                                                createForm.setData(
+                                                    'grade_level_id',
+                                                    String(
+                                                        selectedSection.grade_level_id,
+                                                    ),
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue
+                                                placeholder={
+                                                    createForm.data
+                                                        .grade_level_id
+                                                        ? 'Select section'
+                                                        : 'Select grade level first'
+                                                }
+                                            />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="unassigned">
+                                                Unassigned
+                                            </SelectItem>
+                                            {createSectionOptions.map(
+                                                (sectionOption) => (
+                                                    <SelectItem
+                                                        key={sectionOption.id}
+                                                        value={String(
+                                                            sectionOption.id,
+                                                        )}
+                                                    >
+                                                        {sectionOption.label}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>Payment Plan</Label>
-                                <Select
-                                    value={createForm.data.payment_term}
-                                    onValueChange={(value) => {
-                                        createForm.setData(
-                                            'payment_term',
-                                            value,
-                                        );
-                                        if (value === 'cash') {
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Payment Plan</Label>
+                                    <Select
+                                        value={createForm.data.payment_term}
+                                        onValueChange={(value) => {
+                                            createForm.setData(
+                                                'payment_term',
+                                                value,
+                                            );
+                                            if (value === 'cash') {
+                                                createForm.setData(
+                                                    'downpayment',
+                                                    '0',
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="cash">
+                                                Cash
+                                            </SelectItem>
+                                            <SelectItem value="monthly">
+                                                Monthly
+                                            </SelectItem>
+                                            <SelectItem value="quarterly">
+                                                Quarterly
+                                            </SelectItem>
+                                            <SelectItem value="semi-annual">
+                                                Semi-Annual
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="downpayment">
+                                        Downpayment
+                                    </Label>
+                                    <Input
+                                        id="downpayment"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                        value={createForm.data.downpayment}
+                                        disabled={
+                                            createForm.data.payment_term ===
+                                            'cash'
+                                        }
+                                        onChange={(event) =>
                                             createForm.setData(
                                                 'downpayment',
-                                                '0',
-                                            );
+                                                event.target.value,
+                                            )
                                         }
-                                    }}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="cash">
-                                            Cash
-                                        </SelectItem>
-                                        <SelectItem value="monthly">
-                                            Monthly
-                                        </SelectItem>
-                                        <SelectItem value="quarterly">
-                                            Quarterly
-                                        </SelectItem>
-                                        <SelectItem value="semi-annual">
-                                            Semi-Annual
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="downpayment">Downpayment</Label>
-                                <Input
-                                    id="downpayment"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    value={createForm.data.downpayment}
-                                    disabled={
-                                        createForm.data.payment_term === 'cash'
-                                    }
-                                    onChange={(event) =>
-                                        createForm.setData(
-                                            'downpayment',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
+                                    />
+                                </div>
                             </div>
 
                             <Button
@@ -472,17 +667,13 @@ export default function Enrollment({
                                             )}
                                         </SelectContent>
                                     </Select>
-                                    <div className="relative w-full sm:max-w-sm">
-                                        <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                            placeholder="Search by LRN or name..."
-                                            className="pl-9"
-                                            value={searchQuery}
-                                            onChange={(event) =>
-                                                applySearch(event.target.value)
-                                            }
-                                        />
-                                    </div>
+                                    <SearchAutocompleteInput
+                                        wrapperClassName="w-full sm:max-w-sm"
+                                        placeholder="Search by LRN or name..."
+                                        value={searchQuery}
+                                        onValueChange={applySearch}
+                                        suggestions={searchSuggestions}
+                                    />
                                 </div>
                             </div>
                         </CardHeader>
@@ -621,34 +812,99 @@ export default function Enrollment({
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Section Assignment</Label>
-                            <Select
-                                value={editForm.data.section_id || 'unassigned'}
-                                onValueChange={(value) =>
-                                    editForm.setData(
-                                        'section_id',
-                                        value === 'unassigned' ? '' : value,
-                                    )
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="unassigned">
-                                        Unassigned
-                                    </SelectItem>
-                                    {section_options.map((sectionOption) => (
-                                        <SelectItem
-                                            key={sectionOption.id}
-                                            value={String(sectionOption.id)}
-                                        >
-                                            {sectionOption.label}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Grade Level</Label>
+                                <Select
+                                    value={
+                                        editForm.data.grade_level_id ||
+                                        'unselected'
+                                    }
+                                    onValueChange={updateEditGradeLevel}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select grade level" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="unselected">
+                                            Select grade level
                                         </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                        {grade_level_options.map(
+                                            (gradeLevel) => (
+                                                <SelectItem
+                                                    key={gradeLevel.id}
+                                                    value={String(
+                                                        gradeLevel.id,
+                                                    )}
+                                                >
+                                                    {gradeLevel.name}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Section Assignment</Label>
+                                <Select
+                                    value={
+                                        editForm.data.section_id || 'unassigned'
+                                    }
+                                    onValueChange={(value) => {
+                                        if (value === 'unassigned') {
+                                            editForm.setData('section_id', '');
+
+                                            return;
+                                        }
+
+                                        editForm.setData('section_id', value);
+
+                                        const selectedSection =
+                                            section_options.find(
+                                                (sectionOption) =>
+                                                    String(sectionOption.id) ===
+                                                    value,
+                                            );
+
+                                        if (selectedSection) {
+                                            editForm.setData(
+                                                'grade_level_id',
+                                                String(
+                                                    selectedSection.grade_level_id,
+                                                ),
+                                            );
+                                        }
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue
+                                            placeholder={
+                                                editForm.data.grade_level_id
+                                                    ? 'Select section'
+                                                    : 'Select grade level first'
+                                            }
+                                        />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="unassigned">
+                                            Unassigned
+                                        </SelectItem>
+                                        {editSectionOptions.map(
+                                            (sectionOption) => (
+                                                <SelectItem
+                                                    key={sectionOption.id}
+                                                    value={String(
+                                                        sectionOption.id,
+                                                    )}
+                                                >
+                                                    {sectionOption.label}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">

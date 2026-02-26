@@ -3,7 +3,6 @@ import { format } from 'date-fns';
 import {
     UserPlus,
     Edit2,
-    Search,
     CheckCircle2,
     KeyRound,
     UserX,
@@ -34,6 +33,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
     SelectContent,
@@ -141,6 +141,18 @@ export default function UserManager({ users, filters }: Props) {
         return `${fnPart}${fnPart && lnPart ? '.' : ''}${lnPart}@marriott.edu`;
     }, [createForm.data.first_name, createForm.data.last_name]);
 
+    const searchSuggestions = useMemo(
+        () =>
+            users.data.map((user) => ({
+                id: user.id,
+                label: user.name,
+                value: user.name,
+                description: user.email,
+                keywords: user.role,
+            })),
+        [users.data],
+    );
+
     const handleSearch = (val: string) => {
         setSearchQuery(val);
         applyFilters(val, roleFilter);
@@ -243,17 +255,13 @@ export default function UserManager({ users, filters }: Props) {
                     <CardContent className="p-0">
                         <div className="flex flex-col gap-4 border-b p-6 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex flex-wrap items-center gap-3">
-                                <div className="relative">
-                                    <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Search users..."
-                                        className="w-[260px] pl-9"
-                                        value={searchQuery}
-                                        onChange={(e) =>
-                                            handleSearch(e.target.value)
-                                        }
-                                    />
-                                </div>
+                                <SearchAutocompleteInput
+                                    placeholder="Search users..."
+                                    wrapperClassName="w-[260px]"
+                                    value={searchQuery}
+                                    onValueChange={handleSearch}
+                                    suggestions={searchSuggestions}
+                                />
 
                                 <div className="flex items-center gap-2">
                                     <Select
@@ -309,10 +317,7 @@ export default function UserManager({ users, filters }: Props) {
                             <TableBody>
                                 {users.data.length === 0 ? (
                                     <TableRow>
-                                        <TableCell
-                                            colSpan={5}
-                                            className="h-24"
-                                        >
+                                        <TableCell colSpan={5} className="h-24">
                                             <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                                                 <Users className="size-8 opacity-40" />
                                                 <p className="text-sm">
@@ -342,7 +347,9 @@ export default function UserManager({ users, filters }: Props) {
                                             </TableCell>
                                             <TableCell className="border-l pr-6 text-right">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
@@ -438,7 +445,9 @@ export default function UserManager({ users, filters }: Props) {
                                                 key={`${link.label}-${index}`}
                                                 variant="outline"
                                                 size="sm"
-                                                disabled={!link.url || link.active}
+                                                disabled={
+                                                    !link.url || link.active
+                                                }
                                                 onClick={() => {
                                                     if (link.url) {
                                                         router.get(

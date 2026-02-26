@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
     SelectContent,
@@ -122,6 +123,13 @@ export default function RemedialEntry({
               ? String(students[0].id)
               : '',
     );
+    const searchSuggestions = students.map((student) => ({
+        id: student.id,
+        label: student.name,
+        value: student.name,
+        description: `LRN: ${student.lrn}`,
+        keywords: `${student.lrn} ${student.grade_and_section}`,
+    }));
 
     const remedialForm = useForm<{
         academic_year_id: number;
@@ -370,12 +378,30 @@ export default function RemedialEntry({
                             <div className="space-y-2">
                                 <Label>Search Student</Label>
                                 <div className="flex gap-2">
-                                    <Input
+                                    <SearchAutocompleteInput
                                         value={searchQuery}
-                                        onChange={(event) =>
-                                            setSearchQuery(event.target.value)
-                                        }
                                         placeholder="LRN or student name"
+                                        onValueChange={setSearchQuery}
+                                        suggestions={searchSuggestions}
+                                        onEnterPress={() =>
+                                            applyFilters({
+                                                search: searchQuery,
+                                            })
+                                        }
+                                        onSelectSuggestion={(option) => {
+                                            const selectedId = String(
+                                                option.id,
+                                            );
+                                            const selectedSearch =
+                                                option.value ?? option.label;
+
+                                            setSearchQuery(selectedSearch);
+                                            setStudentId(selectedId);
+                                            applyFilters({
+                                                search: selectedSearch,
+                                                studentId: selectedId,
+                                            });
+                                        }}
                                     />
                                     <Button
                                         variant="outline"

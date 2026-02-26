@@ -8,6 +8,7 @@ use App\Models\GradeSubmission;
 use App\Models\Setting;
 use App\Models\SubjectAssignment;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -50,7 +51,7 @@ class GradeDeadlineAnnouncementService
 
     public function publishDueReminders(
         AcademicYear $academicYear,
-        Carbon $referenceDate,
+        CarbonInterface $referenceDate,
         User $actor
     ): int {
         $postedCount = 0;
@@ -194,8 +195,8 @@ class GradeDeadlineAnnouncementService
     }
 
     private function resolveReminderPhase(
-        Carbon $referenceDate,
-        Carbon $deadline
+        CarbonInterface $referenceDate,
+        CarbonInterface $deadline
     ): ?string {
         $reference = $referenceDate->copy()->startOfDay();
         $deadlineDay = $deadline->copy()->startOfDay();

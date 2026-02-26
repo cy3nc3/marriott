@@ -114,6 +114,98 @@ it('enforces teacher event scope when selecting target users', function (): void
     expect($recipientUserIds)->toEqualCanonicalizing([$studentUser->id, $parent->id]);
 });
 
+it('always enforces active school-year scope for announcement recipients', function (): void {
+    $teacher = User::factory()->teacher()->create();
+    $pastStudentUser = User::factory()->student()->create();
+    $currentStudentUser = User::factory()->student()->create();
+
+    $pastAcademicYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $currentAcademicYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $pastSection = Section::query()->create([
+        'academic_year_id' => $pastAcademicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Past-Rizal',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $currentSection = Section::query()->create([
+        'academic_year_id' => $currentAcademicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Current-Rizal',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $pastStudent = Student::query()->create([
+        'user_id' => $pastStudentUser->id,
+        'lrn' => '100000000101',
+        'first_name' => 'Past',
+        'last_name' => 'Student',
+    ]);
+
+    $currentStudent = Student::query()->create([
+        'user_id' => $currentStudentUser->id,
+        'lrn' => '100000000102',
+        'first_name' => 'Current',
+        'last_name' => 'Student',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $pastStudent->id,
+        'academic_year_id' => $pastAcademicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $pastSection->id,
+        'payment_term' => 'monthly',
+        'status' => 'enrolled',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $currentStudent->id,
+        'academic_year_id' => $currentAcademicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $currentSection->id,
+        'payment_term' => 'monthly',
+        'status' => 'enrolled',
+    ]);
+
+    $this->actingAs($teacher)
+        ->from('/announcements')
+        ->post('/announcements', [
+            'title' => 'Year Scope Enforcement',
+            'content' => 'Past-year students should not be targetable.',
+            'type' => 'event',
+            'audience_academic_year_id' => $pastAcademicYear->id,
+            'target_roles' => ['student'],
+            'target_user_ids' => [$pastStudentUser->id],
+            'event_starts_at' => now()->addDays(3)->toDateTimeString(),
+            'response_deadline_at' => now()->addDays(2)->toDateTimeString(),
+        ])
+        ->assertRedirect('/announcements')
+        ->assertSessionHasErrors('target_user_ids');
+
+    $this->assertDatabaseMissing('announcements', [
+        'title' => 'Year Scope Enforcement',
+    ]);
+});
+
 it('allows recipient acknowledgement and rsvp updates idempotently', function (): void {
     $publisher = User::factory()->admin()->create();
     $recipient = User::factory()->teacher()->create();
@@ -167,7 +259,7 @@ it('allows recipient acknowledgement and rsvp updates idempotently', function ()
     ]);
 });
 
-it('blocks event responses from non-recipients and student accounts', function (): void {
+it('blocks event responses from non-recipients and allows recipient students', function (): void {
     $publisher = User::factory()->admin()->create();
     $recipient = User::factory()->teacher()->create();
     $notRecipient = User::factory()->teacher()->create();
@@ -213,16 +305,17 @@ it('blocks event responses from non-recipients and student accounts', function (
         ->post("/notifications/announcements/{$announcement->id}/respond", [
             'response' => 'yes',
         ])
-        ->assertForbidden();
+        ->assertRedirect();
 
     $this->assertDatabaseMissing('announcement_event_responses', [
         'announcement_id' => $announcement->id,
         'user_id' => $notRecipient->id,
     ]);
 
-    $this->assertDatabaseMissing('announcement_event_responses', [
+    $this->assertDatabaseHas('announcement_event_responses', [
         'announcement_id' => $announcement->id,
         'user_id' => $student->id,
+        'response' => 'yes',
     ]);
 });
 

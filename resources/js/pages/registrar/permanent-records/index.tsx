@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { FilePlus2, Pencil, Plus, Printer, Search, Trash2 } from 'lucide-react';
+import { FilePlus2, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
     SelectContent,
@@ -426,6 +427,20 @@ export default function PermanentRecords({
         });
     }, [records, searchQuery]);
 
+    const searchSuggestions = useMemo(
+        () =>
+            records.map((record) => ({
+                id: record.id,
+                label: `${record.grade_level} • ${record.school_year}`,
+                value: `${record.grade_level} ${record.school_year}`,
+                description: record.school_name,
+                keywords: `${record.status} ${record.subjects
+                    .map((subject) => subject.subject)
+                    .join(' ')}`,
+            })),
+        [records],
+    );
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Permanent Records" />
@@ -445,17 +460,12 @@ export default function PermanentRecords({
                         </div>
                     </CardHeader>
                     <CardContent className="pt-6">
-                        <div className="relative w-full">
-                            <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-                            <Input
-                                value={searchQuery}
-                                onChange={(event) =>
-                                    setSearchQuery(event.target.value)
-                                }
-                                placeholder="Search by school year, grade level, school, status, or subject"
-                                className="pl-9"
-                            />
-                        </div>
+                        <SearchAutocompleteInput
+                            value={searchQuery}
+                            onValueChange={setSearchQuery}
+                            suggestions={searchSuggestions}
+                            placeholder="Search by school year, grade level, school, status, or subject"
+                        />
                     </CardContent>
                 </Card>
 

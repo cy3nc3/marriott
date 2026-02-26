@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\UserRole;
 use App\Models\Announcement;
 use App\Models\AnnouncementRead;
 use App\Models\User;
@@ -153,10 +152,6 @@ class AnnouncementNotificationService
         }
 
         if ($announcement->cancelled_at !== null) {
-            return false;
-        }
-
-        if ($this->resolveUserRole($user) === UserRole::STUDENT->value) {
             return false;
         }
 

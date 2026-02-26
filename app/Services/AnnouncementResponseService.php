@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\UserRole;
 use App\Models\Announcement;
 use App\Models\AnnouncementEventResponse;
 use App\Models\User;
@@ -69,10 +68,6 @@ class AnnouncementResponseService
             throw new AuthorizationException('This event was cancelled and can no longer accept responses.');
         }
 
-        if ($this->resolveRoleValue($user) === UserRole::STUDENT->value) {
-            throw new AuthorizationException('Student accounts cannot submit event responses in this version.');
-        }
-
         $isRecipient = $announcement->recipients()
             ->where('user_id', $user->id)
             ->exists();
@@ -80,18 +75,5 @@ class AnnouncementResponseService
         if (! $isRecipient) {
             throw new AuthorizationException('You are not part of the recipient list for this event.');
         }
-    }
-
-    private function resolveRoleValue(User $user): string
-    {
-        if ($user->role instanceof UserRole) {
-            return $user->role->value;
-        }
-
-        if (is_object($user->role) && property_exists($user->role, 'value')) {
-            return (string) $user->role->value;
-        }
-
-        return (string) $user->role;
     }
 }

@@ -1,9 +1,9 @@
 # HANDOFF SUMMARY
 
-Last updated: 2026-02-25
+Last updated: 2026-02-26
 Project path: `/home/lomonol/projects/marriott`
 Primary branch: `main`
-Current HEAD at update time: `81b4269`
+Current HEAD at update time: `b01931b`
 
 ---
 
@@ -36,6 +36,7 @@ Core system goals currently implemented:
 ## 3) Role Coverage (Implemented)
 
 ### Super Admin
+
 1. Dashboard
 2. User Manager
 3. Announcements
@@ -45,6 +46,7 @@ Core system goals currently implemented:
 7. System settings
 
 ### Admin
+
 1. Dashboard
 2. Academic controls
 3. Curriculum manager
@@ -54,6 +56,7 @@ Core system goals currently implemented:
 7. Class lists
 
 ### Registrar
+
 1. Dashboard
 2. Student directory + SF1 upload
 3. Enrollment intake queue
@@ -63,6 +66,7 @@ Core system goals currently implemented:
 7. Student departure
 
 ### Finance
+
 1. Dashboard
 2. Cashier panel
 3. Student ledgers
@@ -74,18 +78,21 @@ Core system goals currently implemented:
 9. Due reminder settings
 
 ### Teacher
+
 1. Dashboard
 2. Schedule
 3. Grading sheet
 4. Advisory board
 
 ### Student
+
 1. Dashboard
 2. Schedule
 3. Grades
 4. Notifications inbox/detail
 
 ### Parent
+
 1. Dashboard
 2. Schedule
 3. Grades
@@ -134,8 +141,8 @@ Implemented:
 3. Middleware alias in `bootstrap/app.php`: `desktop_only`
 4. Shared Inertia prop in `HandleInertiaRequests`: `ui.is_handheld`
 5. Restricted routes are blocked server-side for handheld, with:
-   - GET -> `mobile/desktop-required` page (403)
-   - non-GET -> `403 Desktop device required for this action.`
+    - GET -> `mobile/desktop-required` page (403)
+    - non-GET -> `403 Desktop device required for this action.`
 
 ### 5.2 Mobile navigation
 
@@ -202,7 +209,12 @@ Implemented behaviors to preserve:
 1. Dues schedule generation by payment plan with school-year-aware windowing.
 2. Partial-payment carry-over allocation across dues (oldest due prioritized/FIFO style).
 3. Transaction due allocation tracking table exists for exact rollback paths.
-4. Due reminders with configurable “N days before due” logic exists.
+4. Due reminders are now hybrid-configurable:
+    - Rule-level lead days (`N days before due`) using `finance_due_reminder_rules`.
+    - Automation-level controls in `settings`:
+        - `finance_due_reminder_auto_send_enabled`
+        - `finance_due_reminder_send_time`
+        - `finance_due_reminder_max_announcements_per_run` (optional limiter)
 
 ---
 
@@ -230,8 +242,15 @@ Related previously-added required migrations (already part of current main):
 
 Configured in `routes/console.php`:
 
-1. `grading:send-deadline-reminders` at `07:00`
-2. `finance:send-due-reminders` at `07:30`
+1. `grading:send-deadline-reminders` runs every minute, but execution is gated by settings:
+    - `grade_deadline_reminder_auto_send_enabled` (default: true)
+    - `grade_deadline_reminder_send_time` (default: `07:00`)
+    - supports manual override with `--force`
+2. `finance:send-due-reminders` runs every minute, but execution is gated by settings:
+    - `finance_due_reminder_auto_send_enabled` (default: true)
+    - `finance_due_reminder_send_time` (default: `07:30`)
+    - optional limiter `finance_due_reminder_max_announcements_per_run`
+    - supports manual override with `--force`
 3. `announcements:send-event-reminders` at `08:00`
 
 For reminders to actually send, scheduler must run in environment:
@@ -267,9 +286,9 @@ This next AI is explicitly allowed to run required installs and setup commands.
 
 1. `composer run dev` (preferred all-in-one if configured)
 2. or separate terminals:
-   - `php artisan serve --host=0.0.0.0 --port=8000`
-   - `php artisan queue:listen --tries=1 --timeout=0`
-   - `npm run dev`
+    - `php artisan serve --host=0.0.0.0 --port=8000`
+    - `php artisan queue:listen --tries=1 --timeout=0`
+    - `npm run dev`
 
 ### If frontend looks stale
 
@@ -291,6 +310,9 @@ Recent targeted verification (latest wave):
 2. `tests/Feature/MobileAccessPolicyTest.php`
 3. `tests/Feature/RoleAccessTest.php`
 4. `tests/Feature/Auth/AuthenticationTest.php`
+5. `tests/Feature/Finance/DueReminderSettingsTest.php`
+6. `tests/Feature/Finance/DueReminderNotificationsTest.php`
+7. `tests/Feature/Admin/GradeVerificationTest.php`
 
 All passed in latest run.
 
@@ -322,3 +344,86 @@ All passed in latest run.
 4. Keep handheld access restrictions server-side; do not rely on frontend hiding only.
 5. Keep dashboard payload contract stable (`kpis`, `alerts`, `trends`, `action_links`).
 
+---
+
+## 15) Latest Session Progress (2026-02-26)
+
+### 15.1 Finance due reminder automation (implemented)
+
+1. Added backend automation settings for due reminders:
+    - `finance_due_reminder_auto_send_enabled`
+    - `finance_due_reminder_send_time`
+    - `finance_due_reminder_max_announcements_per_run` (nullable)
+2. Added validation request:
+    - `app/Http/Requests/Finance/UpdateDueReminderAutomationSettingsRequest.php`
+3. Added controller handler + Inertia payload support:
+    - `app/Http/Controllers/Finance/DueReminderSettingsController.php`
+    - now returns `automation` payload to the Finance settings page
+4. Added route:
+    - `PATCH /finance/due-reminder-settings/automation`
+    - file: `routes/roles/finance.php`
+5. Updated Finance UI:
+    - `resources/js/pages/finance/due-reminder-settings/index.tsx`
+    - new Reminder Automation card with toggle, send time, optional max per run
+6. Updated reminder command:
+    - `app/Console/Commands/SendFinanceDueRemindersCommand.php`
+    - added schedule gating using settings
+    - added `--force` and retained `--date` support for manual runs
+7. Updated reminder service:
+    - `app/Services/Finance/DueReminderNotificationService.php`
+    - added optional max-per-run limiter
+    - summary now includes `skipped_due_to_run_limit`
+
+### 15.2 Admin grade submission reminder automation (implemented)
+
+1. Added validation request:
+    - `app/Http/Requests/Admin/UpdateGradeReminderAutomationRequest.php`
+2. Extended grade verification controller:
+    - `app/Http/Controllers/Admin/GradeVerificationController.php`
+    - now exposes `context.reminder_automation`
+    - new handler `updateReminderAutomation(...)`
+3. Added route:
+    - `PATCH /admin/grade-verification/reminder-automation`
+    - file: `routes/roles/admin.php`
+4. Updated admin grade verification page:
+    - `resources/js/pages/admin/grade-verification/index.tsx`
+    - added Auto Reminder controls in header (toggle + send time + save action)
+5. Updated grade reminder command:
+    - `app/Console/Commands/SendGradeDeadlineRemindersCommand.php`
+    - now checks automation settings before sending
+    - added `--force` support
+
+### 15.3 Scheduler behavior changes
+
+1. `routes/console.php` updates:
+    - `grading:send-deadline-reminders` -> `everyMinute()`
+    - `finance:send-due-reminders` -> `everyMinute()`
+2. Both commands now self-gate by configured time and enabled state from `settings`.
+
+### 15.4 Compatibility and stability fix
+
+1. Updated reminder services to accept immutable Carbon values from `now()` during tests:
+    - `app/Services/Finance/DueReminderNotificationService.php` uses `CarbonInterface`
+    - `app/Services/GradeDeadlineAnnouncementService.php` uses `CarbonInterface` for reminder date evaluation
+
+### 15.5 Generated routes / tooling
+
+1. Regenerated Wayfinder mappings after adding new routes:
+    - `php artisan wayfinder:generate --with-form --no-interaction`
+2. Note: generated outputs remain in ignored directories (`resources/js/routes`, `resources/js/actions`) per existing repo setup.
+
+### 15.6 Validation commands run in this session
+
+1. `npx prettier --write resources/js/pages/finance/due-reminder-settings/index.tsx`
+2. `npx prettier --write resources/js/pages/admin/grade-verification/index.tsx`
+3. `vendor/bin/pint --dirty --format agent`
+4. `npm run types`
+5. `php artisan test --compact tests/Feature/Finance/DueReminderSettingsTest.php tests/Feature/Finance/DueReminderNotificationsTest.php`
+6. `php artisan test --compact tests/Feature/Admin/GradeVerificationTest.php`
+
+All above commands passed after final fixes.
+
+### 15.7 Migration impact
+
+1. No new migrations were added in this session.
+2. All new behavior is wired through existing tables (`settings`, `finance_due_reminder_rules`, `finance_due_reminder_dispatches`, existing announcement tables).

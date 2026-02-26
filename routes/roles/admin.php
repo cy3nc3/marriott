@@ -38,6 +38,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::get('/class-lists', [ClassListController::class, 'index'])->middleware('desktop_only')->name('class_lists');
     Route::get('/grade-verification', [GradeVerificationController::class, 'index'])->name('grade_verification');
     Route::post('/grade-verification/deadline', [GradeVerificationController::class, 'updateDeadline'])->middleware('desktop_only')->name('grade_verification.update_deadline');
+    Route::patch('/grade-verification/reminder-automation', [GradeVerificationController::class, 'updateReminderAutomation'])->middleware('desktop_only')->name('grade_verification.update_reminder_automation');
     Route::post('/grade-verification/{gradeSubmission}/verify', [GradeVerificationController::class, 'verify'])->middleware('desktop_only')->name('grade_verification.verify');
     Route::post('/grade-verification/{gradeSubmission}/return', [GradeVerificationController::class, 'returnSubmission'])->middleware('desktop_only')->name('grade_verification.return');
 

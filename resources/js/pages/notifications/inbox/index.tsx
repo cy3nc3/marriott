@@ -1,10 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Bell, Check, Search } from 'lucide-react';
-import { useState } from 'react';
+import { Bell, Check } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
     SelectContent,
@@ -66,6 +66,16 @@ export default function NotificationInbox({ announcements, filters }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState<'all' | 'read' | 'unread'>(
         filters.status ?? 'all',
+    );
+    const searchSuggestions = useMemo(
+        () =>
+            announcements.data.map((announcement) => ({
+                id: announcement.id,
+                label: announcement.title,
+                value: announcement.title,
+                description: announcement.content_preview,
+            })),
+        [announcements.data],
     );
 
     const applyFilters = (
@@ -148,24 +158,21 @@ export default function NotificationInbox({ announcements, filters }: Props) {
                     </CardHeader>
                     <CardContent className="space-y-3 p-3">
                         <div className="grid gap-3 sm:grid-cols-[1fr_180px] sm:items-center">
-                            <div className="relative w-full">
-                                <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search notifications"
-                                    value={search}
-                                    onChange={(event) =>
-                                        handleSearch(event.target.value)
-                                    }
-                                    className="pl-9"
-                                />
-                            </div>
+                            <SearchAutocompleteInput
+                                placeholder="Search notifications"
+                                value={search}
+                                onValueChange={handleSearch}
+                                suggestions={searchSuggestions}
+                            />
                             <Select value={status} onValueChange={handleStatus}>
                                 <SelectTrigger className="w-full">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All</SelectItem>
-                                    <SelectItem value="unread">Unread</SelectItem>
+                                    <SelectItem value="unread">
+                                        Unread
+                                    </SelectItem>
                                     <SelectItem value="read">Read</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -186,7 +193,9 @@ export default function NotificationInbox({ announcements, filters }: Props) {
                                             <div className="min-w-0 space-y-1">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <Link
-                                                        href={announcement.show_url}
+                                                        href={
+                                                            announcement.show_url
+                                                        }
                                                         className="line-clamp-1 text-sm font-medium hover:underline"
                                                     >
                                                         {announcement.title}
@@ -212,9 +221,12 @@ export default function NotificationInbox({ announcements, filters }: Props) {
                                                     )}
                                                 </div>
                                                 <p className="line-clamp-1 text-xs text-muted-foreground">
-                                                    {announcement.content_preview}
+                                                    {
+                                                        announcement.content_preview
+                                                    }
                                                 </p>
-                                                {announcement.type === 'event' && (
+                                                {announcement.type ===
+                                                    'event' && (
                                                     <p className="text-xs text-muted-foreground">
                                                         Start:{' '}
                                                         {formatDate(
@@ -248,8 +260,16 @@ export default function NotificationInbox({ announcements, filters }: Props) {
                                                         Mark read
                                                     </Button>
                                                 )}
-                                                <Button variant="outline" size="sm" asChild>
-                                                    <Link href={announcement.show_url}>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <Link
+                                                        href={
+                                                            announcement.show_url
+                                                        }
+                                                    >
                                                         Open
                                                     </Link>
                                                 </Button>
@@ -274,8 +294,8 @@ export default function NotificationInbox({ announcements, filters }: Props) {
                 {announcements.links.length > 3 && (
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <p className="text-sm text-muted-foreground">
-                            {announcements.from ?? 0}-{announcements.to ?? 0} out
-                            of {announcements.total}
+                            {announcements.from ?? 0}-{announcements.to ?? 0}{' '}
+                            out of {announcements.total}
                         </p>
                         <div className="flex flex-wrap items-center gap-2">
                             {announcements.links.map((link, index) => {
@@ -285,13 +305,17 @@ export default function NotificationInbox({ announcements, filters }: Props) {
                                 } else if (label.includes('Next')) {
                                     label = 'Next';
                                 } else {
-                                    label = label.replace(/&[^;]+;/g, '').trim();
+                                    label = label
+                                        .replace(/&[^;]+;/g, '')
+                                        .trim();
                                 }
 
                                 return (
                                     <Button
                                         key={`${link.label}-${index}`}
-                                        variant={link.active ? 'default' : 'outline'}
+                                        variant={
+                                            link.active ? 'default' : 'outline'
+                                        }
                                         size="sm"
                                         disabled={!link.url || link.active}
                                         onClick={() => {

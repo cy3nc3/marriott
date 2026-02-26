@@ -1,7 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Eye, History, Search, ShieldAlert } from 'lucide-react';
-import { useState } from 'react';
+import { Eye, History, ShieldAlert } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Table,
     TableBody,
@@ -88,6 +88,18 @@ export default function AuditLogs({ logs, filters }: Props) {
         return `${modelName}${modelId}`;
     };
 
+    const searchSuggestions = useMemo(
+        () =>
+            logs.data.map((log) => ({
+                id: log.id,
+                label: log.action,
+                value: log.action,
+                description: `${log.user?.name || 'System'} • ${targetLabel(log)}`,
+                keywords: `${log.ip_address} ${log.model_type ?? ''}`,
+            })),
+        [logs.data],
+    );
+
     const handleSearch = (val: string) => {
         setSearchQuery(val);
         updateParams(val, dateRange);
@@ -122,17 +134,13 @@ export default function AuditLogs({ logs, filters }: Props) {
                     <CardContent className="p-0">
                         <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
-                                <div className="relative w-full sm:w-72">
-                                    <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Search logs (action, user, model)..."
-                                        className="pl-9"
-                                        value={searchQuery}
-                                        onChange={(e) =>
-                                            handleSearch(e.target.value)
-                                        }
-                                    />
-                                </div>
+                                <SearchAutocompleteInput
+                                    placeholder="Search logs (action, user, model)..."
+                                    wrapperClassName="w-full sm:w-72"
+                                    value={searchQuery}
+                                    onValueChange={handleSearch}
+                                    suggestions={searchSuggestions}
+                                />
                                 <DateRangePicker
                                     dateRange={dateRange}
                                     setDateRange={handleDateChange}

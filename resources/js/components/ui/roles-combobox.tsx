@@ -37,9 +37,11 @@ export function RolesCombobox({
     onChange(selected.filter((i) => i !== item))
   }
 
-  const filteredOptions = options.filter((option) =>
-    option.label.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredOptions = options
+    .filter((option) =>
+      option.label.toLowerCase().includes(search.toLowerCase())
+    )
+    .slice(0, 5)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

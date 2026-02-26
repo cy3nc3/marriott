@@ -117,11 +117,13 @@ export default function SectionManager({
 
     const filteredTeachers = useMemo(() => {
         if (!searchQuery) return [];
-        return teachers.filter(
-            (t) =>
-                t.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-                t.id !== currentAdviser?.id,
-        );
+        return teachers
+            .filter(
+                (t) =>
+                    t.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+                    t.id !== currentAdviser?.id,
+            )
+            .slice(0, 5);
     }, [teachers, searchQuery, currentAdviser]);
 
     const handleAdd = () => {

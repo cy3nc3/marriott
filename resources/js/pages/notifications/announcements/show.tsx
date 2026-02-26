@@ -109,6 +109,11 @@ export default function AnnouncementShow({ announcement }: Props) {
         return 'RSVP: Maybe';
     }, [announcement.viewer_response_status]);
 
+    const canSubmitResponse =
+        announcement.type === 'event' &&
+        announcement.response_mode === 'ack_rsvp' &&
+        !announcement.is_cancelled;
+
     const acknowledge = () => {
         router.post(
             announcement.action_urls.acknowledge,
@@ -148,7 +153,9 @@ export default function AnnouncementShow({ announcement }: Props) {
                                         : 'Notice'}
                                 </Badge>
                                 {announcement.is_cancelled && (
-                                    <Badge variant="destructive">Cancelled</Badge>
+                                    <Badge variant="destructive">
+                                        Cancelled
+                                    </Badge>
                                 )}
                                 {announcement.requires_action && (
                                     <Badge>Action Required</Badge>
@@ -157,12 +164,18 @@ export default function AnnouncementShow({ announcement }: Props) {
                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                 <span className="inline-flex items-center gap-1.5">
                                     <CalendarClock className="size-3.5" />
-                                    Published {formatDateTime(announcement.publish_at ?? announcement.created_at)}
+                                    Published{' '}
+                                    {formatDateTime(
+                                        announcement.publish_at ??
+                                            announcement.created_at,
+                                    )}
                                 </span>
                                 {announcement.event_starts_at && (
                                     <span>
                                         Event Start:{' '}
-                                        {formatDateTime(announcement.event_starts_at)}
+                                        {formatDateTime(
+                                            announcement.event_starts_at,
+                                        )}
                                     </span>
                                 )}
                                 {announcement.response_deadline_at && (
@@ -175,7 +188,10 @@ export default function AnnouncementShow({ announcement }: Props) {
                                 )}
                                 {announcement.expires_at && (
                                     <span>
-                                        Expires {formatDateTime(announcement.expires_at)}
+                                        Expires{' '}
+                                        {formatDateTime(
+                                            announcement.expires_at,
+                                        )}
                                     </span>
                                 )}
                             </div>
@@ -216,78 +232,78 @@ export default function AnnouncementShow({ announcement }: Props) {
                                     )}
                                 </div>
 
-                                {announcement.requires_action &&
-                                    !announcement.is_cancelled && (
-                                        <div className="mt-3 space-y-2.5">
-                                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={acknowledge}
-                                                    className="w-full"
-                                                >
-                                                    <CheckCircle2 className="size-4" />
-                                                    Acknowledge
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        submitResponse('yes')
-                                                    }
-                                                    disabled={
-                                                        responseForm.processing
-                                                    }
-                                                    className="w-full"
-                                                >
-                                                    RSVP Yes
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        submitResponse('no')
-                                                    }
-                                                    disabled={
-                                                        responseForm.processing
-                                                    }
-                                                    className="w-full"
-                                                >
-                                                    RSVP No
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        submitResponse('maybe')
-                                                    }
-                                                    disabled={
-                                                        responseForm.processing
-                                                    }
-                                                    className="w-full"
-                                                >
-                                                    RSVP Maybe
-                                                </Button>
-                                            </div>
-
-                                            <div className="space-y-1.5">
-                                                <p className="text-xs text-muted-foreground">
-                                                    Optional note
-                                                </p>
-                                                <Textarea
-                                                    value={responseForm.data.note}
-                                                    onChange={(event) =>
-                                                        responseForm.setData(
-                                                            'note',
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                    className="min-h-[80px]"
-                                                    placeholder="Add a note for your response"
-                                                />
-                                            </div>
+                                {canSubmitResponse && (
+                                    <div className="mt-3 space-y-2.5">
+                                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                                            <Button
+                                                variant="outline"
+                                                onClick={acknowledge}
+                                                className="w-full"
+                                            >
+                                                <CheckCircle2 className="size-4" />
+                                                Acknowledge
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                onClick={() =>
+                                                    submitResponse('yes')
+                                                }
+                                                disabled={
+                                                    responseForm.processing
+                                                }
+                                                className="w-full"
+                                            >
+                                                RSVP Yes
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                onClick={() =>
+                                                    submitResponse('no')
+                                                }
+                                                disabled={
+                                                    responseForm.processing
+                                                }
+                                                className="w-full"
+                                            >
+                                                RSVP No
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                onClick={() =>
+                                                    submitResponse('maybe')
+                                                }
+                                                disabled={
+                                                    responseForm.processing
+                                                }
+                                                className="w-full"
+                                            >
+                                                RSVP Maybe
+                                            </Button>
                                         </div>
-                                    )}
+
+                                        <div className="space-y-1.5">
+                                            <p className="text-xs text-muted-foreground">
+                                                Optional note
+                                            </p>
+                                            <Textarea
+                                                value={responseForm.data.note}
+                                                onChange={(event) =>
+                                                    responseForm.setData(
+                                                        'note',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                className="min-h-[80px]"
+                                                placeholder="Add a note for your response"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
 
                                 {!announcement.requires_action &&
+                                    !canSubmitResponse &&
                                     announcement.viewer_response_note && (
-                                        <div className="mt-3 rounded-md border p-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                                        <div className="mt-3 rounded-md border p-3 text-sm whitespace-pre-wrap text-muted-foreground">
                                             {announcement.viewer_response_note}
                                         </div>
                                     )}
@@ -302,65 +318,81 @@ export default function AnnouncementShow({ announcement }: Props) {
                                 </div>
 
                                 <div className="grid gap-2.5 lg:grid-cols-2">
-                                    {announcement.attachments.map((attachment) => (
-                                        <div
-                                            key={attachment.id}
-                                            className="rounded-md border p-3"
-                                        >
-                                            <div className="mb-3 flex items-start justify-between gap-2">
-                                                <div className="min-w-0">
-                                                    <p className="truncate text-sm font-medium">
-                                                        {attachment.original_name}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {attachment.mime_type ??
-                                                            'File'}{' '}
-                                                        •{' '}
-                                                        {formatFileSize(
-                                                            attachment.file_size,
-                                                        )}
-                                                    </p>
+                                    {announcement.attachments.map(
+                                        (attachment) => (
+                                            <div
+                                                key={attachment.id}
+                                                className="rounded-md border p-3"
+                                            >
+                                                <div className="mb-3 flex items-start justify-between gap-2">
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-sm font-medium">
+                                                            {
+                                                                attachment.original_name
+                                                            }
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {attachment.mime_type ??
+                                                                'File'}{' '}
+                                                            •{' '}
+                                                            {formatFileSize(
+                                                                attachment.file_size,
+                                                            )}
+                                                        </p>
+                                                    </div>
+
+                                                    <Button
+                                                        asChild
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="w-full sm:w-auto"
+                                                    >
+                                                        <a
+                                                            href={
+                                                                attachment.download_url
+                                                            }
+                                                        >
+                                                            <Download className="size-3.5" />
+                                                            Download
+                                                        </a>
+                                                    </Button>
                                                 </div>
 
-                                                <Button
-                                                    asChild
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="w-full sm:w-auto"
-                                                >
-                                                    <a href={attachment.download_url}>
-                                                        <Download className="size-3.5" />
-                                                        Download
+                                                {attachment.is_image ? (
+                                                    <a
+                                                        href={
+                                                            attachment.view_url
+                                                        }
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="block overflow-hidden rounded-md border"
+                                                    >
+                                                        <img
+                                                            src={
+                                                                attachment.view_url
+                                                            }
+                                                            alt={
+                                                                attachment.original_name
+                                                            }
+                                                            className="h-44 w-full object-cover"
+                                                        />
                                                     </a>
-                                                </Button>
+                                                ) : (
+                                                    <a
+                                                        href={
+                                                            attachment.view_url
+                                                        }
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
+                                                    >
+                                                        <FileText className="size-3.5" />
+                                                        Open file preview
+                                                    </a>
+                                                )}
                                             </div>
-
-                                            {attachment.is_image ? (
-                                                <a
-                                                    href={attachment.view_url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="block overflow-hidden rounded-md border"
-                                                >
-                                                    <img
-                                                        src={attachment.view_url}
-                                                        alt={attachment.original_name}
-                                                        className="h-44 w-full object-cover"
-                                                    />
-                                                </a>
-                                            ) : (
-                                                <a
-                                                    href={attachment.view_url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
-                                                >
-                                                    <FileText className="size-3.5" />
-                                                    Open file preview
-                                                </a>
-                                            )}
-                                        </div>
-                                    ))}
+                                        ),
+                                    )}
                                 </div>
                             </div>
                         )}

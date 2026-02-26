@@ -42,12 +42,14 @@ class StudentDirectoryController extends Controller
             ? AcademicYear::query()->find($selectedAcademicYearId)
             : null;
 
-        $students = Student::query()
+        $studentBaseQuery = Student::query()
             ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
                 $query->whereHas('enrollments', function ($enrollmentQuery) use ($selectedAcademicYear) {
                     $enrollmentQuery->where('academic_year_id', $selectedAcademicYear->id);
                 });
-            })
+            });
+
+        $students = (clone $studentBaseQuery)
             ->with([
                 'enrollments' => function ($query) use ($selectedAcademicYear) {
                     $query
@@ -60,8 +62,9 @@ class StudentDirectoryController extends Controller
             ])
             ->orderBy('last_name')
             ->orderBy('first_name')
-            ->get()
-            ->map(function (Student $student) {
+            ->paginate(15)
+            ->withQueryString()
+            ->through(function (Student $student) {
                 $enrollment = $student->enrollments->first();
 
                 $gradeSection = 'Unassigned';
@@ -78,13 +81,24 @@ class StudentDirectoryController extends Controller
                     'grade_section' => $gradeSection,
                     'lis_status' => $this->resolveLisStatus($student),
                 ];
-            })
-            ->values();
+            });
 
         $summary = [
-            'matched' => (int) $students->where('lis_status', 'matched')->count(),
-            'pending' => (int) $students->where('lis_status', 'pending')->count(),
-            'discrepancy' => (int) $students->where('lis_status', 'discrepancy')->count(),
+            'matched' => (int) (clone $studentBaseQuery)
+                ->where('sync_error_flag', false)
+                ->where('is_lis_synced', true)
+                ->count(),
+            'pending' => (int) (clone $studentBaseQuery)
+                ->where('sync_error_flag', false)
+                ->where(function ($query) {
+                    $query
+                        ->where('is_lis_synced', false)
+                        ->orWhereNull('is_lis_synced');
+                })
+                ->count(),
+            'discrepancy' => (int) (clone $studentBaseQuery)
+                ->where('sync_error_flag', true)
+                ->count(),
         ];
 
         return Inertia::render('registrar/student-directory/index', [
