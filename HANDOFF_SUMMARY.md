@@ -1,9 +1,9 @@
 # HANDOFF SUMMARY
 
-Last updated: 2026-02-26
+Last updated: 2026-02-27
 Project path: `/home/lomonol/projects/marriott`
 Primary branch: `main`
-Current HEAD at update time: `b01931b`
+Current HEAD before this documentation update: `89fec03`
 
 ---
 
@@ -329,10 +329,12 @@ All passed in latest run.
 
 ## 13) Suggested Next Priorities
 
-1. Add end-to-end tests for announcement event lifecycle (create/edit/cancel/reminder dispatch assertions).
-2. Add focused UI tests for handheld compact dashboard tabs and trend expansion behavior.
-3. Add backup/restore coverage audit for newly added announcement event/recipient/reminder tables and attachments.
-4. Continue mobile polish for dense pages based on real-device QA findings.
+1. Use `SYSTEM_FLOWCHART.md` as the implementation map for any next module work so new flows stay consistent with the documented lifecycle.
+2. Add the still-deferred communication flowchart slice if announcements / event acknowledgement workflows need to be brought into the same system diagram later.
+3. Add end-to-end tests for announcement event lifecycle (create/edit/cancel/reminder dispatch assertions).
+4. Add focused UI tests for handheld compact dashboard tabs and trend expansion behavior.
+5. Add backup/restore coverage audit for newly added announcement event/recipient/reminder tables and attachments.
+6. Continue mobile polish for dense pages based on real-device QA findings.
 
 ---
 
@@ -427,3 +429,66 @@ All above commands passed after final fixes.
 
 1. No new migrations were added in this session.
 2. All new behavior is wired through existing tables (`settings`, `finance_due_reminder_rules`, `finance_due_reminder_dispatches`, existing announcement tables).
+
+---
+
+## 16) Latest Session Progress (2026-02-27)
+
+### 16.1 System flowchart documentation added
+
+1. Added a new documentation artifact:
+   - `SYSTEM_FLOWCHART.md`
+2. Added an exported flowchart image artifact:
+   - `flowchart.svg`
+3. The flowchart is now a single integrated Mermaid system map covering:
+   - super admin governance
+   - admin academic controls
+   - registrar enrollment intake
+   - finance billing setup, enrollment cashiering, and midyear transactions
+   - LIS / SF1 enrichment
+   - teacher grading and advisory workflow
+   - admin grade verification
+   - student and parent portal flows
+   - year-end promotion / retention / conditional routing
+   - remedial processing
+
+### 16.2 Key flowchart decisions captured
+
+1. Student and parent accounts originate from enrollment intake account creation:
+   - student portal source: `Create student account`
+   - parent portal source: `Create parent account and link`
+2. Student and parent schedule visibility originates from:
+   - `Publish academic setup for the school year`
+3. SF1 is documented as:
+   - roster confirmation
+   - mismatch detection
+   - final regularization of the school-year student record
+4. Adviser is the uploader of SF1 in the documented workflow.
+5. Finance flow now distinguishes:
+   - enrollment-time payment handling
+   - midyear assessment/custom/product transactions
+   - transaction correction / void recomputation
+6. Year-end flow now distinguishes:
+   - promoted
+   - conditional
+   - failed / retained
+   - completed / terminal
+   - remedial routing
+   - next-school-year enrollment creation
+   - archive / account reuse loop
+
+### 16.3 Notes for the next AI
+
+1. Treat `SYSTEM_FLOWCHART.md` as a planning and consistency reference, not as executable specification.
+2. If future product decisions change the workflow, update the flowchart first or alongside implementation so the docs remain trustworthy.
+3. `flowchart.svg` is a generated visual export of the Mermaid flowchart and is intended to be versioned with the project.
+
+### 16.4 Setup / migration impact for this session
+
+1. No migrations were added.
+2. No backend/frontend runtime behavior was changed in this session.
+3. No additional setup commands are required beyond the existing checklist.
+
+### 16.5 Validation for this session
+
+1. No tests were run because this session only added and refined documentation artifacts.
