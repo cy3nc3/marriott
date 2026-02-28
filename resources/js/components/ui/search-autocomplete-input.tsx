@@ -18,22 +18,24 @@ interface SearchAutocompleteInputProps
     > {
     value: string;
     onValueChange: (value: string) => void;
-    suggestions: SearchSuggestionOption[];
+    suggestions?: SearchSuggestionOption[];
     onSelectSuggestion?: (option: SearchSuggestionOption) => void;
     onEnterPress?: () => void;
     maxSuggestions?: number;
     emptyMessage?: string;
     wrapperClassName?: string;
+    showSuggestions?: boolean;
 }
 
 export function SearchAutocompleteInput({
     value,
     onValueChange,
-    suggestions,
+    suggestions = [],
     onSelectSuggestion,
     onEnterPress,
     maxSuggestions = 5,
     emptyMessage = 'No matches found.',
+    showSuggestions = true,
     className,
     wrapperClassName,
     onFocus,
@@ -48,7 +50,7 @@ export function SearchAutocompleteInput({
     const filteredSuggestions = React.useMemo(() => {
         const query = value.trim().toLowerCase();
 
-        if (query === '') {
+        if (!showSuggestions || query === '') {
             return [];
         }
 
@@ -66,7 +68,7 @@ export function SearchAutocompleteInput({
                 return haystack.includes(query);
             })
             .slice(0, maxSuggestions);
-    }, [maxSuggestions, suggestions, value]);
+    }, [maxSuggestions, showSuggestions, suggestions, value]);
 
     React.useEffect(() => {
         setActiveIndex(-1);
@@ -103,7 +105,7 @@ export function SearchAutocompleteInput({
             onKeyDown(event);
         }
 
-        if (!isOpen || filteredSuggestions.length === 0) {
+        if (!showSuggestions || !isOpen || filteredSuggestions.length === 0) {
             if (event.key === 'Enter' && onEnterPress) {
                 onEnterPress();
             }
@@ -162,7 +164,7 @@ export function SearchAutocompleteInput({
                 value={value}
                 className={cn('pl-9', className)}
                 onFocus={(event) => {
-                    if (value.trim() !== '') {
+                    if (showSuggestions && value.trim() !== '') {
                         setIsOpen(true);
                     }
 
@@ -178,12 +180,12 @@ export function SearchAutocompleteInput({
                 onChange={(event) => {
                     const nextValue = event.target.value;
                     onValueChange(nextValue);
-                    setIsOpen(nextValue.trim() !== '');
+                    setIsOpen(showSuggestions && nextValue.trim() !== '');
                 }}
                 onKeyDown={handleKeyDown}
             />
 
-            {isOpen && (
+            {showSuggestions && isOpen && (
                 <div className="absolute top-full right-0 left-0 z-50 mt-1 overflow-hidden rounded-md border bg-popover shadow-md">
                     {filteredSuggestions.length === 0 ? (
                         <p className="px-3 py-2 text-sm text-muted-foreground">

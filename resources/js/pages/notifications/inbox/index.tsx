@@ -163,6 +163,7 @@ export default function NotificationInbox({ announcements, filters }: Props) {
                                 value={search}
                                 onValueChange={handleSearch}
                                 suggestions={searchSuggestions}
+                                showSuggestions={false}
                             />
                             <Select value={status} onValueChange={handleStatus}>
                                 <SelectTrigger className="w-full">

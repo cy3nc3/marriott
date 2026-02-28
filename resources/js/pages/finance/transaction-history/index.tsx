@@ -369,6 +369,7 @@ export default function TransactionHistory({
                                     value={searchQuery}
                                     onValueChange={setSearchQuery}
                                     suggestions={searchSuggestions}
+                                    showSuggestions={false}
                                     onEnterPress={applyFilters}
                                     onSelectSuggestion={(option) => {
                                         const selectedSearch =

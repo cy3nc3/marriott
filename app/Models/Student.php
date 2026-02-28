@@ -13,6 +13,7 @@ class Student extends Model
         'user_id',
         'lrn',
         'first_name',
+        'middle_name',
         'last_name',
         'gender',
         'birthdate',

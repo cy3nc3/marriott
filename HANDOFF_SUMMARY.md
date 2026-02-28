@@ -1,9 +1,9 @@
 # HANDOFF SUMMARY
 
-Last updated: 2026-02-27
+Last updated: 2026-02-28
 Project path: `/home/lomonol/projects/marriott`
 Primary branch: `main`
-Current HEAD before this documentation update: `89fec03`
+Current HEAD before this documentation update: `8fab87b`
 
 ---
 
@@ -437,45 +437,45 @@ All above commands passed after final fixes.
 ### 16.1 System flowchart documentation added
 
 1. Added a new documentation artifact:
-   - `SYSTEM_FLOWCHART.md`
+    - `SYSTEM_FLOWCHART.md`
 2. Added an exported flowchart image artifact:
-   - `flowchart.svg`
+    - `flowchart.svg`
 3. The flowchart is now a single integrated Mermaid system map covering:
-   - super admin governance
-   - admin academic controls
-   - registrar enrollment intake
-   - finance billing setup, enrollment cashiering, and midyear transactions
-   - LIS / SF1 enrichment
-   - teacher grading and advisory workflow
-   - admin grade verification
-   - student and parent portal flows
-   - year-end promotion / retention / conditional routing
-   - remedial processing
+    - super admin governance
+    - admin academic controls
+    - registrar enrollment intake
+    - finance billing setup, enrollment cashiering, and midyear transactions
+    - LIS / SF1 enrichment
+    - teacher grading and advisory workflow
+    - admin grade verification
+    - student and parent portal flows
+    - year-end promotion / retention / conditional routing
+    - remedial processing
 
 ### 16.2 Key flowchart decisions captured
 
 1. Student and parent accounts originate from enrollment intake account creation:
-   - student portal source: `Create student account`
-   - parent portal source: `Create parent account and link`
+    - student portal source: `Create student account`
+    - parent portal source: `Create parent account and link`
 2. Student and parent schedule visibility originates from:
-   - `Publish academic setup for the school year`
+    - `Publish academic setup for the school year`
 3. SF1 is documented as:
-   - roster confirmation
-   - mismatch detection
-   - final regularization of the school-year student record
+    - roster confirmation
+    - mismatch detection
+    - final regularization of the school-year student record
 4. Adviser is the uploader of SF1 in the documented workflow.
 5. Finance flow now distinguishes:
-   - enrollment-time payment handling
-   - midyear assessment/custom/product transactions
-   - transaction correction / void recomputation
+    - enrollment-time payment handling
+    - midyear assessment/custom/product transactions
+    - transaction correction / void recomputation
 6. Year-end flow now distinguishes:
-   - promoted
-   - conditional
-   - failed / retained
-   - completed / terminal
-   - remedial routing
-   - next-school-year enrollment creation
-   - archive / account reuse loop
+    - promoted
+    - conditional
+    - failed / retained
+    - completed / terminal
+    - remedial routing
+    - next-school-year enrollment creation
+    - archive / account reuse loop
 
 ### 16.3 Notes for the next AI
 
@@ -492,3 +492,167 @@ All above commands passed after final fixes.
 ### 16.5 Validation for this session
 
 1. No tests were run because this session only added and refined documentation artifacts.
+
+---
+
+## 17) Latest Session Progress (2026-02-28)
+
+### 17.1 Registrar enrollment intake flow overhaul (implemented)
+
+1. Enrollment intake UI was refactored into a guided multi-step flow in `resources/js/pages/registrar/enrollment/index.tsx`.
+2. Intake now captures expanded student identity and guardian details:
+    - `lrn` (strict numeric)
+    - `first_name`
+    - `middle_name`
+    - `last_name`
+    - `gender`
+    - `birthdate`
+    - `guardian_name`
+    - `guardian_contact_number`
+3. Grade level and section assignment are linked in the form:
+    - grade level is explicit
+    - section choices are filtered by selected grade level
+4. Payment setup remains in intake:
+    - `payment_term`
+    - `downpayment`
+5. Intake queue statuses were simplified to:
+    - `for_cashier_payment`
+    - `partial_payment`
+6. Legacy pending states were removed from active registrar workflow:
+    - `pending`
+    - `pending_intake`
+7. Enrollment create/update now store richer student profile data in `app/Http/Controllers/Registrar/EnrollmentController.php`.
+8. Enrollment validation now enforces:
+    - LRN exactly 12 digits
+    - guardian contact exactly 11 digits
+    - required birthdate (`before_or_equal:today`)
+9. Student account provisioning behavior changed:
+    - student email format: `<normalized-surname>.<lrn>@marriott.edu`
+    - surname normalization removes spaces/dashes/special characters (example: `Dela Cruz`, `Dela-Cruz` -> `delacruz`)
+    - student default password format: `<first-firstname-token>@<mmddyyyy>` from birthdate
+10. Parent account linkage remains LRN-based and still auto-created on intake.
+
+### 17.2 Enrollment-related backend and lifecycle normalization
+
+1. `app/Models/Student.php` now includes `middle_name` as fillable.
+2. `app/Services/Registrar/BatchPromotionService.php` now creates next-year rows with `for_cashier_payment` status (no `pending_intake`).
+3. `app/Http/Controllers/Registrar/DashboardController.php` queue metrics now reflect the normalized status model.
+4. `app/Services/AnnouncementAudienceResolver.php` finance audience scope no longer uses legacy pending statuses.
+
+### 17.3 Cashier panel rework for real-time registrar handoff
+
+1. `app/Http/Controllers/Finance/CashierPanelController.php` now exposes:
+    - improved student option resolver limited to active-year students in `for_cashier_payment`
+    - case-insensitive matching using lowered fields
+    - new JSON suggestions endpoint: `GET /finance/cashier-panel/student-suggestions`
+    - pending intakes payload + count for cashier quick-pick dialog
+2. `resources/js/pages/finance/cashier-panel/index.tsx` was updated to:
+    - remove the old student select dropdown
+    - keep search bar + search button as explicit query trigger
+    - avoid unintended auto-selection while typing
+    - fetch lightweight async suggestions (max 5) for targeted cashier lookups
+    - add inline `Enrollment Intakes (N)` button
+    - show intake table in dialog with quick-select action to load transaction target student
+3. Cashier search/filter behavior now prioritizes concurrent registrar-finance operation by surfacing active intake candidates immediately.
+
+### 17.4 New data import modules (Registrar + Finance)
+
+1. Added Registrar data import backend:
+    - `app/Http/Controllers/Registrar/DataImportController.php`
+    - `app/Http/Requests/Registrar/ImportPermanentRecordsRequest.php`
+2. Added Registrar data import page:
+    - `resources/js/pages/registrar/data-import/index.tsx`
+3. Added Registrar routes:
+    - `GET /registrar/data-import`
+    - `POST /registrar/data-import/permanent-records`
+4. Registrar import behavior:
+    - accepts CSV uploads
+    - maps historical student records (school year, LRN, names, gender, birthday, grade level, section, grades/status)
+    - creates/updates student, academic year, grade level, section, enrollment, and permanent record rows
+    - writes import snapshot + import history to audit logs and settings
+5. Added Finance data import backend:
+    - `app/Http/Controllers/Finance/DataImportController.php`
+    - `app/Http/Requests/Finance/ImportFinanceTransactionsRequest.php`
+6. Added Finance data import page:
+    - `resources/js/pages/finance/data-import/index.tsx`
+7. Added Finance routes:
+    - `GET /finance/data-import`
+    - `POST /finance/data-import/transactions`
+8. Finance import behavior:
+    - imports historical transaction CSV rows
+    - creates/updates student + enrollment context as needed
+    - creates/updates transactions by OR number
+    - recreates transaction item row and corresponding imported ledger entry
+    - records import snapshots in audit logs/settings
+9. Sidebar navigation was updated for both roles (`resources/js/components/app-sidebar.tsx`) to expose `Data Import` entries under Registrar and Finance.
+
+### 17.5 Search UX consistency update
+
+1. `resources/js/components/ui/search-autocomplete-input.tsx` now supports optional `showSuggestions`.
+2. Pages using table-filter style search now disable typeahead suggestions (`showSuggestions={false}`) to avoid noisy dropdown behavior on generic list filtering.
+3. Applied in:
+    - `resources/js/pages/finance/product-inventory/index.tsx`
+    - `resources/js/pages/finance/student-ledgers/index.tsx`
+    - `resources/js/pages/finance/transaction-history/index.tsx`
+    - `resources/js/pages/notifications/inbox/index.tsx`
+    - `resources/js/pages/registrar/permanent-records/index.tsx`
+    - `resources/js/pages/super_admin/announcements/index.tsx`
+    - `resources/js/pages/super_admin/announcements/report.tsx`
+    - `resources/js/pages/super_admin/audit-logs/index.tsx`
+    - `resources/js/pages/super_admin/user-manager/index.tsx`
+
+### 17.6 Super admin search behavior hardening
+
+1. `app/Http/Controllers/SuperAdmin/UserManagerController.php` search is now case-insensitive over `name`, `first_name`, `last_name`, and `email`.
+
+### 17.7 Login/auth screen redesign pass
+
+1. Login page was redesigned in `resources/js/pages/auth/login.tsx` to use a dedicated illustration-led split layout.
+2. Login hero now uses SIS-oriented messaging and custom branding marker (`M`) in the left panel.
+3. Added auth illustrations:
+    - `public/images/auth/login-online-learning.svg` (active)
+    - `public/images/auth/login-education.svg`
+    - `public/images/auth/login-students-parents.svg`
+4. Right panel was simplified to focus on the form only (removed extra header branding text/icons).
+5. Login form controls were scaled for better readability in `resources/js/components/login-form.tsx`:
+    - larger heading/subtext
+    - taller inputs/buttons (`h-12`)
+    - larger control typography
+
+### 17.8 Migrations added in this session
+
+1. `database/migrations/2026_02_28_115916_add_middle_name_to_students_table.php`
+    - adds nullable `students.middle_name`
+2. `database/migrations/2026_02_28_135937_normalize_pending_intake_statuses_in_enrollments_table.php`
+    - converts enrollment statuses `pending` and `pending_intake` to `for_cashier_payment`
+
+### 17.9 Test coverage updates in this session
+
+1. Expanded registrar feature tests in `tests/Feature/Registrar/RegistrarFeaturesTest.php`:
+    - new enrollment validation assertions (LRN, birthdate, guardian contact)
+    - student account email/password generation assertions
+    - status normalization assertions
+    - registrar data import coverage
+2. Expanded finance cashier tests in `tests/Feature/Finance/CashierPanelTest.php`:
+    - pending intake population/count checks
+    - case-insensitive search checks
+    - LRN search behavior checks
+    - async suggestions endpoint checks
+3. Added finance import feature tests:
+    - `tests/Feature/Finance/DataImportTest.php`
+4. Added case-insensitive user manager search test:
+    - `tests/Feature/SuperAdmin/UserManagerTest.php`
+5. Updated admin feature expectations for normalized statuses:
+    - `tests/Feature/Admin/AdminFeaturesTest.php`
+
+### 17.10 Required setup after pulling this session
+
+1. Run migrations:
+    - `php artisan migrate`
+2. Regenerate frontend build/dev bundle as usual:
+    - `npm run dev` or `npm run build`
+3. If validating this wave, prioritize these tests:
+    - `php artisan test --compact tests/Feature/Registrar/RegistrarFeaturesTest.php`
+    - `php artisan test --compact tests/Feature/Finance/CashierPanelTest.php`
+    - `php artisan test --compact tests/Feature/Finance/DataImportTest.php`
+    - `php artisan test --compact tests/Feature/SuperAdmin/UserManagerTest.php`

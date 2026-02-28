@@ -23,7 +23,7 @@ class DashboardController extends Controller
         $cachedSummary = DashboardCacheService::remember(
             'registrar:dashboard:year-'.($activeYear?->id ?? 'none'),
             function () use ($activeYear): array {
-                $queueStatuses = ['pending', 'pending_intake', 'for_cashier_payment', 'partial_payment'];
+                $queueStatuses = ['for_cashier_payment', 'partial_payment'];
 
                 $enrollmentScope = Enrollment::query()
                     ->when($activeYear, function ($query) use ($activeYear) {
@@ -34,7 +34,7 @@ class DashboardController extends Controller
                     ->whereIn('status', $queueStatuses);
 
                 $intakeQueuePressure = (clone $queueScope)
-                    ->whereIn('status', ['pending', 'pending_intake'])
+                    ->where('status', 'for_cashier_payment')
                     ->count();
 
                 $forCashierPipeline = (clone $queueScope)
@@ -201,7 +201,7 @@ class DashboardController extends Controller
                     'id' => 'intake-queue',
                     'label' => 'Intake Queue Pressure',
                     'value' => $intakeQueuePressure,
-                    'meta' => 'Pending registrar intake',
+                    'meta' => 'Ready for cashier handoff',
                 ],
                 [
                     'id' => 'cashier-pipeline',

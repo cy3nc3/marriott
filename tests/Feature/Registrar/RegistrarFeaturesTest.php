@@ -21,6 +21,7 @@ use App\Models\TeacherSubject;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -63,7 +64,7 @@ test('registrar sf1 upload reconciles student directory by lrn', function () {
         'section_id' => $section->id,
         'payment_term' => 'cash',
         'downpayment' => 0,
-        'status' => 'pending_intake',
+        'status' => 'for_cashier_payment',
     ]);
 
     $csvContent = "LRN,First Name,Last Name,Gender\n".
@@ -132,7 +133,7 @@ test('registrar enrollment page filters queue by selected school year', function
         'section_id' => $sectionCurrent->id,
         'payment_term' => 'monthly',
         'downpayment' => 0,
-        'status' => 'pending_intake',
+        'status' => 'for_cashier_payment',
     ]);
 
     Enrollment::query()->create([
@@ -142,7 +143,7 @@ test('registrar enrollment page filters queue by selected school year', function
         'section_id' => $sectionCompleted->id,
         'payment_term' => 'monthly',
         'downpayment' => 0,
-        'status' => 'pending_intake',
+        'status' => 'for_cashier_payment',
     ]);
 
     $this->get("/registrar/enrollment?academic_year_id={$completedYear->id}")
@@ -275,8 +276,8 @@ test('registrar dashboard shows lis sync pie and payment method trends', functio
     ]);
 
     $queueDefinitions = [
-        ['status' => 'pending', 'payment_term' => 'monthly', 'days_ago' => 1, 'is_lis_synced' => true, 'sync_error_flag' => false],
-        ['status' => 'pending_intake', 'payment_term' => 'quarterly', 'days_ago' => 4, 'is_lis_synced' => false, 'sync_error_flag' => false],
+        ['status' => 'for_cashier_payment', 'payment_term' => 'monthly', 'days_ago' => 1, 'is_lis_synced' => true, 'sync_error_flag' => false],
+        ['status' => 'for_cashier_payment', 'payment_term' => 'quarterly', 'days_ago' => 4, 'is_lis_synced' => false, 'sync_error_flag' => false],
         ['status' => 'for_cashier_payment', 'payment_term' => 'full', 'days_ago' => 10, 'is_lis_synced' => false, 'sync_error_flag' => true],
         ['status' => 'partial_payment', 'payment_term' => 'monthly', 'days_ago' => 20, 'is_lis_synced' => false, 'sync_error_flag' => false],
     ];
@@ -486,8 +487,12 @@ test('registrar enrollment intake supports create update and delete', function (
     $this->post('/registrar/enrollment', [
         'lrn' => $lrn,
         'first_name' => 'Maria',
+        'middle_name' => 'Lopez',
         'last_name' => 'Santos',
-        'emergency_contact' => '09171234567',
+        'gender' => 'Female',
+        'birthdate' => '2011-05-12',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09171234567',
         'grade_level_id' => $firstSection->grade_level_id,
         'section_id' => $firstSection->id,
         'payment_term' => 'monthly',
@@ -505,10 +510,15 @@ test('registrar enrollment intake supports create update and delete', function (
         ->first();
 
     expect($enrollment)->not->toBeNull();
-    expect($enrollment->status)->toBe('pending_intake');
+    expect($enrollment->status)->toBe('for_cashier_payment');
     expect((float) $enrollment->downpayment)->toBe(1500.0);
     expect($enrollment->section_id)->toBe($firstSection->id);
     expect($enrollment->grade_level_id)->toBe($firstSection->grade_level_id);
+    expect($student->middle_name)->toBe('Lopez');
+    expect($student->gender)->toBe('Female');
+    expect($student->birthdate?->toDateString())->toBe('2011-05-12');
+    expect($student->guardian_name)->toBe('Guardian Name');
+    expect($student->contact_number)->toBe('09171234567');
 
     $monthlySchedules = BillingSchedule::query()
         ->where('student_id', $student->id)
@@ -522,15 +532,21 @@ test('registrar enrollment intake supports create update and delete', function (
     expect(round((float) $monthlySchedules->sum('amount_due'), 2))->toBe(7500.0);
     expect($monthlySchedules->every(fn (BillingSchedule $billingSchedule): bool => $billingSchedule->status === 'unpaid'))->toBeTrue();
 
-    expect(User::query()->where('email', "student.{$lrn}@marriott.edu")->exists())->toBeTrue();
+    expect(User::query()->where('email', "santos.{$lrn}@marriott.edu")->exists())->toBeTrue();
     expect(User::query()->where('email', "parent.{$lrn}@marriott.edu")->exists())->toBeTrue();
-    expect(User::query()->where('email', "student.{$lrn}@marriott.edu")->first()?->role?->value)->toBe(UserRole::STUDENT->value);
+    $studentUser = User::query()->where('email', "santos.{$lrn}@marriott.edu")->first();
+    expect($studentUser?->role?->value)->toBe(UserRole::STUDENT->value);
+    expect(Hash::check('maria@05122011', (string) $studentUser?->password))->toBeTrue();
     expect(User::query()->where('email', "parent.{$lrn}@marriott.edu")->first()?->role?->value)->toBe(UserRole::PARENT->value);
 
     $this->patch("/registrar/enrollment/{$enrollment->id}", [
         'first_name' => 'Maria',
+        'middle_name' => 'Ramos',
         'last_name' => 'Reyes',
-        'emergency_contact' => '09998887777',
+        'gender' => 'Female',
+        'birthdate' => '2011-06-15',
+        'guardian_name' => 'Updated Guardian',
+        'guardian_contact_number' => '09998887777',
         'grade_level_id' => $secondSection->grade_level_id,
         'section_id' => $secondSection->id,
         'payment_term' => 'quarterly',
@@ -545,6 +561,11 @@ test('registrar enrollment intake supports create update and delete', function (
     expect((float) $enrollment->downpayment)->toBe(2500.0);
     expect($enrollment->section_id)->toBe($secondSection->id);
     expect($student->fresh()->last_name)->toBe('Reyes');
+    expect($student->fresh()->middle_name)->toBe('Ramos');
+    expect($student->fresh()->gender)->toBe('Female');
+    expect($student->fresh()->birthdate?->toDateString())->toBe('2011-06-15');
+    expect($student->fresh()->guardian_name)->toBe('Updated Guardian');
+    expect($student->fresh()->contact_number)->toBe('09998887777');
 
     $quarterlySchedules = BillingSchedule::query()
         ->where('student_id', $student->id)
@@ -564,7 +585,9 @@ test('registrar enrollment intake supports create update and delete', function (
     $this->patch("/registrar/enrollment/{$enrollment->id}", [
         'first_name' => 'Maria',
         'last_name' => 'Reyes',
-        'emergency_contact' => '09998887777',
+        'birthdate' => '2011-06-15',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09998887777',
         'section_id' => '',
         'payment_term' => 'semi-annual',
         'downpayment' => 3000,
@@ -587,7 +610,9 @@ test('registrar enrollment intake supports create update and delete', function (
     $this->patch("/registrar/enrollment/{$enrollment->id}", [
         'first_name' => 'Maria',
         'last_name' => 'Reyes',
-        'emergency_contact' => '09998887777',
+        'birthdate' => '2011-06-15',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09998887777',
         'section_id' => '',
         'payment_term' => 'cash',
         'downpayment' => 0,
@@ -603,6 +628,97 @@ test('registrar enrollment intake supports create update and delete', function (
         ->assertRedirect();
 
     expect(Enrollment::query()->whereKey($enrollment->id)->exists())->toBeFalse();
+});
+
+test('registrar enrollment intake validates lrn as exactly 12 digits', function () {
+    $this->from('/registrar/enrollment')
+        ->post('/registrar/enrollment', [
+            'lrn' => '12345ABC',
+            'first_name' => 'Invalid',
+            'last_name' => 'Lrn',
+            'guardian_name' => 'Guardian Name',
+            'guardian_contact_number' => '09171234567',
+            'payment_term' => 'cash',
+            'downpayment' => 0,
+        ])
+        ->assertRedirect('/registrar/enrollment')
+        ->assertSessionHasErrors(['lrn']);
+
+    expect(Student::query()->where('first_name', 'Invalid')->exists())->toBeFalse();
+});
+
+test('registrar enrollment account password uses first name first token and birthdate', function () {
+    $lrn = '111122223334';
+
+    $this->post('/registrar/enrollment', [
+        'lrn' => $lrn,
+        'first_name' => 'John Mark',
+        'last_name' => 'Cruz',
+        'birthdate' => '2012-06-05',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09179998888',
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+    ])->assertRedirect();
+
+    $studentUser = User::query()->where('email', "cruz.{$lrn}@marriott.edu")->first();
+
+    expect($studentUser)->not->toBeNull();
+    expect(Hash::check('john@06052012', (string) $studentUser?->password))->toBeTrue();
+});
+
+test('registrar enrollment intake requires birthdate', function () {
+    $this->from('/registrar/enrollment')
+        ->post('/registrar/enrollment', [
+            'lrn' => '123456789013',
+            'first_name' => 'No',
+            'last_name' => 'Birthdate',
+            'guardian_name' => 'Guardian Name',
+            'guardian_contact_number' => '09179997777',
+            'payment_term' => 'cash',
+            'downpayment' => 0,
+        ])
+        ->assertRedirect('/registrar/enrollment')
+        ->assertSessionHasErrors(['birthdate']);
+});
+
+test('registrar enrollment intake validates guardian contact number as exactly 11 digits', function () {
+    $this->from('/registrar/enrollment')
+        ->post('/registrar/enrollment', [
+            'lrn' => '123456789012',
+            'first_name' => 'Invalid',
+            'last_name' => 'Contact',
+            'guardian_name' => 'Guardian Name',
+            'guardian_contact_number' => '0917123456',
+            'payment_term' => 'cash',
+            'downpayment' => 0,
+        ])
+        ->assertRedirect('/registrar/enrollment')
+        ->assertSessionHasErrors(['guardian_contact_number']);
+
+    expect(Student::query()->where('lrn', '123456789012')->exists())->toBeFalse();
+});
+
+test('registrar enrollment intake normalizes multi-word and dashed surnames in student emails', function () {
+    $intakeCases = [
+        ['lrn' => '123450000001', 'last_name' => 'Dela Cruz'],
+        ['lrn' => '123450000002', 'last_name' => 'Dela-Cruz'],
+    ];
+
+    foreach ($intakeCases as $intakeCase) {
+        $this->post('/registrar/enrollment', [
+            'lrn' => $intakeCase['lrn'],
+            'first_name' => 'Student',
+            'last_name' => $intakeCase['last_name'],
+            'birthdate' => '2010-01-01',
+            'guardian_name' => 'Guardian Name',
+            'guardian_contact_number' => '09170000123',
+            'payment_term' => 'cash',
+            'downpayment' => 0,
+        ])->assertRedirect();
+
+        expect(User::query()->where('email', "delacruz.{$intakeCase['lrn']}@marriott.edu")->exists())->toBeTrue();
+    }
 });
 
 test('registrar enrollment intake rejects already enrolled student in active year', function () {
@@ -628,7 +744,9 @@ test('registrar enrollment intake rejects already enrolled student in active yea
         'lrn' => $student->lrn,
         'first_name' => 'Already',
         'last_name' => 'Enrolled',
-        'emergency_contact' => '09999999999',
+        'birthdate' => '2010-01-01',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09999999999',
         'payment_term' => 'cash',
         'downpayment' => 0,
     ])->assertRedirect()
@@ -653,7 +771,9 @@ test('registrar enrollment intake applies selected grade level without section a
         'lrn' => '111100002222',
         'first_name' => 'No',
         'last_name' => 'Section',
-        'emergency_contact' => '09170000111',
+        'birthdate' => '2010-02-02',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09170000111',
         'grade_level_id' => $gradeEight->id,
         'section_id' => '',
         'payment_term' => 'cash',
@@ -673,7 +793,9 @@ test('registrar enrollment intake applies selected grade level without section a
         'lrn' => '333300004444',
         'first_name' => 'Mismatch',
         'last_name' => 'Case',
-        'emergency_contact' => '09170000222',
+        'birthdate' => '2010-03-03',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09170000222',
         'grade_level_id' => $gradeEight->id,
         'section_id' => $gradeSevenSection->id,
         'payment_term' => 'cash',
@@ -698,7 +820,9 @@ test('billing schedules are not regenerated when payment activity already exists
         'lrn' => $lrn,
         'first_name' => 'Lara',
         'last_name' => 'Mercado',
-        'emergency_contact' => '09170000000',
+        'birthdate' => '2010-04-04',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09170000000',
         'payment_term' => 'monthly',
         'downpayment' => 1000,
     ])->assertRedirect();
@@ -729,7 +853,9 @@ test('billing schedules are not regenerated when payment activity already exists
     $this->patch("/registrar/enrollment/{$enrollment->id}", [
         'first_name' => 'Lara',
         'last_name' => 'Mercado',
-        'emergency_contact' => '09170000000',
+        'birthdate' => '2010-04-04',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09170000000',
         'payment_term' => 'quarterly',
         'downpayment' => 1500,
         'status' => 'for_cashier_payment',
@@ -781,7 +907,9 @@ test('billing schedules apply student discount on assessment total before downpa
         'lrn' => '899977766655',
         'first_name' => 'Nora',
         'last_name' => 'Castro',
-        'emergency_contact' => '09171231234',
+        'birthdate' => '2010-05-05',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09171231234',
         'section_id' => $section->id,
         'payment_term' => 'monthly',
         'downpayment' => 1000,
@@ -808,7 +936,9 @@ test('billing schedules apply student discount on assessment total before downpa
     $this->patch("/registrar/enrollment/{$enrollment->id}", [
         'first_name' => 'Nora',
         'last_name' => 'Castro',
-        'emergency_contact' => '09171231234',
+        'birthdate' => '2010-05-05',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09171231234',
         'section_id' => $section->id,
         'payment_term' => 'monthly',
         'downpayment' => 1000,
@@ -1008,7 +1138,9 @@ test('reenrollment clears student account expiry and reactivates access', functi
         'lrn' => $student->lrn,
         'first_name' => 'Lara',
         'last_name' => 'Cruz',
-        'emergency_contact' => '09170000000',
+        'birthdate' => '2010-06-06',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09170000000',
         'payment_term' => 'monthly',
         'downpayment' => 1000,
     ])->assertRedirect();
@@ -1112,4 +1244,146 @@ test('registrar permanent records page renders', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('registrar/permanent-records/index')
         );
+});
+
+test('registrar data import page renders', function () {
+    $this->get('/registrar/data-import')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/data-import/index')
+            ->has('imports')
+        );
+});
+
+test('registrar can import past school year permanent records from csv', function () {
+    $existingAcademicYear = AcademicYear::query()->create([
+        'name' => '2023-2024',
+        'start_date' => '2023-06-01',
+        'end_date' => '2024-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $existingStudent = Student::query()->create([
+        'lrn' => '100000000001',
+        'first_name' => 'Legacy',
+        'last_name' => 'Student',
+    ]);
+
+    PermanentRecord::query()->create([
+        'student_id' => $existingStudent->id,
+        'school_name' => 'Legacy School',
+        'academic_year_id' => $existingAcademicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'general_average' => 80,
+        'status' => 'conditional',
+        'failed_subject_count' => 1,
+        'remarks' => 'Legacy record',
+    ]);
+
+    $csvContent = implode("\n", [
+        'LRN,First Name,Last Name,School Year,Grade Level,Status,General Average,Failed Subject Count,School Name,Remarks',
+        '100000000001,Legacy,Student,2023-2024,Grade 7,promoted,88.5,0,Legacy School,Updated import record',
+        '100000000002,New,Learner,2022-2023,Grade 8,retained,74,2,Transfer School,Imported historical row',
+    ]);
+
+    $file = UploadedFile::fake()->createWithContent('past-records.csv', $csvContent);
+
+    $this->post('/registrar/data-import/permanent-records', [
+        'import_file' => $file,
+    ])->assertRedirect()
+        ->assertSessionHas('success');
+
+    $existingStudent->refresh();
+
+    $updatedRecord = PermanentRecord::query()
+        ->where('student_id', $existingStudent->id)
+        ->where('academic_year_id', $existingAcademicYear->id)
+        ->first();
+
+    expect($updatedRecord)->not->toBeNull();
+    expect((float) $updatedRecord?->general_average)->toBe(88.5);
+    expect($updatedRecord?->status)->toBe('promoted');
+    expect((int) $updatedRecord?->failed_subject_count)->toBe(0);
+    expect($updatedRecord?->remarks)->toBe('Updated import record');
+
+    $newAcademicYear = AcademicYear::query()->where('name', '2022-2023')->first();
+    $newGradeLevel = GradeLevel::query()->where('name', 'Grade 8')->first();
+    $newStudent = Student::query()->where('lrn', '100000000002')->first();
+
+    expect($newAcademicYear)->not->toBeNull();
+    expect($newAcademicYear?->status)->toBe('completed');
+    expect($newGradeLevel)->not->toBeNull();
+    expect($newStudent)->not->toBeNull();
+    expect($newStudent?->first_name)->toBe('New');
+    expect($newStudent?->last_name)->toBe('Learner');
+
+    expect(PermanentRecord::query()
+        ->where('student_id', $newStudent?->id)
+        ->where('academic_year_id', $newAcademicYear?->id)
+        ->where('grade_level_id', $newGradeLevel?->id)
+        ->where('status', 'retained')
+        ->where('failed_subject_count', 2)
+        ->exists())->toBeTrue();
+
+    expect(Setting::get('registrar_permanent_records_last_import_name'))->toBe('past-records.csv');
+
+    $this->get('/registrar/data-import')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/data-import/index')
+            ->has('imports', 1)
+            ->where('imports.0.file_name', 'past-records.csv')
+            ->where('imports.0.imported_rows', 2)
+            ->where('imports.0.processed_rows', 2)
+            ->where('imports.0.skipped_rows', 0)
+        );
+});
+
+test('registrar import maps student record fields for historical records', function () {
+    $csvContent = implode("\n", [
+        'School Year,LRN,Name,Gender,Birthday,Grade Level,Section,Grades',
+        '2023-2024,100000000077,"Reyes, Ana",Female,2010-04-03,Grade 8,Diamond,89.5',
+    ]);
+
+    $file = UploadedFile::fake()->createWithContent('student-records.csv', $csvContent);
+
+    $this->post('/registrar/data-import/permanent-records', [
+        'import_file' => $file,
+    ])->assertRedirect()
+        ->assertSessionHas('success');
+
+    $student = Student::query()->where('lrn', '100000000077')->first();
+    $academicYear = AcademicYear::query()->where('name', '2023-2024')->first();
+    $gradeLevel = GradeLevel::query()->where('name', 'Grade 8')->first();
+    $section = Section::query()
+        ->where('academic_year_id', $academicYear?->id)
+        ->where('grade_level_id', $gradeLevel?->id)
+        ->where('name', 'Diamond')
+        ->first();
+
+    expect($student)->not->toBeNull();
+    expect($academicYear)->not->toBeNull();
+    expect($gradeLevel)->not->toBeNull();
+    expect($section)->not->toBeNull();
+
+    expect($student?->first_name)->toBe('Ana');
+    expect($student?->last_name)->toBe('Reyes');
+    expect($student?->gender)->toBe('Female');
+    expect($student?->birthdate?->toDateString())->toBe('2010-04-03');
+
+    expect(Enrollment::query()
+        ->where('student_id', $student?->id)
+        ->where('academic_year_id', $academicYear?->id)
+        ->where('grade_level_id', $gradeLevel?->id)
+        ->where('section_id', $section?->id)
+        ->exists())->toBeTrue();
+
+    expect(PermanentRecord::query()
+        ->where('student_id', $student?->id)
+        ->where('academic_year_id', $academicYear?->id)
+        ->where('grade_level_id', $gradeLevel?->id)
+        ->where('status', 'promoted')
+        ->where('general_average', 89.50)
+        ->exists())->toBeTrue();
 });

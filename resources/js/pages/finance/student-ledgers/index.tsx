@@ -352,6 +352,7 @@ export default function StudentLedgers({
                                 value={searchQuery}
                                 onValueChange={setSearchQuery}
                                 suggestions={searchSuggestions}
+                                showSuggestions={false}
                                 onEnterPress={() => applyFilters()}
                                 onSelectSuggestion={(option) => {
                                     const selectedId = String(option.id);

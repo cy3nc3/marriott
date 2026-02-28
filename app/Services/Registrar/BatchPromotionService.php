@@ -206,7 +206,7 @@ class BatchPromotionService
                             'section_id' => null,
                             'payment_term' => $sourceEnrollment->payment_term,
                             'downpayment' => 0,
-                            'status' => 'pending_intake',
+                            'status' => 'for_cashier_payment',
                         ]);
                     }
                 }

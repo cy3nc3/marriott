@@ -13,8 +13,10 @@ use App\Models\LedgerEntry;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Services\DashboardCacheService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -25,32 +27,9 @@ class CashierPanelController extends Controller
     {
         $search = trim((string) $request->input('search', ''));
 
-        $students = Student::query()
-            ->when($search, function ($query, $search) {
-                $query->where(function ($searchQuery) use ($search) {
-                    $searchQuery
-                        ->where('lrn', 'like', "%{$search}%")
-                        ->orWhere('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%");
-                });
-            })
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->limit(20)
-            ->get(['id', 'lrn', 'first_name', 'last_name'])
-            ->map(function (Student $student) {
-                return [
-                    'id' => $student->id,
-                    'lrn' => $student->lrn,
-                    'name' => trim("{$student->first_name} {$student->last_name}"),
-                ];
-            })
-            ->values();
+        $students = $this->resolveStudentOptions($search, 20);
 
         $selectedStudentId = (int) $request->input('student_id', 0);
-        if (! $selectedStudentId && $students->count() === 1) {
-            $selectedStudentId = (int) $students->first()['id'];
-        }
 
         $selectedStudentPayload = null;
         $selectedEnrollment = null;
@@ -134,12 +113,32 @@ class CashierPanelController extends Controller
             })
             ->values();
 
+        $activeAcademicYear = $this->resolveActiveAcademicYear();
+        $pendingIntakes = $this->resolvePendingCashierIntakes($activeAcademicYear);
+
         return Inertia::render('finance/cashier-panel/index', [
             'students' => $students,
             'selected_student' => $selectedStudentPayload,
             'fee_options' => $feeOptions,
             'inventory_options' => $inventoryOptions,
+            'pending_intakes_count' => $pendingIntakes->count(),
+            'pending_intakes' => $pendingIntakes,
             'filters' => $request->only(['search', 'student_id']),
+        ]);
+    }
+
+    public function studentSuggestions(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->input('search', ''));
+
+        if ($search === '') {
+            return response()->json([
+                'students' => [],
+            ]);
+        }
+
+        return response()->json([
+            'students' => $this->resolveStudentOptions($search, 5),
         ]);
     }
 
@@ -235,6 +234,88 @@ class CashierPanelController extends Controller
             });
 
         return $ongoingEnrollment ?: $student->enrollments->first();
+    }
+
+    private function resolveStudentOptions(string $search, int $limit): Collection
+    {
+        $activeAcademicYearId = $this->resolveActiveAcademicYear()?->id;
+        if (! $activeAcademicYearId) {
+            return collect();
+        }
+
+        $normalizedSearch = strtolower($search);
+
+        return Student::query()
+            ->whereHas('enrollments', function ($query) use ($activeAcademicYearId) {
+                $query
+                    ->where('academic_year_id', $activeAcademicYearId)
+                    ->where('status', 'for_cashier_payment');
+            })
+            ->when($search !== '', function ($query) use ($normalizedSearch) {
+                $query->where(function ($searchQuery) use ($normalizedSearch) {
+                    $searchQuery
+                        ->whereRaw('LOWER(lrn) LIKE ?', ["%{$normalizedSearch}%"])
+                        ->orWhereRaw('LOWER(first_name) LIKE ?', ["%{$normalizedSearch}%"])
+                        ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$normalizedSearch}%"]);
+                });
+            })
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->limit($limit)
+            ->get(['id', 'lrn', 'first_name', 'last_name'])
+            ->map(function (Student $student) {
+                return [
+                    'id' => $student->id,
+                    'lrn' => $student->lrn,
+                    'name' => trim("{$student->first_name} {$student->last_name}"),
+                ];
+            })
+            ->values();
+    }
+
+    private function resolvePendingCashierIntakes(?AcademicYear $academicYear): Collection
+    {
+        if (! $academicYear) {
+            return collect();
+        }
+
+        return Enrollment::query()
+            ->with([
+                'student:id,lrn,first_name,last_name',
+                'gradeLevel:id,name',
+                'section:id,name',
+            ])
+            ->where('academic_year_id', $academicYear->id)
+            ->where('status', 'for_cashier_payment')
+            ->latest('id')
+            ->get([
+                'id',
+                'student_id',
+                'grade_level_id',
+                'section_id',
+                'payment_term',
+                'downpayment',
+                'status',
+            ])
+            ->map(function (Enrollment $enrollment) {
+                $gradeAndSection = 'Unassigned';
+                if ($enrollment->gradeLevel?->name && $enrollment->section?->name) {
+                    $gradeAndSection = "{$enrollment->gradeLevel->name} - {$enrollment->section->name}";
+                } elseif ($enrollment->gradeLevel?->name) {
+                    $gradeAndSection = $enrollment->gradeLevel->name;
+                }
+
+                return [
+                    'id' => $enrollment->id,
+                    'student_id' => $enrollment->student_id,
+                    'lrn' => $enrollment->student?->lrn,
+                    'student_name' => trim("{$enrollment->student?->first_name} {$enrollment->student?->last_name}"),
+                    'grade_and_section' => $gradeAndSection,
+                    'payment_plan' => $enrollment->payment_term,
+                    'downpayment' => (float) $enrollment->downpayment,
+                ];
+            })
+            ->values();
     }
 
     private function resolveActiveAcademicYear(): ?AcademicYear

@@ -420,6 +420,7 @@ export default function Announcements({
                             value={searchQuery}
                             onValueChange={handleSearch}
                             suggestions={searchSuggestions}
+                            showSuggestions={false}
                         />
 
                         <Select

@@ -17,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -51,7 +52,7 @@ class EnrollmentController extends Controller
             ? AcademicYear::query()->find($selectedAcademicYearId)
             : null;
 
-        $queueStatuses = ['pending', 'pending_intake', 'for_cashier_payment', 'partial_payment'];
+        $queueStatuses = ['for_cashier_payment', 'partial_payment'];
 
         $baseQuery = Enrollment::query()
             ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
@@ -63,7 +64,7 @@ class EnrollmentController extends Controller
 
         $enrollments = (clone $baseQuery)
             ->with([
-                'student:id,lrn,first_name,last_name,contact_number',
+                'student:id,lrn,first_name,middle_name,last_name,gender,birthdate,guardian_name,contact_number',
                 'section:id,grade_level_id,name',
                 'section.gradeLevel:id,name',
             ])
@@ -72,6 +73,7 @@ class EnrollmentController extends Controller
                     $studentQuery
                         ->where('lrn', 'like', "%{$search}%")
                         ->orWhere('first_name', 'like', "%{$search}%")
+                        ->orWhere('middle_name', 'like', "%{$search}%")
                         ->orWhere('last_name', 'like', "%{$search}%");
                 });
             })
@@ -82,8 +84,12 @@ class EnrollmentController extends Controller
                     'id' => $enrollment->id,
                     'lrn' => $enrollment->student?->lrn ?? '',
                     'first_name' => $enrollment->student?->first_name ?? '',
+                    'middle_name' => $enrollment->student?->middle_name,
                     'last_name' => $enrollment->student?->last_name ?? '',
-                    'emergency_contact' => $enrollment->student?->contact_number ?? '',
+                    'gender' => $enrollment->student?->gender,
+                    'birthdate' => $enrollment->student?->birthdate?->toDateString(),
+                    'guardian_name' => $enrollment->student?->guardian_name ?? '',
+                    'guardian_contact_number' => $enrollment->student?->contact_number ?? '',
                     'payment_term' => $enrollment->payment_term,
                     'downpayment' => (float) $enrollment->downpayment,
                     'status' => $enrollment->status,
@@ -133,7 +139,6 @@ class EnrollmentController extends Controller
             'selected_school_year_id' => $selectedAcademicYear?->id,
             'selected_school_year_status' => $selectedAcademicYear?->status,
             'summary' => [
-                'pending_intake' => (clone $baseQuery)->whereIn('status', ['pending', 'pending_intake'])->count(),
                 'for_cashier_payment' => (clone $baseQuery)->where('status', 'for_cashier_payment')->count(),
                 'partial_payment' => (clone $baseQuery)->where('status', 'partial_payment')->count(),
             ],
@@ -147,16 +152,26 @@ class EnrollmentController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'lrn' => ['required', 'string', 'regex:/^\d{12}$/'],
+            'lrn' => ['required', 'string', 'digits:12'],
             'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'emergency_contact' => 'required|string|max:255',
+            'gender' => 'nullable|string|in:Male,Female',
+            'birthdate' => 'required|date|before_or_equal:today',
+            'guardian_name' => 'required|string|max:255',
+            'guardian_contact_number' => 'required_without:emergency_contact|string|digits:11',
+            'emergency_contact' => 'nullable|string|digits:11',
             'payment_term' => 'required|string|in:cash,full,monthly,quarterly,semi-annual',
             'downpayment' => 'nullable|numeric|min:0|max:999999.99',
             'section_id' => 'nullable|integer|exists:sections,id',
             'grade_level_id' => 'nullable|integer|exists:grade_levels,id',
             'academic_year_id' => 'nullable|integer|exists:academic_years,id',
+        ], [
+            'lrn.digits' => 'LRN must be exactly 12 digits.',
+            'guardian_contact_number.digits' => 'Guardian contact number must be exactly 11 digits.',
+            'emergency_contact.digits' => 'Guardian contact number must be exactly 11 digits.',
         ]);
+        $guardianContactNumber = (string) ($validated['guardian_contact_number'] ?? $validated['emergency_contact'] ?? '');
 
         $activeAcademicYear = isset($validated['academic_year_id'])
             ? AcademicYear::query()->find((int) $validated['academic_year_id'])
@@ -182,21 +197,29 @@ class EnrollmentController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($validated, $activeAcademicYear, $gradeLevelId) {
+            DB::transaction(function () use ($validated, $guardianContactNumber, $activeAcademicYear, $gradeLevelId) {
                 $selectedSection = $this->resolveSectionForIntake(
                     isset($validated['section_id']) ? (int) $validated['section_id'] : null,
                     (int) $activeAcademicYear->id
                 );
                 $selectedGradeLevelId = isset($validated['grade_level_id']) ? (int) $validated['grade_level_id'] : null;
 
-                $student = Student::query()->updateOrCreate(
-                    ['lrn' => $validated['lrn']],
-                    [
-                        'first_name' => $validated['first_name'],
-                        'last_name' => $validated['last_name'],
-                        'contact_number' => $validated['emergency_contact'],
-                    ]
-                );
+                $student = Student::query()->firstOrNew([
+                    'lrn' => $validated['lrn'],
+                ]);
+
+                $student->first_name = $validated['first_name'];
+                $student->middle_name = $validated['middle_name'] ?? null;
+                $student->last_name = $validated['last_name'];
+                $student->guardian_name = $validated['guardian_name'];
+                $student->contact_number = $guardianContactNumber;
+                $student->birthdate = $validated['birthdate'];
+
+                if (array_key_exists('gender', $validated)) {
+                    $student->gender = $validated['gender'];
+                }
+
+                $student->save();
 
                 $this->ensureAccounts($student);
 
@@ -223,7 +246,7 @@ class EnrollmentController extends Controller
                         'section_id' => $selectedSection?->id,
                         'payment_term' => $paymentTerm,
                         'downpayment' => $downpayment,
-                        'status' => 'pending_intake',
+                        'status' => 'for_cashier_payment',
                     ]);
 
                     $this->billingScheduleService->syncForEnrollment($existingEnrollment);
@@ -238,7 +261,7 @@ class EnrollmentController extends Controller
                     'section_id' => $selectedSection?->id,
                     'payment_term' => $paymentTerm,
                     'downpayment' => $downpayment,
-                    'status' => 'pending_intake',
+                    'status' => 'for_cashier_payment',
                 ]);
 
                 $this->billingScheduleService->syncForEnrollment($enrollment);
@@ -266,20 +289,29 @@ class EnrollmentController extends Controller
 
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'emergency_contact' => 'required|string|max:255',
+            'gender' => 'nullable|string|in:Male,Female',
+            'birthdate' => 'required|date|before_or_equal:today',
+            'guardian_name' => 'required|string|max:255',
+            'guardian_contact_number' => 'required_without:emergency_contact|string|digits:11',
+            'emergency_contact' => 'nullable|string|digits:11',
             'payment_term' => 'required|string|in:cash,full,monthly,quarterly,semi-annual',
             'downpayment' => 'nullable|numeric|min:0|max:999999.99',
-            'status' => 'required|string|in:pending,pending_intake,for_cashier_payment,partial_payment',
+            'status' => 'required|string|in:for_cashier_payment,partial_payment',
             'section_id' => 'nullable|integer|exists:sections,id',
             'grade_level_id' => 'nullable|integer|exists:grade_levels,id',
+        ], [
+            'guardian_contact_number.digits' => 'Guardian contact number must be exactly 11 digits.',
+            'emergency_contact.digits' => 'Guardian contact number must be exactly 11 digits.',
         ]);
+        $guardianContactNumber = (string) ($validated['guardian_contact_number'] ?? $validated['emergency_contact'] ?? '');
 
         $paymentTerm = $this->normalizePaymentTerm($validated['payment_term']);
         $downpayment = $this->normalizeDownpayment($paymentTerm, $validated['downpayment'] ?? null);
 
         try {
-            DB::transaction(function () use ($enrollment, $validated, $paymentTerm, $downpayment) {
+            DB::transaction(function () use ($enrollment, $validated, $guardianContactNumber, $paymentTerm, $downpayment) {
                 $student = $enrollment->student;
                 $selectedSection = $this->resolveSectionForIntake(
                     isset($validated['section_id']) ? (int) $validated['section_id'] : null,
@@ -293,11 +325,20 @@ class EnrollmentController extends Controller
                 );
 
                 if ($student) {
-                    $student->update([
+                    $studentAttributes = [
                         'first_name' => $validated['first_name'],
+                        'middle_name' => $validated['middle_name'] ?? null,
                         'last_name' => $validated['last_name'],
-                        'contact_number' => $validated['emergency_contact'],
-                    ]);
+                        'guardian_name' => $validated['guardian_name'],
+                        'contact_number' => $guardianContactNumber,
+                        'birthdate' => $validated['birthdate'],
+                    ];
+
+                    if (array_key_exists('gender', $validated)) {
+                        $studentAttributes['gender'] = $validated['gender'];
+                    }
+
+                    $student->update($studentAttributes);
 
                     $this->ensureAccounts($student);
                 }
@@ -361,23 +402,36 @@ class EnrollmentController extends Controller
 
     private function ensureAccounts(Student $student): void
     {
+        $studentEmail = $this->buildStudentEmail($student);
+        $studentDefaultPassword = $this->buildStudentDefaultPassword($student);
         $studentUser = $student->user;
 
         if (! $studentUser) {
             $studentUser = User::query()->firstOrCreate(
-                ['email' => "student.{$student->lrn}@marriott.edu"],
+                ['email' => $studentEmail],
                 [
                     'first_name' => $student->first_name,
                     'last_name' => $student->last_name,
                     'name' => trim("{$student->first_name} {$student->last_name}"),
                     'role' => UserRole::STUDENT->value,
                     'is_active' => true,
-                    'password' => Hash::make($student->lrn),
+                    'password' => Hash::make($studentDefaultPassword),
                 ]
             );
         }
 
+        if ($studentUser->email !== $studentEmail) {
+            $existingStudentUser = User::query()
+                ->where('email', $studentEmail)
+                ->first();
+
+            if ($existingStudentUser && $existingStudentUser->id !== $studentUser->id) {
+                $studentUser = $existingStudentUser;
+            }
+        }
+
         $studentUser->update([
+            'email' => $studentEmail,
             'first_name' => $student->first_name,
             'last_name' => $student->last_name,
             'name' => trim("{$student->first_name} {$student->last_name}"),
@@ -420,6 +474,46 @@ class EnrollmentController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function buildStudentEmail(Student $student): string
+    {
+        $normalizedSurname = $this->normalizeSurnameForEmail((string) $student->last_name);
+
+        return "{$normalizedSurname}.{$student->lrn}@marriott.edu";
+    }
+
+    private function normalizeSurnameForEmail(string $surname): string
+    {
+        $normalizedSurname = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $surname));
+
+        if ($normalizedSurname === '') {
+            return 'student';
+        }
+
+        return $normalizedSurname;
+    }
+
+    private function buildStudentDefaultPassword(Student $student): string
+    {
+        $firstNameToken = Str::of((string) $student->first_name)
+            ->trim()
+            ->explode(' ')
+            ->map(fn (string $value): string => trim($value))
+            ->filter(fn (string $value): bool => $value !== '')
+            ->first() ?? 'student';
+
+        $normalizedFirstName = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $firstNameToken));
+        if ($normalizedFirstName === '') {
+            $normalizedFirstName = 'student';
+        }
+
+        $birthdateSegment = $student->birthdate?->format('mdY');
+        if (! $birthdateSegment) {
+            throw new \RuntimeException('Student birthdate is required to generate default password.');
+        }
+
+        return "{$normalizedFirstName}@{$birthdateSegment}";
     }
 
     private function resolveSectionForIntake(?int $sectionId, int $academicYearId): ?Section

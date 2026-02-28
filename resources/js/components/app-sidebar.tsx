@@ -154,6 +154,11 @@ const roleNavItems: Record<string, NavItem[]> = {
             icon: ClipboardList,
         },
         {
+            title: 'Data Import',
+            href: '/registrar/data-import',
+            icon: Folder,
+        },
+        {
             title: 'Batch Promotion',
             href: '/registrar/batch-promotion',
             icon: TrendingUp,
@@ -189,6 +194,11 @@ const roleNavItems: Record<string, NavItem[]> = {
             title: 'Transaction History',
             href: '/finance/transaction-history',
             icon: History,
+        },
+        {
+            title: 'Data Import',
+            href: '/finance/data-import',
+            icon: Folder,
         },
         {
             title: 'Product Inventory',

@@ -481,7 +481,7 @@ test('admin year close runs batch promotion and creates next year enrollment', f
 
     expect($nextEnrollment)->not->toBeNull();
     expect($nextEnrollment->grade_level_id)->toBe($grade8->id);
-    expect($nextEnrollment->status)->toBe('pending_intake');
+    expect($nextEnrollment->status)->toBe('for_cashier_payment');
     expect($nextEnrollment->section_id)->toBeNull();
     expect((float) $nextEnrollment->downpayment)->toBe(0.0);
 

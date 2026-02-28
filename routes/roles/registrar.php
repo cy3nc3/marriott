@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Registrar\BatchPromotionController;
+use App\Http\Controllers\Registrar\DataImportController;
 use App\Http\Controllers\Registrar\EnrollmentController;
 use App\Http\Controllers\Registrar\PermanentRecordsController;
 use App\Http\Controllers\Registrar\RemedialEntryController;
@@ -18,6 +19,8 @@ Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->
     Route::delete('/enrollment/{enrollment}', [EnrollmentController::class, 'destroy'])->middleware('desktop_only')->name('enrollment.destroy');
 
     Route::get('/permanent-records', [PermanentRecordsController::class, 'index'])->middleware('desktop_only')->name('permanent_records');
+    Route::get('/data-import', [DataImportController::class, 'index'])->middleware('desktop_only')->name('data_import');
+    Route::post('/data-import/permanent-records', [DataImportController::class, 'import'])->middleware('desktop_only')->name('data_import.permanent_records');
 
     Route::get('/batch-promotion', [BatchPromotionController::class, 'index'])->middleware('desktop_only')->name('batch_promotion');
     Route::post('/batch-promotion/review', [BatchPromotionController::class, 'resolveReviewCase'])->middleware('desktop_only')->name('batch_promotion.review');

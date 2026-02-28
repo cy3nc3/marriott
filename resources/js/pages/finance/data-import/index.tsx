@@ -1,0 +1,371 @@
+import { Head, useForm } from '@inertiajs/react';
+import { type FormEvent, useState } from 'react';
+import { Upload } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Data Import',
+        href: '/finance/data-import',
+    },
+];
+
+interface ImportHistoryItem {
+    id: number;
+    imported_at: string | null;
+    file_name: string;
+    processed_rows: number;
+    imported_rows: number;
+    created_transactions: number;
+    updated_transactions: number;
+    created_students: number;
+    created_academic_years: number;
+    created_grade_levels: number;
+    created_sections: number;
+    created_enrollments: number;
+    created_ledger_entries: number;
+    skipped_rows: number;
+    performed_by: string;
+}
+
+interface Props {
+    imports: ImportHistoryItem[];
+}
+
+export default function FinanceDataImport({ imports }: Props) {
+    const [selectedImport, setSelectedImport] =
+        useState<ImportHistoryItem | null>(null);
+    const importForm = useForm<{
+        import_file: File | null;
+    }>({
+        import_file: null,
+    });
+
+    const submitImport = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        importForm.post('/finance/data-import/transactions', {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                importForm.reset('import_file');
+            },
+        });
+    };
+
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title="Data Import" />
+
+            <div className="flex flex-col gap-6">
+                <Card className="gap-2">
+                    <CardHeader className="border-b">
+                        <CardTitle>Data Import</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                        <form
+                            className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"
+                            onSubmit={submitImport}
+                        >
+                            <div className="space-y-2">
+                                <Label
+                                    htmlFor="finance-import-file"
+                                    className="sr-only"
+                                >
+                                    Import CSV File
+                                </Label>
+                                <Input
+                                    id="finance-import-file"
+                                    type="file"
+                                    accept=".csv,text/csv"
+                                    onChange={(event) =>
+                                        importForm.setData(
+                                            'import_file',
+                                            event.target.files?.[0] ?? null,
+                                        )
+                                    }
+                                />
+                                {importForm.errors.import_file ? (
+                                    <p className="text-xs text-destructive">
+                                        {importForm.errors.import_file}
+                                    </p>
+                                ) : null}
+                            </div>
+                            <div className="flex items-end justify-end">
+                                <Button
+                                    type="submit"
+                                    disabled={importForm.processing}
+                                >
+                                    <Upload className="size-4" />
+                                    Import CSV
+                                </Button>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="border-b">
+                        <CardTitle>Import History</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="pl-6">
+                                            Imported At
+                                        </TableHead>
+                                        <TableHead className="border-l">
+                                            File
+                                        </TableHead>
+                                        <TableHead className="border-l">
+                                            Result
+                                        </TableHead>
+                                        <TableHead className="border-l">
+                                            Transactions
+                                        </TableHead>
+                                        <TableHead className="border-l">
+                                            Ledger
+                                        </TableHead>
+                                        <TableHead className="border-l">
+                                            Skipped
+                                        </TableHead>
+                                        <TableHead className="border-l">
+                                            By
+                                        </TableHead>
+                                        <TableHead className="border-l pr-6 text-right">
+                                            Actions
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {imports.length > 0 ? (
+                                        imports.map((item) => (
+                                            <TableRow key={item.id}>
+                                                <TableCell className="pl-6">
+                                                    {item.imported_at ?? '-'}
+                                                </TableCell>
+                                                <TableCell
+                                                    className="max-w-48 truncate border-l"
+                                                    title={item.file_name}
+                                                >
+                                                    {item.file_name}
+                                                </TableCell>
+                                                <TableCell className="border-l">
+                                                    {item.imported_rows}/
+                                                    {item.processed_rows}
+                                                </TableCell>
+                                                <TableCell className="border-l">
+                                                    +{item.created_transactions}{' '}
+                                                    / ~
+                                                    {item.updated_transactions}
+                                                </TableCell>
+                                                <TableCell className="border-l">
+                                                    {
+                                                        item.created_ledger_entries
+                                                    }
+                                                </TableCell>
+                                                <TableCell className="border-l">
+                                                    {item.skipped_rows}
+                                                </TableCell>
+                                                <TableCell className="border-l">
+                                                    {item.performed_by}
+                                                </TableCell>
+                                                <TableCell className="border-l pr-6 text-right">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            setSelectedImport(
+                                                                item,
+                                                            )
+                                                        }
+                                                    >
+                                                        Details
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={8}
+                                                className="h-24 text-center text-muted-foreground"
+                                            >
+                                                No import history yet.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Dialog
+                open={selectedImport !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setSelectedImport(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader className="border-b">
+                        <DialogTitle>Import Details</DialogTitle>
+                    </DialogHeader>
+
+                    {selectedImport ? (
+                        <div className="grid gap-2 pt-4 text-sm sm:grid-cols-2">
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Imported At
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.imported_at ?? '-'}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    File
+                                </p>
+                                <p className="font-medium break-all">
+                                    {selectedImport.file_name}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Processed Rows
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.processed_rows}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Imported Rows
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.imported_rows}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Created Transactions
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.created_transactions}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Updated Transactions
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.updated_transactions}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Created Students
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.created_students}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Created School Years
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.created_academic_years}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Created Grade Levels
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.created_grade_levels}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Created Sections
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.created_sections}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Created Enrollments
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.created_enrollments}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Created Ledger Entries
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.created_ledger_entries}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Skipped Rows
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.skipped_rows}
+                                </p>
+                            </div>
+                            <div className="rounded-md border p-3 sm:col-span-2">
+                                <p className="text-xs text-muted-foreground">
+                                    Imported By
+                                </p>
+                                <p className="font-medium">
+                                    {selectedImport.performed_by}
+                                </p>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    <DialogFooter className="border-t pt-4">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setSelectedImport(null)}
+                        >
+                            Close
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </AppLayout>
+    );
+}

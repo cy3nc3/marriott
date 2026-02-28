@@ -140,6 +140,7 @@ export default function AuditLogs({ logs, filters }: Props) {
                                     value={searchQuery}
                                     onValueChange={handleSearch}
                                     suggestions={searchSuggestions}
+                                    showSuggestions={false}
                                 />
                                 <DateRangePicker
                                     dateRange={dateRange}

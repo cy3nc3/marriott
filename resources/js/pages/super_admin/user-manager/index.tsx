@@ -261,6 +261,7 @@ export default function UserManager({ users, filters }: Props) {
                                     value={searchQuery}
                                     onValueChange={handleSearch}
                                     suggestions={searchSuggestions}
+                                    showSuggestions={false}
                                 />
 
                                 <div className="flex items-center gap-2">

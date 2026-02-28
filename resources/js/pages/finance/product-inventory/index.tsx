@@ -193,6 +193,7 @@ export default function ProductInventory({ product_items }: Props) {
                                     value={searchQuery}
                                     onValueChange={setSearchQuery}
                                     suggestions={searchSuggestions}
+                                    showSuggestions={false}
                                 />
                                 <Select
                                     value={categoryFilter}

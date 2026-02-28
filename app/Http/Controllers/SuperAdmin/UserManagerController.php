@@ -24,9 +24,14 @@ class UserManagerController extends Controller
 
         $users = User::query()
             ->when($search, function ($query, $search) {
-                $query->where(function ($searchQuery) use ($search) {
-                    $searchQuery->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
+                $normalizedSearch = Str::lower(trim((string) $search));
+                $searchPattern = "%{$normalizedSearch}%";
+
+                $query->where(function ($searchQuery) use ($searchPattern) {
+                    $searchQuery->whereRaw('LOWER(name) LIKE ?', [$searchPattern])
+                        ->orWhereRaw('LOWER(first_name) LIKE ?', [$searchPattern])
+                        ->orWhereRaw('LOWER(last_name) LIKE ?', [$searchPattern])
+                        ->orWhereRaw('LOWER(email) LIKE ?', [$searchPattern]);
                 });
             })
             ->when($role && $role !== 'all', function ($query) use ($role) {

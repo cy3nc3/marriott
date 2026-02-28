@@ -1,6 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Plus, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -70,6 +70,20 @@ type InventoryOption = {
     price: number;
 };
 
+type PendingIntake = {
+    id: number;
+    student_id: number;
+    lrn: string | null;
+    student_name: string;
+    grade_and_section: string;
+    payment_plan: string | null;
+    downpayment: number;
+};
+
+type StudentSuggestionsResponse = {
+    students: StudentOption[];
+};
+
 type CurrentTransactionItem = {
     id: string;
     type: 'assessment_fee' | 'inventory' | 'custom';
@@ -84,6 +98,8 @@ interface Props {
     selected_student: SelectedStudent | null;
     fee_options: FeeOption[];
     inventory_options: InventoryOption[];
+    pending_intakes_count: number;
+    pending_intakes: PendingIntake[];
     filters: {
         search?: string;
         student_id?: string | number;
@@ -117,6 +133,8 @@ export default function CashierPanel({
     selected_student,
     fee_options,
     inventory_options,
+    pending_intakes_count,
+    pending_intakes,
     filters,
 }: Props) {
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
@@ -132,6 +150,7 @@ export default function CashierPanel({
     >([]);
     const [isAddItemOpen, setIsAddItemOpen] = useState(false);
     const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
+    const [isIntakesDialogOpen, setIsIntakesDialogOpen] = useState(false);
 
     const [itemType, setItemType] = useState<
         'assessment_fee' | 'inventory' | 'custom'
@@ -187,11 +206,11 @@ export default function CashierPanel({
         );
     }, [inventory_options, selectedInventoryId]);
 
-    const runSearch = (studentId = selectedStudentId) => {
+    const runSearch = (search = searchQuery, studentId = selectedStudentId) => {
         router.get(
             cashier_panel.url({
                 query: {
-                    search: searchQuery || undefined,
+                    search: search || undefined,
                     student_id: studentId || undefined,
                 },
             }),
@@ -204,7 +223,7 @@ export default function CashierPanel({
         );
     };
 
-    const searchSuggestions = useMemo(
+    const baseSearchSuggestions = useMemo(
         () =>
             students.map((student) => ({
                 id: student.id,
@@ -215,10 +234,71 @@ export default function CashierPanel({
             })),
         [students],
     );
+    const [searchSuggestions, setSearchSuggestions] = useState(
+        baseSearchSuggestions,
+    );
 
-    const selectStudent = (value: string) => {
-        setSelectedStudentId(value);
-        runSearch(value);
+    useEffect(() => {
+        setSearchSuggestions(baseSearchSuggestions);
+    }, [baseSearchSuggestions]);
+
+    useEffect(() => {
+        const normalizedQuery = searchQuery.trim();
+        if (normalizedQuery.length < 2) {
+            setSearchSuggestions([]);
+            return;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(async () => {
+            try {
+                const response = await fetch(
+                    `${cashier_panel.url()}/student-suggestions?search=${encodeURIComponent(normalizedQuery)}`,
+                    {
+                        headers: {
+                            Accept: 'application/json',
+                        },
+                        signal: controller.signal,
+                    },
+                );
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const payload =
+                    (await response.json()) as StudentSuggestionsResponse;
+                setSearchSuggestions(
+                    payload.students.map((student) => ({
+                        id: student.id,
+                        label: student.name,
+                        value: student.name,
+                        description: `LRN: ${student.lrn}`,
+                        keywords: student.lrn,
+                    })),
+                );
+            } catch (error) {
+                if (
+                    error instanceof DOMException &&
+                    error.name === 'AbortError'
+                ) {
+                    return;
+                }
+            }
+        }, 350);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+            controller.abort();
+        };
+    }, [baseSearchSuggestions, searchQuery]);
+
+    const selectIntakeForTransaction = (intake: PendingIntake) => {
+        const nextStudentId = String(intake.student_id);
+        setIsIntakesDialogOpen(false);
+        setSearchQuery(intake.student_name);
+        setSelectedStudentId(nextStudentId);
+        runSearch(intake.student_name, nextStudentId);
     };
 
     const openAddItemDialog = () => {
@@ -362,59 +442,45 @@ export default function CashierPanel({
                         <CardTitle>Student Lookup</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                        <div className="grid gap-3 lg:grid-cols-[1fr_20rem_auto]">
+                        <div className="flex gap-2">
                             <SearchAutocompleteInput
+                                wrapperClassName="flex-1"
                                 placeholder="Search by LRN or student name"
                                 value={searchQuery}
                                 onValueChange={setSearchQuery}
                                 suggestions={searchSuggestions}
-                                onEnterPress={() => runSearch()}
+                                onEnterPress={() => {
+                                    setSelectedStudentId('');
+                                    runSearch(searchQuery, '');
+                                }}
                                 onSelectSuggestion={(option) => {
                                     const selectedId = String(option.id);
                                     setSearchQuery(
                                         option.value ?? option.label,
                                     );
                                     setSelectedStudentId(selectedId);
-                                    router.get(
-                                        cashier_panel.url({
-                                            query: {
-                                                search:
-                                                    option.value ??
-                                                    option.label,
-                                                student_id: selectedId,
-                                            },
-                                        }),
-                                        {},
-                                        {
-                                            preserveState: true,
-                                            preserveScroll: true,
-                                            replace: true,
-                                        },
+                                    runSearch(
+                                        option.value ?? option.label,
+                                        selectedId,
                                     );
                                 }}
                             />
 
-                            <Select
-                                value={selectedStudentId}
-                                onValueChange={selectStudent}
+                            <Button
+                                type="button"
+                                onClick={() => {
+                                    setSelectedStudentId('');
+                                    runSearch(searchQuery, '');
+                                }}
                             >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select student" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {students.map((student) => (
-                                        <SelectItem
-                                            key={student.id}
-                                            value={String(student.id)}
-                                        >
-                                            {student.name} ({student.lrn})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-
-                            <Button type="button" onClick={() => runSearch()}>
                                 Search
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsIntakesDialogOpen(true)}
+                            >
+                                Enrollment Intakes ({pending_intakes_count})
                             </Button>
                         </div>
                     </CardContent>
@@ -592,6 +658,91 @@ export default function CashierPanel({
                     </Card>
                 </div>
             </div>
+
+            <Dialog
+                open={isIntakesDialogOpen}
+                onOpenChange={setIsIntakesDialogOpen}
+            >
+                <DialogContent className="sm:max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>Enrollment Intakes Queue</DialogTitle>
+                    </DialogHeader>
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="pl-6">
+                                        Student
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        LRN
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        Grade and Section
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        Payment Plan
+                                    </TableHead>
+                                    <TableHead className="border-l text-right">
+                                        Downpayment
+                                    </TableHead>
+                                    <TableHead className="border-l pr-6 text-right">
+                                        Action
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {pending_intakes.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={6}
+                                            className="py-8 text-center text-sm text-muted-foreground"
+                                        >
+                                            No intakes pending cashier payment.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    pending_intakes.map((intake) => (
+                                        <TableRow key={intake.id}>
+                                            <TableCell className="pl-6 font-medium">
+                                                {intake.student_name}
+                                            </TableCell>
+                                            <TableCell className="border-l text-muted-foreground">
+                                                {intake.lrn ?? '-'}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {intake.grade_and_section}
+                                            </TableCell>
+                                            <TableCell className="border-l">
+                                                {formatPaymentPlan(
+                                                    intake.payment_plan,
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="border-l text-right">
+                                                {formatCurrency(
+                                                    intake.downpayment,
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="border-l pr-6 text-right">
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        selectIntakeForTransaction(
+                                                            intake,
+                                                        )
+                                                    }
+                                                >
+                                                    Select
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen}>
                 <DialogContent className="sm:max-w-lg">

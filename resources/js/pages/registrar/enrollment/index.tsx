@@ -1,9 +1,11 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { format } from 'date-fns';
 import { Pencil, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateOfBirthPicker } from '@/components/ui/date-picker';
 import {
     Dialog,
     DialogContent,
@@ -45,8 +47,12 @@ interface EnrollmentRow {
     id: number;
     lrn: string;
     first_name: string;
+    middle_name: string | null;
     last_name: string;
-    emergency_contact: string;
+    gender: string | null;
+    birthdate: string | null;
+    guardian_name: string;
+    guardian_contact_number: string;
     payment_term: string;
     downpayment: number;
     status: string;
@@ -78,7 +84,6 @@ interface Props {
     selected_school_year_id: number | null;
     selected_school_year_status: string | null;
     summary: {
-        pending_intake: number;
         for_cashier_payment: number;
         partial_payment: number;
     };
@@ -99,6 +104,7 @@ export default function Enrollment({
     filters,
 }: Props) {
     const [editingItem, setEditingItem] = useState<EnrollmentRow | null>(null);
+    const [createStep, setCreateStep] = useState<1 | 2 | 3 | 4>(1);
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [selectedSchoolYearId, setSelectedSchoolYearId] = useState(
         selected_school_year_id ? String(selected_school_year_id) : '',
@@ -110,8 +116,12 @@ export default function Enrollment({
             : '',
         lrn: '',
         first_name: '',
+        middle_name: '',
         last_name: '',
-        emergency_contact: '',
+        gender: '',
+        birthdate: '',
+        guardian_name: '',
+        guardian_contact_number: '',
         grade_level_id: '',
         section_id: '',
         payment_term: 'monthly',
@@ -120,13 +130,17 @@ export default function Enrollment({
 
     const editForm = useForm({
         first_name: '',
+        middle_name: '',
         last_name: '',
-        emergency_contact: '',
+        gender: '',
+        birthdate: '',
+        guardian_name: '',
+        guardian_contact_number: '',
         grade_level_id: '',
         section_id: '',
         payment_term: 'monthly',
         downpayment: '',
-        status: 'pending_intake',
+        status: 'for_cashier_payment',
     });
 
     const createSectionOptions = useMemo(() => {
@@ -185,6 +199,7 @@ export default function Enrollment({
                 createForm.setData('payment_term', 'monthly');
                 createForm.setData('grade_level_id', '');
                 createForm.setData('section_id', '');
+                setCreateStep(1);
             },
         });
     };
@@ -199,8 +214,12 @@ export default function Enrollment({
         setEditingItem(item);
         editForm.setData({
             first_name: item.first_name,
+            middle_name: item.middle_name || '',
             last_name: item.last_name,
-            emergency_contact: item.emergency_contact || '',
+            gender: item.gender || '',
+            birthdate: item.birthdate || '',
+            guardian_name: item.guardian_name || '',
+            guardian_contact_number: item.guardian_contact_number || '',
             grade_level_id: item.grade_level_id
                 ? String(item.grade_level_id)
                 : sectionGradeLevelId
@@ -253,8 +272,21 @@ export default function Enrollment({
         }).format(amount || 0);
     };
 
+    const formatStudentName = (
+        firstName: string,
+        middleName: string | null,
+        lastName: string,
+    ) => {
+        return [firstName, middleName || '', lastName]
+            .map((value) => value.trim())
+            .filter((value) => value.length > 0)
+            .join(' ');
+    };
+
     const normalizeStatus = (status: string) => {
-        if (status === 'pending') return 'pending_intake';
+        if (status === 'pending' || status === 'pending_intake') {
+            return 'for_cashier_payment';
+        }
 
         return status;
     };
@@ -262,7 +294,6 @@ export default function Enrollment({
     const statusBadge = (status: string) => {
         const normalized = normalizeStatus(status);
         const labelMap: Record<string, string> = {
-            pending_intake: 'Pending Intake',
             for_cashier_payment: 'For Cashier Payment',
             partial_payment: 'Partial Payment',
         };
@@ -336,6 +367,7 @@ export default function Enrollment({
 
     const switchSchoolYear = (value: string) => {
         setSelectedSchoolYearId(value);
+        setCreateStep(1);
         createForm.setData('academic_year_id', value);
         router.get(
             registrar.enrollment.url({
@@ -357,268 +389,642 @@ export default function Enrollment({
         () =>
             enrollments.map((enrollment) => ({
                 id: enrollment.id,
-                label: `${enrollment.first_name} ${enrollment.last_name}`,
-                value: `${enrollment.first_name} ${enrollment.last_name}`,
+                label: formatStudentName(
+                    enrollment.first_name,
+                    enrollment.middle_name,
+                    enrollment.last_name,
+                ),
+                value: formatStudentName(
+                    enrollment.first_name,
+                    enrollment.middle_name,
+                    enrollment.last_name,
+                ),
                 description: `LRN: ${enrollment.lrn}`,
                 keywords: enrollment.lrn,
             })),
         [enrollments],
     );
 
+    const selectedGradeLevelLabel =
+        grade_level_options.find(
+            (gradeLevel) =>
+                String(gradeLevel.id) === createForm.data.grade_level_id,
+        )?.name ?? '';
+
+    const selectedSectionLabel =
+        section_options.find(
+            (sectionOption) =>
+                String(sectionOption.id) === createForm.data.section_id,
+        )?.label ?? 'Unassigned';
+
+    const hasStepOneRequiredFields =
+        createForm.data.lrn.trim() !== '' &&
+        createForm.data.first_name.trim() !== '' &&
+        createForm.data.last_name.trim() !== '' &&
+        createForm.data.birthdate.trim() !== '';
+
+    const hasStepTwoRequiredFields =
+        createForm.data.guardian_name.trim() !== '' &&
+        createForm.data.guardian_contact_number.trim() !== '';
+
+    const hasStepThreeRequiredFields =
+        createForm.data.grade_level_id !== '' &&
+        createForm.data.payment_term !== '' &&
+        (createForm.data.payment_term === 'cash' ||
+            createForm.data.downpayment.trim() !== '');
+
+    const createStepProgress = (createStep / 4) * 100;
+    const intakeCreationDisabled = selected_school_year_status === 'completed';
+    const createStepLabelMap: Record<1 | 2 | 3 | 4, string> = {
+        1: 'Student Details',
+        2: 'Guardian Details',
+        3: 'Enrollment Setup',
+        4: 'Review & Finalize',
+    };
+    const parsedDownpayment = Number.parseFloat(
+        createForm.data.downpayment || '0',
+    );
+    const normalizedDownpayment = Number.isFinite(parsedDownpayment)
+        ? parsedDownpayment
+        : 0;
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Enrollment" />
 
             <div className="flex flex-col gap-6">
-                <div className="grid gap-6 lg:grid-cols-3">
-                    <Card className="gap-2 lg:col-span-1">
+                <div className="grid items-start gap-6 lg:grid-cols-3">
+                    <Card className="h-[calc(100svh-7rem)] gap-2 overflow-hidden lg:col-span-1">
                         <CardHeader className="border-b">
                             <CardTitle>New Enrollment Intake</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4 pt-6">
+                        <CardContent className="space-y-4 overflow-y-auto pt-6">
                             <div className="space-y-2">
-                                <Label htmlFor="lrn">LRN</Label>
-                                <Input
-                                    id="lrn"
-                                    placeholder="12-digit LRN"
-                                    value={createForm.data.lrn}
-                                    onChange={(event) =>
-                                        createForm.setData(
-                                            'lrn',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="first-name">
-                                        First Name
-                                    </Label>
-                                    <Input
-                                        id="first-name"
-                                        placeholder="Juan"
-                                        value={createForm.data.first_name}
-                                        onChange={(event) =>
-                                            createForm.setData(
-                                                'first_name',
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
+                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                    <span>Step {createStep} of 4</span>
+                                    <span>
+                                        {createStepLabelMap[createStep]}
+                                    </span>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="last-name">Last Name</Label>
-                                    <Input
-                                        id="last-name"
-                                        placeholder="Dela Cruz"
-                                        value={createForm.data.last_name}
-                                        onChange={(event) =>
-                                            createForm.setData(
-                                                'last_name',
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="emergency-contact">
-                                    Emergency Contact
-                                </Label>
-                                <Input
-                                    id="emergency-contact"
-                                    placeholder="0917 123 4567"
-                                    value={createForm.data.emergency_contact}
-                                    onChange={(event) =>
-                                        createForm.setData(
-                                            'emergency_contact',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Grade Level</Label>
-                                    <Select
-                                        value={
-                                            createForm.data.grade_level_id ||
-                                            'unselected'
-                                        }
-                                        onValueChange={updateCreateGradeLevel}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select grade level" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="unselected">
-                                                Select grade level
-                                            </SelectItem>
-                                            {grade_level_options.map(
-                                                (gradeLevel) => (
-                                                    <SelectItem
-                                                        key={gradeLevel.id}
-                                                        value={String(
-                                                            gradeLevel.id,
-                                                        )}
-                                                    >
-                                                        {gradeLevel.name}
-                                                    </SelectItem>
-                                                ),
-                                            )}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Section Assignment</Label>
-                                    <Select
-                                        value={
-                                            createForm.data.section_id ||
-                                            'unassigned'
-                                        }
-                                        onValueChange={(value) => {
-                                            if (value === 'unassigned') {
-                                                createForm.setData(
-                                                    'section_id',
-                                                    '',
-                                                );
-
-                                                return;
-                                            }
-
-                                            createForm.setData(
-                                                'section_id',
-                                                value,
-                                            );
-
-                                            const selectedSection =
-                                                section_options.find(
-                                                    (sectionOption) =>
-                                                        String(
-                                                            sectionOption.id,
-                                                        ) === value,
-                                                );
-
-                                            if (selectedSection) {
-                                                createForm.setData(
-                                                    'grade_level_id',
-                                                    String(
-                                                        selectedSection.grade_level_id,
-                                                    ),
-                                                );
-                                            }
+                                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                                    <div
+                                        className="h-full bg-primary transition-all duration-300"
+                                        style={{
+                                            width: `${createStepProgress}%`,
                                         }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue
-                                                placeholder={
-                                                    createForm.data
-                                                        .grade_level_id
-                                                        ? 'Select section'
-                                                        : 'Select grade level first'
+                                    />
+                                </div>
+                            </div>
+
+                            {createStep === 1 && (
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="lrn">LRN</Label>
+                                        <Input
+                                            id="lrn"
+                                            placeholder="eg. 123456789012"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            maxLength={12}
+                                            value={createForm.data.lrn}
+                                            onChange={(event) =>
+                                                createForm.setData(
+                                                    'lrn',
+                                                    event.target.value
+                                                        .replace(/\D/g, '')
+                                                        .slice(0, 12),
+                                                )
+                                            }
+                                        />
+                                        {createForm.errors.lrn && (
+                                            <p className="text-sm text-destructive">
+                                                {createForm.errors.lrn}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="first-name">
+                                                First Name
+                                            </Label>
+                                            <Input
+                                                id="first-name"
+                                                placeholder="eg. Juan"
+                                                value={
+                                                    createForm.data.first_name
+                                                }
+                                                onChange={(event) =>
+                                                    createForm.setData(
+                                                        'first_name',
+                                                        event.target.value,
+                                                    )
                                                 }
                                             />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="unassigned">
-                                                Unassigned
-                                            </SelectItem>
-                                            {createSectionOptions.map(
-                                                (sectionOption) => (
-                                                    <SelectItem
-                                                        key={sectionOption.id}
-                                                        value={String(
-                                                            sectionOption.id,
-                                                        )}
-                                                    >
-                                                        {sectionOption.label}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="middle-name">
+                                                Middle Name
+                                            </Label>
+                                            <Input
+                                                id="middle-name"
+                                                placeholder="eg. Santos"
+                                                value={
+                                                    createForm.data.middle_name
+                                                }
+                                                onChange={(event) =>
+                                                    createForm.setData(
+                                                        'middle_name',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="last-name">
+                                                Surname
+                                            </Label>
+                                            <Input
+                                                id="last-name"
+                                                placeholder="eg. Dela Cruz"
+                                                value={
+                                                    createForm.data.last_name
+                                                }
+                                                onChange={(event) =>
+                                                    createForm.setData(
+                                                        'last_name',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label>Gender</Label>
+                                            <Select
+                                                value={
+                                                    createForm.data.gender ||
+                                                    'none'
+                                                }
+                                                onValueChange={(value) =>
+                                                    createForm.setData(
+                                                        'gender',
+                                                        value === 'none'
+                                                            ? ''
+                                                            : value,
+                                                    )
+                                                }
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select gender" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">
+                                                        Select gender
                                                     </SelectItem>
-                                                ),
-                                            )}
-                                        </SelectContent>
-                                    </Select>
+                                                    <SelectItem value="Male">
+                                                        Male
+                                                    </SelectItem>
+                                                    <SelectItem value="Female">
+                                                        Female
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Birthday</Label>
+                                            <DateOfBirthPicker
+                                                date={
+                                                    createForm.data.birthdate
+                                                        ? new Date(
+                                                              createForm.data
+                                                                  .birthdate,
+                                                          )
+                                                        : undefined
+                                                }
+                                                setDate={(date) =>
+                                                    createForm.setData(
+                                                        'birthdate',
+                                                        date
+                                                            ? format(
+                                                                  date,
+                                                                  'yyyy-MM-dd',
+                                                              )
+                                                            : '',
+                                                    )
+                                                }
+                                                className="w-full"
+                                                placeholder="Select date"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Payment Plan</Label>
-                                    <Select
-                                        value={createForm.data.payment_term}
-                                        onValueChange={(value) => {
-                                            createForm.setData(
-                                                'payment_term',
-                                                value,
-                                            );
-                                            if (value === 'cash') {
-                                                createForm.setData(
-                                                    'downpayment',
-                                                    '0',
-                                                );
+                            )}
+                            {createStep === 2 && (
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="guardian-name">
+                                            Guardian Name
+                                        </Label>
+                                        <Input
+                                            id="guardian-name"
+                                            placeholder="eg. Maria Dela Cruz"
+                                            value={
+                                                createForm.data.guardian_name
                                             }
-                                        }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="cash">
-                                                Cash
-                                            </SelectItem>
-                                            <SelectItem value="monthly">
-                                                Monthly
-                                            </SelectItem>
-                                            <SelectItem value="quarterly">
-                                                Quarterly
-                                            </SelectItem>
-                                            <SelectItem value="semi-annual">
-                                                Semi-Annual
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                            onChange={(event) =>
+                                                createForm.setData(
+                                                    'guardian_name',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="guardian-contact">
+                                            Guardian Contact
+                                        </Label>
+                                        <Input
+                                            id="guardian-contact"
+                                            placeholder="eg. 09171234567"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            maxLength={11}
+                                            value={
+                                                createForm.data
+                                                    .guardian_contact_number
+                                            }
+                                            onChange={(event) =>
+                                                createForm.setData(
+                                                    'guardian_contact_number',
+                                                    event.target.value
+                                                        .replace(/\D/g, '')
+                                                        .slice(0, 11),
+                                                )
+                                            }
+                                        />
+                                        {createForm.errors
+                                            .guardian_contact_number && (
+                                            <p className="text-sm text-destructive">
+                                                {
+                                                    createForm.errors
+                                                        .guardian_contact_number
+                                                }
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
+                            )}
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="downpayment">
-                                        Downpayment
-                                    </Label>
-                                    <Input
-                                        id="downpayment"
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        placeholder="0.00"
-                                        value={createForm.data.downpayment}
-                                        disabled={
-                                            createForm.data.payment_term ===
+                            {createStep === 3 && (
+                                <div className="space-y-4">
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label>Grade Level</Label>
+                                            <Select
+                                                value={
+                                                    createForm.data
+                                                        .grade_level_id ||
+                                                    'unselected'
+                                                }
+                                                onValueChange={
+                                                    updateCreateGradeLevel
+                                                }
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select grade level" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="unselected">
+                                                        Select grade level
+                                                    </SelectItem>
+                                                    {grade_level_options.map(
+                                                        (gradeLevel) => (
+                                                            <SelectItem
+                                                                key={
+                                                                    gradeLevel.id
+                                                                }
+                                                                value={String(
+                                                                    gradeLevel.id,
+                                                                )}
+                                                            >
+                                                                {
+                                                                    gradeLevel.name
+                                                                }
+                                                            </SelectItem>
+                                                        ),
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Section Assignment</Label>
+                                            <Select
+                                                value={
+                                                    createForm.data
+                                                        .section_id ||
+                                                    'unassigned'
+                                                }
+                                                onValueChange={(value) => {
+                                                    if (
+                                                        value === 'unassigned'
+                                                    ) {
+                                                        createForm.setData(
+                                                            'section_id',
+                                                            '',
+                                                        );
+
+                                                        return;
+                                                    }
+
+                                                    createForm.setData(
+                                                        'section_id',
+                                                        value,
+                                                    );
+
+                                                    const selectedSection =
+                                                        section_options.find(
+                                                            (sectionOption) =>
+                                                                String(
+                                                                    sectionOption.id,
+                                                                ) === value,
+                                                        );
+
+                                                    if (selectedSection) {
+                                                        createForm.setData(
+                                                            'grade_level_id',
+                                                            String(
+                                                                selectedSection.grade_level_id,
+                                                            ),
+                                                        );
+                                                    }
+                                                }}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue
+                                                        placeholder={
+                                                            createForm.data
+                                                                .grade_level_id
+                                                                ? 'Select section'
+                                                                : 'Select grade level first'
+                                                        }
+                                                    />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="unassigned">
+                                                        Unassigned
+                                                    </SelectItem>
+                                                    {createSectionOptions.map(
+                                                        (sectionOption) => (
+                                                            <SelectItem
+                                                                key={
+                                                                    sectionOption.id
+                                                                }
+                                                                value={String(
+                                                                    sectionOption.id,
+                                                                )}
+                                                            >
+                                                                {
+                                                                    sectionOption.label
+                                                                }
+                                                            </SelectItem>
+                                                        ),
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label>Payment Plan</Label>
+                                            <Select
+                                                value={
+                                                    createForm.data.payment_term
+                                                }
+                                                onValueChange={(value) => {
+                                                    createForm.setData(
+                                                        'payment_term',
+                                                        value,
+                                                    );
+                                                    if (value === 'cash') {
+                                                        createForm.setData(
+                                                            'downpayment',
+                                                            '0',
+                                                        );
+                                                    }
+                                                }}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="cash">
+                                                        Cash
+                                                    </SelectItem>
+                                                    <SelectItem value="monthly">
+                                                        Monthly
+                                                    </SelectItem>
+                                                    <SelectItem value="quarterly">
+                                                        Quarterly
+                                                    </SelectItem>
+                                                    <SelectItem value="semi-annual">
+                                                        Semi-Annual
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="downpayment">
+                                                Downpayment
+                                            </Label>
+                                            <Input
+                                                id="downpayment"
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                placeholder="0.00"
+                                                value={
+                                                    createForm.data.downpayment
+                                                }
+                                                disabled={
+                                                    createForm.data
+                                                        .payment_term === 'cash'
+                                                }
+                                                onChange={(event) =>
+                                                    createForm.setData(
+                                                        'downpayment',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {createStep === 4 && (
+                                <div className="rounded-md border p-4">
+                                    <h4 className="text-sm font-medium">
+                                        Enrollment Intake Summary
+                                    </h4>
+                                    <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                                        <p className="text-muted-foreground">
+                                            LRN
+                                        </p>
+                                        <p>{createForm.data.lrn || '-'}</p>
+
+                                        <p className="text-muted-foreground">
+                                            Student Name
+                                        </p>
+                                        <p>
+                                            {formatStudentName(
+                                                createForm.data.first_name,
+                                                createForm.data.middle_name ||
+                                                    null,
+                                                createForm.data.last_name,
+                                            ) || '-'}
+                                        </p>
+
+                                        <p className="text-muted-foreground">
+                                            Gender
+                                        </p>
+                                        <p>{createForm.data.gender || '-'}</p>
+
+                                        <p className="text-muted-foreground">
+                                            Birthday
+                                        </p>
+                                        <p>
+                                            {createForm.data.birthdate || '-'}
+                                        </p>
+
+                                        <p className="text-muted-foreground">
+                                            Guardian Name
+                                        </p>
+                                        <p>
+                                            {createForm.data.guardian_name ||
+                                                '-'}
+                                        </p>
+
+                                        <p className="text-muted-foreground">
+                                            Guardian Contact
+                                        </p>
+                                        <p>
+                                            {createForm.data
+                                                .guardian_contact_number || '-'}
+                                        </p>
+
+                                        <p className="text-muted-foreground">
+                                            Grade Level
+                                        </p>
+                                        <p>{selectedGradeLevelLabel || '-'}</p>
+
+                                        <p className="text-muted-foreground">
+                                            Section
+                                        </p>
+                                        <p>{selectedSectionLabel}</p>
+
+                                        <p className="text-muted-foreground">
+                                            Payment Plan
+                                        </p>
+                                        <p>
+                                            {formatPaymentTerm(
+                                                createForm.data.payment_term,
+                                            )}
+                                        </p>
+
+                                        <p className="text-muted-foreground">
+                                            Downpayment
+                                        </p>
+                                        <p>
+                                            {createForm.data.payment_term ===
                                             'cash'
-                                        }
-                                        onChange={(event) =>
-                                            createForm.setData(
-                                                'downpayment',
-                                                event.target.value,
+                                                ? formatCurrency(0)
+                                                : formatCurrency(
+                                                      normalizedDownpayment,
+                                                  )}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="sticky bottom-0 z-10 flex flex-col gap-2 border-t bg-card pt-4">
+                                {createStep > 1 && (
+                                    <Button
+                                        variant="outline"
+                                        className="w-full whitespace-normal"
+                                        onClick={() =>
+                                            setCreateStep(
+                                                (createStep - 1) as
+                                                    | 1
+                                                    | 2
+                                                    | 3
+                                                    | 4,
                                             )
                                         }
-                                    />
-                                </div>
+                                    >
+                                        Back
+                                    </Button>
+                                )}
+
+                                {createStep === 1 && (
+                                    <Button
+                                        className="w-full whitespace-normal"
+                                        onClick={() => setCreateStep(2)}
+                                        disabled={
+                                            intakeCreationDisabled ||
+                                            !hasStepOneRequiredFields
+                                        }
+                                    >
+                                        Continue to Guardian Details
+                                    </Button>
+                                )}
+
+                                {createStep === 2 && (
+                                    <Button
+                                        className="w-full whitespace-normal"
+                                        onClick={() => setCreateStep(3)}
+                                        disabled={
+                                            intakeCreationDisabled ||
+                                            !hasStepTwoRequiredFields
+                                        }
+                                    >
+                                        Continue to Enrollment Setup
+                                    </Button>
+                                )}
+
+                                {createStep === 3 && (
+                                    <Button
+                                        className="w-full whitespace-normal"
+                                        onClick={() => setCreateStep(4)}
+                                        disabled={
+                                            intakeCreationDisabled ||
+                                            !hasStepThreeRequiredFields
+                                        }
+                                    >
+                                        Continue to Summary
+                                    </Button>
+                                )}
+
+                                {createStep === 4 && (
+                                    <Button
+                                        className="w-full whitespace-normal"
+                                        onClick={submitCreate}
+                                        disabled={
+                                            createForm.processing ||
+                                            intakeCreationDisabled
+                                        }
+                                    >
+                                        Save Enrollment Intake
+                                    </Button>
+                                )}
                             </div>
 
-                            <Button
-                                className="w-full"
-                                onClick={submitCreate}
-                                disabled={
-                                    createForm.processing ||
-                                    selected_school_year_status === 'completed'
-                                }
-                            >
-                                Save Enrollment Intake
-                            </Button>
-                            {selected_school_year_status === 'completed' && (
+                            {intakeCreationDisabled && (
                                 <p className="text-sm text-muted-foreground">
                                     Intake creation is disabled for completed
                                     school years.
@@ -632,9 +1038,6 @@ export default function Enrollment({
                             <div className="flex flex-col gap-3">
                                 <CardTitle>Enrollment Queue</CardTitle>
                                 <div className="flex flex-wrap items-center gap-2 text-sm">
-                                    <Badge variant="outline">
-                                        Pending Intake: {summary.pending_intake}
-                                    </Badge>
                                     <Badge variant="outline">
                                         For Cashier Payment:{' '}
                                         {summary.for_cashier_payment}
@@ -673,6 +1076,7 @@ export default function Enrollment({
                                         value={searchQuery}
                                         onValueChange={applySearch}
                                         suggestions={searchSuggestions}
+                                        showSuggestions={false}
                                     />
                                 </div>
                             </div>
@@ -682,13 +1086,10 @@ export default function Enrollment({
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead className="pl-6">
-                                            LRN
+                                            Student
                                         </TableHead>
-                                        <TableHead>Student</TableHead>
-                                        <TableHead>Section</TableHead>
-                                        <TableHead>Plan</TableHead>
-                                        <TableHead>Downpayment</TableHead>
-                                        <TableHead>Cashier Status</TableHead>
+                                        <TableHead>Enrollment</TableHead>
+                                        <TableHead>Status</TableHead>
                                         <TableHead className="pr-6 text-right">
                                             Actions
                                         </TableHead>
@@ -698,24 +1099,35 @@ export default function Enrollment({
                                     {enrollments.map((item) => (
                                         <TableRow key={item.id}>
                                             <TableCell className="pl-6">
-                                                {item.lrn}
+                                                <div className="space-y-1">
+                                                    <p className="font-medium">
+                                                        {formatStudentName(
+                                                            item.first_name,
+                                                            item.middle_name,
+                                                            item.last_name,
+                                                        )}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        LRN: {item.lrn}
+                                                    </p>
+                                                </div>
                                             </TableCell>
                                             <TableCell>
-                                                {item.first_name}{' '}
-                                                {item.last_name}
-                                            </TableCell>
-                                            <TableCell>
-                                                {item.section_label ?? '-'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {formatPaymentTerm(
-                                                    item.payment_term,
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                {formatCurrency(
-                                                    item.downpayment,
-                                                )}
+                                                <div className="space-y-1 text-sm">
+                                                    <p>
+                                                        {item.section_label ??
+                                                            '-'}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {formatPaymentTerm(
+                                                            item.payment_term,
+                                                        )}{' '}
+                                                        •{' '}
+                                                        {formatCurrency(
+                                                            item.downpayment,
+                                                        )}
+                                                    </p>
+                                                </div>
                                             </TableCell>
                                             <TableCell>
                                                 {statusBadge(item.status)}
@@ -749,7 +1161,7 @@ export default function Enrollment({
                                     {enrollments.length === 0 && (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={7}
+                                                colSpan={4}
                                                 className="h-24 text-center text-sm text-muted-foreground"
                                             >
                                                 No enrollment intakes in queue.
@@ -772,7 +1184,7 @@ export default function Enrollment({
                         <DialogTitle>Edit Enrollment Intake</DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4 py-2">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label>First Name</Label>
                                 <Input
@@ -780,6 +1192,18 @@ export default function Enrollment({
                                     onChange={(event) =>
                                         editForm.setData(
                                             'first_name',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Middle Name</Label>
+                                <Input
+                                    value={editForm.data.middle_name}
+                                    onChange={(event) =>
+                                        editForm.setData(
+                                            'middle_name',
                                             event.target.value,
                                         )
                                     }
@@ -799,17 +1223,96 @@ export default function Enrollment({
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Emergency Contact</Label>
-                            <Input
-                                value={editForm.data.emergency_contact}
-                                onChange={(event) =>
-                                    editForm.setData(
-                                        'emergency_contact',
-                                        event.target.value,
-                                    )
-                                }
-                            />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Gender</Label>
+                                <Select
+                                    value={editForm.data.gender || 'none'}
+                                    onValueChange={(value) =>
+                                        editForm.setData(
+                                            'gender',
+                                            value === 'none' ? '' : value,
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select gender" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">
+                                            Select gender
+                                        </SelectItem>
+                                        <SelectItem value="Male">
+                                            Male
+                                        </SelectItem>
+                                        <SelectItem value="Female">
+                                            Female
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Birthday</Label>
+                                <DateOfBirthPicker
+                                    date={
+                                        editForm.data.birthdate
+                                            ? new Date(editForm.data.birthdate)
+                                            : undefined
+                                    }
+                                    setDate={(date) =>
+                                        editForm.setData(
+                                            'birthdate',
+                                            date
+                                                ? format(date, 'yyyy-MM-dd')
+                                                : '',
+                                        )
+                                    }
+                                    className="w-full"
+                                    placeholder="Select date"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Guardian Name</Label>
+                                <Input
+                                    value={editForm.data.guardian_name}
+                                    onChange={(event) =>
+                                        editForm.setData(
+                                            'guardian_name',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Guardian Contact Number</Label>
+                                <Input
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    maxLength={11}
+                                    value={
+                                        editForm.data.guardian_contact_number
+                                    }
+                                    onChange={(event) =>
+                                        editForm.setData(
+                                            'guardian_contact_number',
+                                            event.target.value
+                                                .replace(/\D/g, '')
+                                                .slice(0, 11),
+                                        )
+                                    }
+                                />
+                                {editForm.errors.guardian_contact_number && (
+                                    <p className="text-sm text-destructive">
+                                        {
+                                            editForm.errors
+                                                .guardian_contact_number
+                                        }
+                                    </p>
+                                )}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -973,9 +1476,6 @@ export default function Enrollment({
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="pending_intake">
-                                        Pending Intake
-                                    </SelectItem>
                                     <SelectItem value="for_cashier_payment">
                                         For Cashier Payment
                                     </SelectItem>

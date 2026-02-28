@@ -267,8 +267,6 @@ class AnnouncementAudienceResolver
     private function resolveFinanceScopeUserIds(?int $academicYearId): Collection
     {
         $financeActiveStatuses = [
-            'pending',
-            'pending_intake',
             'for_cashier_payment',
             'partial_payment',
             'enrolled',

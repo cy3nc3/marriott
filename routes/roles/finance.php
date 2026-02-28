@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Finance\CashierPanelController;
 use App\Http\Controllers\Finance\DailyReportsController;
+use App\Http\Controllers\Finance\DataImportController;
 use App\Http\Controllers\Finance\DiscountManagerController;
 use App\Http\Controllers\Finance\DueReminderSettingsController;
 use App\Http\Controllers\Finance\FeeStructureController;
@@ -14,12 +15,15 @@ Route::middleware(['auth', 'verified', 'role:finance'])->prefix('finance')->name
     Route::get('/student-ledgers', [StudentLedgersController::class, 'index'])->name('student_ledgers');
 
     Route::get('/cashier-panel', [CashierPanelController::class, 'index'])->middleware('desktop_only')->name('cashier_panel');
+    Route::get('/cashier-panel/student-suggestions', [CashierPanelController::class, 'studentSuggestions'])->middleware('desktop_only')->name('cashier_panel.student_suggestions');
     Route::post('/cashier-panel/transactions', [CashierPanelController::class, 'storeTransaction'])->middleware('desktop_only')->name('cashier_panel.store_transaction');
 
     Route::get('/transaction-history', [TransactionHistoryController::class, 'index'])->middleware('desktop_only')->name('transaction_history');
     Route::post('/transaction-history/{transaction}/void', [TransactionHistoryController::class, 'void'])->middleware('desktop_only')->name('transaction_history.void');
     Route::post('/transaction-history/{transaction}/refund', [TransactionHistoryController::class, 'refund'])->middleware('desktop_only')->name('transaction_history.refund');
     Route::post('/transaction-history/{transaction}/reissue', [TransactionHistoryController::class, 'reissue'])->middleware('desktop_only')->name('transaction_history.reissue');
+    Route::get('/data-import', [DataImportController::class, 'index'])->middleware('desktop_only')->name('data_import');
+    Route::post('/data-import/transactions', [DataImportController::class, 'import'])->middleware('desktop_only')->name('data_import.transactions');
 
     Route::get('/product-inventory', [ProductInventoryController::class, 'index'])->middleware('desktop_only')->name('product_inventory');
     Route::post('/product-inventory', [ProductInventoryController::class, 'store'])->middleware('desktop_only')->name('product_inventory.store');

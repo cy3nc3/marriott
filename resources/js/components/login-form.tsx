@@ -24,8 +24,8 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
             {({ processing, errors }) => (
                 <>
                     <div className="flex flex-col items-center gap-2 text-center">
-                        <h1 className="text-2xl font-bold">Log in</h1>
-                        <p className="text-balance text-sm text-muted-foreground">
+                        <h1 className="text-3xl font-bold">Log in</h1>
+                        <p className="text-base text-balance text-muted-foreground">
                             Enter your email below to log in to your account
                         </p>
                     </div>
@@ -43,6 +43,7 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                                 id="email"
                                 type="email"
                                 name="email"
+                                className="h-12 text-base"
                                 required
                                 autoFocus
                                 tabIndex={1}
@@ -69,6 +70,7 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                                 id="password"
                                 type="password"
                                 name="password"
+                                className="h-12 text-base"
                                 required
                                 tabIndex={2}
                                 autoComplete="current-password"
@@ -79,7 +81,7 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
 
                         <Button
                             type="submit"
-                            className="w-full"
+                            className="h-12 w-full text-base"
                             tabIndex={3}
                             disabled={processing}
                             data-test="login-button"

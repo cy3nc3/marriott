@@ -460,12 +460,15 @@ export default function PermanentRecords({
                         </div>
                     </CardHeader>
                     <CardContent className="pt-6">
-                        <SearchAutocompleteInput
-                            value={searchQuery}
-                            onValueChange={setSearchQuery}
-                            suggestions={searchSuggestions}
-                            placeholder="Search by school year, grade level, school, status, or subject"
-                        />
+                        <div>
+                            <SearchAutocompleteInput
+                                value={searchQuery}
+                                onValueChange={setSearchQuery}
+                                suggestions={searchSuggestions}
+                                showSuggestions={false}
+                                placeholder="Search by school year, grade level, school, status, or subject"
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 

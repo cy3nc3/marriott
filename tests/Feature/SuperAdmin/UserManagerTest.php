@@ -99,3 +99,25 @@ test('last active super admin cannot be deactivated', function () {
 
     expect($this->superAdmin->fresh()->is_active)->toBeTrue();
 });
+
+test('user manager search is case insensitive', function () {
+    $managedUser = User::factory()->create([
+        'first_name' => 'Jade',
+        'last_name' => 'Godalle',
+        'name' => 'Jade Godalle',
+        'email' => 'jade.godalle@marriott.edu',
+        'role' => UserRole::STUDENT->value,
+    ]);
+
+    $this->get('/super-admin/user-manager?search=JADE')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('super_admin/user-manager/index')
+            ->where('filters.search', 'JADE')
+            ->where('users.data', function ($rows) use ($managedUser): bool {
+                return collect($rows)->contains(function ($row) use ($managedUser): bool {
+                    return (int) ($row['id'] ?? 0) === (int) $managedUser->id;
+                });
+            })
+        );
+});
