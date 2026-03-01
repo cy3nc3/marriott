@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -29,7 +29,6 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
-import { fee_structure } from '@/routes/finance';
 import { destroy, store, update } from '@/routes/finance/fee_structure';
 import type { BreadcrumbItem } from '@/types';
 
@@ -57,6 +56,19 @@ type GradeLevelFee = {
     fee_items: FeeItem[];
 };
 
+type RemedialSubjectFeeRow = {
+    subject_id: number;
+    subject_name: string;
+    amount: number;
+    is_custom: boolean;
+};
+
+type GradeLevelRemedialSubjectFee = {
+    id: number;
+    name: string;
+    subject_fees: RemedialSubjectFeeRow[];
+};
+
 type SchoolYearOption = {
     id: number;
     name: string;
@@ -65,6 +77,7 @@ type SchoolYearOption = {
 
 interface Props {
     grade_level_fees: GradeLevelFee[];
+    remedial_subject_fees: GradeLevelRemedialSubjectFee[];
     school_year_options: SchoolYearOption[];
     selected_school_year_id: number | null;
 }
@@ -81,8 +94,23 @@ const formatCurrency = (amount: number) =>
         currency: 'PHP',
     }).format(amount || 0);
 
+const buildRemedialAmountMap = (
+    rows: GradeLevelRemedialSubjectFee[],
+): Record<number, string> => {
+    const amountMap: Record<number, string> = {};
+
+    rows.forEach((gradeLevel) => {
+        gradeLevel.subject_fees.forEach((subjectRow) => {
+            amountMap[subjectRow.subject_id] = String(subjectRow.amount);
+        });
+    });
+
+    return amountMap;
+};
+
 export default function FeeStructure({
     grade_level_fees,
+    remedial_subject_fees,
     school_year_options,
     selected_school_year_id,
 }: Props) {
@@ -91,9 +119,21 @@ export default function FeeStructure({
     const [activeTab, setActiveTab] = useState<string>(
         String(grade_level_fees[0]?.id ?? ''),
     );
-    const [selectedSchoolYearId, setSelectedSchoolYearId] = useState(
-        selected_school_year_id ? String(selected_school_year_id) : '',
+    const [activeRemedialTab, setActiveRemedialTab] = useState<string>(
+        String(remedial_subject_fees[0]?.id ?? ''),
     );
+    const selectedSchoolYearId = selected_school_year_id
+        ? String(selected_school_year_id)
+        : '';
+    const [remedialAmounts, setRemedialAmounts] = useState<
+        Record<number, string>
+    >(() => buildRemedialAmountMap(remedial_subject_fees));
+    const [savingRemedialSubjectId, setSavingRemedialSubjectId] = useState<
+        number | null
+    >(null);
+    const [remedialFieldErrors, setRemedialFieldErrors] = useState<
+        Record<number, string>
+    >({});
 
     const createForm = useForm({
         grade_level_id: String(grade_level_fees[0]?.id ?? ''),
@@ -122,6 +162,26 @@ export default function FeeStructure({
             ),
         [grade_level_fees, activeTab],
     );
+    const selectedSchoolYearName = useMemo(
+        () =>
+            school_year_options.find(
+                (schoolYear) => String(schoolYear.id) === selectedSchoolYearId,
+            )?.name ?? 'No active school year',
+        [school_year_options, selectedSchoolYearId],
+    );
+
+    useEffect(() => {
+        setRemedialAmounts(buildRemedialAmountMap(remedial_subject_fees));
+        setRemedialFieldErrors({});
+
+        const hasActiveRemedialTab = remedial_subject_fees.some(
+            (gradeLevel) => String(gradeLevel.id) === activeRemedialTab,
+        );
+
+        if (!hasActiveRemedialTab) {
+            setActiveRemedialTab(String(remedial_subject_fees[0]?.id ?? ''));
+        }
+    }, [remedial_subject_fees, activeRemedialTab]);
 
     const openAddDialog = () => {
         const defaultGradeLevelId = selectedGradeLevel
@@ -196,20 +256,51 @@ export default function FeeStructure({
         });
     };
 
-    const handleSchoolYearChange = (value: string) => {
-        setSelectedSchoolYearId(value);
+    const updateRemedialAmount = (subjectId: number, value: string) => {
+        setRemedialAmounts((current) => ({
+            ...current,
+            [subjectId]: value,
+        }));
+    };
 
-        router.get(
-            fee_structure.url({
-                query: {
-                    academic_year_id: value || undefined,
-                },
-            }),
-            {},
+    const saveRemedialSubjectFee = (subjectId: number) => {
+        if (selectedSchoolYearId === '') {
+            return;
+        }
+
+        setSavingRemedialSubjectId(subjectId);
+        setRemedialFieldErrors((current) => {
+            const next = { ...current };
+            delete next[subjectId];
+
+            return next;
+        });
+
+        router.patch(
+            '/finance/fee-structure/remedial-subject-fee',
             {
-                preserveState: true,
+                academic_year_id: Number(selectedSchoolYearId),
+                subject_id: subjectId,
+                amount: remedialAmounts[subjectId] ?? '0',
+            },
+            {
                 preserveScroll: true,
-                replace: true,
+                onError: (errors) => {
+                    const message =
+                        (errors.amount as string | undefined) ??
+                        (errors.subject_id as string | undefined) ??
+                        (errors.academic_year_id as string | undefined);
+
+                    if (message) {
+                        setRemedialFieldErrors((current) => ({
+                            ...current,
+                            [subjectId]: message,
+                        }));
+                    }
+                },
+                onFinish: () => {
+                    setSavingRemedialSubjectId(null);
+                },
             },
         );
     };
@@ -224,24 +315,9 @@ export default function FeeStructure({
                         <div className="flex items-center justify-between gap-3">
                             <CardTitle>Fee Breakdown by Grade</CardTitle>
                             <div className="flex items-center gap-2">
-                                <Select
-                                    value={selectedSchoolYearId}
-                                    onValueChange={handleSchoolYearChange}
-                                >
-                                    <SelectTrigger className="w-[160px]">
-                                        <SelectValue placeholder="School Year" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {school_year_options.map((schoolYear) => (
-                                            <SelectItem
-                                                key={schoolYear.id}
-                                                value={String(schoolYear.id)}
-                                            >
-                                                {schoolYear.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <p className="text-sm text-muted-foreground">
+                                    Active School Year: {selectedSchoolYearName}
+                                </p>
                                 <Button
                                     onClick={openAddDialog}
                                     disabled={
@@ -255,7 +331,7 @@ export default function FeeStructure({
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-6">
                         {grade_level_fees.length > 0 ? (
                             <Tabs
                                 value={activeTab}
@@ -275,7 +351,9 @@ export default function FeeStructure({
 
                                 {grade_level_fees.map((feeRow) => {
                                     const tuitionTotal = feeRow.fee_items
-                                        .filter((item) => item.type === 'tuition')
+                                        .filter(
+                                            (item) => item.type === 'tuition',
+                                        )
                                         .reduce(
                                             (sum, item) => sum + item.amount,
                                             0,
@@ -455,6 +533,174 @@ export default function FeeStructure({
                     </CardContent>
                 </Card>
 
+                <Card>
+                    <CardHeader className="border-b">
+                        <CardTitle>Remedial Fee by Subject</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                        {selectedSchoolYearId === '' ? (
+                            <p className="mb-4 text-sm text-muted-foreground">
+                                No active school year is available yet.
+                            </p>
+                        ) : null}
+
+                        {remedial_subject_fees.length > 0 ? (
+                            <Tabs
+                                value={activeRemedialTab}
+                                onValueChange={setActiveRemedialTab}
+                                className="w-full"
+                            >
+                                <TabsList className="mb-4">
+                                    {remedial_subject_fees.map((gradeLevel) => (
+                                        <TabsTrigger
+                                            key={gradeLevel.id}
+                                            value={String(gradeLevel.id)}
+                                        >
+                                            {gradeLevel.name}
+                                        </TabsTrigger>
+                                    ))}
+                                </TabsList>
+
+                                {remedial_subject_fees.map((gradeLevel) => {
+                                    return (
+                                        <TabsContent
+                                            key={gradeLevel.id}
+                                            value={String(gradeLevel.id)}
+                                        >
+                                            <div className="overflow-hidden rounded-md border">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead className="pl-6">
+                                                                Subject
+                                                            </TableHead>
+                                                            <TableHead className="border-l text-right">
+                                                                Amount
+                                                            </TableHead>
+                                                            <TableHead className="border-l pr-6 text-right">
+                                                                Actions
+                                                            </TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {gradeLevel.subject_fees.map(
+                                                            (row) => {
+                                                                const fieldError =
+                                                                    remedialFieldErrors[
+                                                                        row
+                                                                            .subject_id
+                                                                    ];
+                                                                const saving =
+                                                                    savingRemedialSubjectId ===
+                                                                    row.subject_id;
+
+                                                                return (
+                                                                    <TableRow
+                                                                        key={
+                                                                            row.subject_id
+                                                                        }
+                                                                    >
+                                                                        <TableCell className="pl-6 font-medium">
+                                                                            {
+                                                                                row.subject_name
+                                                                            }
+                                                                        </TableCell>
+                                                                        <TableCell className="border-l text-right">
+                                                                            <div className="flex flex-col items-end gap-1">
+                                                                                <Input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="0.01"
+                                                                                    className="w-[160px] text-right"
+                                                                                    value={
+                                                                                        remedialAmounts[
+                                                                                            row
+                                                                                                .subject_id
+                                                                                        ] ??
+                                                                                        String(
+                                                                                            row.amount,
+                                                                                        )
+                                                                                    }
+                                                                                    onChange={(
+                                                                                        event,
+                                                                                    ) =>
+                                                                                        updateRemedialAmount(
+                                                                                            row.subject_id,
+                                                                                            event
+                                                                                                .target
+                                                                                                .value,
+                                                                                        )
+                                                                                    }
+                                                                                    disabled={
+                                                                                        selectedSchoolYearId ===
+                                                                                            '' ||
+                                                                                        saving
+                                                                                    }
+                                                                                />
+                                                                                {fieldError ? (
+                                                                                    <p className="text-xs text-destructive">
+                                                                                        {
+                                                                                            fieldError
+                                                                                        }
+                                                                                    </p>
+                                                                                ) : null}
+                                                                            </div>
+                                                                        </TableCell>
+                                                                        <TableCell className="border-l pr-6 text-right">
+                                                                            <div className="flex justify-end">
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    variant="outline"
+                                                                                    onClick={() =>
+                                                                                        saveRemedialSubjectFee(
+                                                                                            row.subject_id,
+                                                                                        )
+                                                                                    }
+                                                                                    disabled={
+                                                                                        selectedSchoolYearId ===
+                                                                                            '' ||
+                                                                                        saving
+                                                                                    }
+                                                                                >
+                                                                                    {saving
+                                                                                        ? 'Saving...'
+                                                                                        : 'Save'}
+                                                                                </Button>
+                                                                            </div>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                );
+                                                            },
+                                                        )}
+                                                        {gradeLevel.subject_fees
+                                                            .length === 0 ? (
+                                                            <TableRow>
+                                                                <TableCell
+                                                                    colSpan={3}
+                                                                    className="py-8 text-center text-sm text-muted-foreground"
+                                                                >
+                                                                    No subjects
+                                                                    yet for this
+                                                                    grade level.
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ) : null}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </TabsContent>
+                                    );
+                                })}
+                            </Tabs>
+                        ) : (
+                            <div className="py-8 text-center text-sm text-muted-foreground">
+                                No grade levels found. Please set up grade
+                                levels first.
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
                 <Dialog
                     open={isAddFeeDialogOpen}
                     onOpenChange={setIsAddFeeDialogOpen}
@@ -607,7 +853,10 @@ export default function FeeStructure({
                                 <Select
                                     value={editForm.data.grade_level_id}
                                     onValueChange={(value) =>
-                                        editForm.setData('grade_level_id', value)
+                                        editForm.setData(
+                                            'grade_level_id',
+                                            value,
+                                        )
                                     }
                                 >
                                     <SelectTrigger>

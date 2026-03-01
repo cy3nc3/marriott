@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified', 'role:finance'])->prefix('finance')->name
 
     Route::get('/fee-structure', [FeeStructureController::class, 'index'])->middleware('desktop_only')->name('fee_structure');
     Route::post('/fee-structure', [FeeStructureController::class, 'store'])->middleware('desktop_only')->name('fee_structure.store');
+    Route::patch('/fee-structure/remedial-subject-fee', [FeeStructureController::class, 'updateRemedialSubjectFee'])->middleware('desktop_only')->name('fee_structure.update_remedial_subject_fee');
     Route::patch('/fee-structure/{fee}', [FeeStructureController::class, 'update'])->middleware('desktop_only')->name('fee_structure.update');
     Route::delete('/fee-structure/{fee}', [FeeStructureController::class, 'destroy'])->middleware('desktop_only')->name('fee_structure.destroy');
 

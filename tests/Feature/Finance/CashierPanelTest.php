@@ -7,6 +7,7 @@ use App\Models\Fee;
 use App\Models\GradeLevel;
 use App\Models\InventoryItem;
 use App\Models\LedgerEntry;
+use App\Models\RemedialCase;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\User;
@@ -196,6 +197,68 @@ test('cashier panel pending intakes include active year for cashier payment stat
             ->where('pending_intakes.1.student_id', $includedStudent->id)
             ->where('pending_intakes.1.student_name', 'Ari Lopez')
         );
+});
+
+test('cashier panel includes unpaid remedial intakes and can settle remedial payment', function () {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '700000000001',
+        'first_name' => 'Remedial',
+        'last_name' => 'Learner',
+    ]);
+
+    $remedialCase = RemedialCase::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'created_by' => $this->finance->id,
+        'failed_subject_count' => 2,
+        'fee_per_subject' => 500,
+        'total_amount' => 1000,
+        'amount_paid' => 0,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    $this->get("/finance/cashier-panel?search=Remedial&student_id={$student->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/cashier-panel/index')
+            ->where('pending_remedial_cases_count', 1)
+            ->has('pending_remedial_cases', 1)
+            ->where('pending_remedial_cases.0.id', $remedialCase->id)
+            ->where('selected_student.remedial_case.id', $remedialCase->id)
+            ->where('selected_student.remedial_case.balance', 1000)
+            ->where('fee_options.0.type', 'remedial_fee')
+            ->where('fee_options.0.amount', 1000)
+        );
+
+    $this->post('/finance/cashier-panel/transactions', [
+        'student_id' => $student->id,
+        'or_number' => 'OR-2026-REM-0001',
+        'payment_mode' => 'cash',
+        'reference_no' => null,
+        'remarks' => 'Remedial payment',
+        'tendered_amount' => 1000,
+        'items' => [
+            [
+                'type' => 'remedial_fee',
+                'description' => 'Remedial Fee',
+                'amount' => 1000,
+            ],
+        ],
+    ])->assertRedirect();
+
+    $remedialCase->refresh();
+
+    expect((float) $remedialCase->amount_paid)->toBe(1000.0);
+    expect($remedialCase->status)->toBe('paid');
+    expect($remedialCase->paid_at)->not->toBeNull();
 });
 
 test('cashier panel can search student by lrn', function () {

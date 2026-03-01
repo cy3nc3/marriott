@@ -65,6 +65,17 @@ interface SelectedStudent {
     overall_result: string;
 }
 
+interface RemedialCaseSummary {
+    id: number;
+    failed_subject_count: number;
+    fee_per_subject: number;
+    total_amount: number;
+    amount_paid: number;
+    balance: number;
+    status: string;
+    paid_at: string | null;
+}
+
 interface RecentEncoding {
     student_name: string;
     lrn: string;
@@ -78,6 +89,12 @@ interface Props {
     grade_levels: Option[];
     students: StudentOption[];
     selected_student: SelectedStudent | null;
+    remedial_case: RemedialCaseSummary | null;
+    intake_meta: {
+        failed_subject_count: number;
+        fee_per_subject: number;
+        estimated_total: number;
+    };
     remedial_rows: RemedialRow[];
     recent_encodings: RecentEncoding[];
     filters: {
@@ -99,6 +116,8 @@ export default function RemedialEntry({
     grade_levels,
     students,
     selected_student,
+    remedial_case,
+    intake_meta,
     remedial_rows,
     recent_encodings,
     filters,
@@ -131,6 +150,12 @@ export default function RemedialEntry({
         keywords: `${student.lrn} ${student.grade_and_section}`,
     }));
 
+    const formatCurrency = (amount: number) =>
+        new Intl.NumberFormat('en-PH', {
+            style: 'currency',
+            currency: 'PHP',
+        }).format(amount || 0);
+
     const remedialForm = useForm<{
         academic_year_id: number;
         student_id: number;
@@ -149,6 +174,11 @@ export default function RemedialEntry({
                     ? String(row.remedial_class_mark)
                     : '',
         })),
+    });
+
+    const intakeForm = useForm({
+        academic_year_id: Number(academicYearId || 0),
+        student_id: Number(studentId || 0),
     });
 
     useEffect(() => {
@@ -184,6 +214,10 @@ export default function RemedialEntry({
                         ? String(row.remedial_class_mark)
                         : '',
             })),
+        });
+        intakeForm.setData({
+            academic_year_id: Number(filters.academic_year_id || 0),
+            student_id: Number(filters.student_id || 0),
         });
     }, [
         filters.academic_year_id,
@@ -271,8 +305,30 @@ export default function RemedialEntry({
         };
     };
 
+    const createRemedialIntake = () => {
+        if (!studentId || !academicYearId) {
+            return;
+        }
+
+        intakeForm.transform((data) => ({
+            ...data,
+            academic_year_id: Number(academicYearId),
+            student_id: Number(studentId),
+        }));
+
+        intakeForm.post('/registrar/remedial-entry/intake', {
+            preserveScroll: true,
+            onFinish: () => {
+                intakeForm.transform((data) => data);
+            },
+        });
+    };
+
+    const canSubmitRemedialResults = remedial_case?.status === 'paid';
+
     const save = (mode: 'draft' | 'submitted') => {
         if (!studentId || !academicYearId) return;
+        if (mode === 'submitted' && !canSubmitRemedialResults) return;
 
         remedialForm.transform((data) => ({
             ...data,
@@ -479,6 +535,68 @@ export default function RemedialEntry({
                             </div>
                             <div className="flex items-center justify-between">
                                 <p className="text-sm text-muted-foreground">
+                                    Failed Subjects
+                                </p>
+                                <p className="text-sm font-medium">
+                                    {intake_meta.failed_subject_count}
+                                </p>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-muted-foreground">
+                                    Fee Per Subject
+                                </p>
+                                <p className="text-sm font-medium">
+                                    {formatCurrency(
+                                        intake_meta.fee_per_subject,
+                                    )}
+                                </p>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-muted-foreground">
+                                    Estimated Total
+                                </p>
+                                <p className="text-sm font-medium">
+                                    {formatCurrency(
+                                        intake_meta.estimated_total,
+                                    )}
+                                </p>
+                            </div>
+                            {remedial_case ? (
+                                <>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-muted-foreground">
+                                            Remedial Intake
+                                        </p>
+                                        <Badge variant="outline">
+                                            {remedial_case.status
+                                                .replaceAll('_', ' ')
+                                                .toUpperCase()}
+                                        </Badge>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-muted-foreground">
+                                            Amount Paid
+                                        </p>
+                                        <p className="text-sm font-medium">
+                                            {formatCurrency(
+                                                remedial_case.amount_paid,
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-muted-foreground">
+                                            Intake Balance
+                                        </p>
+                                        <p className="text-sm font-medium">
+                                            {formatCurrency(
+                                                remedial_case.balance,
+                                            )}
+                                        </p>
+                                    </div>
+                                </>
+                            ) : null}
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-muted-foreground">
                                     Overall Result
                                 </p>
                                 <Badge variant="outline">
@@ -486,6 +604,19 @@ export default function RemedialEntry({
                                         'No Student'}
                                 </Badge>
                             </div>
+                            <Button
+                                onClick={createRemedialIntake}
+                                disabled={
+                                    intakeForm.processing ||
+                                    !studentId ||
+                                    Number(academicYearId || 0) <= 0 ||
+                                    intake_meta.failed_subject_count <= 0
+                                }
+                            >
+                                {remedial_case
+                                    ? 'Recalculate Remedial Intake'
+                                    : 'Create Remedial Intake'}
+                            </Button>
                         </CardContent>
                     </Card>
 
@@ -610,13 +741,20 @@ export default function RemedialEntry({
                                 disabled={
                                     remedialForm.processing ||
                                     !studentId ||
-                                    remedial_rows.length === 0
+                                    remedial_rows.length === 0 ||
+                                    !canSubmitRemedialResults
                                 }
                             >
                                 <Save className="size-4" />
                                 Submit Remedial Results
                             </Button>
                         </div>
+                        {!canSubmitRemedialResults ? (
+                            <p className="px-4 pb-3 text-xs text-muted-foreground">
+                                Remedial intake must be fully paid before
+                                submitting remedial results.
+                            </p>
+                        ) : null}
                     </Card>
                 </div>
 

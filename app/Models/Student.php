@@ -53,6 +53,11 @@ class Student extends Model
         return $this->hasMany(RemedialRecord::class);
     }
 
+    public function remedialCases(): HasMany
+    {
+        return $this->hasMany(RemedialCase::class);
+    }
+
     public function studentDiscounts(): HasMany
     {
         return $this->hasMany(StudentDiscount::class);

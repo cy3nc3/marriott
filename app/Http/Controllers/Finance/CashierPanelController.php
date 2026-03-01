@@ -10,6 +10,7 @@ use App\Models\Enrollment;
 use App\Models\Fee;
 use App\Models\InventoryItem;
 use App\Models\LedgerEntry;
+use App\Models\RemedialCase;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Services\DashboardCacheService;
@@ -34,6 +35,7 @@ class CashierPanelController extends Controller
         $selectedStudentPayload = null;
         $selectedEnrollment = null;
         $selectedAcademicYear = null;
+        $selectedRemedialCase = null;
 
         if ($selectedStudentId > 0) {
             $selectedStudent = Student::query()
@@ -51,6 +53,12 @@ class CashierPanelController extends Controller
             if ($selectedStudent) {
                 $selectedEnrollment = $this->resolveCurrentEnrollment($selectedStudent);
                 $selectedAcademicYear = $selectedEnrollment?->academicYear ?? $this->resolveActiveAcademicYear();
+                $selectedRemedialCase = $selectedAcademicYear
+                    ? RemedialCase::query()
+                        ->where('student_id', $selectedStudent->id)
+                        ->where('academic_year_id', $selectedAcademicYear->id)
+                        ->first()
+                    : null;
 
                 $ledgerQuery = LedgerEntry::query()
                     ->where('student_id', $selectedStudent->id)
@@ -77,6 +85,16 @@ class CashierPanelController extends Controller
                     'payment_plan' => $selectedEnrollment?->payment_term,
                     'stated_downpayment' => (float) ($selectedEnrollment?->downpayment ?? 0),
                     'remaining_balance' => $remainingBalance,
+                    'remedial_case' => $selectedRemedialCase ? [
+                        'id' => (int) $selectedRemedialCase->id,
+                        'status' => $selectedRemedialCase->status,
+                        'total_amount' => (float) $selectedRemedialCase->total_amount,
+                        'amount_paid' => (float) $selectedRemedialCase->amount_paid,
+                        'balance' => round(
+                            max((float) $selectedRemedialCase->total_amount - (float) $selectedRemedialCase->amount_paid, 0),
+                            2
+                        ),
+                    ] : null,
                 ];
             }
         }
@@ -100,6 +118,22 @@ class CashierPanelController extends Controller
             ]);
         }
 
+        if ($selectedRemedialCase) {
+            $remedialBalance = round(
+                max((float) $selectedRemedialCase->total_amount - (float) $selectedRemedialCase->amount_paid, 0),
+                2
+            );
+
+            if ($remedialBalance > 0) {
+                $feeOptions->push([
+                    'id' => 1000000 + (int) $selectedRemedialCase->id,
+                    'name' => 'Remedial Fee',
+                    'type' => 'remedial_fee',
+                    'amount' => $remedialBalance,
+                ]);
+            }
+        }
+
         $inventoryOptions = InventoryItem::query()
             ->orderBy('name')
             ->get(['id', 'name', 'price', 'type'])
@@ -115,6 +149,7 @@ class CashierPanelController extends Controller
 
         $activeAcademicYear = $this->resolveActiveAcademicYear();
         $pendingIntakes = $this->resolvePendingCashierIntakes($activeAcademicYear);
+        $pendingRemedialCases = $this->resolvePendingRemedialCases($activeAcademicYear);
 
         return Inertia::render('finance/cashier-panel/index', [
             'students' => $students,
@@ -123,6 +158,8 @@ class CashierPanelController extends Controller
             'inventory_options' => $inventoryOptions,
             'pending_intakes_count' => $pendingIntakes->count(),
             'pending_intakes' => $pendingIntakes,
+            'pending_remedial_cases_count' => $pendingRemedialCases->count(),
+            'pending_remedial_cases' => $pendingRemedialCases,
             'filters' => $request->only(['search', 'student_id']),
         ]);
     }
@@ -173,6 +210,12 @@ class CashierPanelController extends Controller
                 })
                 ->sum('amount'), 2);
 
+            $remedialPaymentAmount = round((float) $items
+                ->filter(function (array $item): bool {
+                    return $item['type'] === 'remedial_fee';
+                })
+                ->sum('amount'), 2);
+
             $transaction = Transaction::query()->create([
                 'or_number' => $validated['or_number'],
                 'student_id' => $student->id,
@@ -197,6 +240,7 @@ class CashierPanelController extends Controller
             );
 
             $this->allocatePaymentAcrossDues($transaction, $student, $academicYear, $allocatablePaymentAmount);
+            $this->applyPaymentToRemedialCase($student, $academicYear, $remedialPaymentAmount);
 
             $previousRunningBalance = (float) (LedgerEntry::query()
                 ->where('student_id', $student->id)
@@ -246,10 +290,18 @@ class CashierPanelController extends Controller
         $normalizedSearch = strtolower($search);
 
         return Student::query()
-            ->whereHas('enrollments', function ($query) use ($activeAcademicYearId) {
+            ->where(function ($query) use ($activeAcademicYearId) {
                 $query
-                    ->where('academic_year_id', $activeAcademicYearId)
-                    ->where('status', 'for_cashier_payment');
+                    ->whereHas('enrollments', function ($enrollmentQuery) use ($activeAcademicYearId) {
+                        $enrollmentQuery
+                            ->where('academic_year_id', $activeAcademicYearId)
+                            ->where('status', 'for_cashier_payment');
+                    })
+                    ->orWhereHas('remedialCases', function ($remedialCaseQuery) use ($activeAcademicYearId) {
+                        $remedialCaseQuery
+                            ->where('academic_year_id', $activeAcademicYearId)
+                            ->whereIn('status', ['for_cashier_payment', 'partial_payment']);
+                    });
             })
             ->when($search !== '', function ($query) use ($normalizedSearch) {
                 $query->where(function ($searchQuery) use ($normalizedSearch) {
@@ -313,6 +365,46 @@ class CashierPanelController extends Controller
                     'grade_and_section' => $gradeAndSection,
                     'payment_plan' => $enrollment->payment_term,
                     'downpayment' => (float) $enrollment->downpayment,
+                ];
+            })
+            ->values();
+    }
+
+    private function resolvePendingRemedialCases(?AcademicYear $academicYear): Collection
+    {
+        if (! $academicYear) {
+            return collect();
+        }
+
+        return RemedialCase::query()
+            ->with([
+                'student:id,lrn,first_name,last_name',
+            ])
+            ->where('academic_year_id', $academicYear->id)
+            ->whereIn('status', ['for_cashier_payment', 'partial_payment'])
+            ->latest('id')
+            ->get([
+                'id',
+                'student_id',
+                'failed_subject_count',
+                'total_amount',
+                'amount_paid',
+                'status',
+            ])
+            ->map(function (RemedialCase $remedialCase) {
+                return [
+                    'id' => $remedialCase->id,
+                    'student_id' => $remedialCase->student_id,
+                    'lrn' => $remedialCase->student?->lrn,
+                    'student_name' => trim("{$remedialCase->student?->first_name} {$remedialCase->student?->last_name}"),
+                    'failed_subject_count' => (int) $remedialCase->failed_subject_count,
+                    'total_amount' => (float) $remedialCase->total_amount,
+                    'amount_paid' => (float) $remedialCase->amount_paid,
+                    'balance' => round(
+                        max((float) $remedialCase->total_amount - (float) $remedialCase->amount_paid, 0),
+                        2
+                    ),
+                    'status' => $remedialCase->status,
                 ];
             })
             ->values();
@@ -462,5 +554,44 @@ class CashierPanelController extends Controller
         return round((float) (clone $baseQuery)
             ->whereNull('academic_year_id')
             ->sum('amount'), 2);
+    }
+
+    private function applyPaymentToRemedialCase(
+        Student $student,
+        AcademicYear $academicYear,
+        float $paymentAmount
+    ): void {
+        if ($paymentAmount <= 0) {
+            return;
+        }
+
+        $remedialCase = RemedialCase::query()
+            ->where('student_id', $student->id)
+            ->where('academic_year_id', $academicYear->id)
+            ->whereIn('status', ['for_cashier_payment', 'partial_payment'])
+            ->lockForUpdate()
+            ->first();
+
+        if (! $remedialCase) {
+            return;
+        }
+
+        $nextPaidAmount = round((float) $remedialCase->amount_paid + $paymentAmount, 2);
+        $cappedPaidAmount = min($nextPaidAmount, (float) $remedialCase->total_amount);
+        $nextStatus = 'for_cashier_payment';
+
+        if ($cappedPaidAmount <= 0) {
+            $nextStatus = 'for_cashier_payment';
+        } elseif ($cappedPaidAmount >= (float) $remedialCase->total_amount) {
+            $nextStatus = 'paid';
+        } else {
+            $nextStatus = 'partial_payment';
+        }
+
+        $remedialCase->update([
+            'amount_paid' => $cappedPaidAmount,
+            'status' => $nextStatus,
+            'paid_at' => $nextStatus === 'paid' ? now() : null,
+        ]);
     }
 }

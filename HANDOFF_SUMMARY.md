@@ -1,7 +1,7 @@
 # HANDOFF SUMMARY
 
-Last updated: 2026-02-28
-Project path: `/home/lomonol/projects/marriott`
+Last updated: 2026-03-01
+Project path: `c:\Users\jadeg\Documents\Capstone\marriott`
 Primary branch: `main`
 Current HEAD before this documentation update: `8fab87b`
 
@@ -29,7 +29,7 @@ Core system goals currently implemented:
 4. Enrollment + cashier flows remain operationally separate, but linked.
 5. Student dashboard is learning-only (no billing details).
 6. Teacher dashboard completion tracks grade finalization/class rows, not deadline-based submission tracking.
-7. Attendance feature remains deferred/out of scope for now.
+7. Attendance feature is implemented for teacher subject-class logging; SF2 print/export generation is still placeholder-only.
 
 ---
 
@@ -320,7 +320,7 @@ All passed in latest run.
 
 ## 12) Out of Scope / Deferred (Current)
 
-1. Attendance module (still deferred).
+1. Attendance SF2 print/export generation is still placeholder-only (logging is implemented).
 2. DepEd reports module (`admin/deped-reports`) deferred.
 3. SF9 generator (`admin/sf9-generator`) deferred.
 4. Print/export expansions beyond current implemented pages remain optional future work.
@@ -656,3 +656,197 @@ All above commands passed after final fixes.
     - `php artisan test --compact tests/Feature/Finance/CashierPanelTest.php`
     - `php artisan test --compact tests/Feature/Finance/DataImportTest.php`
     - `php artisan test --compact tests/Feature/SuperAdmin/UserManagerTest.php`
+
+---
+
+## 18) Latest Session Progress (2026-03-01)
+
+### 18.1 Authentication hardening: forced password change on default credentials
+
+1. Added `users.must_change_password`:
+    - `database/migrations/2026_03_01_132135_add_must_change_password_to_users_table.php`
+2. Added global middleware guard:
+    - `app/Http/Middleware/EnsurePasswordChanged.php`
+    - registered in web stack via `bootstrap/app.php`
+3. Password update/reset now clears forced-change flag:
+    - `app/Http/Controllers/Settings/PasswordController.php`
+    - `app/Actions/Fortify/ResetUserPassword.php`
+4. Password settings routes were adjusted so forced users can access password change without verified middleware:
+    - `routes/settings.php`
+5. Added feature tests:
+    - `tests/Feature/ForcePasswordChangeTest.php`
+    - covers redirect enforcement, update success, and logout allowance.
+
+### 18.2 Teacher attendance module implemented (subject-teacher level, SF2-style encoding)
+
+1. Added new teacher attendance backend:
+    - `app/Http/Controllers/Teacher/AttendanceController.php`
+    - `app/Http/Requests/Teacher/IndexAttendanceRequest.php`
+    - `app/Http/Requests/Teacher/StoreAttendanceRequest.php`
+2. Added teacher attendance routes:
+    - `GET /teacher/attendance`
+    - `POST /teacher/attendance`
+    - file: `routes/roles/teacher.php`
+3. Attendance is now subject-assignment scoped (not adviser-only per section):
+    - migration `database/migrations/2026_03_01_124650_add_subject_assignment_to_attendances_table.php`
+    - adds `attendances.subject_assignment_id`
+    - updates unique key to `(enrollment_id, date, subject_assignment_id)`
+4. Attendance statuses now aligned to requested SF2 variants:
+    - `present`
+    - `absent`
+    - `tardy_late_comer`
+    - `tardy_cutting_classes`
+    - model constants updated in `app/Models/Attendance.php`
+5. Postgres-safe status migration was added:
+    - `database/migrations/2026_03_01_120644_update_attendance_statuses_to_sf2_variants.php`
+    - includes explicit check-constraint drop/recreate flow for pgsql.
+6. Added attendance UI page:
+    - `resources/js/pages/teacher/attendance/index.tsx`
+    - SF2-like mark cells (diagonal/two-diagonal shading logic), save action, legend, and `Print SF2` placeholder button.
+7. Added reusable month picker component:
+    - `resources/js/components/ui/month-picker.tsx`
+8. Added attendance feature tests:
+    - `tests/Feature/Attendance/*` (new attendance test suite for access and save flows).
+
+### 18.3 Registrar remedial intake now wired to finance charging flow
+
+1. Added remedial case domain model and schema:
+    - `database/migrations/2026_03_01_104836_create_remedial_cases_table.php`
+    - `app/Models/RemedialCase.php`
+2. Added subject-specific remedial fee table:
+    - `database/migrations/2026_03_01_112954_create_remedial_subject_fees_table.php`
+    - `app/Models/RemedialSubjectFee.php`
+3. Registrar remedial entry controller now supports:
+    - remedial intake creation from failed annual final grades
+    - computed failed-subject count
+    - fee computation using per-subject override with default fallback
+    - remedial case lifecycle statuses (`for_cashier_payment`, `partial_payment`, `paid`)
+    - payment-gated submission of remedial results
+    - file: `app/Http/Controllers/Registrar/RemedialEntryController.php`
+4. Added registrar request validation class:
+    - `app/Http/Requests/Registrar/StoreRemedialIntakeRequest.php`
+5. Added remedial intake route:
+    - `POST /registrar/remedial-entry/intake`
+    - file: `routes/roles/registrar.php`
+6. Remedial intake creates/updates ledger debit entry for finance collection tracking.
+
+### 18.4 Finance fee structure extended for remedial subject pricing
+
+1. Finance fee structure now includes remedial subject fee mapping by grade/subject for selected school year:
+    - `app/Http/Controllers/Finance/FeeStructureController.php`
+    - `resources/js/pages/finance/fee-structure/index.tsx`
+2. Added remedial fee update request classes:
+    - `app/Http/Requests/Finance/UpdateRemedialSubjectFeeRequest.php`
+    - `app/Http/Requests/Finance/UpdateRemedialFeeSettingRequest.php`
+3. Added route for remedial subject fee update:
+    - `PATCH /finance/fee-structure/remedial-subject-fee`
+    - file: `routes/roles/finance.php`
+4. Current default fallback setting used when no per-subject override exists:
+    - `finance_remedial_fee_per_subject` (from `settings` table).
+
+### 18.5 Finance cashier panel and data import hardening
+
+1. Cashier panel search and selection flow updates:
+    - case-insensitive matching
+    - explicit selection behavior (no unintended auto-change while typing)
+    - inline `Enrollment Intakes (N)` action and quick-select dialog
+    - status filtering aligned to active queue states
+    - files:
+        - `app/Http/Controllers/Finance/CashierPanelController.php`
+        - `resources/js/pages/finance/cashier-panel/index.tsx`
+2. Finance data import was expanded to support billing context from CSV:
+    - reads and applies `payment_term`, `downpayment`, `enrollment_status`, `due_date`, `due_amount`, `due_description`
+    - creates/updates billing schedules
+    - performs due allocation rollback for re-imported OR numbers
+    - re-applies payment allocations and syncs enrollment status
+    - file: `app/Http/Controllers/Finance/DataImportController.php`
+3. Related tests updated:
+    - `tests/Feature/Finance/CashierPanelTest.php`
+    - `tests/Feature/Finance/DataImportTest.php`
+    - `tests/Feature/Finance/FeeStructureTest.php`
+
+### 18.6 Registrar SF1 reconciliation updates (automatic section targeting)
+
+1. SF1 upload no longer requires registrar to manually choose a target section.
+2. SF1 import now resolves section per row using SF1 columns (`section`, with grade-level disambiguation if needed) within selected school year.
+3. Enrollment reassignment now auto-updates `section_id` and `grade_level_id` when SF1 indicates a changed assignment.
+4. Rows are flagged discrepancy when section cannot be resolved for the selected school year.
+5. Files:
+    - `app/Http/Controllers/Registrar/StudentDirectoryController.php`
+    - `resources/js/pages/registrar/student-directory/index.tsx`
+    - `tests/Feature/Registrar/RegistrarFeaturesTest.php`
+
+### 18.7 Section seeding aligned with SF1 samples
+
+1. Updated section seeding to include SF1 sample section names across grades/years:
+    - `Rizal`, `Bonifacio`, `Mabini`, `Del Pilar`, `Luna`, `Aguinaldo`
+2. File:
+    - `database/seeders/SectionSeeder.php`
+
+### 18.8 New enrollment intake seeder based on SF1 sample with account provisioning
+
+1. Added new seeder:
+    - `database/seeders/EnrollmentIntakeSeeder.php`
+2. Added to default seeding pipeline:
+    - `database/seeders/DatabaseSeeder.php`
+3. Seeder behavior:
+    - uses `tests/Fixtures/imports/registrar_sf1_sample.csv` as intake source
+    - differentiates old/new using overlap with `tests/Fixtures/imports/registrar_permanent_records_sample.csv`
+    - auto-creates/updates student and parent accounts for seeded intake rows
+    - sets varied payment terms (`cash`, `monthly`, `quarterly`, `semi-annual`) and varied downpayment amounts
+    - seeds varied discrepancy scenarios for SF1 upload tests:
+        - `student-not-found`: intentionally left-out old + new students
+        - `no-active-enrollment`: profile-only and past-year-only seeded learners
+4. Added seeder test:
+    - `tests/Feature/EnrollmentIntakeSeederTest.php`
+
+### 18.9 Manual enrollment test students intentionally left out by seeder
+
+These are excluded by `EnrollmentIntakeSeeder` so they can be enrolled manually through registrar intake UI:
+
+1. Old student not seeded:
+    - LRN: `120000000001`
+    - Name: `Sofia Castro`
+    - Gender: `Female`
+    - Birthdate: `2010-06-10`
+    - Grade/Section from SF1: `Grade 7 / Rizal`
+    - Guardian: `Rosario Aquino`
+    - Contact: `09171000001`
+2. New student not seeded:
+    - LRN: `130000000001`
+    - Name: `Xavier Espino`
+    - Gender: `Male`
+    - Birthdate: `2011-01-08`
+    - Grade/Section from SF1: `Grade 7 / Luna`
+    - Guardian: `Corazon Aquino`
+    - Contact: `09181000001`
+
+### 18.10 Migrations added in this session
+
+1. `database/migrations/2026_03_01_104836_create_remedial_cases_table.php`
+2. `database/migrations/2026_03_01_112954_create_remedial_subject_fees_table.php`
+3. `database/migrations/2026_03_01_120644_update_attendance_statuses_to_sf2_variants.php`
+4. `database/migrations/2026_03_01_124650_add_subject_assignment_to_attendances_table.php`
+5. `database/migrations/2026_03_01_132135_add_must_change_password_to_users_table.php`
+
+### 18.11 Required setup after pulling this session
+
+1. Pull latest and install deps:
+    - `git pull origin main`
+    - `composer install`
+    - `npm install`
+2. Apply DB changes:
+    - `php artisan migrate`
+3. Seed data (if using sample QA dataset):
+    - `php artisan db:seed --class=SectionSeeder --no-interaction`
+    - `php artisan db:seed --class=EnrollmentIntakeSeeder --no-interaction`
+    - or full seed: `php artisan db:seed --no-interaction`
+4. Build/run frontend:
+    - `npm run dev` or `npm run build`
+
+### 18.12 Validation run for this update wave
+
+1. `vendor/bin/pint --dirty --format agent`
+2. `npm run types`
+3. `php artisan test --compact tests/Feature/EnrollmentIntakeSeederTest.php`
+4. `php artisan test --compact tests/Feature/Registrar/RegistrarFeaturesTest.php --filter="sf1 upload"`

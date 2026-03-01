@@ -229,6 +229,11 @@ const roleNavItems: Record<string, NavItem[]> = {
         },
         { title: 'Schedule', href: '/teacher/schedule', icon: Calendar },
         {
+            title: 'Attendance',
+            href: '/teacher/attendance',
+            icon: ClipboardList,
+        },
+        {
             title: 'Grading Sheet',
             href: '/teacher/grading-sheet',
             icon: CheckSquare,
@@ -266,6 +271,7 @@ const handheldAllowedHrefMap: Record<string, string[]> = {
     teacher: [
         '/announcements',
         '/teacher/schedule',
+        '/teacher/attendance',
         '/teacher/grading-sheet',
         '/teacher/advisory-board',
     ],

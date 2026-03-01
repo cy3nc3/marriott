@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Registrar;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Registrar\StoreRemedialIntakeRequest;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
 use App\Models\GradeLevel;
+use App\Models\LedgerEntry;
 use App\Models\PermanentRecord;
+use App\Models\RemedialCase;
 use App\Models\RemedialRecord;
+use App\Models\RemedialSubjectFee;
+use App\Models\Setting;
 use App\Models\Student;
 use App\Models\Subject;
 use Illuminate\Http\RedirectResponse;
@@ -195,6 +200,24 @@ class RemedialEntryController extends Controller
                 : 'For Encoding';
         }
 
+        $selectedRemedialCase = null;
+        if ($selectedStudentId > 0 && $selectedAcademicYearId > 0) {
+            $selectedRemedialCase = RemedialCase::query()
+                ->where('student_id', $selectedStudentId)
+                ->where('academic_year_id', $selectedAcademicYearId)
+                ->first();
+        }
+
+        $failedSubjectIds = $failedGradeMap
+            ->keys()
+            ->map(fn ($subjectId) => (int) $subjectId)
+            ->values();
+        $failedSubjectCount = $failedSubjectIds->count();
+        $feeSummary = $this->resolveRemedialFeeSummary(
+            $selectedAcademicYearId,
+            $failedSubjectIds
+        );
+
         return Inertia::render('registrar/remedial-entry/index', [
             'academic_years' => $academicYears,
             'grade_levels' => $gradeLevels,
@@ -208,6 +231,24 @@ class RemedialEntryController extends Controller
                     : 'Unassigned',
                 'overall_result' => $overallResult,
             ] : null,
+            'remedial_case' => $selectedRemedialCase ? [
+                'id' => (int) $selectedRemedialCase->id,
+                'failed_subject_count' => (int) $selectedRemedialCase->failed_subject_count,
+                'fee_per_subject' => (float) $selectedRemedialCase->fee_per_subject,
+                'total_amount' => (float) $selectedRemedialCase->total_amount,
+                'amount_paid' => (float) $selectedRemedialCase->amount_paid,
+                'balance' => round(
+                    max((float) $selectedRemedialCase->total_amount - (float) $selectedRemedialCase->amount_paid, 0),
+                    2
+                ),
+                'status' => $selectedRemedialCase->status,
+                'paid_at' => $selectedRemedialCase->paid_at?->toDateTimeString(),
+            ] : null,
+            'intake_meta' => [
+                'failed_subject_count' => $failedSubjectCount,
+                'fee_per_subject' => $feeSummary['fee_per_subject'],
+                'estimated_total' => $feeSummary['total_amount'],
+            ],
             'remedial_rows' => $remedialRows,
             'recent_encodings' => $recentEncodings,
             'filters' => [
@@ -217,6 +258,73 @@ class RemedialEntryController extends Controller
                 'student_id' => $selectedStudentId ?: null,
             ],
         ]);
+    }
+
+    public function storeIntake(StoreRemedialIntakeRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        $enrollment = Enrollment::query()
+            ->where('student_id', $validated['student_id'])
+            ->where('academic_year_id', $validated['academic_year_id'])
+            ->first();
+
+        if (! $enrollment) {
+            return back()->with('error', 'Student has no enrollment context for the selected school year.');
+        }
+
+        $failedGradeMap = $this->resolveAnnualFailedGradeMap($enrollment);
+        $failedSubjectIds = $failedGradeMap
+            ->keys()
+            ->map(fn ($subjectId) => (int) $subjectId)
+            ->values();
+        $failedSubjectCount = $failedSubjectIds->count();
+
+        if ($failedSubjectCount <= 0) {
+            return back()->with('error', 'No failed subjects found for remedial intake.');
+        }
+
+        $feeSummary = $this->resolveRemedialFeeSummary(
+            (int) $validated['academic_year_id'],
+            $failedSubjectIds
+        );
+        $feePerSubject = $feeSummary['fee_per_subject'];
+        $totalAmount = $feeSummary['total_amount'];
+
+        $remedialCase = RemedialCase::query()->firstOrNew([
+            'student_id' => (int) $validated['student_id'],
+            'academic_year_id' => (int) $validated['academic_year_id'],
+        ]);
+
+        $existingPaidAmount = round((float) ($remedialCase->amount_paid ?? 0), 2);
+        $nextStatus = $this->resolveRemedialCaseStatus($existingPaidAmount, $totalAmount);
+
+        $remedialCase->fill([
+            'created_by' => $remedialCase->exists ? $remedialCase->created_by : auth()->id(),
+            'failed_subject_count' => $failedSubjectCount,
+            'fee_per_subject' => $feePerSubject,
+            'total_amount' => $totalAmount,
+            'amount_paid' => min($existingPaidAmount, $totalAmount),
+            'status' => $nextStatus,
+            'paid_at' => $nextStatus === 'paid' ? now() : null,
+            'notes' => 'Created from registrar remedial entry.',
+        ]);
+        $remedialCase->save();
+
+        $this->syncRemedialLedgerDebit(
+            studentId: (int) $validated['student_id'],
+            academicYearId: (int) $validated['academic_year_id'],
+            remedialCaseId: (int) $remedialCase->id,
+            amount: $totalAmount
+        );
+
+        Student::query()
+            ->whereKey((int) $validated['student_id'])
+            ->update([
+                'is_for_remedial' => true,
+            ]);
+
+        return back()->with('success', 'Remedial intake created and queued for cashier payment.');
     }
 
     public function store(Request $request): RedirectResponse
@@ -230,6 +338,21 @@ class RemedialEntryController extends Controller
             'records.*.final_rating' => 'nullable|numeric|min:0|max:100',
             'records.*.remedial_class_mark' => 'nullable|numeric|min:0|max:100',
         ]);
+
+        if ($validated['save_mode'] === 'submitted') {
+            $remedialCase = RemedialCase::query()
+                ->where('student_id', $validated['student_id'])
+                ->where('academic_year_id', $validated['academic_year_id'])
+                ->first();
+
+            if (! $remedialCase) {
+                return back()->with('error', 'Create remedial intake first before submitting results.');
+            }
+
+            if ($remedialCase->status !== 'paid') {
+                return back()->with('error', 'Remedial intake must be fully paid before submitting results.');
+            }
+        }
 
         $written = 0;
         $hasFailed = false;
@@ -413,6 +536,125 @@ class RemedialEntryController extends Controller
             'conditional_resolved_at' => now(),
             'conditional_resolution_notes' => 'Resolved through remedial completion.',
             'remarks' => 'Conditional status resolved after remedial completion.',
+        ]);
+    }
+
+    /**
+     * @param  Collection<int, int>  $subjectIds
+     * @return array{fee_per_subject: float, total_amount: float}
+     */
+    private function resolveRemedialFeeSummary(int $academicYearId, Collection $subjectIds): array
+    {
+        $defaultFeePerSubject = $this->resolveDefaultRemedialFeePerSubject();
+        $normalizedSubjectIds = $subjectIds
+            ->map(fn ($subjectId) => (int) $subjectId)
+            ->filter(fn (int $subjectId) => $subjectId > 0)
+            ->values();
+
+        if ($normalizedSubjectIds->isEmpty()) {
+            return [
+                'fee_per_subject' => $defaultFeePerSubject,
+                'total_amount' => 0.0,
+            ];
+        }
+
+        $customFeeMap = collect();
+        if ($academicYearId > 0) {
+            $customFeeMap = RemedialSubjectFee::query()
+                ->where('academic_year_id', $academicYearId)
+                ->whereIn('subject_id', $normalizedSubjectIds)
+                ->pluck('amount', 'subject_id')
+                ->map(fn ($amount) => (float) $amount);
+        }
+
+        $totalAmount = round((float) $normalizedSubjectIds->sum(function (int $subjectId) use (
+            $customFeeMap,
+            $defaultFeePerSubject
+        ) {
+            return (float) ($customFeeMap->get($subjectId) ?? $defaultFeePerSubject);
+        }), 2);
+
+        $subjectCount = $normalizedSubjectIds->count();
+        $averageFeePerSubject = $subjectCount > 0
+            ? round($totalAmount / $subjectCount, 2)
+            : $defaultFeePerSubject;
+
+        return [
+            'fee_per_subject' => $averageFeePerSubject,
+            'total_amount' => $totalAmount,
+        ];
+    }
+
+    private function resolveDefaultRemedialFeePerSubject(): float
+    {
+        $rawValue = Setting::get('finance_remedial_fee_per_subject', '500');
+        $parsedValue = (float) $rawValue;
+
+        if ($parsedValue < 0) {
+            return 0;
+        }
+
+        return round($parsedValue, 2);
+    }
+
+    private function resolveRemedialCaseStatus(float $amountPaid, float $totalAmount): string
+    {
+        if ($totalAmount <= 0) {
+            return 'paid';
+        }
+
+        if ($amountPaid <= 0) {
+            return 'for_cashier_payment';
+        }
+
+        if ($amountPaid >= $totalAmount) {
+            return 'paid';
+        }
+
+        return 'partial_payment';
+    }
+
+    private function syncRemedialLedgerDebit(
+        int $studentId,
+        int $academicYearId,
+        int $remedialCaseId,
+        float $amount
+    ): void {
+        $description = "Remedial Intake Fee (Case {$remedialCaseId})";
+        $previousDebit = (float) (LedgerEntry::query()
+            ->where('student_id', $studentId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('description', $description)
+            ->value('debit') ?? 0.0);
+
+        if ($previousDebit > 0) {
+            if (round($previousDebit, 2) === round($amount, 2)) {
+                return;
+            }
+
+            LedgerEntry::query()
+                ->where('student_id', $studentId)
+                ->where('academic_year_id', $academicYearId)
+                ->where('description', $description)
+                ->delete();
+        }
+
+        $previousRunningBalance = (float) (LedgerEntry::query()
+            ->where('student_id', $studentId)
+            ->where('academic_year_id', $academicYearId)
+            ->latest('date')
+            ->latest('id')
+            ->value('running_balance') ?? 0.0);
+
+        LedgerEntry::query()->create([
+            'student_id' => $studentId,
+            'academic_year_id' => $academicYearId,
+            'date' => now()->toDateString(),
+            'description' => $description,
+            'debit' => $amount,
+            'credit' => null,
+            'running_balance' => round($previousRunningBalance + $amount, 2),
+            'reference_id' => null,
         ]);
     }
 }

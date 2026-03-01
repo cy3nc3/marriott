@@ -222,6 +222,8 @@ class SystemBackupService
             'attendances',
             'permanent_records',
             'remedial_records',
+            'remedial_cases',
+            'remedial_subject_fees',
             'final_grades',
             'student_departures',
             'announcements',

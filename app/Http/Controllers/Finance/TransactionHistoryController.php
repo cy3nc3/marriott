@@ -11,6 +11,7 @@ use App\Models\AcademicYear;
 use App\Models\BillingSchedule;
 use App\Models\Enrollment;
 use App\Models\LedgerEntry;
+use App\Models\RemedialCase;
 use App\Models\Transaction;
 use App\Models\TransactionDueAllocation;
 use App\Services\DashboardCacheService;
@@ -178,6 +179,7 @@ class TransactionHistoryController extends Controller
             $academicYearId = $this->resolveAcademicYearIdForTransaction($lockedTransaction);
 
             $this->rollbackPaymentImpact($lockedTransaction, $academicYearId);
+            $this->rollbackRemedialPaymentImpact($lockedTransaction, $academicYearId);
 
             if ($academicYearId) {
                 $this->appendReverseLedgerEntry(
@@ -227,6 +229,7 @@ class TransactionHistoryController extends Controller
             $academicYearId = $this->resolveAcademicYearIdForTransaction($lockedTransaction);
 
             $this->rollbackPaymentImpact($lockedTransaction, $academicYearId);
+            $this->rollbackRemedialPaymentImpact($lockedTransaction, $academicYearId);
 
             if ($academicYearId) {
                 $this->appendReverseLedgerEntry(
@@ -276,6 +279,7 @@ class TransactionHistoryController extends Controller
             $academicYearId = $this->resolveAcademicYearIdForTransaction($lockedTransaction);
 
             $this->rollbackPaymentImpact($lockedTransaction, $academicYearId);
+            $this->rollbackRemedialPaymentImpact($lockedTransaction, $academicYearId);
 
             if ($academicYearId) {
                 $this->appendReverseLedgerEntry(
@@ -316,6 +320,11 @@ class TransactionHistoryController extends Controller
                     $replacementTransaction,
                     $academicYearId,
                     $this->resolveAssessmentFeeAmount($replacementTransaction)
+                );
+                $this->applyRemedialPayment(
+                    $replacementTransaction,
+                    $academicYearId,
+                    $this->resolveRemedialFeeAmount($replacementTransaction)
                 );
 
                 $this->appendPaymentLedgerEntry(
@@ -411,6 +420,15 @@ class TransactionHistoryController extends Controller
         return round((float) $transaction->items
             ->filter(function ($item): bool {
                 return trim((string) $item->description) === 'Assessment Fee';
+            })
+            ->sum('amount'), 2);
+    }
+
+    private function resolveRemedialFeeAmount(Transaction $transaction): float
+    {
+        return round((float) $transaction->items
+            ->filter(function ($item): bool {
+                return trim((string) $item->description) === 'Remedial Fee';
             })
             ->sum('amount'), 2);
     }
@@ -594,6 +612,81 @@ class TransactionHistoryController extends Controller
         }
 
         return 'partially_paid';
+    }
+
+    private function rollbackRemedialPaymentImpact(Transaction $transaction, ?int $academicYearId): void
+    {
+        if (! $academicYearId) {
+            return;
+        }
+
+        $remedialPaymentAmount = $this->resolveRemedialFeeAmount($transaction);
+        if ($remedialPaymentAmount <= 0) {
+            return;
+        }
+
+        $remedialCase = RemedialCase::query()
+            ->where('student_id', $transaction->student_id)
+            ->where('academic_year_id', $academicYearId)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $remedialCase) {
+            return;
+        }
+
+        $nextAmountPaid = round(max((float) $remedialCase->amount_paid - $remedialPaymentAmount, 0), 2);
+        $nextStatus = $this->resolveRemedialCaseStatus($nextAmountPaid, (float) $remedialCase->total_amount);
+
+        $remedialCase->update([
+            'amount_paid' => $nextAmountPaid,
+            'status' => $nextStatus,
+            'paid_at' => $nextStatus === 'paid' ? now() : null,
+        ]);
+    }
+
+    private function applyRemedialPayment(Transaction $transaction, ?int $academicYearId, float $remedialPaymentAmount): void
+    {
+        if (! $academicYearId || $remedialPaymentAmount <= 0) {
+            return;
+        }
+
+        $remedialCase = RemedialCase::query()
+            ->where('student_id', $transaction->student_id)
+            ->where('academic_year_id', $academicYearId)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $remedialCase) {
+            return;
+        }
+
+        $nextAmountPaid = round((float) $remedialCase->amount_paid + $remedialPaymentAmount, 2);
+        $cappedAmountPaid = min($nextAmountPaid, (float) $remedialCase->total_amount);
+        $nextStatus = $this->resolveRemedialCaseStatus($cappedAmountPaid, (float) $remedialCase->total_amount);
+
+        $remedialCase->update([
+            'amount_paid' => $cappedAmountPaid,
+            'status' => $nextStatus,
+            'paid_at' => $nextStatus === 'paid' ? now() : null,
+        ]);
+    }
+
+    private function resolveRemedialCaseStatus(float $amountPaid, float $totalAmount): string
+    {
+        if ($totalAmount <= 0) {
+            return 'paid';
+        }
+
+        if ($amountPaid <= 0) {
+            return 'for_cashier_payment';
+        }
+
+        if ($amountPaid >= $totalAmount) {
+            return 'paid';
+        }
+
+        return 'partial_payment';
     }
 
     private function resolveAcademicYearIdForTransaction(Transaction $transaction): ?int

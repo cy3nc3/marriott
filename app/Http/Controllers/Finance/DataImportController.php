@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\ImportFinanceTransactionsRequest;
 use App\Models\AcademicYear;
 use App\Models\AuditLog;
+use App\Models\BillingSchedule;
 use App\Models\Enrollment;
 use App\Models\GradeLevel;
 use App\Models\LedgerEntry;
@@ -13,15 +14,20 @@ use App\Models\Section;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Models\Transaction;
+use App\Models\TransactionDueAllocation;
 use App\Services\AuditLogService;
 use App\Services\DashboardCacheService;
+use App\Services\Finance\BillingScheduleService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DataImportController extends Controller
 {
+    public function __construct(private BillingScheduleService $billingScheduleService) {}
+
     public function index(): Response
     {
         $imports = AuditLog::query()
@@ -156,84 +162,130 @@ class DataImportController extends Controller
             'payment_amount',
             'total_amount',
         ]));
+        $paymentTerm = $this->normalizePaymentTerm($this->firstAvailable($rowData, [
+            'payment_term',
+            'payment_plan',
+            'installment_plan',
+        ]));
+        $downpayment = $this->parseDecimal($this->firstAvailable($rowData, [
+            'downpayment',
+            'enrollment_downpayment',
+        ]));
+        $enrollmentStatus = $this->normalizeEnrollmentStatus($this->firstAvailable($rowData, [
+            'enrollment_status',
+            'status',
+        ]));
+        $dueDate = $this->parseTransactionDate($this->firstAvailable($rowData, [
+            'due_date',
+            'billing_due_date',
+        ]));
+        $dueAmount = $this->parseDecimal($this->firstAvailable($rowData, [
+            'due_amount',
+            'amount_due',
+            'installment_amount',
+        ]));
+        $dueDescription = $this->firstAvailable($rowData, [
+            'due_description',
+            'billing_description',
+            'installment_description',
+        ]);
 
         if ($lrn === '' || ! $schoolYearPair || $orNumber === null || $paymentAmount === null || $paymentAmount <= 0) {
             return false;
         }
 
         try {
-            [$startYear, $endYear] = $schoolYearPair;
-            $academicYearName = "{$startYear}-{$endYear}";
-            $transactionDate = $this->parseTransactionDate($this->firstAvailable($rowData, [
-                'payment_date',
-                'transaction_date',
-                'posted_at',
-                'date',
-            ])) ?? now();
-            $paymentMode = $this->normalizePaymentMode($this->firstAvailable($rowData, [
-                'payment_mode',
-                'payment_method',
-                'method',
-            ]));
-            $referenceNo = $this->firstAvailable($rowData, ['reference_no', 'reference']);
-            $remarks = $this->firstAvailable($rowData, ['remarks', 'notes']);
-            $entryDescription = $this->firstAvailable($rowData, [
-                'description',
-                'entry_description',
-                'payment_description',
-            ]) ?: 'Imported Payment';
+            return DB::transaction(function () use (
+                &$summary,
+                $rowData,
+                $schoolYearPair,
+                $lrn,
+                $orNumber,
+                $paymentAmount,
+                $paymentTerm,
+                $downpayment,
+                $enrollmentStatus,
+                $dueDate,
+                $dueAmount,
+                $dueDescription,
+                $cashierId
+            ): bool {
+                [$startYear, $endYear] = $schoolYearPair;
+                $academicYearName = "{$startYear}-{$endYear}";
+                $transactionDate = $this->parseTransactionDate($this->firstAvailable($rowData, [
+                    'payment_date',
+                    'transaction_date',
+                    'posted_at',
+                    'date',
+                ])) ?? now();
+                $paymentMode = $this->normalizePaymentMode($this->firstAvailable($rowData, [
+                    'payment_mode',
+                    'payment_method',
+                    'method',
+                ]));
+                $referenceNo = $this->firstAvailable($rowData, ['reference_no', 'reference']);
+                $remarks = $this->firstAvailable($rowData, ['remarks', 'notes']);
+                $entryDescription = $this->firstAvailable($rowData, [
+                    'description',
+                    'entry_description',
+                    'payment_description',
+                ]) ?: 'Imported Payment';
 
-            [$parsedFirstName, $parsedLastName] = $this->parseNameParts(
-                $this->firstAvailable($rowData, ['name', 'student_name', 'learner_name'])
-            );
+                [$parsedFirstName, $parsedLastName] = $this->parseNameParts(
+                    $this->firstAvailable($rowData, ['name', 'student_name', 'learner_name'])
+                );
 
-            $student = Student::query()->where('lrn', $lrn)->first();
-            if (! $student) {
-                $student = Student::query()->create([
-                    'lrn' => $lrn,
-                    'first_name' => $this->firstAvailable($rowData, ['first_name', 'firstname', 'given_name']) ?: ($parsedFirstName ?: 'Unknown'),
-                    'last_name' => $this->firstAvailable($rowData, ['last_name', 'lastname', 'surname']) ?: ($parsedLastName ?: 'Student'),
-                ]);
-                $summary['created_students']++;
-            }
+                $student = Student::query()->where('lrn', $lrn)->first();
+                if (! $student) {
+                    $student = Student::query()->create([
+                        'lrn' => $lrn,
+                        'first_name' => $this->firstAvailable($rowData, ['first_name', 'firstname', 'given_name']) ?: ($parsedFirstName ?: 'Unknown'),
+                        'last_name' => $this->firstAvailable($rowData, ['last_name', 'lastname', 'surname']) ?: ($parsedLastName ?: 'Student'),
+                    ]);
+                    $summary['created_students']++;
+                }
 
-            $academicYear = AcademicYear::query()->firstOrCreate(
-                ['name' => $academicYearName],
-                [
-                    'start_date' => "{$startYear}-06-01",
-                    'end_date' => "{$endYear}-03-31",
-                    'status' => $endYear < (int) now()->format('Y') ? 'completed' : 'upcoming',
-                    'current_quarter' => $endYear < (int) now()->format('Y') ? '4' : '1',
-                ]
-            );
-            if ($academicYear->wasRecentlyCreated) {
-                $summary['created_academic_years']++;
-            }
+                $academicYear = AcademicYear::query()->firstOrCreate(
+                    ['name' => $academicYearName],
+                    [
+                        'start_date' => "{$startYear}-06-01",
+                        'end_date' => "{$endYear}-03-31",
+                        'status' => $endYear < (int) now()->format('Y') ? 'completed' : 'upcoming',
+                        'current_quarter' => $endYear < (int) now()->format('Y') ? '4' : '1',
+                    ]
+                );
+                if ($academicYear->wasRecentlyCreated) {
+                    $summary['created_academic_years']++;
+                }
 
-            $enrollment = Enrollment::query()
-                ->where('student_id', $student->id)
-                ->where('academic_year_id', $academicYear->id)
-                ->first();
+                $enrollment = Enrollment::query()
+                    ->where('student_id', $student->id)
+                    ->where('academic_year_id', $academicYear->id)
+                    ->first();
 
-            if (! $enrollment) {
                 $gradeLevelValue = $this->firstAvailable($rowData, ['grade_level', 'year_level']);
                 $gradeLevelName = $this->normalizeGradeLevelName($gradeLevelValue);
 
-                if ($gradeLevelName === null) {
+                if (! $enrollment && $gradeLevelName === null) {
                     return false;
                 }
 
-                $gradeLevel = GradeLevel::query()->firstOrCreate(
-                    ['name' => $gradeLevelName],
-                    ['level_order' => $this->resolveLevelOrder($gradeLevelName)]
-                );
-                if ($gradeLevel->wasRecentlyCreated) {
-                    $summary['created_grade_levels']++;
+                $gradeLevel = null;
+                if ($gradeLevelName !== null) {
+                    $gradeLevel = GradeLevel::query()->firstOrCreate(
+                        ['name' => $gradeLevelName],
+                        ['level_order' => $this->resolveLevelOrder($gradeLevelName)]
+                    );
+
+                    if ($gradeLevel->wasRecentlyCreated) {
+                        $summary['created_grade_levels']++;
+                    }
                 }
 
                 $sectionName = $this->firstAvailable($rowData, ['section', 'section_name']);
                 $section = null;
-                if ($sectionName !== null) {
+
+                if ($sectionName !== null && $gradeLevel) {
                     $section = Section::query()->firstOrCreate(
                         [
                             'academic_year_id' => $academicYear->id,
@@ -250,84 +302,143 @@ class DataImportController extends Controller
                     }
                 }
 
-                $enrollment = Enrollment::query()->create([
+                if (! $enrollment) {
+                    $resolvedPaymentTerm = $paymentTerm ?? 'cash';
+                    $resolvedDownpayment = $downpayment ?? 0.0;
+                    $resolvedStatus = $enrollmentStatus
+                        ?? ($resolvedPaymentTerm === 'cash' ? 'enrolled' : 'for_cashier_payment');
+
+                    $enrollment = Enrollment::query()->create([
+                        'student_id' => $student->id,
+                        'academic_year_id' => $academicYear->id,
+                        'grade_level_id' => (int) $gradeLevel?->id,
+                        'section_id' => $section?->id,
+                        'payment_term' => $resolvedPaymentTerm,
+                        'downpayment' => $resolvedDownpayment,
+                        'status' => $resolvedStatus,
+                    ]);
+                    $summary['created_enrollments']++;
+                } else {
+                    $updates = [];
+
+                    if ($gradeLevel) {
+                        $updates['grade_level_id'] = (int) $gradeLevel->id;
+                    }
+
+                    if ($section) {
+                        $updates['section_id'] = $section->id;
+                    }
+
+                    if ($paymentTerm !== null) {
+                        $updates['payment_term'] = $paymentTerm;
+                    }
+
+                    if ($downpayment !== null) {
+                        $updates['downpayment'] = $downpayment;
+                    }
+
+                    if ($enrollmentStatus !== null) {
+                        $updates['status'] = $enrollmentStatus;
+                    }
+
+                    if ($updates !== []) {
+                        $enrollment->update($updates);
+                    }
+                }
+
+                $hasExplicitDue = $dueDate !== null && $dueAmount !== null && $dueAmount > 0;
+
+                if ($hasExplicitDue) {
+                    $this->upsertDueFromImport(
+                        $student,
+                        $academicYear,
+                        $dueDate,
+                        $dueAmount,
+                        $dueDescription
+                    );
+                } elseif ((string) $enrollment->payment_term !== 'cash') {
+                    $this->billingScheduleService->syncForEnrollment($enrollment->fresh());
+                }
+
+                $transaction = Transaction::query()->where('or_number', $orNumber)->first();
+                if ($transaction) {
+                    $this->rollbackPriorDueAllocations($transaction);
+                }
+
+                if (! $transaction) {
+                    $transaction = Transaction::query()->create([
+                        'or_number' => $orNumber,
+                        'student_id' => $student->id,
+                        'cashier_id' => $cashierId,
+                        'total_amount' => $paymentAmount,
+                        'payment_mode' => $paymentMode,
+                        'reference_no' => $referenceNo,
+                        'remarks' => $remarks,
+                        'status' => 'posted',
+                    ]);
+                    $summary['created_transactions']++;
+                } else {
+                    $transaction->update([
+                        'student_id' => $student->id,
+                        'cashier_id' => $cashierId,
+                        'total_amount' => $paymentAmount,
+                        'payment_mode' => $paymentMode,
+                        'reference_no' => $referenceNo,
+                        'remarks' => $remarks,
+                        'status' => 'posted',
+                    ]);
+                    $summary['updated_transactions']++;
+                }
+
+                $transaction->created_at = $transactionDate;
+                $transaction->updated_at = $transactionDate;
+                $transaction->save();
+
+                $transaction->items()->delete();
+                $transaction->items()->create([
+                    'fee_id' => null,
+                    'inventory_item_id' => null,
+                    'description' => $entryDescription,
+                    'amount' => $paymentAmount,
+                ]);
+
+                LedgerEntry::query()
+                    ->where('reference_id', $transaction->id)
+                    ->where('description', 'like', 'Imported Payment%')
+                    ->delete();
+
+                $previousRunningBalance = (float) (LedgerEntry::query()
+                    ->where('student_id', $student->id)
+                    ->where('academic_year_id', $academicYear->id)
+                    ->latest('date')
+                    ->latest('id')
+                    ->value('running_balance') ?? 0.0);
+
+                LedgerEntry::query()->create([
                     'student_id' => $student->id,
                     'academic_year_id' => $academicYear->id,
-                    'grade_level_id' => $gradeLevel->id,
-                    'section_id' => $section?->id,
-                    'payment_term' => 'cash',
-                    'downpayment' => 0,
-                    'status' => 'enrolled',
+                    'date' => $transactionDate->toDateString(),
+                    'description' => "Imported Payment ({$transaction->or_number})",
+                    'debit' => null,
+                    'credit' => $paymentAmount,
+                    'running_balance' => round($previousRunningBalance - $paymentAmount, 2),
+                    'reference_id' => $transaction->id,
                 ]);
-                $summary['created_enrollments']++;
-            }
+                $summary['created_ledger_entries']++;
 
-            $transaction = Transaction::query()->where('or_number', $orNumber)->first();
+                $this->allocatePaymentAcrossDues(
+                    $transaction,
+                    $student,
+                    $academicYear,
+                    $paymentAmount
+                );
 
-            if (! $transaction) {
-                $transaction = Transaction::query()->create([
-                    'or_number' => $orNumber,
-                    'student_id' => $student->id,
-                    'cashier_id' => $cashierId,
-                    'total_amount' => $paymentAmount,
-                    'payment_mode' => $paymentMode,
-                    'reference_no' => $referenceNo,
-                    'remarks' => $remarks,
-                    'status' => 'posted',
-                ]);
-                $summary['created_transactions']++;
-            } else {
-                $transaction->update([
-                    'student_id' => $student->id,
-                    'cashier_id' => $cashierId,
-                    'total_amount' => $paymentAmount,
-                    'payment_mode' => $paymentMode,
-                    'reference_no' => $referenceNo,
-                    'remarks' => $remarks,
-                    'status' => 'posted',
-                ]);
-                $summary['updated_transactions']++;
-            }
+                $this->syncEnrollmentStatusAfterPayment($student, $academicYear);
 
-            $transaction->created_at = $transactionDate;
-            $transaction->updated_at = $transactionDate;
-            $transaction->save();
+                $summary['imported_rows']++;
 
-            $transaction->items()->delete();
-            $transaction->items()->create([
-                'fee_id' => null,
-                'inventory_item_id' => null,
-                'description' => $entryDescription,
-                'amount' => $paymentAmount,
-            ]);
-
-            LedgerEntry::query()
-                ->where('reference_id', $transaction->id)
-                ->where('description', 'like', 'Imported Payment%')
-                ->delete();
-
-            $previousRunningBalance = (float) (LedgerEntry::query()
-                ->where('student_id', $student->id)
-                ->where('academic_year_id', $academicYear->id)
-                ->latest('date')
-                ->latest('id')
-                ->value('running_balance') ?? 0.0);
-
-            LedgerEntry::query()->create([
-                'student_id' => $student->id,
-                'academic_year_id' => $academicYear->id,
-                'date' => $transactionDate->toDateString(),
-                'description' => "Imported Payment ({$transaction->or_number})",
-                'debit' => null,
-                'credit' => $paymentAmount,
-                'running_balance' => round($previousRunningBalance - $paymentAmount, 2),
-                'reference_id' => $transaction->id,
-            ]);
-            $summary['created_ledger_entries']++;
-
-            $summary['imported_rows']++;
-
-            return true;
+                return true;
+            });
         } catch (\Throwable $throwable) {
             report($throwable);
 
@@ -455,6 +566,39 @@ class DataImportController extends Controller
         return $parsedValue >= 0 ? round($parsedValue, 2) : null;
     }
 
+    private function normalizePaymentTerm(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        $normalized = strtolower(trim($value));
+
+        return match ($normalized) {
+            'full', 'cash' => 'cash',
+            'monthly' => 'monthly',
+            'quarterly' => 'quarterly',
+            'semi-annual', 'semi_annual', 'semiannual' => 'semi-annual',
+            default => null,
+        };
+    }
+
+    private function normalizeEnrollmentStatus(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        $normalized = strtolower(trim($value));
+
+        return match ($normalized) {
+            'for_cashier_payment' => 'for_cashier_payment',
+            'partial_payment' => 'partial_payment',
+            'enrolled' => 'enrolled',
+            default => null,
+        };
+    }
+
     private function normalizePaymentMode(?string $value): string
     {
         $normalized = strtolower(trim((string) $value));
@@ -478,6 +622,181 @@ class DataImportController extends Controller
         } catch (\Throwable $throwable) {
             return null;
         }
+    }
+
+    private function upsertDueFromImport(
+        Student $student,
+        AcademicYear $academicYear,
+        Carbon $dueDate,
+        float $dueAmount,
+        ?string $dueDescription,
+    ): void {
+        $description = trim((string) ($dueDescription ?? 'Imported Installment'));
+        if ($description === '') {
+            $description = 'Imported Installment';
+        }
+
+        $billingSchedule = BillingSchedule::query()
+            ->where('student_id', $student->id)
+            ->where('academic_year_id', $academicYear->id)
+            ->whereDate('due_date', $dueDate->toDateString())
+            ->where('description', $description)
+            ->first();
+
+        if (! $billingSchedule) {
+            BillingSchedule::query()->create([
+                'student_id' => $student->id,
+                'academic_year_id' => $academicYear->id,
+                'due_date' => $dueDate->toDateString(),
+                'description' => $description,
+                'amount_due' => $dueAmount,
+                'amount_paid' => 0,
+                'status' => 'unpaid',
+            ]);
+
+            return;
+        }
+
+        $amountPaidCents = (int) round((float) $billingSchedule->amount_paid * 100);
+        $amountDueCents = (int) round($dueAmount * 100);
+
+        $nextStatus = 'unpaid';
+        if ($amountPaidCents <= 0) {
+            $nextStatus = 'unpaid';
+        } elseif ($amountPaidCents >= $amountDueCents) {
+            $nextStatus = 'paid';
+        } else {
+            $nextStatus = 'partially_paid';
+        }
+
+        $billingSchedule->update([
+            'amount_due' => $dueAmount,
+            'status' => $nextStatus,
+        ]);
+    }
+
+    private function rollbackPriorDueAllocations(Transaction $transaction): void
+    {
+        $allocations = TransactionDueAllocation::query()
+            ->with('billingSchedule')
+            ->where('transaction_id', $transaction->id)
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($allocations as $allocation) {
+            $billingSchedule = $allocation->billingSchedule;
+
+            if (! $billingSchedule) {
+                continue;
+            }
+
+            $amountPaidCents = (int) round((float) $billingSchedule->amount_paid * 100);
+            $allocationCents = (int) round((float) $allocation->amount * 100);
+            $amountDueCents = (int) round((float) $billingSchedule->amount_due * 100);
+
+            $nextPaidCents = max($amountPaidCents - $allocationCents, 0);
+            $nextStatus = 'unpaid';
+
+            if ($nextPaidCents <= 0) {
+                $nextStatus = 'unpaid';
+            } elseif ($nextPaidCents >= $amountDueCents) {
+                $nextStatus = 'paid';
+            } else {
+                $nextStatus = 'partially_paid';
+            }
+
+            $billingSchedule->update([
+                'amount_paid' => round($nextPaidCents / 100, 2),
+                'status' => $nextStatus,
+            ]);
+        }
+
+        $transaction->dueAllocations()->delete();
+    }
+
+    private function allocatePaymentAcrossDues(
+        Transaction $transaction,
+        Student $student,
+        AcademicYear $academicYear,
+        float $paymentAmount
+    ): void {
+        $remainingPaymentCents = (int) round(max($paymentAmount, 0) * 100);
+
+        if ($remainingPaymentCents <= 0) {
+            return;
+        }
+
+        $billingSchedules = BillingSchedule::query()
+            ->where('student_id', $student->id)
+            ->where('academic_year_id', $academicYear->id)
+            ->whereIn('status', ['unpaid', 'partially_paid'])
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($billingSchedules as $billingSchedule) {
+            if ($remainingPaymentCents <= 0) {
+                break;
+            }
+
+            $amountDueCents = (int) round((float) $billingSchedule->amount_due * 100);
+            $amountPaidCents = (int) round((float) $billingSchedule->amount_paid * 100);
+            $outstandingCents = max($amountDueCents - $amountPaidCents, 0);
+
+            if ($outstandingCents <= 0) {
+                continue;
+            }
+
+            $appliedCents = min($remainingPaymentCents, $outstandingCents);
+            $newPaidCents = $amountPaidCents + $appliedCents;
+
+            $billingSchedule->update([
+                'amount_paid' => round($newPaidCents / 100, 2),
+                'status' => $newPaidCents >= $amountDueCents ? 'paid' : 'partially_paid',
+            ]);
+
+            $transaction->dueAllocations()->create([
+                'billing_schedule_id' => $billingSchedule->id,
+                'amount' => round($appliedCents / 100, 2),
+            ]);
+
+            $remainingPaymentCents -= $appliedCents;
+        }
+    }
+
+    private function syncEnrollmentStatusAfterPayment(Student $student, AcademicYear $academicYear): void
+    {
+        $enrollment = Enrollment::query()
+            ->where('student_id', $student->id)
+            ->where('academic_year_id', $academicYear->id)
+            ->latest('id')
+            ->first();
+
+        if (! $enrollment || $enrollment->status === 'enrolled') {
+            return;
+        }
+
+        if ($enrollment->payment_term === 'cash') {
+            $enrollment->update(['status' => 'enrolled']);
+
+            return;
+        }
+
+        $totalPaidInYear = (float) Transaction::query()
+            ->where('student_id', $student->id)
+            ->whereBetween('created_at', [
+                "{$academicYear->start_date} 00:00:00",
+                "{$academicYear->end_date} 23:59:59",
+            ])
+            ->whereNotIn('status', ['voided', 'refunded', 'reissued'])
+            ->sum('total_amount');
+
+        $newStatus = $totalPaidInYear >= (float) $enrollment->downpayment
+            ? 'enrolled'
+            : 'partial_payment';
+
+        $enrollment->update(['status' => $newStatus]);
     }
 
     private function firstAvailable(array $row, array $keys): ?string

@@ -1,14 +1,15 @@
 import { Transition } from '@headlessui/react';
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, usePage } from '@inertiajs/react';
 import { useRef } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 import PasswordController from '@/actions/App/Http/Controllers/Settings/PasswordController';
 import { edit } from '@/routes/user-password';
 
@@ -22,6 +23,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function Password() {
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
+    const requiresPasswordChange = Boolean(
+        usePage<SharedData>().props.auth.user?.must_change_password,
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -31,6 +35,15 @@ export default function Password() {
 
             <SettingsLayout>
                 <div className="space-y-6">
+                    {requiresPasswordChange ? (
+                        <Alert variant="destructive">
+                            <AlertDescription>
+                                You are using a default password. Update your
+                                password to continue using the system.
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
                     <Heading
                         variant="small"
                         title="Update password"

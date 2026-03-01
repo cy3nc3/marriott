@@ -38,4 +38,14 @@ class AcademicYear extends Model
     {
         return $this->hasMany(BillingSchedule::class);
     }
+
+    public function remedialCases(): HasMany
+    {
+        return $this->hasMany(RemedialCase::class);
+    }
+
+    public function remedialSubjectFees(): HasMany
+    {
+        return $this->hasMany(RemedialSubjectFee::class);
+    }
 }

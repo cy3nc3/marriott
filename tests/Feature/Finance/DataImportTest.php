@@ -1,12 +1,14 @@
 <?php
 
 use App\Models\AcademicYear;
+use App\Models\BillingSchedule;
 use App\Models\Enrollment;
 use App\Models\GradeLevel;
 use App\Models\LedgerEntry;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\Transaction;
+use App\Models\TransactionDueAllocation;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -91,4 +93,53 @@ test('finance can import historical transaction records from csv', function () {
             ->where('imports.0.imported_rows', 1)
             ->where('imports.0.skipped_rows', 0)
         );
+});
+
+test('finance import can create dues and allocate payment using payment plan fields', function () {
+    $csvContent = implode("\n", [
+        'School Year,LRN,Name,Grade Level,Section,OR Number,Payment Date,Payment Method,Amount,Reference No,Remarks,Description,Payment Term,Downpayment,Enrollment Status,Due Date,Due Amount,Due Description',
+        '2024-2025,900000000001,"Reyes, Pia",Grade 8,Emerald,OR-IMP-9101,2025-07-10,gcash,1200,GC-9101,Monthly installment import,Tuition Installment,monthly,3000,for_cashier_payment,2025-08-01,3000,August Installment',
+    ]);
+
+    $file = UploadedFile::fake()->createWithContent('finance-with-dues.csv', $csvContent);
+
+    $this->post('/finance/data-import/transactions', [
+        'import_file' => $file,
+    ])->assertRedirect()
+        ->assertSessionHas('success');
+
+    $student = Student::query()->where('lrn', '900000000001')->first();
+    $academicYear = AcademicYear::query()->where('name', '2024-2025')->first();
+    $enrollment = Enrollment::query()
+        ->where('student_id', $student?->id)
+        ->where('academic_year_id', $academicYear?->id)
+        ->first();
+    $transaction = Transaction::query()->where('or_number', 'OR-IMP-9101')->first();
+
+    expect($student)->not->toBeNull();
+    expect($academicYear)->not->toBeNull();
+    expect($enrollment)->not->toBeNull();
+    expect($transaction)->not->toBeNull();
+
+    expect($enrollment?->payment_term)->toBe('monthly');
+    expect((float) $enrollment?->downpayment)->toBe(3000.0);
+    expect($enrollment?->status)->toBe('partial_payment');
+
+    $billingSchedule = BillingSchedule::query()
+        ->where('student_id', $student?->id)
+        ->where('academic_year_id', $academicYear?->id)
+        ->whereDate('due_date', '2025-08-01')
+        ->where('description', 'August Installment')
+        ->first();
+
+    expect($billingSchedule)->not->toBeNull();
+    expect((float) $billingSchedule?->amount_due)->toBe(3000.0);
+    expect((float) $billingSchedule?->amount_paid)->toBe(1200.0);
+    expect($billingSchedule?->status)->toBe('partially_paid');
+
+    expect(TransactionDueAllocation::query()
+        ->where('transaction_id', $transaction?->id)
+        ->where('billing_schedule_id', $billingSchedule?->id)
+        ->where('amount', 1200)
+        ->exists())->toBeTrue();
 });

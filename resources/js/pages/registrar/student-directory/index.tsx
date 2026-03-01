@@ -79,9 +79,14 @@ export default function StudentDirectory({
     const isHandheld = Boolean(ui?.is_handheld);
     const uploadForm = useForm<{
         sf1_file: File | null;
+        academic_year_id: string;
     }>({
         sf1_file: null,
+        academic_year_id: selected_school_year_id
+            ? String(selected_school_year_id)
+            : '',
     });
+    const canUploadSf1 = uploadForm.data.academic_year_id !== '';
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -164,7 +169,7 @@ export default function StudentDirectory({
                                             }),
                                             {},
                                             {
-                                                preserveState: true,
+                                                preserveState: false,
                                                 preserveScroll: true,
                                                 replace: true,
                                             },
@@ -211,11 +216,16 @@ export default function StudentDirectory({
                                     accept=".csv,.txt"
                                     className="hidden"
                                     onChange={handleFileChange}
+                                    disabled={!canUploadSf1}
                                 />
                                 <Button asChild>
                                     <label
                                         htmlFor="sf1-upload-file"
-                                        className="cursor-pointer"
+                                        className={
+                                            canUploadSf1
+                                                ? 'cursor-pointer'
+                                                : 'pointer-events-none cursor-not-allowed opacity-50'
+                                        }
                                     >
                                         <UploadCloud className="size-4" />
                                         {uploadForm.processing

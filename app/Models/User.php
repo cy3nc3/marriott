@@ -32,6 +32,7 @@ class User extends Authenticatable
         'role',
         'is_active',
         'access_expires_at',
+        'must_change_password',
     ];
 
     /**
@@ -61,6 +62,7 @@ class User extends Authenticatable
             'role' => UserRole::class,
             'is_active' => 'boolean',
             'access_expires_at' => 'datetime',
+            'must_change_password' => 'boolean',
         ];
     }
 

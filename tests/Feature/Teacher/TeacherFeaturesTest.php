@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AcademicYear;
+use App\Models\Attendance;
 use App\Models\ClassSchedule;
 use App\Models\ConductRating;
 use App\Models\Enrollment;
@@ -242,6 +243,170 @@ test('teacher schedule page is scoped to the active academic year', function () 
             ->has('break_items', 2)
             ->where('break_items.0.label', 'Recess Break')
         );
+});
+
+test('teacher attendance page renders sf2 style attendance rows for subject class assignment', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '3',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Mabini',
+        'adviser_id' => null,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'ENG7',
+        'subject_name' => 'English 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '973456789012',
+        'first_name' => 'Luna',
+        'last_name' => 'Garcia',
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    Attendance::query()->create([
+        'subject_assignment_id' => $assignment->id,
+        'enrollment_id' => $enrollment->id,
+        'date' => '2026-03-05',
+        'status' => 'absent',
+    ]);
+
+    $this->get("/teacher/attendance?subject_assignment_id={$assignment->id}&month=2026-03")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teacher/attendance/index')
+            ->where('context.selected_subject_assignment_id', $assignment->id)
+            ->where('context.selected_month', '2026-03')
+            ->where('rows.0.student_name', 'Garcia, Luna')
+            ->where('rows.0.statuses.2026-03-05', 'absent')
+        );
+});
+
+test('teacher can store sf2 attendance statuses and reset a mark back to present', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '3',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => null,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'MATH7',
+        'subject_name' => 'Mathematics 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '983456789012',
+        'first_name' => 'Mila',
+        'last_name' => 'Reyes',
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $this->post('/teacher/attendance', [
+        'subject_assignment_id' => $assignment->id,
+        'month' => '2026-03',
+        'entries' => [
+            [
+                'enrollment_id' => $enrollment->id,
+                'date' => '2026-03-02',
+                'status' => 'tardy_late_comer',
+            ],
+        ],
+    ])->assertRedirect()
+        ->assertSessionHas('success', 'Attendance saved.');
+
+    $this->assertDatabaseHas('attendances', [
+        'subject_assignment_id' => $assignment->id,
+        'enrollment_id' => $enrollment->id,
+        'date' => '2026-03-02',
+        'status' => 'tardy_late_comer',
+    ]);
+
+    $this->post('/teacher/attendance', [
+        'subject_assignment_id' => $assignment->id,
+        'month' => '2026-03',
+        'entries' => [
+            [
+                'enrollment_id' => $enrollment->id,
+                'date' => '2026-03-02',
+                'status' => 'present',
+            ],
+        ],
+    ])->assertRedirect()
+        ->assertSessionHas('success', 'Attendance saved.');
+
+    $this->assertDatabaseMissing('attendances', [
+        'subject_assignment_id' => $assignment->id,
+        'enrollment_id' => $enrollment->id,
+        'date' => '2026-03-02',
+    ]);
 });
 
 test('teacher dashboard reports quarter grade completion by class based on locked final grades', function () {

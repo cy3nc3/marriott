@@ -22,7 +22,7 @@ class StoreCashierTransactionRequest extends FormRequest
             'remarks' => ['nullable', 'string', 'max:1000'],
             'tendered_amount' => ['required', 'numeric', 'min:0', 'max:9999999.99'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.type' => ['required', 'in:assessment_fee,inventory,custom'],
+            'items.*.type' => ['required', 'in:assessment_fee,remedial_fee,inventory,custom'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.amount' => ['required', 'numeric', 'gt:0', 'max:999999.99'],
             'items.*.fee_id' => ['nullable', 'exists:fees,id'],

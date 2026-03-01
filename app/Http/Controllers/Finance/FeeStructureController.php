@@ -5,9 +5,13 @@ namespace App\Http\Controllers\Finance;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\StoreFeeRequest;
 use App\Http\Requests\Finance\UpdateFeeRequest;
+use App\Http\Requests\Finance\UpdateRemedialSubjectFeeRequest;
 use App\Models\AcademicYear;
 use App\Models\Fee;
 use App\Models\GradeLevel;
+use App\Models\RemedialSubjectFee;
+use App\Models\Setting;
+use App\Models\Subject;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,7 +19,7 @@ use Inertia\Response;
 
 class FeeStructureController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(): Response
     {
         $schoolYearOptions = AcademicYear::query()
             ->orderByDesc('start_date')
@@ -29,14 +33,8 @@ class FeeStructureController extends Controller
             })
             ->values();
 
-        $selectedAcademicYearId = $request->integer('academic_year_id');
-        if (
-            $selectedAcademicYearId <= 0
-            || ! $schoolYearOptions->pluck('id')->contains($selectedAcademicYearId)
-        ) {
-            $selectedAcademicYearId = (int) ($schoolYearOptions->firstWhere('status', 'ongoing')['id']
-                ?? ($schoolYearOptions->first()['id'] ?? 0));
-        }
+        $selectedAcademicYearId = (int) ($schoolYearOptions->firstWhere('status', 'ongoing')['id']
+            ?? ($schoolYearOptions->first()['id'] ?? 0));
 
         $selectedAcademicYear = $selectedAcademicYearId > 0
             ? AcademicYear::query()->find($selectedAcademicYearId)
@@ -91,8 +89,47 @@ class FeeStructureController extends Controller
             })
             ->values();
 
+        $defaultRemedialFeePerSubject = $this->resolveDefaultRemedialFeePerSubject();
+        $subjectFeeMap = collect();
+        if ($selectedAcademicYear) {
+            $subjectFeeMap = RemedialSubjectFee::query()
+                ->where('academic_year_id', $selectedAcademicYear->id)
+                ->pluck('amount', 'subject_id')
+                ->map(fn ($amount) => (float) $amount);
+        }
+
+        $remedialSubjectFees = GradeLevel::query()
+            ->with(['subjects' => function ($query) {
+                $query->orderBy('subject_name');
+            }])
+            ->orderBy('level_order')
+            ->get()
+            ->map(function (GradeLevel $gradeLevel) use ($subjectFeeMap, $defaultRemedialFeePerSubject) {
+                return [
+                    'id' => (int) $gradeLevel->id,
+                    'name' => $gradeLevel->name,
+                    'subject_fees' => $gradeLevel->subjects
+                        ->map(function (Subject $subject) use ($subjectFeeMap, $defaultRemedialFeePerSubject) {
+                            $hasCustomAmount = $subjectFeeMap->has($subject->id);
+                            $amount = $hasCustomAmount
+                                ? (float) $subjectFeeMap->get($subject->id)
+                                : $defaultRemedialFeePerSubject;
+
+                            return [
+                                'subject_id' => (int) $subject->id,
+                                'subject_name' => $subject->subject_name,
+                                'amount' => round($amount, 2),
+                                'is_custom' => $hasCustomAmount,
+                            ];
+                        })
+                        ->values(),
+                ];
+            })
+            ->values();
+
         return Inertia::render('finance/fee-structure/index', [
             'grade_level_fees' => $gradeLevelFees,
+            'remedial_subject_fees' => $remedialSubjectFees,
             'school_year_options' => $schoolYearOptions->all(),
             'selected_school_year_id' => $selectedAcademicYear?->id,
         ]);
@@ -141,6 +178,23 @@ class FeeStructureController extends Controller
         return $redirect->with('success', 'Fee item removed.');
     }
 
+    public function updateRemedialSubjectFee(UpdateRemedialSubjectFeeRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        RemedialSubjectFee::query()->updateOrCreate(
+            [
+                'academic_year_id' => (int) $validated['academic_year_id'],
+                'subject_id' => (int) $validated['subject_id'],
+            ],
+            [
+                'amount' => number_format((float) $validated['amount'], 2, '.', ''),
+            ]
+        );
+
+        return back()->with('success', 'Remedial subject fee updated.');
+    }
+
     private function formatCategory(string $type): string
     {
         return match ($type) {
@@ -149,5 +203,17 @@ class FeeStructureController extends Controller
             'books_modules' => 'Books and Modules',
             default => ucwords(str_replace('_', ' ', $type)),
         };
+    }
+
+    private function resolveDefaultRemedialFeePerSubject(): float
+    {
+        $rawValue = Setting::get('finance_remedial_fee_per_subject', '500');
+        $parsedValue = (float) $rawValue;
+
+        if ($parsedValue < 0) {
+            return 0;
+        }
+
+        return round($parsedValue, 2);
     }
 }

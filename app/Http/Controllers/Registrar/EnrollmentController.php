@@ -413,9 +413,11 @@ class EnrollmentController extends Controller
                     'first_name' => $student->first_name,
                     'last_name' => $student->last_name,
                     'name' => trim("{$student->first_name} {$student->last_name}"),
+                    'birthday' => $student->birthdate,
                     'role' => UserRole::STUDENT->value,
                     'is_active' => true,
                     'password' => Hash::make($studentDefaultPassword),
+                    'must_change_password' => true,
                 ]
             );
         }
@@ -435,6 +437,7 @@ class EnrollmentController extends Controller
             'first_name' => $student->first_name,
             'last_name' => $student->last_name,
             'name' => trim("{$student->first_name} {$student->last_name}"),
+            'birthday' => $student->birthdate,
             'role' => UserRole::STUDENT->value,
             'is_active' => true,
             'access_expires_at' => null,
@@ -453,6 +456,7 @@ class EnrollmentController extends Controller
                 'role' => UserRole::PARENT->value,
                 'is_active' => true,
                 'password' => Hash::make($student->lrn),
+                'must_change_password' => true,
             ]
         );
 

@@ -26,6 +26,7 @@ Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->
     Route::post('/batch-promotion/review', [BatchPromotionController::class, 'resolveReviewCase'])->middleware('desktop_only')->name('batch_promotion.review');
 
     Route::get('/remedial-entry', [RemedialEntryController::class, 'index'])->middleware('desktop_only')->name('remedial_entry');
+    Route::post('/remedial-entry/intake', [RemedialEntryController::class, 'storeIntake'])->middleware('desktop_only')->name('remedial_entry.intake');
     Route::post('/remedial-entry', [RemedialEntryController::class, 'store'])->middleware('desktop_only')->name('remedial_entry.store');
 
     Route::get('/student-departure', [StudentDepartureController::class, 'index'])->middleware('desktop_only')->name('student_departure');

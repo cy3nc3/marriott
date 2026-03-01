@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             SectionSeeder::class,
             StudentSeeder::class,
             StudentSeeder::class,
+            EnrollmentIntakeSeeder::class,
         ]);
 
         foreach (UserRole::cases() as $role) {

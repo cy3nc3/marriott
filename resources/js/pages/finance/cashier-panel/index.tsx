@@ -54,12 +54,19 @@ type SelectedStudent = {
     payment_plan: string | null;
     stated_downpayment: number;
     remaining_balance: number;
+    remedial_case: {
+        id: number;
+        status: string;
+        total_amount: number;
+        amount_paid: number;
+        balance: number;
+    } | null;
 };
 
 type FeeOption = {
     id: number;
     name: string;
-    type: string;
+    type: 'assessment_fee' | 'remedial_fee';
     amount: number;
 };
 
@@ -80,13 +87,25 @@ type PendingIntake = {
     downpayment: number;
 };
 
+type PendingRemedialCase = {
+    id: number;
+    student_id: number;
+    lrn: string | null;
+    student_name: string;
+    failed_subject_count: number;
+    total_amount: number;
+    amount_paid: number;
+    balance: number;
+    status: string;
+};
+
 type StudentSuggestionsResponse = {
     students: StudentOption[];
 };
 
 type CurrentTransactionItem = {
     id: string;
-    type: 'assessment_fee' | 'inventory' | 'custom';
+    type: 'assessment_fee' | 'remedial_fee' | 'inventory' | 'custom';
     description: string;
     amount: number;
     fee_id: number | null;
@@ -100,6 +119,8 @@ interface Props {
     inventory_options: InventoryOption[];
     pending_intakes_count: number;
     pending_intakes: PendingIntake[];
+    pending_remedial_cases_count: number;
+    pending_remedial_cases: PendingRemedialCase[];
     filters: {
         search?: string;
         student_id?: string | number;
@@ -135,6 +156,8 @@ export default function CashierPanel({
     inventory_options,
     pending_intakes_count,
     pending_intakes,
+    pending_remedial_cases_count,
+    pending_remedial_cases,
     filters,
 }: Props) {
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
@@ -151,12 +174,13 @@ export default function CashierPanel({
     const [isAddItemOpen, setIsAddItemOpen] = useState(false);
     const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
     const [isIntakesDialogOpen, setIsIntakesDialogOpen] = useState(false);
+    const [isRemedialDialogOpen, setIsRemedialDialogOpen] = useState(false);
 
     const [itemType, setItemType] = useState<
-        'assessment_fee' | 'inventory' | 'custom'
+        'assessment_fee' | 'remedial_fee' | 'inventory' | 'custom'
     >(
         fee_options.length > 0
-            ? 'assessment_fee'
+            ? fee_options[0].type
             : inventory_options.length > 0
               ? 'inventory'
               : 'custom',
@@ -178,7 +202,7 @@ export default function CashierPanel({
         remarks: '',
         tendered_amount: '',
         items: [] as Array<{
-            type: 'assessment_fee' | 'inventory' | 'custom';
+            type: 'assessment_fee' | 'remedial_fee' | 'inventory' | 'custom';
             description: string;
             amount: number;
             fee_id?: number;
@@ -190,11 +214,15 @@ export default function CashierPanel({
         return transactionItems.reduce((sum, item) => sum + item.amount, 0);
     }, [transactionItems]);
 
-    const selectedFee = useMemo(() => {
-        const parsedFeeId = Number(selectedFeeId);
+    const assessmentFeeOptions = useMemo(
+        () => fee_options.filter((fee) => fee.type === 'assessment_fee'),
+        [fee_options],
+    );
 
-        return fee_options.find((fee) => fee.id === parsedFeeId) ?? null;
-    }, [fee_options, selectedFeeId]);
+    const remedialFeeOptions = useMemo(
+        () => fee_options.filter((fee) => fee.type === 'remedial_fee'),
+        [fee_options],
+    );
 
     const selectedInventory = useMemo(() => {
         const parsedInventoryId = Number(selectedInventoryId);
@@ -301,11 +329,21 @@ export default function CashierPanel({
         runSearch(intake.student_name, nextStudentId);
     };
 
+    const selectRemedialCaseForTransaction = (
+        remedialCase: PendingRemedialCase,
+    ) => {
+        const nextStudentId = String(remedialCase.student_id);
+        setIsRemedialDialogOpen(false);
+        setSearchQuery(remedialCase.student_name);
+        setSelectedStudentId(nextStudentId);
+        runSearch(remedialCase.student_name, nextStudentId);
+    };
+
     const openAddItemDialog = () => {
         if (fee_options.length > 0) {
             const defaultFee = fee_options[0];
 
-            setItemType('assessment_fee');
+            setItemType(defaultFee.type);
             setSelectedFeeId(String(defaultFee.id));
             setItemDescription(defaultFee.name);
             setItemAmount(String(defaultFee.amount));
@@ -329,6 +367,7 @@ export default function CashierPanel({
         setSelectedFeeId(value);
         const option = fee_options.find((fee) => fee.id === Number(value));
         if (option) {
+            setItemType(option.type);
             setItemDescription(option.name);
             setItemAmount(String(option.amount));
         }
@@ -362,7 +401,10 @@ export default function CashierPanel({
                 type: itemType,
                 description: itemDescription.trim(),
                 amount: Number(parsedAmount.toFixed(2)),
-                fee_id: null,
+                fee_id:
+                    itemType === 'assessment_fee'
+                        ? Number(selectedFeeId)
+                        : null,
                 inventory_item_id:
                     itemType === 'inventory'
                         ? Number(selectedInventoryId)
@@ -482,6 +524,14 @@ export default function CashierPanel({
                             >
                                 Enrollment Intakes ({pending_intakes_count})
                             </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsRemedialDialogOpen(true)}
+                            >
+                                Remedial Intakes ({pending_remedial_cases_count}
+                                )
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -540,6 +590,25 @@ export default function CashierPanel({
                                             )}
                                         </p>
                                     </div>
+                                    {selected_student.remedial_case ? (
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">
+                                                Remedial Balance
+                                            </p>
+                                            <p className="text-sm font-medium">
+                                                {formatCurrency(
+                                                    selected_student
+                                                        .remedial_case.balance,
+                                                )}{' '}
+                                                (
+                                                {selected_student.remedial_case.status.replaceAll(
+                                                    '_',
+                                                    ' ',
+                                                )}
+                                                )
+                                            </p>
+                                        </div>
+                                    ) : null}
                                     <Button
                                         variant="outline"
                                         className="w-full"
@@ -744,6 +813,103 @@ export default function CashierPanel({
                 </DialogContent>
             </Dialog>
 
+            <Dialog
+                open={isRemedialDialogOpen}
+                onOpenChange={setIsRemedialDialogOpen}
+            >
+                <DialogContent className="sm:max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>Remedial Intakes Queue</DialogTitle>
+                    </DialogHeader>
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="pl-6">
+                                        Student
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        LRN
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        Failed Subjects
+                                    </TableHead>
+                                    <TableHead className="border-l text-right">
+                                        Amount Due
+                                    </TableHead>
+                                    <TableHead className="border-l text-right">
+                                        Paid
+                                    </TableHead>
+                                    <TableHead className="border-l text-right">
+                                        Balance
+                                    </TableHead>
+                                    <TableHead className="border-l pr-6 text-right">
+                                        Action
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {pending_remedial_cases.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={7}
+                                            className="py-8 text-center text-sm text-muted-foreground"
+                                        >
+                                            No remedial intakes pending payment.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    pending_remedial_cases.map(
+                                        (remedialCase) => (
+                                            <TableRow key={remedialCase.id}>
+                                                <TableCell className="pl-6 font-medium">
+                                                    {remedialCase.student_name}
+                                                </TableCell>
+                                                <TableCell className="border-l text-muted-foreground">
+                                                    {remedialCase.lrn ?? '-'}
+                                                </TableCell>
+                                                <TableCell className="border-l">
+                                                    {
+                                                        remedialCase.failed_subject_count
+                                                    }
+                                                </TableCell>
+                                                <TableCell className="border-l text-right">
+                                                    {formatCurrency(
+                                                        remedialCase.total_amount,
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="border-l text-right">
+                                                    {formatCurrency(
+                                                        remedialCase.amount_paid,
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="border-l text-right">
+                                                    {formatCurrency(
+                                                        remedialCase.balance,
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="border-l pr-6 text-right">
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            selectRemedialCaseForTransaction(
+                                                                remedialCase,
+                                                            )
+                                                        }
+                                                    >
+                                                        Select
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ),
+                                    )
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             <Dialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
@@ -758,6 +924,7 @@ export default function CashierPanel({
                                 onValueChange={(
                                     value:
                                         | 'assessment_fee'
+                                        | 'remedial_fee'
                                         | 'inventory'
                                         | 'custom',
                                 ) => {
@@ -765,11 +932,35 @@ export default function CashierPanel({
 
                                     if (
                                         value === 'assessment_fee' &&
-                                        selectedFee
+                                        assessmentFeeOptions.length > 0
                                     ) {
-                                        setItemDescription(selectedFee.name);
+                                        const defaultAssessmentFee =
+                                            assessmentFeeOptions[0];
+                                        setSelectedFeeId(
+                                            String(defaultAssessmentFee.id),
+                                        );
+                                        setItemDescription(
+                                            defaultAssessmentFee.name,
+                                        );
                                         setItemAmount(
-                                            String(selectedFee.amount),
+                                            String(defaultAssessmentFee.amount),
+                                        );
+                                    }
+
+                                    if (
+                                        value === 'remedial_fee' &&
+                                        remedialFeeOptions.length > 0
+                                    ) {
+                                        const defaultRemedialFee =
+                                            remedialFeeOptions[0];
+                                        setSelectedFeeId(
+                                            String(defaultRemedialFee.id),
+                                        );
+                                        setItemDescription(
+                                            defaultRemedialFee.name,
+                                        );
+                                        setItemAmount(
+                                            String(defaultRemedialFee.amount),
                                         );
                                     }
 
@@ -795,9 +986,14 @@ export default function CashierPanel({
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {fee_options.length > 0 && (
+                                    {assessmentFeeOptions.length > 0 && (
                                         <SelectItem value="assessment_fee">
                                             Assessment Fee
+                                        </SelectItem>
+                                    )}
+                                    {remedialFeeOptions.length > 0 && (
+                                        <SelectItem value="remedial_fee">
+                                            Remedial Fee
                                         </SelectItem>
                                     )}
                                     <SelectItem value="inventory">
@@ -810,9 +1006,14 @@ export default function CashierPanel({
                             </Select>
                         </div>
 
-                        {itemType === 'assessment_fee' && (
+                        {(itemType === 'assessment_fee' ||
+                            itemType === 'remedial_fee') && (
                             <div className="space-y-2">
-                                <Label>Assessment Item</Label>
+                                <Label>
+                                    {itemType === 'assessment_fee'
+                                        ? 'Assessment Item'
+                                        : 'Remedial Item'}
+                                </Label>
                                 <Select
                                     value={selectedFeeId}
                                     onValueChange={applyFeeSelection}
@@ -821,7 +1022,10 @@ export default function CashierPanel({
                                         <SelectValue placeholder="Select fee item" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {fee_options.map((fee) => (
+                                        {(itemType === 'assessment_fee'
+                                            ? assessmentFeeOptions
+                                            : remedialFeeOptions
+                                        ).map((fee) => (
                                             <SelectItem
                                                 key={fee.id}
                                                 value={String(fee.id)}
@@ -871,6 +1075,7 @@ export default function CashierPanel({
                             <Label>Description</Label>
                             <Input
                                 value={itemDescription}
+                                disabled={itemType !== 'custom'}
                                 onChange={(event) =>
                                     setItemDescription(event.target.value)
                                 }

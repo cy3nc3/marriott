@@ -8,8 +8,11 @@ use App\Models\Enrollment;
 use App\Models\Fee;
 use App\Models\FinalGrade;
 use App\Models\GradeLevel;
+use App\Models\LedgerEntry;
 use App\Models\PermanentRecord;
+use App\Models\RemedialCase;
 use App\Models\RemedialRecord;
+use App\Models\RemedialSubjectFee;
 use App\Models\Section;
 use App\Models\Setting;
 use App\Models\Student;
@@ -67,14 +70,15 @@ test('registrar sf1 upload reconciles student directory by lrn', function () {
         'status' => 'for_cashier_payment',
     ]);
 
-    $csvContent = "LRN,First Name,Last Name,Gender\n".
-        "123456789012,Juanito,Dela Cruz,Male\n".
-        "999999999999,Unknown,Student,Female\n";
+    $csvContent = "LRN,First Name,Last Name,Gender,Section,Grade Level\n".
+        "123456789012,Juanito,Dela Cruz,Male,Rizal,Grade 7\n".
+        "999999999999,Unknown,Student,Female,Rizal,Grade 7\n";
 
     $file = UploadedFile::fake()->createWithContent('sf1.csv', $csvContent);
 
     $this->post('/registrar/student-directory/sf1-upload', [
         'sf1_file' => $file,
+        'academic_year_id' => $this->academicYear->id,
     ])->assertRedirect();
 
     $student->refresh();
@@ -91,6 +95,61 @@ test('registrar sf1 upload reconciles student directory by lrn', function () {
             ->where('summary.pending', 0)
             ->where('summary.discrepancy', 0)
         );
+});
+
+test('registrar sf1 upload updates section assignment based on sf1 section value', function () {
+    $firstSection = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Rizal',
+    ]);
+
+    $secondSection = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Bonifacio',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '111122223334',
+        'first_name' => 'Maria',
+        'last_name' => 'Santos',
+        'is_lis_synced' => false,
+        'sync_error_flag' => false,
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $firstSection->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    $csvContent = "LRN,First Name,Last Name,Section,Grade Level\n".
+        "111122223334,Maria,Santos,Bonifacio,Grade 7\n";
+
+    $file = UploadedFile::fake()->createWithContent('sf1-section.csv', $csvContent);
+
+    $this->post('/registrar/student-directory/sf1-upload', [
+        'sf1_file' => $file,
+        'academic_year_id' => $this->academicYear->id,
+    ])
+        ->assertRedirect()
+        ->assertSessionHas(
+            'success',
+            'SF1 processed. Matched 1 of 1 rows, updated 1 section assignments, with 0 discrepancies.'
+        );
+
+    $enrollment = Enrollment::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->first();
+
+    expect($enrollment)->not->toBeNull();
+    expect($enrollment?->section_id)->toBe($secondSection->id);
 });
 
 test('registrar enrollment page filters queue by selected school year', function () {
@@ -535,9 +594,12 @@ test('registrar enrollment intake supports create update and delete', function (
     expect(User::query()->where('email', "santos.{$lrn}@marriott.edu")->exists())->toBeTrue();
     expect(User::query()->where('email', "parent.{$lrn}@marriott.edu")->exists())->toBeTrue();
     $studentUser = User::query()->where('email', "santos.{$lrn}@marriott.edu")->first();
+    $parentUser = User::query()->where('email', "parent.{$lrn}@marriott.edu")->first();
     expect($studentUser?->role?->value)->toBe(UserRole::STUDENT->value);
     expect(Hash::check('maria@05122011', (string) $studentUser?->password))->toBeTrue();
-    expect(User::query()->where('email', "parent.{$lrn}@marriott.edu")->first()?->role?->value)->toBe(UserRole::PARENT->value);
+    expect($studentUser?->must_change_password)->toBeTrue();
+    expect($parentUser?->role?->value)->toBe(UserRole::PARENT->value);
+    expect($parentUser?->must_change_password)->toBeTrue();
 
     $this->patch("/registrar/enrollment/{$enrollment->id}", [
         'first_name' => 'Maria',
@@ -665,6 +727,7 @@ test('registrar enrollment account password uses first name first token and birt
 
     expect($studentUser)->not->toBeNull();
     expect(Hash::check('john@06052012', (string) $studentUser?->password))->toBeTrue();
+    expect($studentUser?->must_change_password)->toBeTrue();
 });
 
 test('registrar enrollment intake requires birthdate', function () {
@@ -968,6 +1031,18 @@ test('registrar remedial entry stores recomputed grades and updates student flag
         'subject_name' => 'Mathematics 7',
     ]);
 
+    RemedialCase::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $this->academicYear->id,
+        'created_by' => $this->registrar->id,
+        'failed_subject_count' => 1,
+        'fee_per_subject' => 500,
+        'total_amount' => 500,
+        'amount_paid' => 500,
+        'status' => 'paid',
+        'paid_at' => now(),
+    ]);
+
     $this->post('/registrar/remedial-entry', [
         'academic_year_id' => $this->academicYear->id,
         'student_id' => $student->id,
@@ -1001,6 +1076,232 @@ test('registrar remedial entry stores recomputed grades and updates student flag
         ->assertInertia(fn (Assert $page) => $page
             ->component('registrar/remedial-entry/index')
         );
+});
+
+test('registrar can create remedial intake from remedial entry context', function () {
+    $teacher = User::factory()->teacher()->create();
+
+    $section = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '300000000001',
+        'first_name' => 'Intake',
+        'last_name' => 'Learner',
+        'is_for_remedial' => true,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'subject_code' => 'SCI7',
+        'subject_name' => 'Science 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1200,
+        'status' => 'enrolled',
+    ]);
+
+    foreach (['1', '2', '3', '4'] as $quarter) {
+        FinalGrade::query()->create([
+            'enrollment_id' => $enrollment->id,
+            'subject_assignment_id' => $assignment->id,
+            'quarter' => $quarter,
+            'grade' => 70,
+            'is_locked' => true,
+        ]);
+    }
+
+    $this->post('/registrar/remedial-entry/intake', [
+        'academic_year_id' => $this->academicYear->id,
+        'student_id' => $student->id,
+    ])->assertRedirect()
+        ->assertSessionHas('success');
+
+    $remedialCase = RemedialCase::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->first();
+
+    expect($remedialCase)->not->toBeNull();
+    expect($remedialCase?->failed_subject_count)->toBe(1);
+    expect((float) $remedialCase?->fee_per_subject)->toBe(500.0);
+    expect((float) $remedialCase?->total_amount)->toBe(500.0);
+    expect((float) $remedialCase?->amount_paid)->toBe(0.0);
+    expect($remedialCase?->status)->toBe('for_cashier_payment');
+
+    expect(LedgerEntry::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->where('description', "Remedial Intake Fee (Case {$remedialCase?->id})")
+        ->exists())->toBeTrue();
+});
+
+test('registrar remedial intake applies custom subject fees when configured', function () {
+    $teacher = User::factory()->teacher()->create();
+
+    $section = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Bonifacio',
+        'adviser_id' => $teacher->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '300000000019',
+        'first_name' => 'Custom',
+        'last_name' => 'Fee',
+        'is_for_remedial' => true,
+    ]);
+
+    $math = Subject::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'subject_code' => 'MATH7',
+        'subject_name' => 'Mathematics 7',
+    ]);
+    $english = Subject::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'subject_code' => 'ENG7A',
+        'subject_name' => 'English 7',
+    ]);
+
+    $mathTeacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $math->id,
+    ]);
+    $englishTeacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $english->id,
+    ]);
+
+    $mathAssignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $mathTeacherSubject->id,
+    ]);
+    $englishAssignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $englishTeacherSubject->id,
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1200,
+        'status' => 'enrolled',
+    ]);
+
+    foreach (['1', '2', '3', '4'] as $quarter) {
+        FinalGrade::query()->create([
+            'enrollment_id' => $enrollment->id,
+            'subject_assignment_id' => $mathAssignment->id,
+            'quarter' => $quarter,
+            'grade' => 70,
+            'is_locked' => true,
+        ]);
+        FinalGrade::query()->create([
+            'enrollment_id' => $enrollment->id,
+            'subject_assignment_id' => $englishAssignment->id,
+            'quarter' => $quarter,
+            'grade' => 72,
+            'is_locked' => true,
+        ]);
+    }
+
+    RemedialSubjectFee::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'subject_id' => $math->id,
+        'amount' => 900,
+    ]);
+    RemedialSubjectFee::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'subject_id' => $english->id,
+        'amount' => 1100,
+    ]);
+
+    $this->post('/registrar/remedial-entry/intake', [
+        'academic_year_id' => $this->academicYear->id,
+        'student_id' => $student->id,
+    ])->assertRedirect()
+        ->assertSessionHas('success');
+
+    $remedialCase = RemedialCase::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->first();
+
+    expect($remedialCase)->not->toBeNull();
+    expect($remedialCase?->failed_subject_count)->toBe(2);
+    expect((float) $remedialCase?->fee_per_subject)->toBe(1000.0);
+    expect((float) $remedialCase?->total_amount)->toBe(2000.0);
+    expect($remedialCase?->status)->toBe('for_cashier_payment');
+});
+
+test('remedial submission is blocked when intake is not fully paid', function () {
+    $student = Student::query()->create([
+        'lrn' => '300000000002',
+        'first_name' => 'Blocked',
+        'last_name' => 'Submission',
+        'is_for_remedial' => true,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'subject_code' => 'ENG7',
+        'subject_name' => 'English 7',
+    ]);
+
+    RemedialCase::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $this->academicYear->id,
+        'created_by' => $this->registrar->id,
+        'failed_subject_count' => 1,
+        'fee_per_subject' => 500,
+        'total_amount' => 500,
+        'amount_paid' => 0,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    $this->from('/registrar/remedial-entry')
+        ->post('/registrar/remedial-entry', [
+            'academic_year_id' => $this->academicYear->id,
+            'student_id' => $student->id,
+            'save_mode' => 'submitted',
+            'records' => [
+                [
+                    'subject_id' => $subject->id,
+                    'final_rating' => 70,
+                    'remedial_class_mark' => 85,
+                ],
+            ],
+        ])->assertRedirect('/registrar/remedial-entry')
+        ->assertSessionHas('error', 'Remedial intake must be fully paid before submitting results.');
+
+    expect(RemedialRecord::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $this->academicYear->id)
+        ->exists())->toBeFalse();
 });
 
 test('registrar batch promotion review resolves held conditional cases', function () {
@@ -1213,6 +1514,18 @@ test('remedial submission resolves conditional status using annual failed subjec
         'status' => 'conditional',
         'failed_subject_count' => 1,
         'remarks' => 'Needs remedial',
+    ]);
+
+    RemedialCase::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $this->academicYear->id,
+        'created_by' => $this->registrar->id,
+        'failed_subject_count' => 1,
+        'fee_per_subject' => 500,
+        'total_amount' => 500,
+        'amount_paid' => 500,
+        'status' => 'paid',
+        'paid_at' => now(),
     ]);
 
     $this->post('/registrar/remedial-entry', [

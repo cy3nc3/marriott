@@ -93,6 +93,7 @@ class UserManagerController extends Controller
             'birthday' => $validated['birthday'],
             'role' => $validated['role'],
             'password' => Hash::make($password),
+            'must_change_password' => true,
         ]);
 
         $auditLogService->log('user.created', $user, null, $user->only([
@@ -166,6 +167,7 @@ class UserManagerController extends Controller
         $password = date('Ymd', strtotime($user->birthday));
         $user->update([
             'password' => Hash::make($password),
+            'must_change_password' => true,
         ]);
 
         $auditLogService->log('user.password_reset', $user, null, [

@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureMaintenanceMode;
 use App\Http\Middleware\EnsureParentPortalEnabled;
+use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -36,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             EnsureMaintenanceMode::class,
             EnsureParentPortalEnabled::class,
+            EnsurePasswordChanged::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
