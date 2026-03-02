@@ -1,0 +1,38 @@
+        preserving data continuity from intake through reporting.
+
+    ➢ To develop integrated cashiering and billing workflows that automate posting,
+        update balances immediately, and keep ledgers and parent billing views
+        synchronized.
+
+        This objective is relevant because finance operations require immediate,
+        trustworthy balance visibility to support both internal reconciliation and parent
+        communication. According to Wulandari and Pinandito (2021), structured financial
+        decision logic improves consistency in tuition management. Chai and Mostafa
+        (2021) also supports integrated financial-record handling as a practical mechanism
+        for reducing cross-check burden and improving transparency.
+
+    ➢ To develop schedule and class-list workflows that support academic planning while
+        minimizing timetable conflicts and repetitive manual verification.
+
+        This objective addresses recurring scheduling friction in section and teacher
+        assignment workflows. Muller et al., (2025) report that when design constraints are
+        identified and systematically addressed in a systematic manner, it leads to
+        improvement of scheduling quality, with respect to conflict-free scheduling.
+        Furthermore, Zulueta et al. (2021), note that schools need to create standardized
+        procedures in order to achieve sustainable operations for Marriott in educational
+        settings.
+
+    ➢ To develop secure student and parent portals that provide authorized visibility to
+        schedules, grades, and billing information.
+
+        This objective is relevant because stakeholder trust depends on timely and role-
+        appropriate access to validated school records. According to Navarra and Antonio
+        (2025), monitoring platforms improve communication and usability when data
+        visibility is immediate and structured. Chai and Mostafa (2021) similarly supports
+        connected web access as a way to strengthen school-family information flow.
+
+
+
+
+STI College Munoz-EDSA                                                                        11
+

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
@@ -11,7 +12,11 @@ test('login screen can be rendered', function () {
 });
 
 test('users can authenticate using the login screen', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->create([
+        'first_name' => 'Jade',
+        'name' => 'Jade Godalle',
+        'role' => UserRole::REGISTRAR,
+    ]);
 
     $response = $this->post(route('login.store'), [
         'email' => $user->email,
@@ -20,6 +25,12 @@ test('users can authenticate using the login screen', function () {
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertSessionHas('login_welcome_toast', function (array $payload): bool {
+        return $payload['title'] === 'Welcome, Jade!'
+            && $payload['description'] === 'Logged in as Registrar'
+            && is_string($payload['key'])
+            && $payload['key'] !== '';
+    });
 });
 
 test('inactive users cannot authenticate', function () {

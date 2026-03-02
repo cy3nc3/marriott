@@ -1,0 +1,38 @@
+and reduces confidence in consolidated reports. According to Grepon et al. (2021),
+integrated processing significantly improves operational continuity and reliability by
+reducing file-level fragmentation and duplicate processing.
+
+The same general pattern is reinforced by recent educational MIS research. According to
+Kanona (2022), manual and fragmented record handling reduces both efficiency and data
+integrity, while centralized database structures improve retrieval and control. Because
+Marriott School requires synchronized registrar, finance, and academic decisions, the
+general problem is not simply digitization; it is the need for one validated institutional data
+flow that supports both daily transactions and leadership planning.
+
+Specific Problems:
+
+    ➢ How can a centralized registrar workflow be developed to capture enrollment
+        intake, support SF1 upload, and enrich learner records by LRN to reduce duplicate
+        encoding?
+
+        This specific problem addresses the registrar bottleneck where intake, correction,
+        and enrichment steps still consume significant verification effort. According to the
+        registrar interview, records are updated one-by-one and repeatedly cross-checked
+        before release, especially during enrollment peaks. According to Grepon et al.
+        (2021), centralized admissions and records processing reduce delay and improve
+        reliability when offices use one connected data structure. Porlas et al. (2023) also
+        emphasizes that LIS-aligned handling requires synchronization discipline between
+        local school records and formal reporting structures.
+
+    ➢ How can integrated cashiering and billing workflows be developed to automate
+        posting, update balances immediately, and keep ledgers and parent billing views
+        synchronized?
+
+        This specific problem focuses on finance timing and reconciliation quality. The
+        finance interview describes practical delays when multiple payments are processed
+        and balances require manual confirmation before communicating status to families.
+        According to Wulandari and Pinandito (2021), structured tuition decision logic
+
+
+STI College Munoz-EDSA                                                                            8
+

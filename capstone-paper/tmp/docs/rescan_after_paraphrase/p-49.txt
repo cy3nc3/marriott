@@ -1,0 +1,41 @@
+        Interviewee: Mostly, nagkakaroon ng concern ang parents, nagfe-feedback kung
+        hindi accurate. Pero, since mabilis naming na-verify at na-update, rarely maabot sa
+        parents ang error. Pero effort talaga, marami kaming kailangan gawin para
+        maiwasan yung discrepancy.
+
+
+        Interviewer: Sir, sa palagay niyo ba makakatulong ang RFID-based attendance
+        system para mapabuti ang process nito?
+
+
+        Interviewee: Oo, definitely. Kasi automatic yung logging. Halimbawa, pumasok
+        na yung student, maitatala agad sa record. Parents automatically makakatanggap ng
+        notification. Mas mabilis, mas efficient. Pero kahit maliit lang yung loophole,
+        halimbawa nagpasok pero hindi talaga pumapasok sa class, iikot pa rin kami para
+        ma-monitor. Pero overall, malaking tulong sa speed at accuracy ng tracking.
+
+
+        Interviewer: Sir, ano ang mahirap kapag kailangan kontakin ang mga magulang
+        lalo na sa emergency o absences?
+
+
+        Interviewee: Pag nahihirapan kaming kontakin, kailangan dumaan sa phone,
+        landline, o messenger. Minsan, kailangan puntahan personally sa bahay. Pero most
+        of the time, okay lang kasi close ang relationship namin sa parents. Malalapit lang
+        naman sila, kaya reachable.
+
+
+        Interviewer: Sir, paano naapektohan ng delay sa communication ang tiwala ng
+        mga magulang sa school?
+
+
+        Interviewee: Mostly okay lang. Medyo flexible ang parents kasi alam nilang
+        gagawin namin ang effort para ma-update sila. May mga ways kami na reachable
+        sa kanila: e-mail, cellphone, Facebook Messenger, kahit Facebook page namin. So
+        kahit may delay, aware sila at nagtitiwala sa communication process namin.
+
+
+
+
+STI College Munoz-EDSA                                                                        45
+

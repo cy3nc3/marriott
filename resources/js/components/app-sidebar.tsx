@@ -332,10 +332,23 @@ const isStandaloneMode = (): boolean => {
     return standaloneMediaQuery || iosStandalone === true;
 };
 
+const formatRoleLabel = (roleValue: string): string => {
+    if (!roleValue) {
+        return 'User';
+    }
+
+    return roleValue
+        .split('_')
+        .filter((chunk) => chunk.length > 0)
+        .map((chunk) => chunk[0].toUpperCase() + chunk.slice(1))
+        .join(' ');
+};
+
 export function AppSidebar() {
     const page = usePage<SharedData>();
     const { auth } = page.props;
     const role = (auth.user.role as string) || '';
+    const roleLabel = formatRoleLabel(role);
     const isHandheld = Boolean(page.props.ui?.is_handheld);
     const [deferredPrompt, setDeferredPrompt] = useState(
         getDeferredInstallPrompt,
@@ -428,7 +441,7 @@ export function AppSidebar() {
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
                             <Link href={dashboard()} prefetch>
-                                <AppLogo />
+                                <AppLogo title={roleLabel} />
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>

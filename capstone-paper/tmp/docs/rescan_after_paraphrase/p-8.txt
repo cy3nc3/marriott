@@ -1,0 +1,38 @@
+capable system can continuously sustain enrollment consistency, finance synchronization,
+academic reliability, and leadership-ready decision support.
+
+A deeper view of the present environment shows that data fragmentation is not limited to
+one office transaction. It propagates across the entire student lifecycle, from enrollment
+intake and payment posting to section assignment, attendance recording, and report
+generation. According to Zulueta et al. (2021), MIS environments in educational
+institutions fail when workflow standardization is weak, even when digital tools are
+available. This finding mirrors Marriott School's operational reality where records may
+exist in digital format but still require repeated reconciliation before they can be trusted for
+release, compliance, or planning.
+
+In enrollment periods, the registrar must process a large volume of learner entries under
+time pressure while preserving LIS-oriented consistency. When intake records are encoded
+in disconnected trackers, every downstream update introduces a new opportunity for
+mismatch. According to Porlas et al. (2023), inconsistencies between LIS-facing structures
+and school-level MIS records create recurring validation burden across offices. For
+Marriott School, this means that what appears as a small intake encoding delay can later
+affect payment confirmation, class-list finalization, and administrative reporting
+confidence.
+
+The record-continuity requirement extends beyond initial enrollment. Permanent records,
+promotion decisions, and student-departure handling all depend on the same validated
+learner identity baseline. If this baseline is fragmented, later academic and compliance
+outputs become harder to verify and slower to release. According to Kanona (2022),
+structured database-backed systems provide stronger retrieval reliability and control
+integrity than manual, file-fragmented record handling. This supports MarriottConnect's
+design principle that learner data should be encoded with continuity in mind rather than re-
+encoded at every stage of institutional processing.
+
+Finance workflows add another layer of operational sensitivity because billing accuracy
+directly affects trust, cash-flow transparency, and release-dependent school transactions.
+The finance interview evidence indicates that balance confirmation often depends on
+
+
+
+STI College Munoz-EDSA                                                                             4
+

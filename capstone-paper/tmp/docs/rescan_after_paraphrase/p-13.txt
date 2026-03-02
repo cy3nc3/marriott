@@ -1,0 +1,38 @@
+        improves consistency and response speed in financially sensitive workflows. Chai
+        and Mostafa (2021) further supports integrated student-finance records as a way to
+        reduce duplicated effort and strengthen operational transparency.
+
+    ➢ How can schedule and class-list workflows be developed to support academic
+        planning while minimizing timetable conflicts and repetitive manual verification?
+
+        This specific problem addresses academic coordination reliability. Interview
+        evidence indicates that schedule validation and class-list consistency checks remain
+        labor-intensive when subject, section, and teacher constraints are reviewed
+        manually. According to Muller et al. (2025), conflict-aware timetabling
+        performance depends on formal constraint handling rather than ad hoc plotting.
+        Zulueta et al. (2021) also supports this by showing that standardized institutional
+        workflows are necessary to sustain reliable MIS operations.
+
+    ➢ How can secure student and parent portals be developed to provide authorized
+        visibility to schedules, grades, and billing information?
+
+        This specific problem addresses stakeholder transparency and trust. Appendix
+        findings indicate that families may experience delayed or incomplete updates when
+        office records are not synchronized in real time. According to Navarra and Antonio
+        (2025), web-based student monitoring improves communication quality when data
+        is timely and role-scoped. Chai and Mostafa (2021) similarly demonstrates that
+        shared record environments improve accessibility between school staff and
+        stakeholders.
+
+    ➢ How can role dashboards and governance controls be developed to produce
+        actionable indicators for enrollment trends, payment behavior, and operational
+        risk monitoring?
+
+        This specific problem addresses management decision latency. School leadership
+        needs consolidated indicators that are based on validated transactions, not delayed
+        manual summaries from disconnected files. According to Esquivel and Esquivel
+        (2021), decision support value increases when operational records are transformed
+
+
+STI College Munoz-EDSA                                                                         9
+

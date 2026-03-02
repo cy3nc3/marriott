@@ -1,0 +1,40 @@
+transaction flow and record reliability by reducing isolated processing channels. Combined
+with LIS-alignment evidence from Porlas et al. (2023), this reinforces that institutional
+consistency is produced through design discipline, not post-hoc manual correction.
+
+Therefore, the project context must be interpreted as a systems-level coordination problem
+with    compliance,      governance,   and   stakeholder-service   dimensions    operating
+simultaneously. MarriottConnect is positioned to solve this by unifying module workflows,
+preserving role-based access discipline, and transforming validated operations into
+analytics-ready evidence for planning. In this framework, the problem statements below
+are not abstract design questions; they are direct responses to documented process friction
+and evidence-backed institutional needs observed in Marriott School and reinforced by
+recent literature.
+
+
+
+
+Statement of the Problem
+
+This study defines the operational problems of Marriott School in terms of cross-office
+data continuity, transaction reliability, academic coordination, stakeholder transparency,
+and institutional decision support. According to Zulueta et al. (2021), MIS success depends
+on both technical fit and process standardization; therefore, problem identification must
+capture workflow behavior across offices, not only software feature gaps. The appendices
+and recent literature consistently show that fragmentation is not a single-module issue but
+a system-wide coordination condition that affects registrar, finance, teacher, parent, and
+administrative outcomes.
+
+General Problem:
+
+How can MarriottConnect be developed as an integrated student information system with
+decision support analytics for Marriott School?
+
+Marriott School's general problem is rooted in disconnected workflow architecture. The
+Academic Head and office interviews indicate that departments still produce records in
+separate channels and reconcile manually before output release, which extends cycle time
+
+
+
+STI College Munoz-EDSA                                                                        7
+

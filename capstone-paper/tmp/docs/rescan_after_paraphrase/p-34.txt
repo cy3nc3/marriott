@@ -1,0 +1,41 @@
+            ● Each user must authenticate using valid credentials tied to an authorized
+                role.
+
+            ● Internet connectivity must be available for synchronized updates and
+                dashboard refresh cycles.
+
+            ● Registrar intake and finance posting must complete before downstream
+                reporting and enrichment workflows finalize.
+
+D. System User Characteristics
+
+            ● Super Admin and Admin users manage governance, configuration,
+                curriculum context, and planning controls.
+
+            ● Registrar users handle learner intake, enrollment queue processing, and
+                student record enrichment.
+
+            ● Finance users handle cashier transactions, ledger movement, billing
+                visibility, and daily reporting.
+
+            ● Teacher users handle instructional scheduling visibility and grading-
+                related transactions.
+
+            ● Student users access personal academic records such as schedule and
+                grades under restricted permissions.
+
+            ● Parent users access child-related schedule, grades, and billing information
+                through secure portal controls.
+
+E. Functional Requirements
+
+  1.    Manage Student Records
+        1.1.    The Registrar shall create and maintain learner profiles and enrollment
+                queue records.
+        1.2.    The system shall support SF1-driven record enrichment and LRN-based
+                matching logic.
+
+
+
+STI College Munoz-EDSA                                                                      30
+

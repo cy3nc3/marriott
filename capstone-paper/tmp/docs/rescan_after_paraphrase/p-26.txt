@@ -1,0 +1,40 @@
+methodological depth by showing how comparative modeling can guide strategic
+interpretation instead of relying on one static projection style.
+
+This is directly relevant to MarriottConnect's decision-support layer, where enrollment
+movement is intended to inform staffing, section planning, and resource preparation. In
+the appendices, leadership concerns repeatedly pointed to difficulties in trend
+interpretation because records were dispersed and manually consolidated. Hussain et al.
+(2023) supports the capstone objective of converting validated operational history into
+structured planning insight through dashboard-ready analytics.
+
+Real-world University Course Timetabling at the International Timetabling
+Competition 2019
+
+Muller, Rudova, and Mullerova (2025) analyzed real-world timetabling constraints and
+evaluated solver behavior under institution-scale scheduling conditions. The study
+highlighted how timetable quality depends on explicit constraint modeling, reproducible
+optimization logic, and measurable conflict handling rather than manual timetable
+plotting.
+
+This is highly relevant to MarriottConnect's schedule-related direction. Appendix
+findings describe scheduling checks as labor-intensive and prone to delay when
+performed through manual verification. Muller et al. (2025) provides strong technical
+support for moving toward conflict-aware scheduling logic, where resource constraints
+are handled systematically and schedule outputs become more consistent across teacher,
+student, and parent views.
+
+
+
+
+Synthesis
+
+Across the ten selected studies, a common conclusion emerges: schools achieve better
+operational reliability when data is centralized, workflows are role-defined, and reporting
+is generated from validated transactions rather than from fragmented records. The local
+
+
+
+
+STI College Munoz-EDSA                                                                        22
+

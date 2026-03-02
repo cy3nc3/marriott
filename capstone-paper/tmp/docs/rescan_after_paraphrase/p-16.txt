@@ -1,0 +1,40 @@
+    ➢ To develop role dashboards and governance controls that produce actionable
+        indicators for enrollment trends, payment behavior, and operational risk
+        monitoring.
+
+        This objective is relevant because leadership planning requires decision-ready
+        indicators derived from validated operational data. Based on the research by
+        Esquivel and Esquivel (2021), utilizing historical data in decision-making
+        processes can enhance the value of decision-support systems. Hussain et al. (2023)
+        further demonstrates how trend forecasting can aid in planning for resources and
+        staffing, both of which contributes to a justification for developing KPI dashboards,
+        governance controls, and analytics as primary functions within institutions.
+
+
+Scope
+
+
+The proposed system provides module-based access for seven core roles: super admin,
+admin, registrar, finance, teacher, student, and parent. Access is structured by institutional
+responsibility and each module groups related actions into one operational unit.
+
+The scope centralizes enrollment, finance, academic, governance, and stakeholder
+communication workflows while assigning each role to complete modules that include
+transaction handling, validation, and analytics interpretation.
+
+The Registrar can access the following:
+
+    ● Enrollment Module - Manage intake creation, profile updates, and payment-linked
+        progression within one registrar workflow.
+    ● Student Directory Module - Maintain searchable learner profiles, identity
+        continuity, and authorized record retrieval.
+    ● SF1 Import Module - Upload SF1 records and execute LRN-based enrichment
+        aligned with LIS-oriented validation rules.
+    ● Permanent Records Module - Maintain historical academic records and document
+        continuity across school years.
+    ● Batch Promotion and Student Departure Module - Process promotion outcomes
+
+
+
+STI College Munoz-EDSA                                                                           12
+

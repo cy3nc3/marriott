@@ -33,6 +33,18 @@ export type NotificationPayload = {
 export type SharedData = {
     name: string;
     auth: Auth;
+    active_academic_year: {
+        id: number;
+        name: string;
+        status: string;
+    } | null;
+    flash: {
+        login_welcome_toast: {
+            key: string;
+            title: string;
+            description: string;
+        } | null;
+    };
     notifications: NotificationPayload;
     ui: {
         is_handheld: boolean;

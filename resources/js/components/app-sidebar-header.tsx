@@ -21,6 +21,8 @@ export function AppSidebarHeader({
     const notifications = page.props.notifications;
     const notificationItems = notifications?.announcements ?? [];
     const unreadNotificationCount = notifications?.unread_count ?? 0;
+    const activeAcademicYearName =
+        page.props.active_academic_year?.name ?? 'No Active Year';
 
     const handleMarkAsRead = (announcementId: number) => {
         router.post(
@@ -60,124 +62,138 @@ export function AppSidebarHeader({
                 <SidebarTrigger className="-ml-1" />
                 <Breadcrumbs breadcrumbs={breadcrumbs} />
             </div>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="relative h-9 w-9"
-                    >
-                        <Bell className="size-5 opacity-80" />
-                        {unreadNotificationCount > 0 && (
-                            <span className="absolute top-1 right-1 inline-flex min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] leading-none font-semibold text-white">
-                                {unreadNotificationCount > 9
-                                    ? '9+'
-                                    : unreadNotificationCount}
-                            </span>
-                        )}
-                        <span className="sr-only">Notifications</span>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[360px] p-0" align="end">
-                    <div className="flex items-center justify-between border-b px-4 py-3">
-                        <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold">
-                                Announcements
-                            </p>
-                            <Badge variant="outline">
-                                {unreadNotificationCount} unread
-                            </Badge>
-                        </div>
+            <div className="flex items-center gap-2">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                         <Button
                             variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            disabled={unreadNotificationCount === 0}
-                            onClick={handleMarkAllAsRead}
+                            size="icon"
+                            className="relative h-9 w-9"
                         >
-                            <Check className="size-3.5" />
-                            Mark all read
+                            <Bell className="size-5 opacity-80" />
+                            {unreadNotificationCount > 0 && (
+                                <span className="absolute top-1 right-1 inline-flex min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] leading-none font-semibold text-white">
+                                    {unreadNotificationCount > 9
+                                        ? '9+'
+                                        : unreadNotificationCount}
+                                </span>
+                            )}
+                            <span className="sr-only">Notifications</span>
                         </Button>
-                    </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[360px] p-0" align="end">
+                        <div className="flex items-center justify-between border-b px-4 py-3">
+                            <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold">
+                                    Announcements
+                                </p>
+                                <Badge variant="outline">
+                                    {unreadNotificationCount} unread
+                                </Badge>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                disabled={unreadNotificationCount === 0}
+                                onClick={handleMarkAllAsRead}
+                            >
+                                <Check className="size-3.5" />
+                                Mark all read
+                            </Button>
+                        </div>
 
-                    {notificationItems.length === 0 ? (
-                        <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                            No announcements right now.
-                        </div>
-                    ) : (
-                        <div className="max-h-[320px] overflow-y-auto">
-                            {notificationItems.map((announcement) => (
-                                <div
-                                    key={announcement.id}
-                                    className={`border-b px-4 py-3 last:border-b-0 ${!announcement.is_read ? 'bg-muted/20' : ''}`}
-                                >
-                                    <Link
-                                        href={notificationsAnnouncements.show.url(
-                                            announcement.id,
-                                        )}
-                                        className="block"
-                                        prefetch
+                        {notificationItems.length === 0 ? (
+                            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                                No announcements right now.
+                            </div>
+                        ) : (
+                            <div className="max-h-[320px] overflow-y-auto">
+                                {notificationItems.map((announcement) => (
+                                    <div
+                                        key={announcement.id}
+                                        className={`border-b px-4 py-3 last:border-b-0 ${!announcement.is_read ? 'bg-muted/20' : ''}`}
                                     >
-                                        <div className="mb-1">
-                                            <div className="flex items-center gap-2">
-                                                <p className="text-sm font-medium">
-                                                    {announcement.title}
-                                                </p>
-                                                {announcement.type === 'event' && (
-                                                    <Badge variant="outline" className="h-5 text-[10px]">
-                                                        Event
-                                                    </Badge>
-                                                )}
-                                                {announcement.requires_action && (
-                                                    <Badge className="h-5 text-[10px]">
-                                                        Action Required
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <p className="truncate text-xs text-muted-foreground">
-                                            {announcement.content_preview}
-                                        </p>
-                                    </Link>
-                                    <div className="mt-2 flex items-center justify-between">
-                                        <p className="text-xs text-muted-foreground">
-                                            {formatNotificationDate(
-                                                announcement.created_at,
+                                        <Link
+                                            href={notificationsAnnouncements.show.url(
+                                                announcement.id,
                                             )}
-                                        </p>
-                                        {!announcement.is_read && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 px-2 text-xs"
-                                                onClick={() =>
-                                                    handleMarkAsRead(
-                                                        announcement.id,
-                                                    )
-                                                }
-                                            >
-                                                Mark read
-                                            </Button>
-                                        )}
+                                            className="block"
+                                            prefetch
+                                        >
+                                            <div className="mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-sm font-medium">
+                                                        {announcement.title}
+                                                    </p>
+                                                    {announcement.type ===
+                                                        'event' && (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="h-5 text-[10px]"
+                                                        >
+                                                            Event
+                                                        </Badge>
+                                                    )}
+                                                    {announcement.requires_action && (
+                                                        <Badge className="h-5 text-[10px]">
+                                                            Action Required
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <p className="truncate text-xs text-muted-foreground">
+                                                {announcement.content_preview}
+                                            </p>
+                                        </Link>
+                                        <div className="mt-2 flex items-center justify-between">
+                                            <p className="text-xs text-muted-foreground">
+                                                {formatNotificationDate(
+                                                    announcement.created_at,
+                                                )}
+                                            </p>
+                                            {!announcement.is_read && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 px-2 text-xs"
+                                                    onClick={() =>
+                                                        handleMarkAsRead(
+                                                            announcement.id,
+                                                        )
+                                                    }
+                                                >
+                                                    Mark read
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
+                        )}
+                        <div className="border-t px-4 py-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full"
+                                asChild
+                            >
+                                <Link href="/notifications">
+                                    Open Notification Inbox
+                                </Link>
+                            </Button>
                         </div>
-                    )}
-                    <div className="border-t px-4 py-2">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full"
-                            asChild
-                        >
-                            <Link href="/notifications">
-                                Open Notification Inbox
-                            </Link>
-                        </Button>
-                    </div>
-                </DropdownMenuContent>
-            </DropdownMenu>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Badge
+                    variant="outline"
+                    className="max-w-[11rem] truncate text-xs"
+                    title={activeAcademicYearName}
+                >
+                    {activeAcademicYearName}
+                </Badge>
+            </div>
         </header>
     );
 }

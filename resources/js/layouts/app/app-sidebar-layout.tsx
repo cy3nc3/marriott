@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import { MobileQuickNav } from '@/components/mobile-quick-nav';
+import { LoginWelcomeToast } from '@/components/login-welcome-toast';
 import SimpleBar from 'simplebar-react';
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
@@ -42,6 +43,7 @@ export default function AppSidebarLayout({
                 </div>
                 <MobileQuickNav />
             </AppContent>
+            <LoginWelcomeToast />
         </AppShell>
     );
 }

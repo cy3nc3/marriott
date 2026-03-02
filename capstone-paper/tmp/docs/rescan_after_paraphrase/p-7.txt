@@ -1,0 +1,38 @@
+Academic coordination is likewise affected. The registrar and teacher interviews indicate
+that schedule preparation, class-list alignment, and grade validation involve repetitive
+verification cycles before release. According to Muller et al. (2025), timetable quality and
+conflict reduction depend on explicit constraint handling rather than manual plotting.
+Zulueta et al. (2021) also show that process standardization and workflow discipline are
+critical in educational MIS environments, reinforcing the need for structured academic
+operations across sections, subjects, and grade submissions.
+
+Stakeholder communication pressure further amplifies the issue. Parent-facing updates on
+grades, schedules, and billing are less effective when underlying records are delayed or
+inconsistently synchronized across offices. According to Navarra and Antonio (2025),
+web-based monitoring systems improve transparency and usability when authorized users
+receive timely, role-scoped visibility from one connected record environment. This aligns
+with Marriott School's need to reduce ad hoc follow-ups and provide dependable status
+communication to families.
+
+At the leadership level, fragmented records also weaken decision support. Historical data
+may exist, but when data pipelines are disconnected, trend interpretation becomes late and
+less actionable. According to Esquivel and Esquivel (2021), enrollment-related decision
+support improves when institutional records are transformed into forecasting inputs rather
+than static archives. Hussain et al. (2023) further show that comparative forecasting
+approaches can provide stronger planning indicators for staffing, sectioning, and resource
+allocation.
+
+For these reasons, the project context is best understood as an operational integration
+challenge: multiple offices depend on the same student lifecycle data but require different
+role-scoped actions. MarriottConnect responds by enforcing one validated data lifecycle
+from intake, posting, enrichment, and academic processing up to dashboard-ready analytics
+and governance outputs. In this architecture, data consistency, access control, and decision
+visibility are treated as interdependent design requirements.
+
+Given this institutional context and evidence base, the following problem statements focus
+on the remaining strategic question: how an integrated, role-governed, and analytics-
+
+
+
+STI College Munoz-EDSA                                                                         3
+

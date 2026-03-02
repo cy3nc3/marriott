@@ -1,0 +1,44 @@
+        Interviewer: So sir, sa palagay nyo po, bakit makakatulong ang automatic
+        notification para sa mga clients?
+
+
+        Interviewee: Oo, malaking tulong. Automatic eh, diba? Immediate na yung info sa
+        parents kung pumasok o hindi ang anak. Mas iwas human delay o human error.
+        Halimbawa, RFID tap lang, automatic na naitatala at natutext yung parent.
+
+
+        Interviewer: Sir, di naman po kayo gumagamit ng spreadsheet o manual
+        computation para sa tuition po, no sir?
+
+
+        Interviewee: Hindi, hindi naman po. Ang ginagamit namin, Excel pa rin pero naka-
+        Google Drive. So may automatic na computation doon, pero mostly still manual pa
+        rin sa pag-check.
+
+
+        Interviewer: Sir, paano po ninyo titiyak na accurate at updated ang tuition records?
+
+
+        Interviewee: Ah, dito kami very careful. Marami nagche-check. May cashier, may
+        finance head, at ako rin minsan tumitingin para ma-monitor. Yung mga resibo,
+        naka-save sa Google Drive, so kahit may errors, mabilis ma-verify. Kailangan lang
+        talaga constant monitoring.
+
+
+        Interviewer: Sir, paano naapektohan ang manual na computation ng workload ng
+        accounting office?
+
+
+        Interviewee: Siyempre, mas matagal. Kasi one by one yung check, tapos may
+        manual adjustments pa. Mas marami ang trabaho, mas matagal bago matapos. Kung
+        automated, mas mabilis, pero since manual, kailangan talagang tutukan ng staff.
+
+
+        Interviewer: Sir, bakit minsan hirap ang mga magulang o estudyante na makita
+        ang kanilang payment status?
+
+
+
+
+STI College Munoz-EDSA                                                                         46
+

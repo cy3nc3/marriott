@@ -1,0 +1,41 @@
+        Interviewee: Siguro dahil nasa iba't ibang sources pa yung data. May naka-Excel,
+        may naka-email, tapos may hard copy. Kaya minsan, kailangan nila mag-follow up
+        para makumpirma. Kung centralized man, mabilis na makita, pero ngayon, medyo
+        fragmented pa yung info.
+
+
+        Interviewer: Sir, bakit patuloy pa rin gumagamit ng magkakaibang tools sa bawat
+        department?
+
+
+        Interviewee: Kasi, hindi naman lahat nakasama sa same workflow. Halimbawa,
+        registrar may Excel, finance may iba, at teachers may sariling records. Kaya, bawat
+        department may sariling tool, kasi need nila immediate access sa sariling data.
+        Hindi kasi one-size-fits-all yung workflow nila.
+
+
+        Interviewer: Bakit sa tingin nyo, sir, ay risky ang pag-store ng student data sa
+        shared folders?
+
+
+        Interviewee: Oo, risky kasi maraming nakakakita, maraming nakaka-access. Kahit
+        na may permissions, minsan may editing conflicts, tapos may chance na ma-
+        misplace or ma-overwrite yung data. Kailangan laging ma-monitor at i-double
+        check.
+
+
+        Interviewer: May mga pagkakataon bang nawala o nangbura ang files?
+
+
+        Interviewee: Meron, pero bihira. Usually dahil may nag-edit na hindi napansin o
+        na-misplace lang. Kapag ganun, babalik ulit sa process, i-verify ulit, at i-reprint
+        kung necessary. Kaya nakakapagod talaga minsan, kasi isa-isa kailangan i-check.
+
+
+        Interviewer: Paano nyo pinipigilan ang unauthorized access sa files?
+
+
+
+
+STI College Munoz-EDSA                                                                        47
+

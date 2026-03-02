@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\AcademicYear;
 use App\Models\User;
 use App\Services\AnnouncementNotificationService;
 use App\Services\HandheldDeviceDetector;
@@ -51,6 +52,10 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user,
             ],
+            'active_academic_year' => fn () => $this->resolveActiveAcademicYear(),
+            'flash' => [
+                'login_welcome_toast' => fn () => $request->session()->get('login_welcome_toast'),
+            ],
             'notifications' => $user instanceof User
                 ? $this->announcementNotificationService->buildPayload($user)
                 : [
@@ -61,6 +66,31 @@ class HandleInertiaRequests extends Middleware
                 'is_handheld' => $this->handheldDeviceDetector->isHandheldRequest($request),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+        ];
+    }
+
+    /**
+     * @return array{id: int, name: string, status: string}|null
+     */
+    private function resolveActiveAcademicYear(): ?array
+    {
+        $activeAcademicYear = AcademicYear::query()
+            ->select(['id', 'name', 'status'])
+            ->where('status', 'ongoing')
+            ->first()
+            ?? AcademicYear::query()
+                ->select(['id', 'name', 'status'])
+                ->where('status', 'upcoming')
+                ->first();
+
+        if (! $activeAcademicYear instanceof AcademicYear) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $activeAcademicYear->id,
+            'name' => (string) $activeAcademicYear->name,
+            'status' => (string) $activeAcademicYear->status,
         ];
     }
 }

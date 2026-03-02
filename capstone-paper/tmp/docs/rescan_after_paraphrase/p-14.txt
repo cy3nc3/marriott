@@ -1,0 +1,40 @@
+         into planning-ready insights. Hussain et al. (2023) strengthens this reasoning by
+         showing that enrollment trend modeling can support proactive staffing and resource
+         decisions when data continuity is preserved.
+
+Objectives
+
+
+The objectives of this study are aligned directly with the general and specific problems
+above so that every development target has explicit operational and literature-based
+justification. Each objective is formulated as a direct development response to a
+corresponding problem condition validated by interviews and supported by recent RRL.
+
+General Objective:
+
+To develop MarriottConnect as an integrated student information system with decision
+support analytics for Marriott School.
+
+This general objective is relevant because Marriott School requires a single operational
+platform that can convert fragmented transactions into coordinated institutional outputs.
+MIS effectiveness is dependent on process alignment just as much as software capability
+according to Zulueta et al., (2021). Kanona (2022) has found that centralized data structures
+result in better consistency and therefore provide better control. Thus, the overall objective
+includes efficiency of everyday transactions, as well as decision-making at the leadership
+level.
+
+Specific Objectives:
+
+    ➢ To develop a centralized registrar workflow that captures enrollment intake,
+         supports SF1 upload, and enriches learner records by LRN to reduce duplicate
+         encoding.
+
+         This objective directly responds to registrar-side duplication and validation delays
+         observed in the appendices. According to Grepon et al. (2021), unified admissions
+         and records pipelines reduce processing time and increase data reliability. Porlas et
+         al. (2023) further supports LIS-aware alignment, making this objective essential for
+
+
+
+STI College Munoz-EDSA                                                                           10
+

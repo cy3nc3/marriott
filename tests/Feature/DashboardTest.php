@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\AcademicYear;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -15,6 +16,36 @@ test('authenticated users can visit the dashboard', function () {
 
     $response = $this->get(route('dashboard'));
     $response->assertOk();
+});
+
+test('dashboard shares active academic year in common inertia props', function () {
+    AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $user = User::factory()->create([
+        'role' => UserRole::ADMIN,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('active_academic_year.name', '2026-2027')
+            ->where('active_academic_year.status', 'ongoing')
+        );
 });
 
 test('dashboard route resolves the correct role component', function (UserRole $role, string $component) {

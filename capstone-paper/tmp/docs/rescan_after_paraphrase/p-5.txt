@@ -1,0 +1,34 @@
+                                     INTRODUCTION
+
+
+Educational institutions increasingly rely on integrated information systems to maintain
+operational efficiency, data accuracy, and timely institutional decision-making. The
+effectiveness of how services are provided every day in schools where the operations are
+interconnected from an institutional administrative perspective, academic perspective and
+financial perspective is determined by the accuracy, reliability and availability of
+information. When there is only one time encoding of data through to its correct usage
+throughout the organization, the efficiency of workflow, reliability of reporting and
+stakeholders are able to receive their updates in a more timely manner. However, if school
+operations are still fragmented through various types of spreadsheets, paper logs and
+separate departmental records, then the school is at risk of having duplicate data,
+conflicting records and prolonged validation cycles.
+
+The value of management information systems has long been associated with reducing
+procedural burden and improving reporting quality in multi-office environments. In
+contrast, fragmented systems often make institutions data-heavy but insight-poor, because
+data exists in large volume yet remains difficult to consolidate into usable, decision-ready
+outputs.
+
+In the Philippine education context, the need for integrated school operations is even more
+pronounced because compliance-driven reporting and routine internal processing must be
+performed simultaneously. For Marriott School, this dual demand exposes the limits of
+disconnected tools and manual reconciliation practices. In response, this study proposes
+MarriottConnect as an integrated student information system with decision support
+analytics, designed to centralize operational records, reduce repetitive encoding, and
+provide leadership with structured evidence for planning and continuous improvement.
+
+
+
+
+STI College Munoz-EDSA                                                                         1
+

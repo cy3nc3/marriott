@@ -966,3 +966,102 @@ These are excluded by `EnrollmentIntakeSeeder` so they can be enrolled manually 
 2. `php artisan test --compact tests/Feature/Registrar/RegistrarFeaturesTest.php --filter="sf1"`
 3. `php artisan test --compact tests/Feature/Parent/ParentFeaturesTest.php`
 4. `vendor/bin/pint --dirty --format agent`
+
+---
+
+## 20) Latest Session Progress (2026-03-02, Auth + Header + Sidebar UX)
+
+### 20.1 Password peek/show-hide added system-wide
+
+1. Implemented a reusable password input component with inline show/hide toggle.
+2. Replaced all existing password fields that previously used raw `type="password"` in:
+    - login form
+    - confirm password page
+    - reset password page
+    - settings password page
+    - delete account confirmation dialog
+3. New/updated files:
+    - `resources/js/components/ui/password-input.tsx` (new)
+    - `resources/js/components/login-form.tsx`
+    - `resources/js/pages/auth/confirm-password.tsx`
+    - `resources/js/pages/auth/reset-password.tsx`
+    - `resources/js/pages/settings/password.tsx`
+    - `resources/js/components/delete-user.tsx`
+
+### 20.2 Login welcome Sonner toast wired through Fortify
+
+1. Added backend login-response flash payload for successful auth:
+    - title: `Welcome, [First Name]!`
+    - description: `Logged in as [Role]`
+2. Supports both normal login and two-factor completion by binding custom Fortify response contracts.
+3. Added shared Inertia flash key with dedupe key support.
+4. New/updated backend files:
+    - `app/Http/Responses/Concerns/InteractsWithLoginWelcomeToast.php` (new)
+    - `app/Http/Responses/FortifyLoginResponse.php` (new)
+    - `app/Http/Responses/FortifyTwoFactorLoginResponse.php` (new)
+    - `app/Providers/FortifyServiceProvider.php`
+    - `app/Http/Middleware/HandleInertiaRequests.php`
+5. New/updated frontend files:
+    - `resources/js/components/ui/sonner.tsx` (new)
+    - `resources/js/components/login-welcome-toast.tsx` (new)
+    - `resources/js/layouts/app/app-sidebar-layout.tsx`
+    - `resources/js/types/index.ts`
+6. Added/updated test coverage:
+    - `tests/Feature/Auth/AuthenticationTest.php`
+      - verifies login flash contains expected welcome title + role description
+
+### 20.3 Sonner behavior refinement (per latest UI request)
+
+1. Toast now uses success type (`toast.success`) for login welcome notice.
+2. Toast position moved to top-center.
+3. Enabled rich success styling via shadcn Sonner wrapper for stronger visual notice (green success style).
+4. Files:
+    - `resources/js/components/login-welcome-toast.tsx`
+    - `resources/js/components/ui/sonner.tsx`
+
+### 20.4 Active school year badge in top header near notifications
+
+1. Added shared `active_academic_year` payload in global Inertia props:
+    - prioritizes `ongoing`
+    - falls back to `upcoming`
+    - null when no configured year exists
+2. Displayed active school year badge on the right side of the notification bell in the sidebar header bar.
+3. Files:
+    - `app/Http/Middleware/HandleInertiaRequests.php`
+    - `resources/js/components/app-sidebar-header.tsx`
+    - `resources/js/types/index.ts`
+4. Added coverage:
+    - `tests/Feature/DashboardTest.php`
+      - verifies shared active school year payload is present and correct
+
+### 20.5 Sidebar branding update
+
+1. Sidebar logo mark now uses the same circular `M` style as the login/tab branding.
+2. Sidebar title text changed from static `Marriott` to the authenticated user’s role label.
+3. Files:
+    - `resources/js/components/app-logo.tsx`
+    - `resources/js/components/app-sidebar.tsx`
+
+### 20.6 Dependency updates in this session
+
+1. Added Sonner dependency:
+    - `package.json`
+    - `package-lock.json`
+
+### 20.7 Migrations required for this session
+
+1. None.
+
+### 20.8 Required setup after pulling this session
+
+1. Install frontend dependencies:
+    - `npm install`
+2. Run app:
+    - `npm run dev` (or build with `npm run build`)
+
+### 20.9 Verification run executed
+
+1. `npm run types`
+2. `vendor/bin/pint --dirty --format agent`
+3. `php artisan test --compact tests/Feature/Auth/AuthenticationTest.php`
+4. `php artisan test --compact tests/Feature/DashboardTest.php`

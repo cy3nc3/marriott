@@ -1,0 +1,38 @@
+manual sequence checks when multiple payments occur in close succession. According to
+Wulandari and Pinandito (2021), tuition-related decision support improves when payment-
+status logic is formalized and system-driven. Chai and Mostafa (2021) also report that
+integrated student-finance data handling reduces duplicate effort while improving cross-
+role visibility, which is critical for parent communication and internal reconciliation
+timing.
+
+Billing transparency is not only an accounting concern; it is a stakeholder-service concern.
+Families rely on timely balance updates, payment history visibility, and consistent
+communication channels, especially during high-demand periods. When billing records are
+delayed, schools face repeated follow-ups that consume office time and weaken confidence
+in published statements. According to Navarra and Antonio (2025), monitoring platforms
+improve communication outcomes when data is role-scoped, timely, and accessible
+through one connected environment. This aligns with MarriottConnect's integrated parent
+and finance views where institutional records and stakeholder-facing status updates remain
+synchronized.
+
+Academic scheduling and class-list coordination reveal a similar structural challenge.
+Subject assignments, section constraints, and teacher availability must be reconciled in
+ways that prevent conflicts while preserving instructional continuity. Manual cross-
+checking can complete the task, but it often increases cycle time and revision overhead.
+According to Muller et al. (2025), timetable quality improves when constraints are
+explicitly modeled and resolved systematically, not manually improvised. In Marriott
+School's context, this supports the move toward structured schedule governance where
+academic planning outputs are reliable before dissemination to teachers, students, and
+parents.
+
+Instructional workflows also require coherent links between attendance, grading, and
+verification stages. If class-level records are maintained in disconnected channels, teachers
+must repeatedly transfer and validate entries before submission, increasing the chance of
+latency and inconsistency. According to Zulueta et al. (2021), socio-technical alignment in
+MIS means process rules and system workflows must evolve together to sustain reliability.
+
+
+
+
+STI College Munoz-EDSA                                                                          5
+

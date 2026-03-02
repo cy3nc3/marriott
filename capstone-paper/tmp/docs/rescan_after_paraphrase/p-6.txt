@@ -1,0 +1,38 @@
+Project Context
+
+Marriott School operates in a DepEd-governed environment where learner identity,
+enrollment reporting, and school-level operational records must remain synchronized
+through LIS-oriented procedures. According to Porlas et al. (2023), schools encounter
+higher validation burden and cross-office reporting inconsistencies when local MIS
+workflows are not tightly aligned with LIS structures. For Marriott School, this
+requirement is not merely technical compliance; it is an operational discipline that directly
+affects how registrar, finance, and academic offices coordinate daily decisions.
+
+Appendix interviews confirm that this coordination remains difficult under fragmented
+tooling. The Academic Head explained that departments still maintain separate Excel files
+and frequently reconcile numbers manually before reports can be finalized. This condition
+creates a recurring pattern where staff attention shifts away from planning and student
+support toward repeated checking, correction, and consolidation tasks that should already
+be systematized.
+
+The registrar workflow shows this problem in concrete terms. Mrs. Jocelyn Cleofe
+described enrollment and record updates as one-by-one processing with repeated cross-
+checking across spreadsheets and forms, especially during high-volume periods.
+According to Grepon et al. (2021), integrated school systems reduce delays and improve
+record reliability when admissions and records processing operate on one shared data
+structure. Kanona (2022) further emphasizes that centralized database-backed management
+improves retrieval speed and record integrity compared with manual, file-fragmented
+handling.
+
+Finance operations demonstrate the same fragmentation in monetary form. Mrs. Corrine
+Avellanosa noted that payment updates often require manual cross-referencing before
+balances are confidently released, particularly when multiple transactions occur close
+together. According to Wulandari and Pinandito (2021), tuition-related decision support
+becomes more consistent when financial status logic is structured and system-driven rather
+than manually interpreted. Chai and Mostafa (2021) similarly report that integrated
+financial and student records reduce duplication and improve cross-user visibility.
+
+
+
+STI College Munoz-EDSA                                                                          2
+
