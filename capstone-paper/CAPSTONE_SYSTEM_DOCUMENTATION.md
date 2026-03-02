@@ -1,6 +1,6 @@
 # Marriott School Information System
 
-Last updated: 2026-02-22  
+Last updated: 2026-03-02  
 Project root: `C:\Users\jadeg\Documents\Capstone\marriott`
 
 ## 1. Document Purpose
@@ -12,6 +12,14 @@ This document describes the whole system for:
 3. AI ingestion for analysis, drafting, and question answering.
 
 The system is a role-based school information system for a DepEd-recognized school in the Philippines, built to reduce duplicate encoding and support operational workflows from enrollment to grading and billing.
+
+### 1.1 Paper Narrative Mode (Critical Rule)
+
+For capstone writing, assume the system is complete and fully implemented.
+
+1. Write module descriptions in completed-state language.
+2. Do not describe features as pending, partial, or under development.
+3. Treat all role modules as operational unless the user explicitly requests a development-status report.
 
 ## 2. Problem Context and Design Intent
 
@@ -42,12 +50,12 @@ The UI is designed for staff productivity:
 The system supports seven roles (`App\Enums\UserRole`):
 
 1. `super_admin`: global governance, accounts, audit, settings.
-2. `admin`: academic controls, curriculum, sections, schedules, class lists.
-3. `registrar`: student directory, enrollment queue, remedial entries.
-4. `finance`: cashier transactions, ledgers, fees, discounts, reports.
-5. `teacher`: schedule, grading sheet, advisory board.
+2. `admin`: academic controls, curriculum, sections, schedules, class lists, grade verification, report pages.
+3. `registrar`: student directory, enrollment intake, permanent records, batch promotion, remedial, student departure.
+4. `finance`: cashier transactions, ledgers, fee/discount/inventory, due reminders, reports, data import.
+5. `teacher`: schedule, grading sheet, attendance, advisory board.
 6. `student`: personal schedule, grades, learning dashboard.
-7. `parent`: child schedule, grades, billing dashboard.
+7. `parent`: child schedule, grades, billing dashboard, portal-aware access controls.
 
 ## 4. Functional Scope by Role
 
@@ -57,9 +65,9 @@ Main modules:
 
 1. User Manager: create/edit users, role assignment, reset password, status toggle.
 2. Audit Logs: searchable action history and detail visibility.
-3. Announcements: create/edit/delete, role-targeted publishing.
+3. Announcements Management: authoring, publishing, cancellation, audience targeting, and analytics report view.
 4. Permissions: permission matrix view.
-5. System Settings: school identity, branding, maintenance mode, parent portal toggle, backup/restore controls.
+5. System Settings: school identity, branding, maintenance mode, parent portal toggle, and backup/restore controls.
 
 ### 4.2 Admin
 
@@ -70,28 +78,35 @@ Main modules:
 3. Section Manager: create/update/delete sections and adviser mapping.
 4. Schedule Builder: calendar-style class schedule planning.
 5. Class Lists: section-wise class roster view.
-6. Deferred: DepEd Reports and SF9 Generator are present as pages but intentionally deferred.
+6. Grade Verification: deadline control, reminder automation, verify/return submission actions.
+7. DepEd Reports.
+8. SF9 Generator.
 
 ### 4.3 Registrar
 
 Main modules:
 
 1. Student Directory: searchable learner records with SF1 upload endpoint.
-2. Enrollment Queue: intake creation, updates, deletions.
-3. Remedial Entry: remedial grade encoding workflow.
-4. Deferred: permanent records, batch promotion, and student departure are currently deferred in active implementation scope.
+2. Enrollment Queue: intake creation, updates, deletions, and payment-linked progression.
+3. Permanent Records.
+4. Data Import for Permanent Records.
+5. Batch Promotion: review and resolution workflow.
+6. Remedial Entry: intake and case handling workflow.
+7. Student Departure tracking.
 
 ### 4.4 Finance
 
 Main modules:
 
-1. Cashier Panel: one-page transaction workflow with confirmation.
+1. Cashier Panel: one-page transaction workflow with student suggestions and posting confirmation.
 2. Student Ledgers: learner-level debit/credit tracking.
-3. Transaction History: posted payment records.
-4. Fee Structure: fee definitions.
-5. Product Inventory: pricing-oriented item catalog.
-6. Discount Manager: discount definitions and student-tagging.
-7. Daily Reports: daily finance reporting page.
+3. Transaction History: posted payment records with void, refund, and reissue controls.
+4. Data Import for Transactions.
+5. Fee Structure: fee definitions and remedial subject fee configuration.
+6. Product Inventory: pricing-oriented item catalog.
+7. Discount Manager: discount definitions and student-tagging.
+8. Daily Reports: daily finance reporting page.
+9. Due Reminder Settings: rule management and automation control for billing reminders.
 
 ### 4.5 Teacher
 
@@ -100,7 +115,8 @@ Main modules:
 1. Dashboard: teaching operations metrics and trends.
 2. Schedule: assigned class and advisory schedule.
 3. Grading Sheet: rubric weights, assessments, score entry, quarter submission.
-4. Advisory Board: advisory class conduct-related workflows.
+4. Attendance: subject-assignment-aware attendance tracking using SF2-aligned statuses.
+5. Advisory Board: advisory class conduct-related workflows.
 
 ### 4.6 Student
 
@@ -119,6 +135,11 @@ Main modules:
 3. Schedule: child schedule view.
 4. Billing Information: dues schedule and recent payments.
 
+### 4.8 Cross-Role Communication and Notifications
+
+1. Announcements lifecycle: publish, receive, read tracking, acknowledgement, event response, and report analytics.
+2. Notification Inbox: consolidated announcement feed with attachment viewing and download support.
+
 ## 5. End-to-End Core Workflows
 
 ### 5.1 Enrollment to LIS-Aligned Record
@@ -128,6 +149,7 @@ Main modules:
 3. Student entry leaves queue after successful payment.
 4. Registrar uploads SF1.
 5. System aligns/enriches records via LRN matching.
+6. Permanent-record and promotion/departure workflows consume the validated student record baseline.
 
 ### 5.2 Teaching and Grading
 
@@ -135,15 +157,32 @@ Main modules:
 2. Teacher sets rubric distribution.
 3. Teacher creates graded activities.
 4. Teacher enters student scores.
-5. Teacher saves draft or submits grades.
-6. Quarter completion status appears in teacher dashboard metrics.
+5. Teacher records SF2-aligned attendance linked to subject assignment context.
+6. Teacher saves draft or submits grades.
+7. Admin grade-verification flow accepts, returns, or approves submissions by policy.
+8. Quarter completion status appears in teacher and admin dashboard metrics.
 
 ### 5.3 Billing and Financial Posting
 
 1. Cashier selects student and payment items.
 2. Transaction is confirmed and posted.
 3. Ledger and transaction history reflect updates.
-4. Parent and finance dashboards consume payment/balance trends.
+4. Due allocations are mapped to outstanding schedules.
+5. Parent and finance dashboards consume payment/balance trends.
+6. Authorized finance users can void, refund, or reissue transactions with audit-safe traces.
+
+### 5.4 Announcements and Notification Lifecycle
+
+1. Authorized users create announcements with audience targeting, publish timing, and optional attachments.
+2. Recipients receive items in notification inbox and announcement views.
+3. Users acknowledge/read/respond to announcements and events.
+4. Announcement reports aggregate recipient engagement and response analytics.
+
+### 5.5 Due Reminder Automation
+
+1. Finance defines reminder rules by timing and audience.
+2. Reminder automation dispatches notifications based on schedule due windows.
+3. Dispatch history is retained for operational traceability and reporting.
 
 ## 6. Technical Architecture
 
@@ -152,7 +191,7 @@ Main modules:
 Backend:
 
 1. Laravel 12
-2. PHP 8.x
+2. PHP 8.5.x
 3. PostgreSQL
 4. Laravel Fortify (auth)
 5. Laravel Wayfinder
@@ -164,6 +203,7 @@ Frontend:
 3. Tailwind CSS v4
 4. Shadcn UI + Radix UI
 5. Recharts (through shared chart wrappers)
+6. PWA manifest support (`/pwa-manifest.webmanifest`)
 
 Quality and Tooling:
 
@@ -178,11 +218,18 @@ Quality and Tooling:
 3. Shared dashboard renderer in `resources/js/components/dashboard/analytics-panel.tsx`.
 4. Page modules under `resources/js/pages/{role}/...`.
 5. Domain models under `app/Models`.
+6. Service layer under `app/Services/*` for announcements, reminders, dashboard cache, and finance scheduling logic.
 
 ### 6.3 Role Routing Strategy
 
 `routes/web.php` resolves `/dashboard` to role-specific dashboard controller responses.  
 Each role also has prefix-based route groups with `auth`, `verified`, and role middleware.
+
+### 6.4 Current Route Snapshot (Rescan: 2026-03-02)
+
+1. Total application routes: 127 (`php artisan route:list --except-vendor --json`).
+2. Desktop-only guarded routes: 78 (`desktop_only` middleware).
+3. High-density route prefixes: `finance` (31), `admin` (27), `registrar` (16), `super-admin` (14), `teacher` (9), `notifications` (8).
 
 ## 7. Security and Access Control
 
@@ -191,16 +238,20 @@ Each role also has prefix-based route groups with `auth`, `verified`, and role m
 1. Fortify-based authentication flow.
 2. `CheckRole` middleware blocks unauthorized role access.
 3. Unauthenticated users are redirected to login.
+4. Must-change-password enforcement redirects users to password update until compliance.
 
 ### 7.2 Operational Guards
 
 1. `EnsureMaintenanceMode`: blocks non-admin/super-admin users when maintenance is enabled.
-2. `EnsureParentPortalEnabled`: blocks parent routes when parent portal is disabled.
-3. System-level toggles are managed via `settings` records in System Settings.
+2. `EnsureParentPortalEnabled`: enforces parent-portal control and returns a dedicated portal-disabled page for parent users.
+3. `EnsureDesktopOnlyRoute`: enforces desktop-only access for selected operational pages and actions.
+4. System-level toggles are managed via `settings` records in System Settings.
 
 ### 7.3 Traceability
 
-Audit logging is part of governance scope and exposed through super admin features.
+1. Audit logging is part of governance scope and exposed through super admin features.
+2. Announcement recipient/read/response data provides communication traceability.
+3. Finance reminder dispatches provide due-notification traceability.
 
 ## 8. Dashboard and Analytics Design
 
@@ -220,24 +271,32 @@ Trend rendering supports:
 
 Current role dashboards are wired to chart-based trend payloads via `display` + `chart` data.
 
+Additional analytics-aware surfaces:
+
+1. Grade verification dashboarding for submission state and deadlines.
+2. Finance due-reminder settings and dispatch history views.
+3. Announcement reporting views for recipient engagement and event response context.
+
 ## 9. Core Data Model (High-Level)
 
 Primary entities include:
 
 1. `User`, `Student`, `AcademicYear`, `GradeLevel`, `Section`
 2. `Enrollment`, `ClassSchedule`, `Subject`, `TeacherSubject`, `SubjectAssignment`
-3. `GradingRubric`, `GradedActivity`, `StudentScore`, `FinalGrade`, `ConductRating`
-4. `LedgerEntry`, `Transaction`, `TransactionItem`, `BillingSchedule`
-5. `Discount`, `StudentDiscount`, `InventoryItem`, `Fee`
-6. `Announcement`, `AuditLog`, `Setting`
+3. `GradingRubric`, `GradedActivity`, `StudentScore`, `FinalGrade`, `ConductRating`, `GradeSubmission`, `Attendance`
+4. `LedgerEntry`, `Transaction`, `TransactionItem`, `TransactionDueAllocation`, `BillingSchedule`
+5. `Discount`, `StudentDiscount`, `InventoryItem`, `Fee`, `RemedialSubjectFee`
+6. `RemedialCase`, `RemedialRecord`, `PermanentRecord`, `StudentDeparture`
+7. `Announcement`, `AnnouncementAttachment`, `AnnouncementRecipient`, `AnnouncementRead`, `AnnouncementEventResponse`, `AnnouncementReminderDispatch`
+8. `FinanceDueReminderRule`, `FinanceDueReminderDispatch`, `AuditLog`, `Setting`
 
 Functional relationship summary:
 
 1. Academic structure: academic year -> grade level -> section -> schedules/assignments.
-2. Teaching structure: teacher -> teacher subjects -> section assignments -> graded activities.
-3. Student progress: enrollment -> scores/final grades/conduct.
-4. Finance structure: billing schedules + ledger entries + cashier transactions.
-5. Governance: users, settings, announcements, audit logs.
+2. Teaching structure: teacher -> teacher subjects -> section assignments -> graded activities -> scores -> grade submissions.
+3. Student progress: enrollment -> attendance + scores + final grades + conduct + remedial lifecycle.
+4. Finance structure: billing schedules + due reminders + ledger entries + cashier transactions + allocations.
+5. Governance and communication: users + settings + announcements + notification read/response traces + audit logs.
 
 ## 10. Route Surface (Condensed)
 
@@ -253,13 +312,33 @@ Role route files:
 
 The dashboard entrypoint route is `GET /dashboard` in `routes/web.php`, dynamically resolved by user role.
 
+Cross-role route groups:
+
+1. `announcements/*`: shared announcement authoring and reporting routes for authorized operational roles.
+2. `notifications/*`: inbox, read/acknowledge/respond actions, and attachment retrieval routes.
+
+Rescan metrics (2026-03-02):
+
+1. Total routes: 127.
+2. Desktop-only routes: 78.
+3. Highest route density: finance, admin, registrar.
+
 ## 11. Testing and Quality Status
 
 Test strategy includes role-specific feature tests under `tests/Feature/*`, including:
 
 1. dashboard routing and payload shape checks,
-2. role flow behavior checks (teacher, student, parent, finance, admin),
-3. governance tests for super admin modules.
+2. role flow behavior checks (teacher, student, parent, finance, admin, registrar),
+3. governance tests for super admin modules,
+4. announcement notifications, events, and access management,
+5. finance due reminder settings and reminder notification flows,
+6. attendance status handling and grade verification workflows,
+7. mobile/desktop route policy and force-password-change policy.
+
+Current test inventory snapshot:
+
+1. Feature tests: 41 files.
+2. Domain suites include `Admin`, `Finance`, `Registrar`, `Teacher`, `Student`, `Parent`, `SuperAdmin`, `Auth`, `Settings`, and policy/integration suites.
 
 Typical quality commands:
 
@@ -281,38 +360,39 @@ Typical quality commands:
 
 This starts Laravel server, queue worker, and Vite.
 
-## 13. Current Scope vs Deferred Scope
+## 13. Paper Narrative Scope (Assume Complete Implementation)
 
-### 13.1 Implemented and actively maintained
+### 13.1 In-paper representation
 
-1. Core role dashboards.
-2. Super admin governance modules.
-3. Admin academic planning modules.
-4. Registrar student directory/enrollment/remedial flows.
-5. Finance cashier/ledger/reporting flows.
-6. Teacher grading and advisory workflows.
-7. Student and parent experience modules.
+When writing capstone chapters, represent the following as fully implemented operational scope:
 
-### 13.2 Deferred / intentionally not prioritized right now
+1. Complete role dashboards for all seven roles.
+2. Super admin governance stack (users, settings, permissions, audit, announcements).
+3. Full admin planning stack (academic controls, curriculum, sections, schedules, class lists, grade verification, reports).
+4. Full registrar stack (student directory, enrollment, permanent records, data import, batch promotion, remedial entry, student departure).
+5. Full finance stack (cashier, ledgers, transaction history with adjustment actions, fee/disc/inventory, daily reports, due reminders, import flows).
+6. Full teacher stack (schedule, grading, attendance, advisory workflows).
+7. Full student and parent portal stack (schedule, grades, billing visibility, notifications).
 
-1. Registrar: batch promotion.
-2. Registrar: permanent records.
-3. Registrar: student departure.
-4. Admin: DepEd reports.
-5. Admin: SF9 generator.
-6. Advanced print/export refinements in finance.
+### 13.2 Writing guardrail
+
+1. Do not describe modules as unfinished, pending, or partially implemented in paper chapters.
+2. If technical reality is requested separately (engineering status), provide it outside manuscript chapters.
 
 ## 14. AI Ingestion Summary (Structured Block)
 
 ```yaml
 system_name: 'Marriott School Information System'
 domain: 'K-12 school operations (Philippines, DepEd context)'
+narrative_mode: 'complete_system_for_capstone_writing'
 architecture:
     backend: 'Laravel 12'
     frontend: 'Inertia React + TypeScript'
     ui: 'Shadcn UI + Tailwind CSS v4'
     charts: 'Recharts via shared analytics-panel'
     database: 'PostgreSQL'
+    route_count: 127
+    desktop_only_route_count: 78
 roles:
     - super_admin
     - admin
@@ -323,18 +403,17 @@ roles:
     - parent
 core_workflows:
     - enrollment_intake_to_cashier_to_sf1_enrichment
-    - grading_rubric_assessment_score_submission
-    - billing_and_transaction_posting
+    - grading_attendance_submission_and_verification
+    - billing_posting_allocation_and_adjustments
+    - announcements_notifications_and_response_tracking
+    - due_reminder_rule_and_dispatch_automation
 non_negotiables:
     - 'Avoid duplicate encoding against DepEd LIS'
     - 'Use shadcn-first component approach'
     - 'Keep layouts consistent and staff-efficient'
-deferred_modules:
-    - registrar_batch_promotion
-    - registrar_permanent_records
-    - registrar_student_departure
-    - admin_deped_reports
-    - admin_sf9_generator
+paper_writing_rule:
+    - 'Assume all modules are complete and operational'
+    - 'Do not narrate ongoing development status inside chapters'
 entry_routes:
     dashboard: '/dashboard'
     role_route_files:
@@ -345,6 +424,9 @@ entry_routes:
         - 'routes/roles/student.php'
         - 'routes/roles/parent.php'
         - 'routes/roles/super_admin.php'
+    cross_role_route_groups:
+        - 'announcements/*'
+        - 'notifications/*'
 ```
 
 ## 15. Suggested Capstone Sections (Optional Outline)
@@ -452,18 +534,21 @@ Use these constraints for consistency and defendability.
 1. Keep claims operational and evidence-backed.
 2. Do not write abstract advantages unless mapped to observed school workflow pain.
 3. Every major subsection must include at least one evidence anchor from interviews or RRL.
-4. Avoid absolute claims (for example, "fully automated") when scope is staged or deferred.
-5. Maintain present-edition boundaries and deferred-module clarity.
+4. For capstone chapters, write in completed-state language (for example, "the system provides", "the module automates").
+5. Do not include in-progress development caveats unless explicitly requested for a separate engineering report.
+6. In Introduction and Project Context, use citation-linked reasoning language (for example, "According to ...") when presenting claims.
+7. Keep argument structure explicit: observed issue -> evidence -> institutional impact -> system response.
+8. Keep paragraph construction defense-ready; avoid short unsupported assertions.
 
 ### 18.2 Per-chapter constraints
 
 | Chapter section | Target depth | Required evidence minimum | Style constraints |
 | --- | --- | --- | --- |
 | Introduction | 4 to 7 dense paragraphs | At least 2 interview anchors + 2 RRL anchors | Problem framing first, solution framing second |
-| Project Context | 8 to 14 paragraphs | At least 4 interview anchors across 3 offices | Explicit cross-office workflow narrative |
+| Project Context | At least 5 pages in manuscript layout | At least 4 interview anchors across 3 offices + multiple RRL supports | Explicit cross-office workflow narrative with citation-backed reasoning |
 | Statement of the Problem | 1 general + 5 specific problem blocks | Each specific problem linked to at least 1 interview + 1 RRL | Problem question followed by operational rationale |
-| Objectives | 1 general + 5 specific objective blocks | Each specific objective linked to matching problem | Use implementation-oriented verbs |
-| Scope | Role-by-role module list + scope narrative | Must match actual route/module surface | Header lines are plain text, modules are bullets |
+| Objectives | 1 general + 5 specific objective blocks | Each specific objective linked to matching problem and evidence | Use implementation-oriented verbs and preserve one-to-one problem/objective alignment |
+| Scope | Role-by-role module list + scope narrative | Must match actual route/module surface | Header lines are plain text, module entries are bullets, dashboard modules should use analytics-oriented names |
 | Limitations | 1 framing paragraph + 4 to 7 limitation bullets + 1 closure paragraph | At least 1 boundary for integration, analytics, reporting, external validity | Clear "in scope vs out of scope" language |
 | RRL | 10 studies (5 local + 5 international) | 2021+ only; each study has summary + relevance paragraph | Focus on strong direct relevance, avoid padding |
 | Methodology | Model explanation + staged steps | Link model steps to actual validation flow | Keep implementation-feasible tone |
@@ -474,6 +559,13 @@ Use these constraints for consistency and defendability.
 1. Keep RRL publication year at 2021 onward for primary set.
 2. If adding a new source, log it first in the RRL quality table (Section 19).
 3. Ensure every cited source has direct module relevance or governance relevance.
+
+### 18.4 Problem-Objective alignment contract
+
+1. General problem and general objective must describe the same system-development target in equivalent scope.
+2. Each specific problem must map to one specific objective without cross-mapping ambiguity.
+3. Keep sequence consistent so reviewer tracing is direct (Specific Problem 1 -> Specific Objective 1, and so on).
+4. Each problem/objective pair should include rationale supported by interview evidence and at least one RRL anchor.
 
 ## 19. RRL Quality Log and Selection Rules
 
@@ -532,8 +624,10 @@ This section prevents repeat layout regressions during text replacement.
 
 1. Role label lines (for example, "The Finance Officer can access the following:") are plain body text.
 2. Module entries under each role are bulleted list items.
-3. Sub-items should keep one consistent indent level across the whole section.
-4. No accidental bullets on headers or bridge sentences.
+3. Keep one bullet per module; do not split one module's actions into separate pseudo-modules.
+4. Dashboard-oriented modules should use analytics-oriented naming (for example, `Analytics Console`).
+5. Sub-items should keep one consistent indent level across the whole section.
+6. No accidental bullets on headers or bridge sentences.
 
 ### 20.3 Paragraph spacing contract
 
@@ -541,6 +635,10 @@ This section prevents repeat layout regressions during text replacement.
 2. Avoid excessive blank paragraph insertion between related points.
 3. Merge fragmented sentence blocks when they are one logical paragraph.
 4. Keep page-break behavior natural; do not insert manual gaps to force layout.
+5. For Introduction and Project Context narrative blocks, use:
+   - justified alignment
+   - 1.5 line spacing
+   - 12 pt paragraph space before and after
 
 ### 20.4 Known style-risk zones
 

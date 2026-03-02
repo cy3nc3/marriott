@@ -1,6 +1,6 @@
 # CAPSTONE PAPER EDITING HANDOFF
 
-Last updated: 2026-02-22  
+Last updated: 2026-03-02  
 Workspace: `C:\Users\jadeg\Documents\Capstone\marriott`  
 Paper folder: `capstone-paper/`
 
@@ -24,12 +24,15 @@ Primary document versions:
 3. `capstone-paper/MarriottConnect - Second Edition.rewrite-v2.docx` (major rewrite checkpoint)
 4. `capstone-paper/MarriottConnect - Second Edition.before-rrl-expansion.docx` (before expanded RRL narratives)
 5. `capstone-paper/MarriottConnect - Second Edition.with-limitations.docx` (after adding Limitations section)
+6. `capstone-paper/MarriottConnect - Second Edition.before-complete-system-pass.docx` (before full complete-state narrative pass)
+7. `capstone-paper/MarriottConnect - Second Edition.before-project-context-5pages-and-scope-module-pass.docx` (before 5-page context and scope module consolidation pass)
 
 Reference and extraction files:
 
 1. `capstone-paper/CAPSTONE_SYSTEM_DOCUMENTATION.md` (system-grounding reference)
 2. `capstone-paper/tmp_docx_paragraphs.txt` (paragraph-level extraction for debugging spacing/style issues)
 3. `capstone-paper/tmp_main_body_indexed.txt` (indexed body text checks)
+4. `capstone-paper/CAPSTONE_PAPER_EDITING_HANDOFF_SUMMARY.md` (compact transfer summary for new AI/device sessions)
 
 Visual QA outputs (PDF + page images):
 
@@ -41,6 +44,10 @@ Visual QA outputs (PDF + page images):
 6. `capstone-paper/tmp/docs/scope_fixed/`
 7. `capstone-paper/tmp/docs/scope_spacing_fix2/`
 8. `capstone-paper/tmp/docs/with_limitations_main/`
+9. `capstone-paper/tmp/docs/complete_mode_pass/`
+10. `capstone-paper/tmp/docs/problem_objective_alignment_pass/`
+11. `capstone-paper/tmp/docs/project_context_5pages_pass/`
+12. `capstone-paper/tmp/docs/final_context_scope_pass/`
 
 ## 3. Tooling and environment setup completed
 
@@ -74,6 +81,11 @@ The following were explicitly requested and must be preserved for future edits:
 12. In Scope, apply bullets only where appropriate (module items), not to role header lines.
 13. Add a proper `Limitations` subsection (do not remove it).
 14. Expand each RRL review and its relevance justification.
+15. For paper writing, assume MarriottConnect is complete and fully implemented.
+16. Extend Project Context to at least five pages and ground the narrative in citations.
+17. Scope must list modules per role; avoid splitting one module into multiple fragmented action bullets.
+18. Use clearer analytics-oriented naming for dashboard-type modules.
+19. Ensure general/specific problem and objective blocks are directly aligned one-to-one.
 
 ## 5. Editing progress timeline (what was actually done)
 
@@ -261,3 +273,34 @@ Add these sections to make it significantly stronger for future AI-assisted draf
 3. Limitations: present and scoped.
 4. RRL: 10 studies, 5 local + 5 international, 2021+ validated, with expanded relevance discussions.
 5. Remaining quality work: heading-style normalization and final formatting consistency pass.
+
+## 13. Latest update log (2026-03-02, post-rescan pass)
+
+1. Re-scanned system context and kept complete-state writing mode active for manuscript sections.
+2. Reworked Problem and Objective sections to keep direct alignment:
+   - 1 general problem <-> 1 general objective
+   - 5 specific problems <-> 5 specific objectives
+3. Expanded `Project Context` to meet the "at least five pages" target using interview-grounded and RRL-grounded justification.
+4. Applied explicit citation phrasing throughout context/problem/objective narratives (for example, "According to ...").
+5. Rebuilt Scope into module-based access lists per role, avoiding fragmented bullets that split one module's actions.
+6. Renamed dashboard entries to analytics-oriented labels (for example, `Registrar Analytics Console`, `Financial Analytics Console`, `Institutional Analytics Console`).
+7. Added paragraph-format normalization for the long Project Context block:
+   - justified alignment
+   - 1.5 line spacing
+   - 12 pt before/after
+8. Re-rendered pages for QA and refreshed `capstone-paper/tmp_docx_paragraphs.txt` for index-based checks.
+
+## 14. Current known status after latest pass
+
+1. Project Context now reaches the required multi-page depth and flows into `Statement of the Problem` without layout breaks.
+2. Scope is currently module-centered and role-structured with corrected bullet semantics.
+3. Problem/Objective correspondence is enforceable and easier to defend during presentation.
+4. Remaining non-blocking cleanup item is heading-style normalization for certain section labels if strict TOC hygiene is required.
+
+## 15. Operator quick-start for next AI/device
+
+1. Start from `capstone-paper/MarriottConnect - Second Edition.docx`.
+2. Use `capstone-paper/CAPSTONE_SYSTEM_DOCUMENTATION.md` as the single source of system truth.
+3. Validate edits with page renders in `capstone-paper/tmp/docs/final_context_scope_pass/` or generate a fresh render set.
+4. Preserve complete-state narrative mode and module-based scope formatting.
+5. Re-export `capstone-paper/tmp_docx_paragraphs.txt` after every major rewrite cycle.
