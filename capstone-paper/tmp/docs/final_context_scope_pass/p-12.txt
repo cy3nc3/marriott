@@ -1,0 +1,42 @@
+        (2025), web-based student monitoring improves communication quality when data
+        is timely and role-scoped. Chai and Mostafa (2021) similarly demonstrates that
+        shared record environments improve accessibility between school staff and
+        stakeholders.
+
+    ➢ How can role dashboards and governance controls be developed to produce
+        actionable indicators for enrollment trends, payment behavior, and operational risk
+        monitoring?
+
+        This specific problem addresses management decision latency. School leadership
+        needs consolidated indicators that are based on validated transactions, not
+        delayed manual summaries from disconnected files. According to Esquivel and
+        Esquivel (2021), decision support value increases when operational records are
+        transformed into planning-ready insights. Hussain et al. (2023) strengthens this
+        reasoning by showing that enrollment trend modeling can support proactive
+        staffing and resource decisions when data continuity is preserved.
+
+Objectives
+
+
+The objectives of this study are aligned directly with the general and specific problems
+above so that every development target has explicit operational and literature-based
+justification. Each objective is formulated as a direct development response to a
+corresponding problem condition validated by interviews and supported by recent RRL.
+
+General Objective:
+
+To develop MarriottConnect as an integrated student information system with decision
+support analytics that centralizes registrar, finance, academic, and stakeholder workflows
+to deliver timely, reliable, and role-governed decisions for Marriott School.
+
+This general objective is relevant because Marriott School requires a single operational
+platform that can convert fragmented transactions into coordinated institutional outputs.
+According to Zulueta et al. (2021), MIS effectiveness depends on process alignment as
+much as software capability, while Kanona (2022) shows that centralized data structures
+improve consistency and control. Therefore, the general objective addresses both day-to-
+day transaction efficiency and leadership-level decision support.
+
+
+
+STI College Munoz-EDSA                                                                        8
+

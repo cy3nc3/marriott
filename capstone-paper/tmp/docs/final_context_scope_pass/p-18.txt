@@ -1,0 +1,41 @@
+Limitations
+
+While MarriottConnect provides integrated coverage of registrar, finance, academic, and
+stakeholder workflows, the study remains bounded by institutional context, operational
+policy conditions, and data quality dependencies that influence measured outcomes.
+
+For this study, the following limitations apply:
+
+    ●   System evaluation is grounded in one host institution (Marriott School); cross-
+        school generalization requires additional deployments and comparative validation
+        in other school environments.
+    ●   LIS-aligned processing depends on sustained institutional data discipline,
+        including accurate intake encoding, timely SF1 uploads, and consistent LRN
+        validation across operational cycles.
+    ●   Analytics outputs are based on available institutional historical records;
+        forecasting and trend interpretation quality remains dependent on the
+        completeness and consistency of encoded transactions.
+    ●   Operational performance remains dependent on reliable internet connectivity,
+        available desktop access for guarded workflows, and sustained user adherence
+        to defined role procedures.
+    ●   Policy, curriculum, and regulatory updates may require periodic configuration
+        adjustments to preserve alignment between institutional operations and report-
+        generation standards.
+
+These limitations define the study context and evaluation boundaries while preserving
+the system's value as an integrated operational and decision-support platform.
+
+
+
+
+Review of Related Literature/Studies/Systems
+
+
+The present review of related literature and studies is designed to establish a strong
+theoretical and technical foundation for MarriottConnect by focusing only on sources that
+directly align with the school's documented operational problems. In this chapter,
+
+
+
+STI College Munoz-EDSA                                                                      14
+

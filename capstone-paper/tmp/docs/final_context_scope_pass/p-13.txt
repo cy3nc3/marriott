@@ -1,0 +1,43 @@
+Specific Objectives:
+
+    ➢ To develop a centralized registrar workflow that captures enrollment intake,
+        supports SF1 upload, and enriches learner records by LRN to reduce duplicate
+        encoding.
+
+        This objective directly responds to registrar-side duplication and validation delays
+        observed in the appendices. According to Grepon et al. (2021), unified admissions
+        and records pipelines reduce processing time and increase data reliability. Porlas
+        et al. (2023) further supports LIS-aware alignment, making this objective essential
+        for preserving data continuity from intake through reporting.
+
+    ➢ To develop integrated cashiering and billing workflows that automate posting,
+        update balances immediately, and keep ledgers and parent billing views
+        synchronized.
+
+        This objective is relevant because finance operations require immediate,
+        trustworthy balance visibility to support both internal reconciliation and parent
+        communication. According to Wulandari and Pinandito (2021), structured financial
+        decision logic improves consistency in tuition management. Chai and Mostafa
+        (2021) also supports integrated financial-record handling as a practical mechanism
+        for reducing cross-check burden and improving transparency.
+
+    ➢ To develop schedule and class-list workflows that support academic planning while
+        minimizing timetable conflicts and repetitive manual verification.
+
+        This objective addresses recurring scheduling friction in section and teacher
+        assignment workflows. According to Muller et al. (2025), conflict-free scheduling
+        quality improves when constraints are explicitly modeled and resolved
+        systematically. Zulueta et al. (2021) reinforces that standardized workflows are
+        necessary for sustainable MIS operations in educational institutions.
+
+
+
+
+    ➢ To develop secure student and parent portals that provide authorized visibility to
+        schedules, grades, and billing information.
+
+
+
+
+STI College Munoz-EDSA                                                                         9
+

@@ -1,0 +1,41 @@
+        before release, especially during enrollment peaks. According to Grepon et al.
+        (2021), centralized admissions and records processing reduce delay and improve
+        reliability when offices use one connected data structure. Porlas et al. (2023) also
+        emphasizes that LIS-aligned handling requires synchronization discipline between
+        local school records and formal reporting structures.
+
+    ➢ How can integrated cashiering and billing workflows be developed to automate
+        posting, update balances immediately, and keep ledgers and parent billing views
+        synchronized?
+
+        This specific problem focuses on finance timing and reconciliation quality. The
+        finance interview describes practical delays when multiple payments are
+        processed and balances require manual confirmation before communicating
+        status to families. According to Wulandari and Pinandito (2021), structured tuition
+        decision logic improves consistency and response speed in financially sensitive
+        workflows. Chai and Mostafa (2021) further supports integrated student-finance
+        records as a way to reduce duplicated effort and strengthen operational
+        transparency.
+
+    ➢ How can schedule and class-list workflows be developed to support academic
+        planning while minimizing timetable conflicts and repetitive manual verification?
+
+        This specific problem addresses academic coordination reliability. Interview
+        evidence indicates that schedule validation and class-list consistency checks
+        remain labor-intensive when subject, section, and teacher constraints are
+        reviewed manually. According to Muller et al. (2025), conflict-aware timetabling
+        performance depends on formal constraint handling rather than ad hoc plotting.
+        Zulueta et al. (2021) also supports this by showing that standardized institutional
+        workflows are necessary to sustain reliable MIS operations.
+
+    ➢ How can secure student and parent portals be developed to provide authorized
+        visibility to schedules, grades, and billing information?
+
+        This specific problem addresses stakeholder transparency and trust. Appendix
+        findings indicate that families may experience delayed or incomplete updates when
+        office records are not synchronized in real time. According to Navarra and Antonio
+
+
+
+STI College Munoz-EDSA                                                                         7
+

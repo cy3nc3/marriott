@@ -1,0 +1,43 @@
+        mo isa-isa yung cells. Ang hirap talaga kasi minsan nawala yung data o may nag-
+        change na hindi mo alam. Kailangan balik-balikan, i-check ang history ng bawat
+        entry. Nakakapagod talaga sa oras at effort.
+
+
+        Interviewer: Yes, sir.
+
+
+        Interviewee: Kaya nga minsan, kahit may Excel, parang manual pa rin kasi
+        kailangan pa rin ng constant monitoring, checking, at coordination. Hindi siya
+        automatic na nag-a-update o nagma-manage ng conflicts.
+
+
+        Interviewer: Sir, gaano kadalas nagkakaroon ng error or inconsistency sa student
+        records?
+
+
+        Interviewee: Student records? Dito, medyo old school talaga. Talagang
+        handwritten ang initial input, tapos i-encode pa sa Excel. Hindi naman madalas
+        mag-error technically, kasi careful kami sa pag-check, pero ang problema, sobrang
+        tagal i-verify. Ang workflow, kailangan mo i-double check, i-compare ang entries,
+        minsan printed copy, minsan digital copy. Nakakapagod. Kapag may sabay-sabay
+        na nag-update, may mga points na parang nawawala o hindi aligned agad.
+
+
+        Interviewer: So, sir, sabi niyo po old school yung process niyo. May nangyayari
+        po ba na duplicate ng student records?
+
+
+        Interviewee: Ah, yung present students? Hindi naman technically duplicate, pero
+        minsan may confusion sa data integrity. Halimbawa, minsan hindi ka sigurado kung
+        ang grade na na-encode na ba or hindi pa. Parang, “San ko na ba nilagay yun?” o
+        kaya “Na-print ko ba ito?” Kaya kailangan ulit i-check manually. Nakakapagod
+        talaga.
+
+
+        Interviewer: Sir, paano naapektuhan ng errors and delays na ito ang operational
+        supervision ng school sa mga students?
+
+
+
+STI College Munoz-EDSA                                                                      40
+

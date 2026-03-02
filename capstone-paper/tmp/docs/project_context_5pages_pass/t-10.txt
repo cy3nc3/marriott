@@ -1,0 +1,37 @@
+continuity, transaction reliability, academic coordination, stakeholder transparency, and
+institutional decision support. According to Zulueta et al. (2021), MIS success depends on
+both technical fit and process standardization; therefore, problem identification must
+capture workflow behavior across offices, not only software feature gaps. The appendices
+and recent literature consistently show that fragmentation is not a single-module issue but
+a system-wide coordination condition that affects registrar, finance, teacher, parent, and
+administrative outcomes.
+General Problem:
+How can MarriottConnect be developed as an integrated student information system with
+decision support analytics that centralizes registrar, finance, academic, and stakeholder
+workflows to deliver timely, reliable, and role-governed decisions for Marriott School?
+Marriott School's general problem is rooted in disconnected workflow architecture. The
+Academic Head and office interviews indicate that departments still produce records in
+separate channels and reconcile manually before output release, which extends cycle
+time and reduces confidence in consolidated reports. According to Grepon et al. (2021),
+integrated processing significantly improves operational continuity and reliability by
+reducing file-level fragmentation and duplicate processing.
+The same general pattern is reinforced by recent educational MIS research. According to
+Kanona (2022), manual and fragmented record handling reduces both efficiency and data
+integrity, while centralized database structures improve retrieval and control. Because
+Marriott School requires synchronized registrar, finance, and academic decisions, the
+general problem is not simply digitization; it is the need for one validated institutional data
+flow that supports both daily transactions and leadership planning.
+Specific Problems:
+
+➢ How can a centralized registrar workflow be developed to capture enrollment
+intake, support SF1 upload, and enrich learner records by LRN to reduce duplicate
+encoding?
+This specific problem addresses the registrar bottleneck where intake, correction,
+and enrichment steps still consume significant verification effort. According to the
+registrar interview, records are updated one-by-one and repeatedly cross-checked
+
+STI College Munoz-EDSA
+
+6
+
+

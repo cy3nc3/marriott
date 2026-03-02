@@ -1,0 +1,41 @@
+authorized role portals.
+
+4. The system should provide audit-aware and role-scoped access to protect
+sensitive transactions and records.
+Web-Based Admin Dashboard
+
+1. Administrators and authorized staff must manage academic controls, sections,
+schedules, and class visibility through one secure interface.
+
+2. Administrative users must be able to review KPI cards, alerts, and trends that
+summarize operational conditions.
+
+3. Administrative outputs should support decision-making for school-year planning,
+staffing, and workflow correction.
+
+C. System Requirements
+Major System Capabilities
+
+● Major System Capabilities
+● The system will operate as a role-based web platform accessible through
+modern desktop and mobile browsers.
+
+● The system will centralize learner, enrollment, grading, and finance records
+under one validated data model.
+
+● The system will enforce role-based access for super admin, admin,
+registrar, finance, teacher, student, and parent users.
+
+● The system will support registrar intake, student directory maintenance,
+and SF1 upload processing.
+
+● The system will support finance cashiering, ledger updates, fee
+management, and transaction history views.
+
+● The system will support teacher grading workflows including rubric setup,
+
+STI College Munoz-EDSA
+
+26
+
+

@@ -1,0 +1,41 @@
+The model includes the following stages, ensuring a controlled and user-centered
+development process:
+
+    1. Requirements Gathering and Analysis
+
+        Interviews, workflow mapping, and role-task validation are conducted to identify
+        bottlenecks in enrollment, finance posting, scheduling, and grading.
+
+
+
+
+    2. Quick Design
+
+        Initial page flow, data mapping, and module interaction designs are prepared
+        based on validated role responsibilities and system boundaries.
+
+    3. Build Prototype
+
+        A working prototype is implemented for core modules including registrar intake,
+        cashier posting, teacher grading workflows, and role dashboards.
+
+    4. Initial User Evaluation
+
+        Key school stakeholders evaluate behavior, usability, and data consistency to
+        confirm whether outputs match real operational needs.
+
+    5. Refining Prototype
+
+        Feedback is applied iteratively to improve accuracy, workflow speed, and interface
+        clarity until the solution satisfies acceptance conditions.
+
+    6. Implement and Maintain
+
+        Once validated, the solution proceeds to controlled implementation, user
+        orientation, and maintenance planning for sustained operational use.
+
+
+
+
+STI College Munoz-EDSA                                                                       22
+

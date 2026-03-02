@@ -1,0 +1,40 @@
+In enrollment periods, the registrar must process a large volume of learner entries under
+time pressure while preserving LIS-oriented consistency. When intake records are
+encoded in disconnected trackers, every downstream update introduces a new
+opportunity for mismatch. According to Porlas et al. (2023), inconsistencies between LIS-
+facing structures and school-level MIS records create recurring validation burden across
+offices. For Marriott School, this means that what appears as a small intake encoding
+delay can later affect payment confirmation, class-list finalization, and administrative
+reporting confidence.
+
+The record-continuity requirement extends beyond initial enrollment. Permanent records,
+promotion decisions, and student-departure handling all depend on the same validated
+learner identity baseline. If this baseline is fragmented, later academic and compliance
+outputs become harder to verify and slower to release. According to Kanona (2022),
+structured database-backed systems provide stronger retrieval reliability and control
+integrity than manual, file-fragmented record handling. This supports MarriottConnect's
+design principle that learner data should be encoded with continuity in mind rather than
+re-encoded at every stage of institutional processing.
+
+Finance workflows add another layer of operational sensitivity because billing accuracy
+directly affects trust, cash-flow transparency, and release-dependent school transactions.
+The finance interview evidence indicates that balance confirmation often depends on
+manual sequence checks when multiple payments occur in close succession. According
+to Wulandari and Pinandito (2021), tuition-related decision support improves when
+payment-status logic is formalized and system-driven. Chai and Mostafa (2021) also
+report that integrated student-finance data handling reduces duplicate effort while
+improving cross-role visibility, which is critical for parent communication and internal
+reconciliation timing.
+
+Billing transparency is not only an accounting concern; it is a stakeholder-service concern.
+Families rely on timely balance updates, payment history visibility, and consistent
+communication channels, especially during high-demand periods. When billing records
+are delayed, schools face repeated follow-ups that consume office time and weaken
+confidence in published statements. According to Navarra and Antonio (2025), monitoring
+platforms improve communication outcomes when data is role-scoped, timely, and
+accessible through one connected environment. This aligns with MarriottConnect's
+
+
+
+STI College Munoz-EDSA                                                                         4
+

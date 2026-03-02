@@ -1,0 +1,42 @@
+on grades, schedules, and billing are less effective when underlying records are delayed
+or inconsistently synchronized across offices. According to Navarra and Antonio (2025),
+web-based monitoring systems improve transparency and usability when authorized users
+receive timely, role-scoped visibility from one connected record environment. This aligns
+with Marriott School's need to reduce ad hoc follow-ups and provide dependable status
+communication to families.
+At the leadership level, fragmented records also weaken decision support. Historical data
+may exist, but when data pipelines are disconnected, trend interpretation becomes late
+and less actionable. According to Esquivel and Esquivel (2021), enrollment-related
+decision support improves when institutional records are transformed into forecasting
+inputs rather than static archives. Hussain et al. (2023) further show that comparative
+forecasting approaches can provide stronger planning indicators for staffing, sectioning,
+and resource allocation.
+For these reasons, the project context is best understood as an operational integration
+challenge: multiple offices depend on the same student lifecycle data but require different
+role-scoped actions. MarriottConnect responds by enforcing one validated data lifecycle
+from intake, posting, enrichment, and academic processing up to dashboard-ready
+analytics and governance outputs. In this architecture, data consistency, access control,
+and decision visibility are treated as interdependent design requirements.
+Given this institutional context and evidence base, the following problem statements
+focus on the remaining strategic question: how an integrated, role-governed, and
+analytics-capable system can continuously sustain enrollment consistency, finance
+synchronization, academic reliability, and leadership-ready decision support.
+A deeper view of the present environment shows that data fragmentation is not limited to
+one office transaction. It propagates across the entire student lifecycle, from enrollment
+intake and payment posting to section assignment, attendance recording, and report
+generation. According to Zulueta et al. (2021), MIS environments in educational
+institutions fail when workflow standardization is weak, even when digital tools are
+available. This finding mirrors Marriott School's operational reality where records may
+exist in digital format but still require repeated reconciliation before they can be trusted
+for release, compliance, or planning.
+In enrollment periods, the registrar must process a large volume of learner entries under
+time pressure while preserving LIS-oriented consistency. When intake records are
+encoded in disconnected trackers, every downstream update introduces a new
+opportunity for mismatch. According to Porlas et al. (2023), inconsistencies between
+LIS-facing structures and school-level MIS records create recurring validation burden
+
+STI College Munoz-EDSA
+
+3
+
+

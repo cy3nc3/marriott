@@ -1,0 +1,29 @@
+Requirements Analysis
+This section defines the requirements needed to address Marriott School's operational
+constraints through MarriottConnect, focusing on centralized data handling, role-based
+process control, and decision-support visibility.
+
+A. Requirement
+Marriott School requires one integrated platform that captures enrollment intake, supports
+finance posting, enables grading workflows, and delivers role-scoped dashboards while
+maintaining LIS-aligned learner record processing.
+
+B. Business / User Requirement
+The system must eliminate repetitive encoding and reduce manual reconciliation by
+ensuring that validated records flow across registrar, finance, teacher, student, and parent
+modules under controlled permissions.
+System Integration for Student Information and Operations
+
+1. The system must allow registrar intake data to become reusable input for finance
+and academic workflows.
+
+2. The system should support staged enrichment through SF1 upload and learner
+matching by LRN.
+
+3. The system must synchronize balances, schedules, and grade visibility across
+
+STI College Munoz-EDSA
+
+25
+
+

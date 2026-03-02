@@ -1,0 +1,38 @@
+E. Functional Requirements
+
+  1.    Manage Student Records
+        1.1.    The Registrar shall create and maintain learner profiles and enrollment
+                queue records.
+        1.2.    The system shall support SF1-driven record enrichment and LRN-based
+                matching logic.
+  2.    Manage Cashiering & Assessment
+        2.1.    Finance users shall post cashier transactions and maintain learner-level
+                ledger entries.
+        2.2.    The system shall update outstanding balances immediately after valid
+                posting events.
+        2.3.    The system shall support fee, discount, and inventory-linked assessment
+                definitions.
+  3.    Manage Grades
+        3.1.    Teachers shall configure rubrics and encode graded activities by section,
+                subject, and quarter.
+        3.2.    The system shall compute weighted outputs and retain draft and
+                submission states.
+        3.3.    The system shall allow authorized review flow for quarter completion and
+                submission status.
+  4.    Manage Schedule Visibility
+        4.1.    Authorized users shall view role-specific class schedules generated from
+                maintained academic assignments.
+        4.2.    Schedule views shall remain consistent across teacher, student, and
+                parent role contexts.
+  5.    Automated Scheduling
+        5.1.    Admin users shall configure planning inputs through sections, subjects,
+                and faculty assignment context.
+        5.2.    The system shall support conflict-minimizing schedule preparation and
+                class-list verification workflows.
+  6.    Decision Support System
+
+
+
+
+STI College Munoz-EDSA                                                                      28
+

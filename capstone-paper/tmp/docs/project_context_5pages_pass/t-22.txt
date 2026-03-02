@@ -1,0 +1,30 @@
+International Studies
+Designing Decision Support System for Midwifery Students' Tuition Fees Problem
+Wulandari and Pinandito (2021) proposed a decision support model for tuition
+delinquency management using structured decision logic. Their study moved beyond
+simple balance viewing by showing how financial status classification can be translated
+into actionable policy options for school management. The research demonstrated that
+decision-support logic can improve consistency and speed in handling financially
+sensitive student cases.
+This aligns directly with MarriottConnect's finance goals, particularly delinquency
+identification and actionable payment-status interpretation. In appendix interviews, the
+Finance office described delays caused by manual cross-referencing of ledgers during
+multiple payment events. Wulandari and Pinandito (2021) supports the inclusion of
+structured delinquency analytics so finance decisions are guided by standardized rules
+and timely data, not fragmented manual reconciliation.
+Bright Kids Tuition Centre Management Information System
+Chai and Mostafa (2021) implemented a web-based management information system that
+integrated student, parent, staff, and financial records into one coherent digital
+environment. Their findings highlighted reductions in duplicate encoding and
+improvements in cross-user accessibility when records were handled through a shared
+platform instead of disconnected manual files.
+This is relevant to MarriottConnect because the capstone addresses the same
+fragmentation pattern observed at Marriott School: separate operational trackers, repeated
+validation, and delayed reporting. Chai and Mostafa (2021) supports the system's webfirst architecture and validates the design choice of linking registrar, academic, and
+stakeholder views to one connected data model. It also reinforces the need for clear rolescoped access in shared operational systems.
+
+STI College Munoz-EDSA
+
+18
+
+

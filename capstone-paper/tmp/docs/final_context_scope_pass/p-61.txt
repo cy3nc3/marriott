@@ -1,0 +1,44 @@
+        email lang, minsan hindi nababasa ng parents, lalo na yung lola't lolo. Kaya mas
+        maayos na may physical copy.
+
+
+        Interviewer: Ma'am, may mga pagkakataon ang updates kaya nagkakaroon ng
+        misunderstanding sa payment?
+
+
+        Interviewee: Oo, minsan may confusion. Pag may transactions na hindi pa fully
+        na-update sa sheet, may parents na nagtatanong kung na-record na. Kailangan
+        naming i-verify ang data sa spreadsheet bago ma-finalize.
+
+
+        Interviewer: Anong klaseng errors po yung nae-encounter niyo, ma'am?
+
+
+        Interviewee: Yung mga delay sa pag-record ng payments at hindi agad na-update
+        sa statement. Pag automatic at real-time, agad lalabas ang updated balance at
+        transaction history.
+
+
+        Interviewer: Paano niyo po ginagawa mga financial reports tulad ng payment
+        summaries, outstandings, balances?
+
+
+        Interviewee: Excel-based din. May Statement of Account kami, balance sheets, at
+        summary per section at grade level. Ina-update daily ang payments, tapos may
+        outstanding balances na nakalista. Binibigyan rin ng copy ang teachers para
+        makatulong sa follow-up. May external accountant din na nag-summarize ng total
+        financial statement, pero manual pa rin ang proseso.
+
+
+        Interviewer: Gano'n po katagal yan, ma'am? Estimated lang po.
+
+
+        Interviewee: Daily kami nag-uupdate. May weekly summary, tapos monthly
+        reports. So araw-araw may review at update, tapos weekly at monthly check sa
+        external accountant. Pero bawat step, manual pa rin, kaya time-consuming.
+
+
+
+
+STI College Munoz-EDSA                                                                     57
+

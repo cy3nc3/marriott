@@ -1,0 +1,43 @@
+        Interviewer: Ma'am, paano po kayo nakipag-coordinate sa registrar o admin kapag
+        may updates sa enrollment or payment data?
+
+
+        Interviewee: Google Drive ang ginagamit namin. Pwede agad makita ng registrar
+        ang total balances. Lalo na kapag exam at may card release, kailangan ma-check
+        kung may outstanding payments bago ma-release. Kung hindi updated, puwedeng
+        ma-delay yung card release.
+
+
+        Interviewer: May tanong po pala ako sa grades, pag release po ba ng card, required
+        na bayad na yung estudyante?
+
+
+        Interviewee: Oo, required na bayad bago ma-release ang card. Ito ang pang-hold
+        ng school.
+
+
+        Interviewer: May mga chance bang nagkakaroon ng problema sa synchronization
+        ng data sa ibang department?
+
+
+        Interviewee: Wala naman major, kasi centralized sa akin lahat ng payments. Pero
+        minsan, kapag may delay sa update, puwedeng magkaroon ng problema sa
+        registrar, halimbawa, hindi updated ang balance sa card release.
+        Interviewer: Then ma'am, last question po. Ano ang mga challenges na gusto
+        niyong mawala kung magkakaroon ng automated financial system?
+
+
+        Interviewee: Madami. Gusto ko maiwasan ang delays sa pag-update, magkaroon
+        ng transparency sa parents, at ma-monitor agad ang payments. Lalo na kapag
+        marami na kaming students 500 plus na ngayon. Kasama rin yung books, uniforms,
+        supplies. Iba’t ibang payment modes. Kung automated, mabilis na makaka-generate
+        ng reports, maayos ang tracking ng enrollment count at payments, at mas efficient
+        ang daily work ko.
+
+
+        Interviewer: Like, ma'am, iisa-isa yun yung hahanapin pa?
+
+
+
+STI College Munoz-EDSA                                                                       58
+

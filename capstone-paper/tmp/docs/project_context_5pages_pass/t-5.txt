@@ -1,0 +1,35 @@
+INTRODUCTION
+
+Educational institutions increasingly rely on integrated information systems to maintain
+operational efficiency, data accuracy, and timely institutional decision-making. In school
+environments where administrative, academic, and financial processes are highly
+interdependent, the quality of day-to-day service delivery is directly influenced by the
+quality, consistency, and accessibility of information. When records are encoded once and
+reused correctly across offices, workflows become faster, reporting becomes more reliable,
+and stakeholders receive updates with greater confidence.
+However, when school operations remain fragmented across separate spreadsheets, paper
+logs, and isolated department files, the institution becomes vulnerable to duplicate
+encoding, conflicting records, and delayed validation cycles. The value of management
+information systems has long been associated with reducing procedural burden and
+improving reporting quality in multi-office environments. In contrast, fragmented systems
+often make institutions data-heavy but insight-poor, because data exists in large volume
+yet remains difficult to consolidate into usable, decision-ready outputs.
+In the Philippine education context, the need for integrated school operations is even more
+pronounced because compliance-driven reporting and routine internal processing must be
+performed simultaneously. For Marriott School, this dual demand exposes the limits of
+disconnected tools and manual reconciliation practices. In response, this study proposes
+MarriottConnect as an integrated student information system with decision support
+analytics, designed to centralize operational records, reduce repetitive encoding, and
+provide leadership with structured evidence for planning and continuous improvement.
+Project Context
+Marriott School operates in a DepEd-governed environment where learner identity,
+enrollment reporting, and school-level operational records must remain synchronized
+through LIS-oriented procedures. According to Porlas et al. (2023), schools encounter
+higher validation burden and cross-office reporting inconsistencies when local MIS
+workflows are not tightly aligned with LIS structures. For Marriott School, this requirement
+
+STI College Munoz-EDSA
+
+1
+
+

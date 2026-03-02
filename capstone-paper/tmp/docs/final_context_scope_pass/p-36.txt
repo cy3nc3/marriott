@@ -1,0 +1,23 @@
+The Parent module provides child-focused visibility to
+schedules, grades, billing information, and payment behavior
+context.
+
+The Dashboard layer standardizes KPI cards, alert lists, trend
+cards, and action links for each role-facing workspace.
+
+Trend rendering supports line, bar, area, and pie chart views
+using normalized analytics payloads.
+
+Governance features include user management, permissions
+visibility, audit logging, announcements, and system setting
+controls.
+
+Through these integrated modules, MarriottConnect delivers
+a practical, centralized, and decision-ready platform for
+Marriott School operations.
+
+
+
+
+STI College Munoz-EDSA                                           32
+

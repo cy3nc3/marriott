@@ -1,0 +1,31 @@
+relevance is anchored on three validated issue clusters from the appendices: fragmented
+records across offices, delayed reconciliation in finance and registrar workflows, and
+limited decision-support visibility for planning.
+To strengthen applicability, the proponents use ten studies published from 2021 onward,
+with five local Philippine references and five international references. Each source is
+evaluated not only on conceptual contribution, but also on direct fit to MarriottConnect
+modules such as enrollment intake and enrichment, cashiering and ledger workflows,
+schedule management, stakeholder portals, and analytics-enabled dashboards.
+
+Local Studies (Philippines)
+Designing and Implementing e-School Systems: An Information Systems Approach to
+School Management of a Community College in Northern Mindanao, Philippines
+Grepon et al. (2021) presented an implementation-oriented school system study that
+integrated admissions, records processing, and administrative reporting into a unified
+digital workflow. Their work demonstrated that when school units operate on one shared
+data structure instead of disconnected files, processing time decreases and record
+reliability improves. The study emphasized practical implementation behavior, including
+workflow continuity across offices and usability outcomes for non-technical institutional
+users.
+This source is highly relevant to MarriottConnect because it directly supports the
+system's central design objective: convert fragmented office transactions into a single
+source of truth. In the appendices, the Registrar repeatedly described one-by-one updates
+and manual double-checking as a major bottleneck; Grepon et al. (2021) provides
+empirical support for replacing that process with integrated registrar-to-finance-toacademic data continuity. The study also justifies the system's modular but connected
+architecture, where each office retains role boundaries while operating on shared records.
+
+STI College Munoz-EDSA
+
+15
+
+

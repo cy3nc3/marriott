@@ -1,0 +1,40 @@
+        6.1.    The system shall process operational metrics for enrollment, financial
+                behavior, and risk-oriented monitoring.
+        6.2.    The system shall visualize trends using standardized chart-ready
+                payloads for management decisions.
+  7.    Generate Reports
+        7.1.    The system shall provide structured outputs for operational summaries
+                across enrollment, finance, and academic records.
+        7.2.    Reports shall follow institutional formatting and remain consistent with
+                authorized data sources.
+
+
+F. Non-Functional Requirements
+
+  1.    Operational Requirements
+        1.1.    The system must remain accessible through supported web clients for
+                office and stakeholder usage.
+        1.2.    The system requires stable connectivity to ensure synchronized
+                transactions and dashboard updates.
+  2.    Performance Requirements
+        2.1.    Posting and grade-related updates must reflect promptly after validated
+                submissions.
+        2.2.    The platform should maintain reliable responsiveness during normal
+                school-hour usage.
+  3.    Security Requirements
+        3.1.    Credentials must be protected through secure authentication handling and
+                password hashing.
+        3.2.    Authorization rules must prevent cross-role access to restricted modules
+                and records.
+        3.3.    Governance-relevant actions must be traceable through audit-ready
+                logging mechanisms.
+  4.    Usability Requirements
+        4.1.    Interfaces must present clear task flows aligned with each role's routine
+                operational needs.
+        4.2.    Pages must maintain readability and consistency across desktop and
+
+
+
+
+STI College Munoz-EDSA                                                                      29
+

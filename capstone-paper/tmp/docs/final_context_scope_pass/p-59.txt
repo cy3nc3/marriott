@@ -1,0 +1,41 @@
+        Interviewee: Usually, nakikita namin sa statement of account. May mga different
+        modes of payment GCash, BDO, on-site. Pag hindi pa na-update ang payment sa
+        sheet, hindi pa rin reflected sa statement ng student. Minsan tumatagal bago
+        marecord, depende sa processing at pag-update sa Google Drive. Kaya may time
+        lag sa availability ng complete data.
+
+
+        Interviewer: May mga errors po. Ma'am, ano po yung karaniwang dahilan ng
+        discrepancy o pagkakaiba ng records?
+
+
+        Interviewee: Ang common issue talaga ay timing ng pag-update. Kapag may
+        multiple payments sa parehong araw, minsan hindi agad na-update sa sheet ang
+        lahat. Kailangan pa i-crosscheck sa sequence ng transactions. Isa pa, may mga
+        manual checks sa series ng ORs at transactions para siguradong kumpleto ang data.
+        So minsan delayed ang reflection sa summary hanggang ma-verify.
+
+
+        Interviewer: Then ma'am, gano'ng katagal ma-update ang balance ng estudyante
+        pagkatapos mabayad?
+
+
+        Interviewee: Yung on-site payments, usually agad na-update sa same day kasi dito
+        mismo sa office binabayad. Sa online transactions naman, depende sa processing
+        ng bank, usually maximum three days bago fully ma-update sa spreadsheet at
+        statement. Kailangan rin i-verify ang details bago ma-finalize para consistent sa
+        lahat ng reports.
+
+
+        Interviewer: Ay ma'am, paano po yan? Kunyari gusto ng parents makita ulit yung
+        binayaran nila at yung balance nila, papunta pa ba sila dito?
+
+
+        Interviewee: Pwede naman. May monthly statement of account na ibinibigay sa
+        kanila. Nakikita nila doon lahat ng payments at balances. Kapag may discrepancy,
+
+
+
+
+STI College Munoz-EDSA                                                                      55
+

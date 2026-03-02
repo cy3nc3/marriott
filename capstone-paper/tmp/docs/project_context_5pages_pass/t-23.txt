@@ -1,0 +1,33 @@
+Student Information Management System for Baghdad College of Economic Sciences
+University (SIMS-BC): A Case Study
+Kanona (2022) examined the transition from manual student record handling to a secure
+database-driven system, emphasizing gains in retrieval speed, consistency, and data
+protection. The study showed that procedural efficiency and information integrity
+improve when record operations are backed by structured database controls rather than ad
+hoc file management.
+For MarriottConnect, this source supports both architecture and governance components.
+Appendix statements indicate that offices currently spend significant time validating
+records across multiple files and formats; Kanona (2022) justifies central databasebacked record handling with role-based controls to reduce that burden. It also supports
+the system's security posture, where sensitive student and finance data must remain
+accessible to authorized users while protected from unauthorized modification.
+Student Gross Enrolment Ratio Forecasting: A Comparative Study Using Statistical
+Method and Machine Learning
+Hussain et al. (2023) compared forecasting approaches such as ARIMA and LSTM for
+educational enrollment trends, demonstrating that historical institutional data can be
+transformed into more reliable forward-looking indicators. The study contributes
+methodological depth by showing how comparative modeling can guide strategic
+interpretation instead of relying on one static projection style.
+This is directly relevant to MarriottConnect's decision-support layer, where enrollment
+movement is intended to inform staffing, section planning, and resource preparation. In
+the appendices, leadership concerns repeatedly pointed to difficulties in trend
+interpretation because records were dispersed and manually consolidated. Hussain et al.
+(2023) supports the capstone objective of converting validated operational history into
+structured planning insight through dashboard-ready analytics.
+Real-world University Course Timetabling at the International Timetabling Competition
+2019
+
+STI College Munoz-EDSA
+
+19
+
+

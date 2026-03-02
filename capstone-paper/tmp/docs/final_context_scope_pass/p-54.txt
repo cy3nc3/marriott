@@ -1,0 +1,45 @@
+        Interviewee: May pagkakataon, lalo na kapag maraming information ang
+        naipapasa sa parehong oras at sa parehong files. Kailangan talaga naming i-verify
+        bawat entry para siguradong hindi mag-overlap. Minsan tumatagal ang verification
+        kasi hindi lahat ng data ay available sa iisang lugar.
+
+        Interviewer: Gaano katagal bago niyo ma-verify o ma-update ang record ng isang
+        estudyante kapag may concern?
+
+        Interviewee: Depende sa dami ng students at dami ng information na kailangang
+        i-check. Kung maraming forms at kailangan i-verify sa ibang files, minsan umaabot
+        ng ilang araw bago ma-finalize ang record. Kailangan din i-review ang bawat
+        section para siguradong consistent ang lahat.
+
+        Interviewer: Paano po kayo nakikipag-coordinate sa accounting office at mga guro
+        tungkol sa student data?
+
+        Interviewee: Kadalasan, manual ang coordination. Kapag may issue, tatawag kami
+        sa teacher o staff, minsan kailangan i-email o i-meet para klaruhin ang information.
+        Kailangan pang i-follow up kung may kulang o inconsistent, at minsan kailangan
+        ulitin ang process hanggang sa kumpleto ang data.
+
+        Interviewer: Madalas ba magkaroon ng delay sa pagkuha o pagpapasa ng data like
+        grades, tuition info, enrollment list, etc.?
+
+        Interviewee: Oo, minsan may delay kasi naghihintay kami sa kumpletong forms o
+        approvals mula sa iba’t ibang departments. Kadalasan, kailangan i-double check
+        bago ma-finalize, kaya minsan natatagal ang proseso ng isa o dalawang linggo
+        depende sa dami ng students.
+
+        Interviewer: Ano yung pinakamahirap na process ng coordination sa ibang
+        department?
+
+        Interviewee: Minsan mahirap i-track kung updated na ba ang data ng bawat
+        department, lalo na kapag may pinapasa-pasang forms o schedules. Kailangan i-
+        verify sa bawat step bago ma-finalize ang record. Halimbawa, pag nag-e-encode ng
+        grades, kailangan siguraduhin na kumpleto ang forms at na-review ng teachers bago
+        ma-final.
+
+        Interviewer: Paano po yun ma’am? Kunyari sa teachers po, parang may head po
+        sila, tapos bago yung papasa sa registrar office, parang ganun po ba?
+
+
+
+STI College Munoz-EDSA                                                                         50
+

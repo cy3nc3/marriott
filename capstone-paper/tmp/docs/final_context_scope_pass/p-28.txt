@@ -1,0 +1,42 @@
+Resources
+
+Hardware Requirements
+
+The following resources are required to host, access, and operate MarriottConnect reliably
+across school offices and stakeholder portals.
+
+    ● Application/Database Server: Dedicated or virtual infrastructure with sufficient
+        CPU, memory, and storage for concurrent transactions and dashboard queries.
+    ● Client Devices (Mobile): Smartphones or tablets for parent and student access to
+        role-specific portals and updates.
+    ● Client Devices (Web): Desktop or laptop devices with modern browsers for
+        registrar, finance, admin, and teacher operations.
+
+Software Requirements
+
+    ● Server Runtime: PHP 8 and Laravel 12 with environment configuration for secure
+        web and queue execution.
+
+    ● Database Management: PostgreSQL as the relational engine for centralized and
+        consistent institutional records.
+
+    ● Backend Framework Components: Laravel Fortify for authentication and role-
+        guarded route handling.
+
+    ● Frontend Stack: Inertia.js v2, React 19, and TypeScript for structured SPA-like
+        user workflows.
+
+    ● Interface Framework: Tailwind CSS v4 with Shadcn component patterns for
+        consistent UI implementation.
+
+    ● Development Environment: Composer, Node.js tooling, Vite, and Visual Studio
+        Code for implementation and integration.
+
+    ● Design and Quality Tools: Figma for interface planning, with Pest, PHPUnit, Pint,
+        ESLint, and Prettier for quality assurance.
+
+
+
+
+STI College Munoz-EDSA                                                                       24
+

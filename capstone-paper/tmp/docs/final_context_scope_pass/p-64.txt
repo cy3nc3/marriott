@@ -1,0 +1,43 @@
+        bago ma-compile. Hindi naman malaki ang delay, pero mabagal yung flow dahil
+        bawat update nililipat pa sa ibang record.
+
+
+        Interviewer: Ma'am, ano ang mga dahilan kung bakit minsan naging mahirap i-
+        manage ang attendance logs?
+
+
+        Interviewee: Mahirap siya kapag marami kang hawak na klase. Kahit familiar ka
+        na sa students, kailangan mo pa ring isa-isahin lalo na pag may absent o bagong
+        transfer. Tapos dahil papel lahat, kailangan mo pang i-store nang maayos. Kapag
+        may hinahanap na past attendance, babalikan mo pa yung lumang sheets, kaya
+        natatagalan talaga.
+
+
+        Interviewer: Ma'am, gaano po kahalaga sa inyo na real-time makita ng school at
+        ng magulang ang attendance ng bata?
+
+
+        Interviewee: Importante po, lalo na para sa parents. May mga bata kasi na
+        pumapasok pero hindi agad nalalaman ng magulang kung anong oras sila dumating.
+        At may mga students din na minsan lumiliban. Kung real-time, mas mabilis yung
+        coordination, at mas nakakatulong siya sa safety ng bata.
+
+
+        Interviewer: Ma'am, paano niyo po karaniwang sinasubmit ang grades sa
+        registrar?
+
+
+        Interviewee: May deadlines po kami. Pero bago ma-submit, dadaan pa sa
+        encoding, checking, at computation. Yung grades kasi nakahiwalay written works,
+        performance tasks, exams kaya kailangan pang pagsama-samahin. Kapag
+        maraming students, tumatagal talaga bago maging final yung records.
+
+
+        Interviewer: Gumagamit po ba kayo ng tools tulad ng Excel para isubmit sa
+        registrar?
+
+
+
+
+STI College Munoz-EDSA                                                                    60
+

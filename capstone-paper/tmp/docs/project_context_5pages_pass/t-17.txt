@@ -1,0 +1,30 @@
+adviser mapping, and roster outputs.
+
+● Schedule and Timetable Governance Module - Build and adjust schedules with
+conflict-aware institutional controls.
+
+● Grade Verification and Compliance Module - Enforce submission deadlines,
+review grade batches, and verify or return outputs.
+
+● Institutional Analytics Console - Monitor enrollment, financial risk, academic status,
+compliance readiness, and KPI trends.
+The Super Admin (IT Personnel) can access the following:
+
+● User and Access Administration Module - Create accounts, assign roles, manage
+status, and enforce credential controls.
+
+● Governance and Permission Matrix Module - Manage authorization views, role
+permissions, and governance policy controls.
+
+● Audit and Announcement Orchestration Module - Review audit logs, publish
+announcements, and monitor recipient engagement.
+
+● System Configuration and Governance Analytics Console - Control maintenance
+and portal settings, institutional preferences, and governance performance
+indicators.
+
+STI College Munoz-EDSA
+
+13
+
+

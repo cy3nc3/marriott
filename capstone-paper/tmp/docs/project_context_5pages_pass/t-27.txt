@@ -1,0 +1,19 @@
+Calendar of Activities
+August - Initial data gathering, role discovery, and baseline workflow documentation were
+completed to frame the problem context.
+September - Scope boundaries and chapter drafting were refined while requirements were
+aligned to observed institutional operations.
+October - Module architecture and functional design were revised based on consolidated
+interview findings and updated workflow assumptions.
+November - Final validation inputs were integrated, and technical-functional chapters were
+revised to reflect current implementation direction.
+
+Gantt's Chart of Activity
+
+Figure 2: Gantt's Chart of Activity
+
+STI College Munoz-EDSA
+
+23
+
+

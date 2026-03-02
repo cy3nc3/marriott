@@ -1,0 +1,40 @@
+Muller, Rudova, and Mullerova (2025) analyzed real-world timetabling constraints and
+evaluated solver behavior under institution-scale scheduling conditions. The study
+highlighted how timetable quality depends on explicit constraint modeling, reproducible
+optimization logic, and measurable conflict handling rather than manual timetable
+plotting.
+
+This is highly relevant to MarriottConnect's schedule-related direction. Appendix
+findings describe scheduling checks as labor-intensive and prone to delay when
+performed through manual verification. Muller et al. (2025) provides strong technical
+support for moving toward conflict-aware scheduling logic, where resource constraints
+are handled systematically and schedule outputs become more consistent across teacher,
+student, and parent views.
+
+
+
+
+Synthesis
+
+Across the ten selected studies, a common conclusion emerges: schools achieve better
+operational reliability when data is centralized, workflows are role-defined, and reporting
+is generated from validated transactions rather than from fragmented records. The local
+literature confirms contextual fit for Philippine school operations, including LIS-aligned
+processes, implementation barriers, and stakeholder communication realities.
+
+International literature complements this by supplying deeper methodological support for
+tuition decision support, secure information management, enrollment forecasting, and
+constraint-driven scheduling. Together, the local and international sets provide both
+contextual grounding and technical depth for MarriottConnect's major modules.
+
+Most importantly, the literature aligns with evidence from Marriott School's own
+appendix interviews. Registrar one-by-one encoding concerns, finance reconciliation
+delays, and leadership reporting difficulties all map directly to the problem domains
+addressed by the selected sources. For this reason, the RRL foundation not only supports
+conceptual design but also validates the system's implementation priorities and module-
+level direction for the capstone.
+
+
+
+STI College Munoz-EDSA                                                                        20
+

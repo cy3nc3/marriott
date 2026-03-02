@@ -1,0 +1,2760 @@
+MarriottConnect: An Integrated Student Information System with
+        Decision Support Analytics for Marriott School
+
+
+
+
+                     A Capstone Project Proposal
+                    Presented to the Faculty of the
+        Information and Communications Technology Program
+                     STI College Muñoz - EDSA
+
+
+
+
+                         In Partial Fulfilment
+                 of the Requirements for the Degree
+            Bachelor of Science in Information Technology
+
+
+
+
+                     Jade Michael D. Godalle
+                      Edson John R. Solitario
+                      Francis Jay D. Raagas
+                 Laurence Emmanuel M. Supangan
+
+
+                          November, 2025
+               ENDORSEMENT FORM FOR PROPOSAL DEFENSE
+
+
+                                    TITLE OF RESEARCH: MarriottConnect:
+                                    An Integrated Student Information System with
+                                    Decision Support Analytics for Marriott School
+
+
+NAME OF PROPONENTS:                 Jade Michael D. Godalle
+                                    Edson John R. Solitario
+                                    Francis Jay D. Raagas
+                                    Laurence Emmanuel M. Supangan
+
+
+
+                        In Partial Fulfilment of the Requirements
+             for the degree Bachelor of Science in Information Technology
+             has been examined and is recommended for Proposal Defense.
+
+
+                                  ENDORSED BY:
+
+
+                             Mr. John Ace C. Manlapat, MIT
+                              Capstone Project Adviser
+
+
+
+
+                         APPROVED FOR PROPOSAL DEFENSE:
+
+
+
+                              Ms. Cristylen Q. Esporsado
+                             Capstone Project Coordinator
+
+
+
+                                     NOTED BY:
+
+
+
+                               Mr. Anthony F. Molacruz
+                                   Program Head
+
+
+
+
+STI College Munoz-EDSA
+                                    NOVEMBER, 2025
+
+
+                                 APPROVAL SHEET
+
+
+This capstone project proposal titled MarriottConnect: An Integrated Student
+Information System with Decision Support Analytics for Marriott School, prepared
+and submitted by Jade Michael D. Godalle, Edson John R. Solitario, Francis Jay D.
+Raagas, and Laurence Emmanuel M. Supangan, in partial fulfillment of the
+requirements for the degree of Bachelor of Science in Information Technology, has been
+examined and is recommended for acceptance and approval.
+
+                                                      Mr. John Ace C. Manlapat, MIT
+                                                              Capstone Project Adviser
+
+
+
+              Accepted and approved by the Capstone Project Review Panel
+                in partial fulfillment of the requirements for the degree of
+                     Bachelor of Science in Information Technology
+
+
+
+
+       Ms. Cristylen Q. Esporsado                         Mr. Ramil Madriaga
+            Panel Member                                   Panel Member
+
+
+
+
+                                 Mrs. Marilyn F. Afable
+                                     Lead Panelist
+
+
+
+                                         Noted:
+
+
+      Ms. Cristylen Q. Esporsado                      Mr. Anthony F. Molacruz
+     Capstone Project Coordinator                         Program Head
+
+
+
+
+                                    November, 2025
+
+
+ STI College Munoz-EDSA
+                                 TABLE OF CONTENTS
+
+
+                                                                  Page
+Title Page                                                    i
+Endorsement form for Proposal Defense                         ii
+Approval Sheet                                                iii
+Table of Contents                                             iv
+Introduction                                                      1
+      Project Context
+      Purpose and Description
+      Objectives
+      Scope and Limitations
+      Review of Related Literature/Studies/Systems
+Methodology
+      Technical Background
+      Requirements Analysis
+      Requirements Documentation
+      Design of Software, System, Product, and/or Processes
+References
+Appendices
+      Resource Persons
+      Personal Technical Vitae
+
+
+
+
+STI College Munoz-EDSA
+                                      INTRODUCTION
+
+
+Educational institutions increasingly rely on integrated information systems to maintain
+operational efficiency, data accuracy, and timely institutional decision-making. In school
+environments where administrative, academic, and financial processes are highly
+interdependent, the quality of day-to-day service delivery is directly influenced by the
+quality, consistency, and accessibility of information. When records are encoded once and
+reused correctly across offices, workflows become faster, reporting becomes more reliable,
+and stakeholders receive updates with greater confidence.
+
+However, when school operations remain fragmented across separate spreadsheets, paper
+logs, and isolated department files, the institution becomes vulnerable to duplicate
+encoding, conflicting records, and delayed validation cycles. The value of management
+information systems has long been associated with reducing procedural burden and
+improving reporting quality in multi-office environments. In contrast, fragmented systems
+often make institutions data-heavy but insight-poor, because data exists in large volume
+yet remains difficult to consolidate into usable, decision-ready outputs.
+
+In the Philippine education context, the need for integrated school operations is even more
+pronounced because compliance-driven reporting and routine internal processing must be
+performed simultaneously. For Marriott School, this dual demand exposes the limits of
+disconnected tools and manual reconciliation practices. In response, this study proposes
+MarriottConnect as an integrated student information system with decision support
+analytics, designed to centralize operational records, reduce repetitive encoding, and
+provide leadership with structured evidence for planning and continuous improvement.
+
+Project Context
+
+
+Marriott School operates in a DepEd-governed environment where learner identity,
+enrollment reporting, and school-level operational records must remain synchronized
+through LIS-oriented procedures. According to Porlas et al. (2023), schools encounter
+higher validation burden and cross-office reporting inconsistencies when local MIS
+workflows are not tightly aligned with LIS structures. For Marriott School, this requirement
+
+
+
+STI College Munoz-EDSA                                                                         1
+is not merely technical compliance; it is an operational discipline that directly affects how
+registrar, finance, and academic offices coordinate daily decisions.
+
+Appendix interviews confirm that this coordination remains difficult under fragmented
+tooling. The Academic Head explained that departments still maintain separate Excel files
+and frequently reconcile numbers manually before reports can be finalized. This condition
+creates a recurring pattern where staff attention shifts away from planning and student
+support toward repeated checking, correction, and consolidation tasks that should already
+be systematized.
+
+The registrar workflow shows this problem in concrete terms. Mrs. Jocelyn Cleofe
+described enrollment and record updates as one-by-one processing with repeated cross-
+checking across spreadsheets and forms, especially during high-volume periods.
+According to Grepon et al. (2021), integrated school systems reduce delays and improve
+record reliability when admissions and records processing operate on one shared data
+structure. Kanona (2022) further emphasizes that centralized database-backed
+management improves retrieval speed and record integrity compared with manual, file-
+fragmented handling.
+
+Finance operations demonstrate the same fragmentation in monetary form. Mrs. Corrine
+Avellanosa noted that payment updates often require manual cross-referencing before
+balances are confidently released, particularly when multiple transactions occur close
+together. According to Wulandari and Pinandito (2021), tuition-related decision support
+becomes more consistent when financial status logic is structured and system-driven
+rather than manually interpreted. Chai and Mostafa (2021) similarly report that integrated
+financial and student records reduce duplication and improve cross-user visibility.
+
+Academic coordination is likewise affected. The registrar and teacher interviews indicate
+that schedule preparation, class-list alignment, and grade validation involve repetitive
+verification cycles before release. According to Muller et al. (2025), timetable quality and
+conflict reduction depend on explicit constraint handling rather than manual plotting.
+Zulueta et al. (2021) also show that process standardization and workflow discipline are
+critical in educational MIS environments, reinforcing the need for structured academic
+operations across sections, subjects, and grade submissions.
+
+Stakeholder communication pressure further amplifies the issue. Parent-facing updates
+
+
+
+STI College Munoz-EDSA                                                                          2
+on grades, schedules, and billing are less effective when underlying records are delayed
+or inconsistently synchronized across offices. According to Navarra and Antonio (2025),
+web-based monitoring systems improve transparency and usability when authorized users
+receive timely, role-scoped visibility from one connected record environment. This aligns
+with Marriott School's need to reduce ad hoc follow-ups and provide dependable status
+communication to families.
+
+At the leadership level, fragmented records also weaken decision support. Historical data
+may exist, but when data pipelines are disconnected, trend interpretation becomes late
+and less actionable. According to Esquivel and Esquivel (2021), enrollment-related
+decision support improves when institutional records are transformed into forecasting
+inputs rather than static archives. Hussain et al. (2023) further show that comparative
+forecasting approaches can provide stronger planning indicators for staffing, sectioning,
+and resource allocation.
+
+For these reasons, the project context is best understood as an operational integration
+challenge: multiple offices depend on the same student lifecycle data but require different
+role-scoped actions. MarriottConnect responds by enforcing one validated data lifecycle
+from intake, posting, enrichment, and academic processing up to dashboard-ready
+analytics and governance outputs. In this architecture, data consistency, access control,
+and decision visibility are treated as interdependent design requirements.
+
+Given this institutional context and evidence base, the following problem statements
+focus on the remaining strategic question: how an integrated, role-governed, and
+analytics-capable system can continuously sustain enrollment consistency, finance
+synchronization, academic reliability, and leadership-ready decision support.
+A deeper view of the present environment shows that data fragmentation is not limited to
+one office transaction. It propagates across the entire student lifecycle, from enrollment
+intake and payment posting to section assignment, attendance recording, and report
+generation. According to Zulueta et al. (2021), MIS environments in educational
+institutions fail when workflow standardization is weak, even when digital tools are
+available. This finding mirrors Marriott School's operational reality where records may
+exist in digital format but still require repeated reconciliation before they can be trusted
+for release, compliance, or planning.
+In enrollment periods, the registrar must process a large volume of learner entries under
+time pressure while preserving LIS-oriented consistency. When intake records are
+encoded in disconnected trackers, every downstream update introduces a new
+opportunity for mismatch. According to Porlas et al. (2023), inconsistencies between
+LIS-facing structures and school-level MIS records create recurring validation burden
+
+
+
+STI College Munoz-EDSA                                                                         3
+across offices. For Marriott School, this means that what appears as a small intake
+encoding delay can later affect payment confirmation, class-list finalization, and
+administrative reporting confidence.
+The record-continuity requirement extends beyond initial enrollment. Permanent records,
+promotion decisions, and student-departure handling all depend on the same validated
+learner identity baseline. If this baseline is fragmented, later academic and compliance
+outputs become harder to verify and slower to release. According to Kanona (2022),
+structured database-backed systems provide stronger retrieval reliability and control
+integrity than manual, file-fragmented record handling. This supports MarriottConnect's
+design principle that learner data should be encoded with continuity in mind rather than
+re-encoded at every stage of institutional processing.
+Finance workflows add another layer of operational sensitivity because billing accuracy
+directly affects trust, cash-flow transparency, and release-dependent school
+transactions. The finance interview evidence indicates that balance confirmation often
+depends on manual sequence checks when multiple payments occur in close
+succession. According to Wulandari and Pinandito (2021), tuition-related decision
+support improves when payment-status logic is formalized and system-driven. Chai and
+Mostafa (2021) also report that integrated student-finance data handling reduces
+duplicate effort while improving cross-role visibility, which is critical for parent
+communication and internal reconciliation timing.
+Billing transparency is not only an accounting concern; it is a stakeholder-service
+concern. Families rely on timely balance updates, payment history visibility, and
+consistent communication channels, especially during high-demand periods. When
+billing records are delayed, schools face repeated follow-ups that consume office time
+and weaken confidence in published statements. According to Navarra and Antonio
+(2025), monitoring platforms improve communication outcomes when data is role-
+scoped, timely, and accessible through one connected environment. This aligns with
+MarriottConnect's integrated parent and finance views where institutional records and
+stakeholder-facing status updates remain synchronized.
+Academic scheduling and class-list coordination reveal a similar structural challenge.
+Subject assignments, section constraints, and teacher availability must be reconciled in
+ways that prevent conflicts while preserving instructional continuity. Manual cross-
+checking can complete the task, but it often increases cycle time and revision overhead.
+According to Muller et al. (2025), timetable quality improves when constraints are
+explicitly modeled and resolved systematically, not manually improvised. In Marriott
+School's context, this supports the move toward structured schedule governance where
+academic planning outputs are reliable before dissemination to teachers, students, and
+parents.
+Instructional workflows also require coherent links between attendance, grading, and
+verification stages. If class-level records are maintained in disconnected channels,
+teachers must repeatedly transfer and validate entries before submission, increasing the
+chance of latency and inconsistency. According to Zulueta et al. (2021), socio-technical
+alignment in MIS means process rules and system workflows must evolve together to
+sustain reliability. MarriottConnect addresses this by treating attendance, score
+
+
+
+STI College Munoz-EDSA                                                                     4
+encoding, grade submission, and verification checkpoints as connected institutional
+processes rather than isolated encoding tasks.
+Governance and access control requirements further shape the project context. Schools
+need role boundaries that prevent unauthorized edits while still allowing authorized users
+to access what they need on time. According to Kanona (2022), central database
+controls and role-scoped access are key to protecting information integrity in academic
+systems. The same governance logic is reflected in MarriottConnect through policy-
+driven access controls, audit visibility, and announcement/notification traceability, so
+transparency is achieved without sacrificing operational discipline.
+Cross-role communication is another decisive factor in institutional performance. When
+offices and stakeholders rely on ad hoc messaging to confirm record status, coordination
+overhead grows and official channels lose authority. According to Chai and Mostafa
+(2021), integrated web-based school information environments improve communication
+consistency by keeping users connected to one authoritative dataset. This is why
+MarriottConnect pairs transaction modules with structured announcement and
+notification workflows: operational decisions and stakeholder communication should
+reference the same validated institutional data context.
+At the leadership tier, the school's need is not only to store records but to interpret
+operational movement in time for planning. Enrollment growth, payment behavior, grade-
+submission cadence, and risk indicators all require timely synthesis to support proactive
+decisions. According to Esquivel and Esquivel (2021), decision-support value increases
+when institutional records are converted into forecasting-capable signals. Hussain et al.
+(2023) further demonstrates that trend modeling helps institutions prepare staffing and
+resource allocations more effectively than static historical review alone.
+The implication for Marriott School is clear: reliable decision support depends on
+operational data continuity, and operational continuity depends on architecture that
+treats registrar, finance, academic, and stakeholder modules as one coordinated
+system. According to Grepon et al. (2021), integrated school information architectures
+improve transaction flow and record reliability by reducing isolated processing channels.
+Combined with LIS-alignment evidence from Porlas et al. (2023), this reinforces that
+institutional consistency is produced through design discipline, not post-hoc manual
+correction.
+Therefore, the project context must be interpreted as a systems-level coordination
+problem with compliance, governance, and stakeholder-service dimensions operating
+simultaneously. MarriottConnect is positioned to solve this by unifying module workflows,
+preserving role-based access discipline, and transforming validated operations into
+analytics-ready evidence for planning. In this framework, the problem statements below
+are not abstract design questions; they are direct responses to documented process
+friction and evidence-backed institutional needs observed in Marriott School and
+reinforced by recent literature.
+
+Statement of the Problem
+
+This study defines the operational problems of Marriott School in terms of cross-office data
+
+
+
+STI College Munoz-EDSA                                                                         5
+continuity, transaction reliability, academic coordination, stakeholder transparency, and
+institutional decision support. According to Zulueta et al. (2021), MIS success depends on
+both technical fit and process standardization; therefore, problem identification must
+capture workflow behavior across offices, not only software feature gaps. The appendices
+and recent literature consistently show that fragmentation is not a single-module issue but
+a system-wide coordination condition that affects registrar, finance, teacher, parent, and
+administrative outcomes.
+
+General Problem:
+
+How can MarriottConnect be developed as an integrated student information system with
+decision support analytics that centralizes registrar, finance, academic, and stakeholder
+workflows to deliver timely, reliable, and role-governed decisions for Marriott School?
+
+Marriott School's general problem is rooted in disconnected workflow architecture. The
+Academic Head and office interviews indicate that departments still produce records in
+separate channels and reconcile manually before output release, which extends cycle
+time and reduces confidence in consolidated reports. According to Grepon et al. (2021),
+integrated processing significantly improves operational continuity and reliability by
+reducing file-level fragmentation and duplicate processing.
+
+The same general pattern is reinforced by recent educational MIS research. According to
+Kanona (2022), manual and fragmented record handling reduces both efficiency and data
+integrity, while centralized database structures improve retrieval and control. Because
+Marriott School requires synchronized registrar, finance, and academic decisions, the
+general problem is not simply digitization; it is the need for one validated institutional data
+flow that supports both daily transactions and leadership planning.
+
+Specific Problems:
+
+    ➢ How can a centralized registrar workflow be developed to capture enrollment
+        intake, support SF1 upload, and enrich learner records by LRN to reduce duplicate
+        encoding?
+
+        This specific problem addresses the registrar bottleneck where intake, correction,
+        and enrichment steps still consume significant verification effort. According to the
+        registrar interview, records are updated one-by-one and repeatedly cross-checked
+
+
+STI College Munoz-EDSA                                                                            6
+        before release, especially during enrollment peaks. According to Grepon et al.
+        (2021), centralized admissions and records processing reduce delay and improve
+        reliability when offices use one connected data structure. Porlas et al. (2023) also
+        emphasizes that LIS-aligned handling requires synchronization discipline between
+        local school records and formal reporting structures.
+
+    ➢ How can integrated cashiering and billing workflows be developed to automate
+        posting, update balances immediately, and keep ledgers and parent billing views
+        synchronized?
+
+        This specific problem focuses on finance timing and reconciliation quality. The
+        finance interview describes practical delays when multiple payments are
+        processed and balances require manual confirmation before communicating
+        status to families. According to Wulandari and Pinandito (2021), structured tuition
+        decision logic improves consistency and response speed in financially sensitive
+        workflows. Chai and Mostafa (2021) further supports integrated student-finance
+        records as a way to reduce duplicated effort and strengthen operational
+        transparency.
+
+    ➢ How can schedule and class-list workflows be developed to support academic
+        planning while minimizing timetable conflicts and repetitive manual verification?
+
+        This specific problem addresses academic coordination reliability. Interview
+        evidence indicates that schedule validation and class-list consistency checks
+        remain labor-intensive when subject, section, and teacher constraints are
+        reviewed manually. According to Muller et al. (2025), conflict-aware timetabling
+        performance depends on formal constraint handling rather than ad hoc plotting.
+        Zulueta et al. (2021) also supports this by showing that standardized institutional
+        workflows are necessary to sustain reliable MIS operations.
+
+    ➢ How can secure student and parent portals be developed to provide authorized
+        visibility to schedules, grades, and billing information?
+
+        This specific problem addresses stakeholder transparency and trust. Appendix
+        findings indicate that families may experience delayed or incomplete updates when
+        office records are not synchronized in real time. According to Navarra and Antonio
+
+
+
+STI College Munoz-EDSA                                                                         7
+        (2025), web-based student monitoring improves communication quality when data
+        is timely and role-scoped. Chai and Mostafa (2021) similarly demonstrates that
+        shared record environments improve accessibility between school staff and
+        stakeholders.
+
+    ➢ How can role dashboards and governance controls be developed to produce
+        actionable indicators for enrollment trends, payment behavior, and operational risk
+        monitoring?
+
+        This specific problem addresses management decision latency. School leadership
+        needs consolidated indicators that are based on validated transactions, not
+        delayed manual summaries from disconnected files. According to Esquivel and
+        Esquivel (2021), decision support value increases when operational records are
+        transformed into planning-ready insights. Hussain et al. (2023) strengthens this
+        reasoning by showing that enrollment trend modeling can support proactive
+        staffing and resource decisions when data continuity is preserved.
+
+Objectives
+
+
+The objectives of this study are aligned directly with the general and specific problems
+above so that every development target has explicit operational and literature-based
+justification. Each objective is formulated as a direct development response to a
+corresponding problem condition validated by interviews and supported by recent RRL.
+
+General Objective:
+
+To develop MarriottConnect as an integrated student information system with decision
+support analytics that centralizes registrar, finance, academic, and stakeholder workflows
+to deliver timely, reliable, and role-governed decisions for Marriott School.
+
+This general objective is relevant because Marriott School requires a single operational
+platform that can convert fragmented transactions into coordinated institutional outputs.
+According to Zulueta et al. (2021), MIS effectiveness depends on process alignment as
+much as software capability, while Kanona (2022) shows that centralized data structures
+improve consistency and control. Therefore, the general objective addresses both day-to-
+day transaction efficiency and leadership-level decision support.
+
+
+
+STI College Munoz-EDSA                                                                        8
+Specific Objectives:
+
+    ➢ To develop a centralized registrar workflow that captures enrollment intake,
+        supports SF1 upload, and enriches learner records by LRN to reduce duplicate
+        encoding.
+
+        This objective directly responds to registrar-side duplication and validation delays
+        observed in the appendices. According to Grepon et al. (2021), unified admissions
+        and records pipelines reduce processing time and increase data reliability. Porlas
+        et al. (2023) further supports LIS-aware alignment, making this objective essential
+        for preserving data continuity from intake through reporting.
+
+    ➢ To develop integrated cashiering and billing workflows that automate posting,
+        update balances immediately, and keep ledgers and parent billing views
+        synchronized.
+
+        This objective is relevant because finance operations require immediate,
+        trustworthy balance visibility to support both internal reconciliation and parent
+        communication. According to Wulandari and Pinandito (2021), structured financial
+        decision logic improves consistency in tuition management. Chai and Mostafa
+        (2021) also supports integrated financial-record handling as a practical mechanism
+        for reducing cross-check burden and improving transparency.
+
+    ➢ To develop schedule and class-list workflows that support academic planning while
+        minimizing timetable conflicts and repetitive manual verification.
+
+        This objective addresses recurring scheduling friction in section and teacher
+        assignment workflows. According to Muller et al. (2025), conflict-free scheduling
+        quality improves when constraints are explicitly modeled and resolved
+        systematically. Zulueta et al. (2021) reinforces that standardized workflows are
+        necessary for sustainable MIS operations in educational institutions.
+
+
+
+
+    ➢ To develop secure student and parent portals that provide authorized visibility to
+        schedules, grades, and billing information.
+
+
+
+
+STI College Munoz-EDSA                                                                         9
+        This objective is relevant because stakeholder trust depends on timely and role-
+        appropriate access to validated school records. According to Navarra and Antonio
+        (2025), monitoring platforms improve communication and usability when data
+        visibility is immediate and structured. Chai and Mostafa (2021) similarly supports
+        connected web access as a way to strengthen school-family information flow.
+
+    ➢ To develop role dashboards and governance controls that produce actionable
+        indicators for enrollment trends, payment behavior, and operational risk
+        monitoring.
+
+        This objective is relevant because leadership planning requires decision-ready
+        indicators derived from validated operational data. According to Esquivel and
+        Esquivel (2021), decision-support systems become more valuable when
+        institutional history feeds planning intelligence, while Hussain et al. (2023) shows
+        that trend forecasting supports resource and staffing readiness. Together, these
+        findings justify integrating KPI dashboards, governance controls, and analytics as
+        core institutional functions.
+
+Scope
+
+
+The proposed system provides module-based access for seven core roles: super admin,
+admin, registrar, finance, teacher, student, and parent. Access is structured by institutional
+responsibility and each module groups related actions into one operational unit.
+
+The scope centralizes enrollment, finance, academic, governance, and stakeholder
+communication workflows while assigning each role to complete modules that include
+transaction handling, validation, and analytics interpretation.
+
+The Registrar can access the following:
+
+    ● Enrollment Lifecycle Module - Manage intake creation, profile updates, and
+        payment-linked progression within one registrar workflow.
+    ● Learner Records and Directory Module - Maintain searchable learner profiles,
+        identity continuity, and authorized record retrieval.
+    ● SF1 Reconciliation Module - Upload SF1 records and execute LRN-based
+        enrichment aligned with LIS-oriented validation rules.
+
+
+
+STI College Munoz-EDSA                                                                           10
+    ● Permanent Records and Archival Module - Maintain historical academic records
+        and document continuity across school years.
+    ● Batch Promotion and Student Departure Module - Process promotion outcomes
+        and departure workflows under registrar controls.
+    ● Registrar Analytics Console - Review intake movement, enrichment status, record-
+        completion indicators, and registrar risk alerts.
+
+The Finance Officer can access the following:
+
+    ● Cashiering and Posting Module - Assess charges, accept payments, and post
+        transactions with immediate balance reflection.
+    ● Student Ledger Management Module - Track debit-credit movement, running
+        balances, and learner-level financial history.
+    ● Transaction Controls Module - Review transaction history and perform authorized
+        void, refund, and reissue actions.
+    ● Billing Schedule and Due Allocation Module - Manage due schedules and map
+        posted payments to outstanding obligations.
+    ● Fee and Remedial Fee Configuration Module - Maintain standard fee definitions
+        and remedial subject fee policies.
+    ● Discount and Scholarship Rules Module - Configure discount policies and apply
+        student-level discount tagging controls.
+    ● Inventory and Ancillary Charges Module - Manage finance-related item catalogs
+        and charge integration in cashier workflows.
+    ● Financial Analytics Console - Monitor collection trends, billing risk indicators,
+        reminder outputs, and daily finance performance.
+
+The Teachers can access the following:
+
+    ● Instructional Schedule Module - Access assigned teaching loads, class timetables,
+        and advisory schedule context.
+    ● Grading and Submission Module - Configure rubrics, create assessments, encode
+        scores, and submit quarter grades.
+    ● Attendance Monitoring Module - Record SF2-aligned attendance statuses linked
+        to subject-assignment context.
+    ● Advisory Conduct Module - Encode conduct indicators and advisory observations
+
+
+
+STI College Munoz-EDSA                                                                    11
+        for class-level monitoring.
+    ● Gradebook Validation Module - Review grading completeness, submission status,
+        and correction checkpoints.
+    ● Instructional Analytics Console - Analyze class performance trends, completion
+        alerts, and quarter progress indicators.
+
+The Parents can access the following:
+
+    ● Parent Academic Visibility Module - Access authorized child grades, subject
+        performance, and quarter outcomes.
+    ● Parent Schedule Visibility Module - View child schedules, class timing, and
+        section-related timetable context.
+    ● Parent Billing Visibility Module - Track dues schedules, payment history, and
+        current balance snapshots.
+    ● Parent Notification Module - Receive school announcements, reminders, and
+        response-linked communication updates.
+    ● Parent Analytics Console - Review child-focused academic and billing indicators
+        for timely family decisions.
+
+
+
+The Students can access the following:
+
+    ● Student Academic Records Module - Access own quarter and final grade records
+        under role-scoped permissions.
+    ● Student Schedule Module - View personal class schedules, subject timing, and
+        advisory allocations.
+    ● Student Attendance and Conduct View Module - Review personal attendance and
+        conduct-related status summaries.
+    ● Student Learning Analytics Console - Review personal learning indicators,
+        progress trends, and academic alerts.
+
+The School Administrators (Academic Head/Principal) can access the following:
+
+    ● Academic Lifecycle Management Module - Configure school-year dates, quarter
+        transitions, and implementation controls.
+    ● Curriculum, Section, and Class List Module - Manage subjects, section structures,
+
+
+STI College Munoz-EDSA                                                                    12
+        adviser mapping, and roster outputs.
+    ● Schedule and Timetable Governance Module - Build and adjust schedules with
+        conflict-aware institutional controls.
+    ● Grade Verification and Compliance Module - Enforce submission deadlines,
+        review grade batches, and verify or return outputs.
+    ● Institutional Analytics Console - Monitor enrollment, financial risk, academic status,
+        compliance readiness, and KPI trends.
+
+The Super Admin (IT Personnel) can access the following:
+
+    ● User and Access Administration Module - Create accounts, assign roles, manage
+        status, and enforce credential controls.
+    ● Governance and Permission Matrix Module - Manage authorization views, role
+        permissions, and governance policy controls.
+    ● Audit and Announcement Orchestration Module - Review audit logs, publish
+        announcements, and monitor recipient engagement.
+    ● System Configuration and Governance Analytics Console - Control maintenance
+        and portal settings, institutional preferences, and governance performance
+        indicators.
+
+
+
+
+STI College Munoz-EDSA                                                                         13
+Limitations
+
+While MarriottConnect provides integrated coverage of registrar, finance, academic, and
+stakeholder workflows, the study remains bounded by institutional context, operational
+policy conditions, and data quality dependencies that influence measured outcomes.
+
+For this study, the following limitations apply:
+
+    ●   System evaluation is grounded in one host institution (Marriott School); cross-
+        school generalization requires additional deployments and comparative validation
+        in other school environments.
+    ●   LIS-aligned processing depends on sustained institutional data discipline,
+        including accurate intake encoding, timely SF1 uploads, and consistent LRN
+        validation across operational cycles.
+    ●   Analytics outputs are based on available institutional historical records;
+        forecasting and trend interpretation quality remains dependent on the
+        completeness and consistency of encoded transactions.
+    ●   Operational performance remains dependent on reliable internet connectivity,
+        available desktop access for guarded workflows, and sustained user adherence
+        to defined role procedures.
+    ●   Policy, curriculum, and regulatory updates may require periodic configuration
+        adjustments to preserve alignment between institutional operations and report-
+        generation standards.
+
+These limitations define the study context and evaluation boundaries while preserving
+the system's value as an integrated operational and decision-support platform.
+
+
+
+
+Review of Related Literature/Studies/Systems
+
+
+The present review of related literature and studies is designed to establish a strong
+theoretical and technical foundation for MarriottConnect by focusing only on sources that
+directly align with the school's documented operational problems. In this chapter,
+
+
+
+STI College Munoz-EDSA                                                                      14
+relevance is anchored on three validated issue clusters from the appendices: fragmented
+records across offices, delayed reconciliation in finance and registrar workflows, and
+limited decision-support visibility for planning.
+
+To strengthen applicability, the proponents use ten studies published from 2021 onward,
+with five local Philippine references and five international references. Each source is
+evaluated not only on conceptual contribution, but also on direct fit to MarriottConnect
+modules such as enrollment intake and enrichment, cashiering and ledger workflows,
+schedule management, stakeholder portals, and analytics-enabled dashboards.
+
+
+
+
+Local Studies (Philippines)
+
+Designing and Implementing e-School Systems: An Information Systems Approach to
+School Management of a Community College in Northern Mindanao, Philippines
+
+Grepon et al. (2021) presented an implementation-oriented school system study that
+integrated admissions, records processing, and administrative reporting into a unified
+digital workflow. Their work demonstrated that when school units operate on one shared
+data structure instead of disconnected files, processing time decreases and record
+reliability improves. The study emphasized practical implementation behavior, including
+workflow continuity across offices and usability outcomes for non-technical institutional
+users.
+
+This source is highly relevant to MarriottConnect because it directly supports the
+system's central design objective: convert fragmented office transactions into a single
+source of truth. In the appendices, the Registrar repeatedly described one-by-one updates
+and manual double-checking as a major bottleneck; Grepon et al. (2021) provides
+empirical support for replacing that process with integrated registrar-to-finance-to-
+academic data continuity. The study also justifies the system's modular but connected
+architecture, where each office retains role boundaries while operating on shared records.
+
+
+
+
+STI College Munoz-EDSA                                                                       15
+A Comparative Case Study on the Challenges Encountered by Philippine Private and
+Public Educational Institutions with their Existing Management Information System
+
+Zulueta et al. (2021) examined real implementation barriers experienced by Philippine
+educational institutions using existing MIS environments. Their findings highlighted
+persistent gaps in process standardization, infrastructure readiness, user adaptation, and
+operational support mechanisms. Rather than focusing only on technical features, the
+study framed MIS effectiveness as a socio-technical issue where organizational workflow
+discipline and system design quality must evolve together.
+
+For MarriottConnect, this study is relevant because the appendices show that current
+delays are not caused by a single office failure but by cross-office coordination friction.
+Zulueta et al. (2021) supports the capstone's staged rollout logic and reinforces the need
+for clear role-specific workflows, consistent operational rules, and adoption-oriented
+implementation practices. It also strengthens the rationale for including governance-
+related controls and maintainability planning, not just transactional modules.
+
+A Machine Learning Based DSS in Predicting Undergraduate Freshmen Enrolment in a
+Philippine University
+
+Esquivel and Esquivel (2021) demonstrated how machine-learning-based decision
+support can transform historical enrollment records into forecasting outputs usable for
+institutional planning. The study showed that data-driven prediction methods can reduce
+reliance on manual trend estimation and improve preparation for upcoming academic
+periods. Its contribution is particularly valuable because it connects routine data storage
+with forward-looking administrative action.
+
+This is directly applicable to MarriottConnect's analytics direction, where enrollment
+trend interpretation is expected to support section planning, staffing preparation, and
+capacity decisions. In the appendices, school leadership noted difficulty producing
+consolidated trend insights from dispersed records; Esquivel and Esquivel (2021)
+provides a methodological bridge from transactional history to planning intelligence. The
+
+
+
+
+STI College Munoz-EDSA                                                                        16
+study therefore supports the inclusion of forecasting-ready analytics in the administrative
+dashboard model.
+
+Comparative Analysis on the Efficiency of LIS Vis-a-Vis SMIS: A Case Study
+
+Porlas et al. (2023) compared the efficiency of DepEd LIS processes and school-level
+MIS workflows, emphasizing the operational consequences of inconsistent
+synchronization between compliance-oriented and institution-level records. The study
+highlighted that when local school systems do not align cleanly with reporting structures,
+institutions face additional validation burden and inconsistent data interpretation across
+offices.
+
+This finding is highly relevant to MarriottConnect because the system is intentionally
+designed for LIS-aware processing rather than isolated internal encoding. The staged
+model used in the capstone intake, cashier posting, and SF1/LRN-based enrichment
+directly addresses the synchronization challenge discussed by Porlas et al. (2023). The
+source strengthens the justification for treating enrollment data quality and reporting
+alignment as core architectural requirements, not post-processing tasks.
+
+Efficient Student Monitoring and Data Tracking System
+
+Navarra and Antonio (2025) developed and evaluated a web-based student monitoring
+and tracking approach with positive functional and usability outcomes among teachers,
+students, and parents. The study underscored the value of timely visibility, clearer
+communication channels, and improved access to student-related information for both
+institutional actors and families.
+
+For MarriottConnect, this is strongly relevant to stakeholder-facing modules. Appendix
+responses indicate that parents often experience delayed or incomplete updates, while
+offices rely on fragmented communication channels to resolve record issues. Navarra and
+Antonio (2025) supports the system's parent and student portal strategy, where authorized
+users can access updated academic and billing-related information through one secure
+platform rather than informal or delayed communication paths.
+
+
+
+
+STI College Munoz-EDSA                                                                        17
+International Studies
+
+Designing Decision Support System for Midwifery Students' Tuition Fees Problem
+
+Wulandari and Pinandito (2021) proposed a decision support model for tuition
+delinquency management using structured decision logic. Their study moved beyond
+simple balance viewing by showing how financial status classification can be translated
+into actionable policy options for school management. The research demonstrated that
+decision-support logic can improve consistency and speed in handling financially
+sensitive student cases.
+
+This aligns directly with MarriottConnect's finance goals, particularly delinquency
+identification and actionable payment-status interpretation. In appendix interviews, the
+Finance office described delays caused by manual cross-referencing of ledgers during
+multiple payment events. Wulandari and Pinandito (2021) supports the inclusion of
+structured delinquency analytics so finance decisions are guided by standardized rules
+and timely data, not fragmented manual reconciliation.
+
+Bright Kids Tuition Centre Management Information System
+
+Chai and Mostafa (2021) implemented a web-based management information system that
+integrated student, parent, staff, and financial records into one coherent digital
+environment. Their findings highlighted reductions in duplicate encoding and
+improvements in cross-user accessibility when records were handled through a shared
+platform instead of disconnected manual files.
+
+This is relevant to MarriottConnect because the capstone addresses the same
+fragmentation pattern observed at Marriott School: separate operational trackers, repeated
+validation, and delayed reporting. Chai and Mostafa (2021) supports the system's web-
+first architecture and validates the design choice of linking registrar, academic, and
+stakeholder views to one connected data model. It also reinforces the need for clear role-
+scoped access in shared operational systems.
+
+
+
+STI College Munoz-EDSA                                                                       18
+Student Information Management System for Baghdad College of Economic Sciences
+University (SIMS-BC): A Case Study
+
+Kanona (2022) examined the transition from manual student record handling to a secure
+database-driven system, emphasizing gains in retrieval speed, consistency, and data
+protection. The study showed that procedural efficiency and information integrity
+improve when record operations are backed by structured database controls rather than ad
+hoc file management.
+
+For MarriottConnect, this source supports both architecture and governance components.
+Appendix statements indicate that offices currently spend significant time validating
+records across multiple files and formats; Kanona (2022) justifies central database-
+backed record handling with role-based controls to reduce that burden. It also supports
+the system's security posture, where sensitive student and finance data must remain
+accessible to authorized users while protected from unauthorized modification.
+
+Student Gross Enrolment Ratio Forecasting: A Comparative Study Using Statistical
+Method and Machine Learning
+
+Hussain et al. (2023) compared forecasting approaches such as ARIMA and LSTM for
+educational enrollment trends, demonstrating that historical institutional data can be
+transformed into more reliable forward-looking indicators. The study contributes
+methodological depth by showing how comparative modeling can guide strategic
+interpretation instead of relying on one static projection style.
+
+This is directly relevant to MarriottConnect's decision-support layer, where enrollment
+movement is intended to inform staffing, section planning, and resource preparation. In
+the appendices, leadership concerns repeatedly pointed to difficulties in trend
+interpretation because records were dispersed and manually consolidated. Hussain et al.
+(2023) supports the capstone objective of converting validated operational history into
+structured planning insight through dashboard-ready analytics.
+
+Real-world University Course Timetabling at the International Timetabling Competition
+2019
+
+
+STI College Munoz-EDSA                                                                     19
+Muller, Rudova, and Mullerova (2025) analyzed real-world timetabling constraints and
+evaluated solver behavior under institution-scale scheduling conditions. The study
+highlighted how timetable quality depends on explicit constraint modeling, reproducible
+optimization logic, and measurable conflict handling rather than manual timetable
+plotting.
+
+This is highly relevant to MarriottConnect's schedule-related direction. Appendix
+findings describe scheduling checks as labor-intensive and prone to delay when
+performed through manual verification. Muller et al. (2025) provides strong technical
+support for moving toward conflict-aware scheduling logic, where resource constraints
+are handled systematically and schedule outputs become more consistent across teacher,
+student, and parent views.
+
+
+
+
+Synthesis
+
+Across the ten selected studies, a common conclusion emerges: schools achieve better
+operational reliability when data is centralized, workflows are role-defined, and reporting
+is generated from validated transactions rather than from fragmented records. The local
+literature confirms contextual fit for Philippine school operations, including LIS-aligned
+processes, implementation barriers, and stakeholder communication realities.
+
+International literature complements this by supplying deeper methodological support for
+tuition decision support, secure information management, enrollment forecasting, and
+constraint-driven scheduling. Together, the local and international sets provide both
+contextual grounding and technical depth for MarriottConnect's major modules.
+
+Most importantly, the literature aligns with evidence from Marriott School's own
+appendix interviews. Registrar one-by-one encoding concerns, finance reconciliation
+delays, and leadership reporting difficulties all map directly to the problem domains
+addressed by the selected sources. For this reason, the RRL foundation not only supports
+conceptual design but also validates the system's implementation priorities and module-
+level direction for the capstone.
+
+
+
+STI College Munoz-EDSA                                                                        20
+                           TECHNICAL BACKGROUND
+
+
+Overview of Technologies Used in the System
+
+MarriottConnect will be developed as a modern web-based school information system
+designed for centralized records, role-based workflows, and analytics-ready operations.
+
+For backend implementation, the project uses Laravel 12 on PHP 8 with PostgreSQL as
+the primary relational database. Authentication and secure access flow are managed
+through Laravel Fortify, while route bindings to the frontend are supported by Wayfinder.
+
+For frontend implementation, the project uses Inertia.js v2 with React 19 and TypeScript.
+Tailwind CSS v4 and Shadcn-based component patterns are used to maintain consistent
+and productivity-focused interfaces across role pages.
+
+For reporting and analytics views, shared chart wrappers support line, bar, area, and pie
+visualizations so dashboard trends remain readable and role-contextualized for decision
+support.
+
+
+
+
+Prototyping Model
+
+The proponents adopt an iterative prototyping model to ensure that the developed system
+continuously reflects validated workflow requirements from registrar, finance, academic,
+and governance users.
+
+
+
+
+                               Figure 1. Prototype Model
+
+Reference model: iterative prototyping cycle for requirement-to-validation development.
+
+
+
+STI College Munoz-EDSA                                                                      21
+The model includes the following stages, ensuring a controlled and user-centered
+development process:
+
+    1. Requirements Gathering and Analysis
+
+        Interviews, workflow mapping, and role-task validation are conducted to identify
+        bottlenecks in enrollment, finance posting, scheduling, and grading.
+
+
+
+
+    2. Quick Design
+
+        Initial page flow, data mapping, and module interaction designs are prepared
+        based on validated role responsibilities and system boundaries.
+
+    3. Build Prototype
+
+        A working prototype is implemented for core modules including registrar intake,
+        cashier posting, teacher grading workflows, and role dashboards.
+
+    4. Initial User Evaluation
+
+        Key school stakeholders evaluate behavior, usability, and data consistency to
+        confirm whether outputs match real operational needs.
+
+    5. Refining Prototype
+
+        Feedback is applied iteratively to improve accuracy, workflow speed, and interface
+        clarity until the solution satisfies acceptance conditions.
+
+    6. Implement and Maintain
+
+        Once validated, the solution proceeds to controlled implementation, user
+        orientation, and maintenance planning for sustained operational use.
+
+
+
+
+STI College Munoz-EDSA                                                                       22
+Calendar of Activities
+
+August - Initial data gathering, role discovery, and baseline workflow documentation were
+completed to frame the problem context.
+
+
+September - Scope boundaries and chapter drafting were refined while requirements were
+aligned to observed institutional operations.
+
+
+October - Module architecture and functional design were revised based on consolidated
+interview findings and updated workflow assumptions.
+
+
+November - Final validation inputs were integrated, and technical-functional chapters were
+revised to reflect current implementation direction.
+
+
+
+
+Gantt's Chart of Activity
+
+
+
+
+                              Figure 2: Gantt's Chart of Activity
+
+
+
+
+STI College Munoz-EDSA                                                                       23
+Resources
+
+Hardware Requirements
+
+The following resources are required to host, access, and operate MarriottConnect reliably
+across school offices and stakeholder portals.
+
+    ● Application/Database Server: Dedicated or virtual infrastructure with sufficient
+        CPU, memory, and storage for concurrent transactions and dashboard queries.
+    ● Client Devices (Mobile): Smartphones or tablets for parent and student access to
+        role-specific portals and updates.
+    ● Client Devices (Web): Desktop or laptop devices with modern browsers for
+        registrar, finance, admin, and teacher operations.
+
+Software Requirements
+
+    ● Server Runtime: PHP 8 and Laravel 12 with environment configuration for secure
+        web and queue execution.
+
+    ● Database Management: PostgreSQL as the relational engine for centralized and
+        consistent institutional records.
+
+    ● Backend Framework Components: Laravel Fortify for authentication and role-
+        guarded route handling.
+
+    ● Frontend Stack: Inertia.js v2, React 19, and TypeScript for structured SPA-like
+        user workflows.
+
+    ● Interface Framework: Tailwind CSS v4 with Shadcn component patterns for
+        consistent UI implementation.
+
+    ● Development Environment: Composer, Node.js tooling, Vite, and Visual Studio
+        Code for implementation and integration.
+
+    ● Design and Quality Tools: Figma for interface planning, with Pest, PHPUnit, Pint,
+        ESLint, and Prettier for quality assurance.
+
+
+
+
+STI College Munoz-EDSA                                                                       24
+Requirements Analysis
+
+
+This section defines the requirements needed to address Marriott School's operational
+constraints through MarriottConnect, focusing on centralized data handling, role-based
+process control, and decision-support visibility.
+
+
+A. Requirement
+
+Marriott School requires one integrated platform that captures enrollment intake, supports
+finance posting, enables grading workflows, and delivers role-scoped dashboards while
+maintaining LIS-aligned learner record processing.
+
+
+B. Business / User Requirement
+
+The system must eliminate repetitive encoding and reduce manual reconciliation by
+ensuring that validated records flow across registrar, finance, teacher, student, and parent
+modules under controlled permissions.
+
+System Integration for Student Information and Operations
+
+    1. The system must allow registrar intake data to become reusable input for finance
+        and academic workflows.
+
+    2. The system should support staged enrichment through SF1 upload and learner
+        matching by LRN.
+
+    3. The system must synchronize balances, schedules, and grade visibility across
+
+
+
+STI College Munoz-EDSA                                                                         25
+        authorized role portals.
+
+    4. The system should provide audit-aware and role-scoped access to protect
+        sensitive transactions and records.
+
+Web-Based Admin Dashboard
+
+    1. Administrators and authorized staff must manage academic controls, sections,
+        schedules, and class visibility through one secure interface.
+
+    2. Administrative users must be able to review KPI cards, alerts, and trends that
+        summarize operational conditions.
+
+    3. Administrative outputs should support decision-making for school-year planning,
+        staffing, and workflow correction.
+
+
+C. System Requirements
+
+        Major System Capabilities
+
+            ● Major System Capabilities
+
+            ● The system will operate as a role-based web platform accessible through
+                modern desktop and mobile browsers.
+
+            ● The system will centralize learner, enrollment, grading, and finance records
+                under one validated data model.
+
+            ● The system will enforce role-based access for super admin, admin,
+                registrar, finance, teacher, student, and parent users.
+
+            ● The system will support registrar intake, student directory maintenance,
+                and SF1 upload processing.
+
+            ● The system will support finance cashiering, ledger updates, fee
+                management, and transaction history views.
+
+            ● The system will support teacher grading workflows including rubric setup,
+
+
+
+STI College Munoz-EDSA                                                                       26
+                score entry, and quarter submission.
+
+            ● The system will provide dashboard analytics through KPI cards, alerts, and
+                trend visualizations.
+
+            ● The system will preserve governance through settings control, audit
+                logging, and permission visibility.
+
+        Major System Conditions
+
+            ● Each user must authenticate using valid credentials tied to an authorized
+                role.
+
+            ● Internet connectivity must be available for synchronized updates and
+                dashboard refresh cycles.
+
+            ● Registrar intake and finance posting must complete before downstream
+                reporting and enrichment workflows finalize.
+
+
+D. System User Characteristics
+            ● Super Admin and Admin users manage governance, configuration,
+                curriculum context, and planning controls.
+
+            ● Registrar users handle learner intake, enrollment queue processing, and
+                student record enrichment.
+
+            ● Finance users handle cashier transactions, ledger movement, billing
+                visibility, and daily reporting.
+
+            ● Teacher users handle instructional scheduling visibility and grading-
+                related transactions.
+
+            ● Student users access personal academic records such as schedule and
+                grades under restricted permissions.
+
+            ● Parent users access child-related schedule, grades, and billing
+                information through secure portal controls.
+
+
+
+
+STI College Munoz-EDSA                                                                     27
+E. Functional Requirements
+
+  1.    Manage Student Records
+        1.1.    The Registrar shall create and maintain learner profiles and enrollment
+                queue records.
+        1.2.    The system shall support SF1-driven record enrichment and LRN-based
+                matching logic.
+  2.    Manage Cashiering & Assessment
+        2.1.    Finance users shall post cashier transactions and maintain learner-level
+                ledger entries.
+        2.2.    The system shall update outstanding balances immediately after valid
+                posting events.
+        2.3.    The system shall support fee, discount, and inventory-linked assessment
+                definitions.
+  3.    Manage Grades
+        3.1.    Teachers shall configure rubrics and encode graded activities by section,
+                subject, and quarter.
+        3.2.    The system shall compute weighted outputs and retain draft and
+                submission states.
+        3.3.    The system shall allow authorized review flow for quarter completion and
+                submission status.
+  4.    Manage Schedule Visibility
+        4.1.    Authorized users shall view role-specific class schedules generated from
+                maintained academic assignments.
+        4.2.    Schedule views shall remain consistent across teacher, student, and
+                parent role contexts.
+  5.    Automated Scheduling
+        5.1.    Admin users shall configure planning inputs through sections, subjects,
+                and faculty assignment context.
+        5.2.    The system shall support conflict-minimizing schedule preparation and
+                class-list verification workflows.
+  6.    Decision Support System
+
+
+
+
+STI College Munoz-EDSA                                                                      28
+        6.1.    The system shall process operational metrics for enrollment, financial
+                behavior, and risk-oriented monitoring.
+        6.2.    The system shall visualize trends using standardized chart-ready
+                payloads for management decisions.
+  7.    Generate Reports
+        7.1.    The system shall provide structured outputs for operational summaries
+                across enrollment, finance, and academic records.
+        7.2.    Reports shall follow institutional formatting and remain consistent with
+                authorized data sources.
+
+
+F. Non-Functional Requirements
+
+  1.    Operational Requirements
+        1.1.    The system must remain accessible through supported web clients for
+                office and stakeholder usage.
+        1.2.    The system requires stable connectivity to ensure synchronized
+                transactions and dashboard updates.
+  2.    Performance Requirements
+        2.1.    Posting and grade-related updates must reflect promptly after validated
+                submissions.
+        2.2.    The platform should maintain reliable responsiveness during normal
+                school-hour usage.
+  3.    Security Requirements
+        3.1.    Credentials must be protected through secure authentication handling and
+                password hashing.
+        3.2.    Authorization rules must prevent cross-role access to restricted modules
+                and records.
+        3.3.    Governance-relevant actions must be traceable through audit-ready
+                logging mechanisms.
+  4.    Usability Requirements
+        4.1.    Interfaces must present clear task flows aligned with each role's routine
+                operational needs.
+        4.2.    Pages must maintain readability and consistency across desktop and
+
+
+
+
+STI College Munoz-EDSA                                                                      29
+                mobile screen contexts.
+  5.    Maintainability Requirements
+        5.1.    The system must support controlled updates to school-year settings, fee
+                structures, and role configurations.
+        5.2.    Core modules must remain maintainable so policy updates and institutional
+                enhancements can be integrated without destabilizing existing workflows.
+
+
+
+
+STI College Munoz-EDSA                                                                      30
+Requirements Documentation
+
+
+The MarriottConnect system is composed of integrated
+modules that operate on shared records to support registrar,
+finance, academic, governance, and stakeholder workflows in
+one centralized environment.
+
+The Registry and Enrollment module captures intake entries,
+maintains student directory records, and supports SF1 upload
+for learner enrichment and LIS-aligned reconciliation.
+
+The Cashiering and Finance module handles payment
+posting, ledger movement, transaction history, and billing
+visibility through configurable fee and discount structures.
+
+The Academic Planning module supports school-year
+controls, curriculum context, section management, schedule
+preparation, and class list coordination.
+
+The Teacher module provides grading workflows for rubric
+design,        graded    activity   setup,   score   encoding,   draft
+preservation, and quarter submission.
+
+The Student module provides secure personal access to
+schedule and grade information derived from authorized
+records.
+
+
+
+STI College Munoz-EDSA                                                   31
+The Parent module provides child-focused visibility to
+schedules, grades, billing information, and payment behavior
+context.
+
+The Dashboard layer standardizes KPI cards, alert lists, trend
+cards, and action links for each role-facing workspace.
+
+Trend rendering supports line, bar, area, and pie chart views
+using normalized analytics payloads.
+
+Governance features include user management, permissions
+visibility, audit logging, announcements, and system setting
+controls.
+
+Through these integrated modules, MarriottConnect delivers
+a practical, centralized, and decision-ready platform for
+Marriott School operations.
+
+
+
+
+STI College Munoz-EDSA                                           32
+STI College Munoz-EDSA   33
+REFERENCES
+
+
+Chai, W. C., & Mostafa, S. A. (2021). Bright Kids tuition centre management information
+system. Applied Information Technology and Computer Science, 2(2), 937-957.
+https://doi.org/10.30880/aitcs.2021.02.02.059
+
+Esquivel, J. A., & Esquivel, J. A. (2021). A machine learning based DSS in predicting
+undergraduate freshmen enrolment in a Philippine university. International Journal of
+Computer            Trends        and        Technology,         69(5),        50-54.
+https://doi.org/10.14445/22312803/IJCTT-V69I5P107
+
+Grepon, B. G. S., Baran, N. T., Gumonan, K. M. V., Martinez, A. L. M., & Lacsa, M. L.
+E. (2021). Designing and implementing e-school systems: An information systems
+approach to school management of a community college in Northern Mindanao,
+Philippines. International Journal of Computing Sciences Research, 5(1), 380-392.
+https://doi.org/10.25147/ijcsr.2017.001.1.74
+
+Hussain, J., Rosangliana, D., & Vanlalruata. (2023). Student gross enrolment ratio
+forecasting: A comparative study using statistical method and machine learning.
+International Journal of Information and Education Technology, 13(3), 439-447.
+https://doi.org/10.18178/ijiet.2023.13.3.1824
+
+Kanona, R. M. (2022). Student information management system for Baghdad College of
+Economic Sciences University (SIMS-BC) as: A case study. Journal of Baghdad College
+of          Economic        Sciences         University,        67(1),     316-325.
+https://ojs.baghdadcollege.edu.iq/index.php/BCESUJ/article/view/120
+
+Muller, T., Rudova, H., & Mullerova, Z. (2025). Real-world university course timetabling
+at the International Timetabling Competition 2019. Journal of Scheduling, 28, 247-267.
+https://doi.org/10.1007/s10951-023-00801-w
+
+Navarra, J., & Antonio, E. (2025). Efficient student monitoring and data tracking system.
+Psychology and Education: A Multidisciplinary Journal, 35(8), 848-867.
+https://doi.org/10.70838/pemj.350801
+
+Porlas, A. A. J., Lapatha, L. A., Requillo, S. H., & Tunacao, J. A. (2023). Comparative
+analysis on the efficiency of LIS vis-a-vis SMIS: A case study. American Journal of
+Multidisciplinary Research and Innovation, 2(2). https://doi.org/10.54536/ajmri.v2i2.1299
+
+Wulandari, C. P., & Pinandito, A. (2021). Designing decision support system for midwifery
+students' tuition fees problem. International Journal of Innovation in Enterprise System,
+5(2), 157-171. https://doi.org/10.25124/ijies.v5i02.101
+
+Zulueta, M. C. E., Buno, R. M. V., Dela Cruz, A. C., Sagun, A. J., San Buenaventura, M.
+D., Talidano, A. S., & Cabrera, W. C. (2021). A comparative case study on the challenges
+encountered by Philippine private and public educational institutions with their existing
+management information system. International Journal of Multidisciplinary: Applied
+
+
+STI College Munoz-EDSA                                                                      34
+Business          and       Education       Research,   2(11),   1211-1217.
+https://doi.org/10.11594/ijmaber.02.11.12
+
+
+
+
+                                     APPENDICES
+
+
+
+
+STI College Munoz-EDSA                                                        35
+                         APPENDIX A. RESOURCE PERSONS
+
+
+
+
+STI College Munoz-EDSA                                  36
+MR. ALEXANDER F AVELLANOSA
+ACADEMIC HEAD
+MARRIOTT SCHOOL
+
+
+MRS. JOCELYN M. CLEOFE
+REGISTRAR’S OFFICE
+MARRIOTT SCHOOL
+
+
+MRS. CORRINE P. AVELLANOSA
+FINANCE OFFICE
+MARRIOTT SCHOOL
+
+
+MRS. FE MERCEDES M. CAVITT
+TEACHER
+MARRIOTT SCHOOL
+
+
+MR. DAVEY
+GUARD
+MARRIOTT SCHOOL
+
+
+
+
+STI College Munoz-EDSA       37
+                    APPENDIX B. TRANSCRIPT OF INTERVIEWS
+
+
+
+
+STI College Munoz-EDSA                                     38
+B.1 Academic Head
+
+        Interviewer: Jade Michael D. Godalle
+        Interviewee: Mr. Alexander F. Avellanosa
+
+        Interviewer: Good afternoon po, Sir Alex. I’m Jade po ulit. Nandito po ulit kami
+        para sa interview. Sir, diba yung previous natin, gumagamit po kayo ng Excel or
+        manual files. Bakit po sir, hanggang ngayon gumagamit pa rin po kayo ng Excel?
+
+
+        Interviewee: Actually, i-clarify ko lang. Excel na nasa G-Drive po 'yan. So, manual
+        siya, pero nasa cloud, naka-share. Alam mo yun, parang okay na rin siya sa simula,
+        kasi lahat makakakita, makaka-access, pero mahirap i-manage. Kasi ang dami-dami
+        ng files, bawat department may kanya-kanyang Excel, at minsan kailangan i-
+        compare manually. Kahit nasa cloud, kung sabay-sabay nagta-trabaho, hindi mo na
+        talaga ma-track kung sino nag-edit, paano nag-change yung data. Talagang hassle.
+        Kaya nga kahit may Excel, hindi pa rin siya ganap na efficient.
+
+
+        Interviewer: Sir, yung mga nag-offer sa inyo, nag-offer ng ano? Alam po ba nila
+        yung problem kaya nag-offer sila ng ganong system sa inyo?
+
+
+        Interviewee: Ah, yun. Dami nag-offer sa amin ng enrollment systems or iba pang
+        system. Pero honestly, di namin sigurado kung fully nila naintindihan yung
+        ganyang specific problems namin. Kasi ang hirap talaga, iba-iba yung situation
+        namin. Yung mga ino-offer nila, parang standard package lang sa ibang schools.
+        Hindi naman sila talaga fit sa workflow namin. Kaya kung gagamitin namin yun,
+        baka mas magulo pa. Talagang kailangan namin maintindihan muna bago i-adopt.
+
+
+        Interviewer: Sir, ano po ang mahirap na naranasan kapag sabay-sabay na nag-edit
+        o nag-access ng parehong file ang iba't iba?
+
+
+        Interviewee: Oo, tama. Mahirap talaga. Halimbawa, sabay nag-e-edit si Finance at
+        si Registrar sa parehong Excel file sa Google Drive. Pag may mali, kailangan i-
+        trace kung sino nag-edit, ano yung nagbago, saan nagkamali. Parang, ini-examine
+
+
+
+STI College Munoz-EDSA                                                                        39
+        mo isa-isa yung cells. Ang hirap talaga kasi minsan nawala yung data o may nag-
+        change na hindi mo alam. Kailangan balik-balikan, i-check ang history ng bawat
+        entry. Nakakapagod talaga sa oras at effort.
+
+
+        Interviewer: Yes, sir.
+
+
+        Interviewee: Kaya nga minsan, kahit may Excel, parang manual pa rin kasi
+        kailangan pa rin ng constant monitoring, checking, at coordination. Hindi siya
+        automatic na nag-a-update o nagma-manage ng conflicts.
+
+
+        Interviewer: Sir, gaano kadalas nagkakaroon ng error or inconsistency sa student
+        records?
+
+
+        Interviewee: Student records? Dito, medyo old school talaga. Talagang
+        handwritten ang initial input, tapos i-encode pa sa Excel. Hindi naman madalas
+        mag-error technically, kasi careful kami sa pag-check, pero ang problema, sobrang
+        tagal i-verify. Ang workflow, kailangan mo i-double check, i-compare ang entries,
+        minsan printed copy, minsan digital copy. Nakakapagod. Kapag may sabay-sabay
+        na nag-update, may mga points na parang nawawala o hindi aligned agad.
+
+
+        Interviewer: So, sir, sabi niyo po old school yung process niyo. May nangyayari
+        po ba na duplicate ng student records?
+
+
+        Interviewee: Ah, yung present students? Hindi naman technically duplicate, pero
+        minsan may confusion sa data integrity. Halimbawa, minsan hindi ka sigurado kung
+        ang grade na na-encode na ba or hindi pa. Parang, “San ko na ba nilagay yun?” o
+        kaya “Na-print ko ba ito?” Kaya kailangan ulit i-check manually. Nakakapagod
+        talaga.
+
+
+        Interviewer: Sir, paano naapektuhan ng errors and delays na ito ang operational
+        supervision ng school sa mga students?
+
+
+
+STI College Munoz-EDSA                                                                      40
+        Interviewee: Talagang sobra ang oras na binibigay namin para maiwasan ang
+        delay. Halimbawa, pag may problem sa grade or enrollment, nire-recall namin ang
+        student or teacher para i-verify. Kung hindi ganito, aabutin ng delay ang students
+        sa card release or sa enrollment confirmation. Talagang nakakapagod ang manual
+        management.
+
+
+        Interviewer: Like, paano po yun sir ngayon? Di ba sir, kuhaan po ng card ngayon,
+        then di nakuha ng students, bukas po pwede silang bumalik?
+
+
+        Interviewee: Next week na yun. Kasi may rules na dapat parent ang kukuha ng
+        card sa first quarter. Kung wala yung parent, hindi makukuha ng student. Kaya
+        minsan may delay talaga. Kahit ganoon, kailangan ng effort para masigurong
+        updated at verified lahat ng records bago ibigay sa students.
+
+
+        Interviewer: Sir, sa experience niyo, madalas ba kayong makaranas ng delays or
+        errors sa communication between registrar, teachers, and finance?
+
+
+        Interviewee: Oo, sobrang common. Kasi lahat manual. Minsan, nagbayad na yung
+        student, pero hindi pa na-update sa Excel ng registrar. Minsan, nagpalit ng section
+        ang student, late na na-inform ang teacher. Kaya kailangan pa rin ng extra
+        coordination at checking.
+
+
+        Interviewer: So, sir, paano niyo hinahandle yung ganung instances kapag may
+        miscommunication?
+
+
+        Interviewee:     Usually,   pinapatawag   namin    yung    involved   departments.
+        Halimbawa, may mismatch sa payment o grades, pinapa-verify, tapos
+        pinapapirmahan para documented. Pero minsan, ang effort talaga malaki kasi need
+        mo pa rin manually i-check lahat ng files at records.
+
+
+
+
+STI College Munoz-EDSA                                                                        41
+        Interviewer: Sir, ano ang mga challenges kapag kinokolekta ang attendance mula
+        sa iba't ibang klase o section?
+
+
+        Interviewee: Ah, isa sa pinaka-problema namin ay manual talaga. May attendance
+        si teacher, may attendance ang class president, tapos kailangan i-compare. Kaya
+        minsan, hindi pareho ang record. Halimbawa, isang araw may na-miss ang teacher
+        mag-record, tapos may na-record yung student officer. Pag kinokolekta mo ulit,
+        kailangan i-check isa-isa, i-verify kung sino ang tama. Nakakapagod at prone sa
+        delay.
+
+
+        Interviewer: Sa anong katagal bago makonsolidate ang attendance data para sa
+        reports?
+
+
+        Interviewee: Usually, weekly. Lahat ng teachers at officers magkocollect mula
+        Monday to Friday. Pagkatapos, nire-review at kino-consolidate para sa monthly
+        report. Nakakapanood ka na lang minsan, tapos ayun, i-check mo ulit kung may
+        kulang or mali. Talagang time-consuming.
+
+
+        Interviewer: Sir, may mga pagkakataon bang kulang o mali ang attendance
+        records?
+
+
+        Interviewee: Oo, kadalasan dahil sa rushed yung teachers. Minsan nagtuturo pa
+        sila, tapos nakakalimutan mag-check ng attendance. Kaya kailangan i-recall the
+        next day or follow-up manually. Kung minsan, hindi na maalala kung sino talaga
+        ang present nung araw na yun. Kahit may manual record ang student, kailangan pa
+        rin i-double check.
+
+
+        Interviewer: Laiway po ba yung parents para mag-update ng attendance ng anak
+        nila?
+
+
+
+
+STI College Munoz-EDSA                                                                    42
+        Interviewee: Meron. Pero mostly, nakikipag-communicate kami sa parents kapag
+        may problema. Halimbawa, absent ng dalawang araw, tinatawagan namin para
+        malaman kung okay lang ba yung student o may kailangan ba. Talagang close ang
+        relationship namin sa parents at students, para informed sila. Hindi namin basta
+        pinapalampas.
+
+
+        Interviewer: Ah, so tatawagan niyo po yung parents?
+
+
+        Interviewee: Oo, usually kinabukasan kung may absence. Pero karamihan ng
+        parents, sila rin ang nagre-report agad kung absent ang anak. Dapat nga, close ang
+        communication para maiwasan ang gap sa information.
+
+
+        Interviewer: Sir, paano ina-update ng teacher staff yung mga errors sa attendance?
+
+
+        Interviewee: Usually, tinatawagan muna yung involved teacher or student officer.
+        Kung kayang i-adjust agad, ginagawa namin bago pa ma-finalize ang report.
+        Talagang manual process pero kailangan matapos bago ma-print yung final
+        attendance card. Kung hindi, baka hindi aligned yung data, tapos magkakaroon ng
+        confusion sa student or parent.
+
+
+        Interviewer: Sir, paano nabe-verify ng school kung present o absent ang student
+        sa mismong araw?
+
+
+        Interviewee: Meron silang manual record. Teacher records, student records, tapos
+        may Blackboard updates na nakalagay kung sino ang absent or late. Halos lahat ng
+        info need i-verify sa dalawang sources. Nakakapagod, kasi kung may missing entry,
+        kailangan i-follow up.
+
+
+        Interviewer: Sir, ano ang epekto kapag na-delay o mali ang attendance?
+
+
+
+
+STI College Munoz-EDSA                                                                       43
+        Interviewee: Mostly, nagkakaroon ng concern ang parents, nagfe-feedback kung
+        hindi accurate. Pero, since mabilis naming na-verify at na-update, rarely maabot sa
+        parents ang error. Pero effort talaga, marami kaming kailangan gawin para
+        maiwasan yung discrepancy.
+
+
+        Interviewer: Sir, sa palagay niyo ba makakatulong ang RFID-based attendance
+        system para mapabuti ang process nito?
+
+
+        Interviewee: Oo, definitely. Kasi automatic yung logging. Halimbawa, pumasok
+        na yung student, maitatala agad sa record. Parents automatically makakatanggap ng
+        notification. Mas mabilis, mas efficient. Pero kahit maliit lang yung loophole,
+        halimbawa nagpasok pero hindi talaga pumapasok sa class, iikot pa rin kami para
+        ma-monitor. Pero overall, malaking tulong sa speed at accuracy ng tracking.
+
+
+        Interviewer: Sir, ano ang mahirap kapag kailangan kontakin ang mga magulang
+        lalo na sa emergency o absences?
+
+
+        Interviewee: Pag nahihirapan kaming kontakin, kailangan dumaan sa phone,
+        landline, o messenger. Minsan, kailangan puntahan personally sa bahay. Pero most
+        of the time, okay lang kasi close ang relationship namin sa parents. Malalapit lang
+        naman sila, kaya reachable.
+
+
+        Interviewer: Sir, paano naapektohan ng delay sa communication ang tiwala ng
+        mga magulang sa school?
+
+
+        Interviewee: Mostly okay lang. Medyo flexible ang parents kasi alam nilang
+        gagawin namin ang effort para ma-update sila. May mga ways kami na reachable
+        sa kanila: e-mail, cellphone, Facebook Messenger, kahit Facebook page namin. So
+        kahit may delay, aware sila at nagtitiwala sa communication process namin.
+
+
+
+
+STI College Munoz-EDSA                                                                        44
+        Interviewer: So sir, sa palagay nyo po, bakit makakatulong ang automatic
+        notification para sa mga clients?
+
+
+        Interviewee: Oo, malaking tulong. Automatic eh, diba? Immediate na yung info sa
+        parents kung pumasok o hindi ang anak. Mas iwas human delay o human error.
+        Halimbawa, RFID tap lang, automatic na naitatala at natutext yung parent.
+
+
+        Interviewer: Sir, di naman po kayo gumagamit ng spreadsheet o manual
+        computation para sa tuition po, no sir?
+
+
+        Interviewee: Hindi, hindi naman po. Ang ginagamit namin, Excel pa rin pero naka-
+        Google Drive. So may automatic na computation doon, pero mostly still manual pa
+        rin sa pag-check.
+
+
+        Interviewer: Sir, paano po ninyo titiyak na accurate at updated ang tuition records?
+
+
+        Interviewee: Ah, dito kami very careful. Marami nagche-check. May cashier, may
+        finance head, at ako rin minsan tumitingin para ma-monitor. Yung mga resibo,
+        naka-save sa Google Drive, so kahit may errors, mabilis ma-verify. Kailangan lang
+        talaga constant monitoring.
+
+
+        Interviewer: Sir, paano naapektohan ang manual na computation ng workload ng
+        accounting office?
+
+
+        Interviewee: Siyempre, mas matagal. Kasi one by one yung check, tapos may
+        manual adjustments pa. Mas marami ang trabaho, mas matagal bago matapos. Kung
+        automated, mas mabilis, pero since manual, kailangan talagang tutukan ng staff.
+
+
+        Interviewer: Sir, bakit minsan hirap ang mga magulang o estudyante na makita
+        ang kanilang payment status?
+
+
+
+
+STI College Munoz-EDSA                                                                         45
+        Interviewee: Siguro dahil nasa iba't ibang sources pa yung data. May naka-Excel,
+        may naka-email, tapos may hard copy. Kaya minsan, kailangan nila mag-follow up
+        para makumpirma. Kung centralized man, mabilis na makita, pero ngayon, medyo
+        fragmented pa yung info.
+
+
+        Interviewer: Sir, bakit patuloy pa rin gumagamit ng magkakaibang tools sa bawat
+        department?
+
+
+        Interviewee: Kasi, hindi naman lahat nakasama sa same workflow. Halimbawa,
+        registrar may Excel, finance may iba, at teachers may sariling records. Kaya, bawat
+        department may sariling tool, kasi need nila immediate access sa sariling data.
+        Hindi kasi one-size-fits-all yung workflow nila.
+
+
+        Interviewer: Bakit sa tingin nyo, sir, ay risky ang pag-store ng student data sa
+        shared folders?
+
+
+        Interviewee: Oo, risky kasi maraming nakakakita, maraming nakaka-access. Kahit
+        na may permissions, minsan may editing conflicts, tapos may chance na ma-
+        misplace or ma-overwrite yung data. Kailangan laging ma-monitor at i-double
+        check.
+
+
+        Interviewer: May mga pagkakataon bang nawala o nangbura ang files?
+
+
+        Interviewee: Meron, pero bihira. Usually dahil may nag-edit na hindi napansin o
+        na-misplace lang. Kapag ganun, babalik ulit sa process, i-verify ulit, at i-reprint
+        kung necessary. Kaya nakakapagod talaga minsan, kasi isa-isa kailangan i-check.
+
+
+        Interviewer: Paano nyo pinipigilan ang unauthorized access sa files?
+
+
+
+
+STI College Munoz-EDSA                                                                        46
+        Interviewee: Sa Google Drive, nakaset kung sino lang ang pwedeng mag-view o
+        mag-edit. Tinitiyak naming limited lang yung access, at sino ang editor, sino ang
+        viewer. So may kontrol pero kailangan palaging bantayan.
+
+
+        Interviewer: Bakit mahalaga magkaroon ng secure password-protected system
+        para dito?
+
+
+        Interviewee: Para ma-minimize yung risk na may makaka-access ng data na hindi
+        dapat. Importante na alam namin sino lang ang may right mag-edit o mag-view ng
+        file.
+
+
+        Interviewer: Paano naapektohan ng manual process ang productivity ng teachers
+        at staff?
+
+
+        Interviewee: Medyo mabagal talaga, kasi one by one ang process. Mas maraming
+        steps, mas matagal matapos. Pero sa kabilang banda, mas mabusisi. Nakikita mo
+        lahat ng details. Pero kung mas mabilis at organized, mas maraming nagagawa sa
+        parehong oras.
+
+
+        Interviewer: Gaano kayo nakakaranas ng delay sa paggawa ng reports dahil sa
+        disorganized data?
+
+
+        Interviewee: Hindi naman totally disorganized kasi may sariling process kami.
+        Pero syempre, kapag manual, mas matagal ang reporting. Kailangan i-verify lahat
+        ng data bago i-finalize. Kaya minsan, may delays kahit planado ang workflow.
+
+
+        Interviewer: Paano naapektohan ng kakulangan ng automation ang accuracy at
+        timeliness ng data?
+
+
+        Interviewee: Dito nakakaapekto sa speed at accuracy. Kadalasan, mas matagal
+        mag-update, mas prone sa delay, kasi manual pa rin. Kailangan i-double check, i-
+
+
+
+STI College Munoz-EDSA                                                                      47
+        verify, tapos maayos bago ma-release. Kung automated, mas mabilis at mas ma-
+        track.
+
+
+        Interviewer: Sir, sa inyong palagay, ano ang pinakamalaking challenge sa
+        kasalukuyang sistema ng school?
+
+
+        Interviewee: Marami. Pero ang pinakamalaking problema, talaga, yung kahirapan
+        sa coordination ng iba't ibang departments. Halimbawa, kung enrollment, finance,
+        at teachers, bawat isa may sariling paraan, tapos need i-merge manually. Minsan,
+        nagka-conflict yung numbers student count, tuition payment, attendance.
+        Kailangan mag-check isa-isa para ma-align.
+
+
+        Interviewer: Paano nito naapektohan ang trabaho ninyo at ang students?
+
+
+        Interviewee: Mas maraming oras ang nauubos sa pag-verify ng data kaysa sa actual
+        na tasks. Teachers at staff, kailangan mag-double check ng entries, kaya delay sa
+        reporting. Students, minsan natatambakan ng late updates sa grades, attendance, at
+        payments. Ang stress, hindi sa work lang, pati sa operations ng school.
+
+
+        Interviewer: Sir, bakit sa tingin nyo nanatili pa rin ang mga problema na ito
+        hanggang ngayon?
+
+
+        Interviewee: Siguro kasi complex ang system namin. Maraming tools at manual
+        processes. Lahat connected sa ibang tasks. Wala pang streamlined workflow na
+        madaling ma-access ng lahat. Kaya hanggang ngayon, ganito pa rin.
+
+
+        Interviewer: Ano ang tingin nyo na solusyon para maayos ang mga problemang
+        ito?
+
+
+        Interviewee: Siguro, kailangan ng mas malinaw at standardized workflow.
+        Halimbawa, kung paano kino-collect at chine-check ang attendance, paano nagha-
+
+
+
+STI College Munoz-EDSA                                                                       48
+        handle ng tuition, paano nagva-verify ng student records. Kasi kapag consistent ang
+        process, mas mabilis maayos ang error, mas mabilis ma-access ang info, at mas
+        maiiwasan ang conflicts sa data. Mas mapapabilis ang trabaho at maiiwasan ang
+        hassle sa lahat.
+
+
+
+
+B.2 Registrar’s Office
+
+        Interviewer: Jade Michael D. Godalle
+        Interviewee: Mrs. Jocelyn M. Cleofe
+
+
+        Interviewer: Paano niyo po mini-maintain at ina-update ng records ng mga
+        students ninyo?
+
+
+        Interviewee: Sa ngayon, manual pa rin kami sa Google Sheets at Excel. Kailangan
+        namin i-update isa-isa ang bawat record, tsaka i-double check rin para siguradong
+        tama ang lahat ng details. Kapag maraming students, tumatagal ang proseso kasi
+        may sections na nagkaka-overlap, kailangan i-verify ang bawat entry at minsan
+        kailangang i-crosscheck sa ibang forms.
+
+        Interviewer: Madalas ba kayong makaranas ng errors o data inconsistency sa
+        records ng students?
+
+        Interviewee: Oo, minsan may inconsistency sa data lalo na kapag maraming
+        updates sa parehong oras. Kadalasan, kailangan i-compare ang entries sa Excel at
+        Google Sheets, tapos siguraduhin na parehong information ang nakalagay sa lahat
+        ng files. Hindi ito agad naayos, kaya minsan tumatagal bago maging final.
+        Interviewer: Included po ba dito yung duplicated entries, late submissions, o
+        miscommunications, ma’am?
+
+        Interviewee: Oo, minsan may overlapping entries, tapos minsan late rin ang
+        submission ng requirements. Halimbawa, yung enrollment forms o proof of
+        residency, minsan dumarating lang after deadline. Kaya minsan delayed din ang
+        pag-update ng records, tapos kailangan i-follow up sa parents at teachers.
+
+        Interviewer: Pero ma’am, may instance na po ba na nag-duplicate yung record?
+
+
+
+
+STI College Munoz-EDSA                                                                        49
+        Interviewee: May pagkakataon, lalo na kapag maraming information ang
+        naipapasa sa parehong oras at sa parehong files. Kailangan talaga naming i-verify
+        bawat entry para siguradong hindi mag-overlap. Minsan tumatagal ang verification
+        kasi hindi lahat ng data ay available sa iisang lugar.
+
+        Interviewer: Gaano katagal bago niyo ma-verify o ma-update ang record ng isang
+        estudyante kapag may concern?
+
+        Interviewee: Depende sa dami ng students at dami ng information na kailangang
+        i-check. Kung maraming forms at kailangan i-verify sa ibang files, minsan umaabot
+        ng ilang araw bago ma-finalize ang record. Kailangan din i-review ang bawat
+        section para siguradong consistent ang lahat.
+
+        Interviewer: Paano po kayo nakikipag-coordinate sa accounting office at mga guro
+        tungkol sa student data?
+
+        Interviewee: Kadalasan, manual ang coordination. Kapag may issue, tatawag kami
+        sa teacher o staff, minsan kailangan i-email o i-meet para klaruhin ang information.
+        Kailangan pang i-follow up kung may kulang o inconsistent, at minsan kailangan
+        ulitin ang process hanggang sa kumpleto ang data.
+
+        Interviewer: Madalas ba magkaroon ng delay sa pagkuha o pagpapasa ng data like
+        grades, tuition info, enrollment list, etc.?
+
+        Interviewee: Oo, minsan may delay kasi naghihintay kami sa kumpletong forms o
+        approvals mula sa iba’t ibang departments. Kadalasan, kailangan i-double check
+        bago ma-finalize, kaya minsan natatagal ang proseso ng isa o dalawang linggo
+        depende sa dami ng students.
+
+        Interviewer: Ano yung pinakamahirap na process ng coordination sa ibang
+        department?
+
+        Interviewee: Minsan mahirap i-track kung updated na ba ang data ng bawat
+        department, lalo na kapag may pinapasa-pasang forms o schedules. Kailangan i-
+        verify sa bawat step bago ma-finalize ang record. Halimbawa, pag nag-e-encode ng
+        grades, kailangan siguraduhin na kumpleto ang forms at na-review ng teachers bago
+        ma-final.
+
+        Interviewer: Paano po yun ma’am? Kunyari sa teachers po, parang may head po
+        sila, tapos bago yung papasa sa registrar office, parang ganun po ba?
+
+
+
+STI College Munoz-EDSA                                                                         50
+        Interviewee: Oo, may hierarchy pa rin. Pero kahit na na-review na ng principal,
+        kailangan pa rin namin i-check ang bawat entry sa registrar office bago ma-finalize.
+        Minsan, kailangan i-crosscheck ang forms sa manual files, kaya tumatagal ang
+        proseso lalo kapag maraming students.
+
+        Interviewer: Paano niyo dinidistribute ang class schedules?
+
+        Interviewee: Ngayon, manual pa rin. Kailangan i-check ang schedule ng bawat
+        teacher para siguradong walang conflict sa oras at subjects. Kung may conflict,
+        kailangan i-adjust isa-isa, tapos i-inform lahat ng teachers at principals. Kapag
+        maraming subjects at sections, challenging talaga ang process at tumatagal ang
+        finalization.
+
+        Interviewer: Manual po ba yun?
+
+        Interviewee: Oo, mahirap at time-consuming. Kailangan i-review bawat schedule,
+        i-compare sa bawat teacher at section, tapos siguraduhin na walang overlap. Kahit
+        maliit na pagbabago, kailangan i-adjust ang buong schedule para consistent sa lahat.
+
+        Interviewer: May mga chance po ba na nalilito o nadedelay ang mga studyante o
+        guro dahil sa schedule updates?
+
+        Interviewee: Oo, minsan nagkakalituhan lalo kapag may pagbabago sa schedule.
+        Kailangan i-update at ipaalam sa lahat ng teachers at students, tapos i-double check
+        para siguradong consistent sa bawat section. Kapag hindi na-update agad,
+        nagkakaroon ng confusion at delay sa klase.
+
+        Interviewer: Gaano katagal kayong gumagawa ng reports tulad ng enrollment,
+        summer grades, report, or class list?
+
+        Interviewee: Sa grades, karaniwan 3-4 days para ma-encode lahat, tapos may
+        additional time pa para i-review at i-verify ang bawat entry. Kapag maraming
+        students, minsan mas matagal kasi kailangan siguraduhin na consistent at kumpleto
+        ang data bago i-release.
+
+        Interviewer: Yung pwede na pong i-distribute?
+
+        Interviewee: Mga 3-4 weeks bago ma-release kasi kailangan pang i-review ng
+        lahat ng teachers at principal ang final data. Lahat ng tests, quizzes, at exams ay i-
+        encode muna, tapos tinitingnan ulit bago gawing final.
+
+
+STI College Munoz-EDSA                                                                           51
+        Interviewer: Sa enrollment summary?
+
+        Interviewee: Weekly namin kino-check at manu-manong nirerecord kung sino ang
+        nag-enroll at nagpa-reserve sa isang linggo. Kailangan i-update bawat list para
+        siguradong accurate, at minsan tumatagal lalo kapag maraming students ang nag-
+        enroll sabay-sabay.
+        Interviewer: Sa class list naman?
+
+        Interviewee: Dinidiretso manually. Kapag nag-enroll na ang student, saka lang
+        nilalagay sa section. Kailangan siguraduhin na tama ang lahat ng information at
+        consistent sa records, kaya minsan tumatagal lalo kapag maraming students.
+
+        Interviewer: Balik po tayo sa grade reports sa releasing of grades, manual po ba
+        yan o online?
+
+        Interviewee: Manual pa rin. Pupunta ang parents dito para kunin ang card.
+        Kailangan i-check muna ang lahat ng files bago ibigay para siguradong updated at
+        complete ang record ng student.
+
+        Interviewer: Wala po kayong soft copy?
+
+        Interviewee: Meron during pandemic sa Google Classroom, pero ngayon, hard
+        copy talaga ang ginagamit. Kailangan i-prepare isa-isa at siguraduhing consistent
+        sa lahat ng records.
+
+        Interviewer: So yung parents lang po ang may access sa grades?
+
+        Interviewee: Oo, parents lang. Guardian pwede rin kung mas matanda. Hindi
+        binibigyan ang students ng access para i-maintain ang consistency at privacy ng
+        records.
+
+        Interviewer: Ano po ang pinaka-challenge sa sistema ng record management sa
+        registrar office?
+
+        Interviewee: Pinakamahirap ay ang manual na pag-track at pag-update ng lahat ng
+        student information. Kailangan i-check sa maraming files bago maging final, lalo
+        na kapag maraming students at sections. Lahat ng entries ay mano-manong
+        nirereview para siguradong consistent at kumpleto.
+
+        Interviewer: How about sa pag-distribute?
+
+
+STI College Munoz-EDSA                                                                      52
+        Interviewee: Hindi mahirap sa konting students, pero kapag marami, challenging
+        talaga. Kailangan i-prepare at i-review isa-isa para siguradong consistent sa lahat
+        ng sections at teachers.
+
+        Interviewer: Sa pag-e-encode, na-aaccess po ba ng ibang teachers yung files o
+        kayo lang?
+
+        Interviewee: Office lang ang may access. Dalawa lang kami, at kailangan i-review
+        lahat ng steps bago ma-finalize ang record. Kailangan i-check bawat entry para
+        siguradong consistent sa lahat ng files.
+
+        Interviewer: Hindi po kayo sabay?
+
+        Interviewee: Hindi. Isa-isa kami nag-e-encode at nag-aayos, tapos saka ipapasa
+        para sa printing. Kailangan maayos at kumpleto bago ma-finalize, kaya tumatagal
+        talaga.
+
+        Interviewer: Yun lang po Ma’am. Thank you po!
+
+        Interviewee: Thank you rin!
+
+
+
+
+B.3 Finance Office
+
+        Interviewer:             Jade            Michael             D.            Godalle
+        Interviewee: Mrs. Corrine P. Avellanosa
+
+
+
+
+        Interviewer: Paano niyo po nirerecord ang mga tuition at balances sa mga
+        students?
+
+
+        Interviewee: Sa ngayon, manual pa rin kami gamit ang Excel. Lahat ng student
+        balances at payments, nakalagay sa spreadsheet, tapos ini-store namin sa Google
+        Drive para centralized sa amin. Dito nakikita ang lahat ng student data enrollment,
+
+
+STI College Munoz-EDSA                                                                        53
+        payment mode, at balance. Kapag may nag-enroll, ini-encode namin ang details sa
+        sheet, tapos automatic nagkakalculate yung running balance at total enrollment. Sa
+        parehong sheet, nakikita rin namin ang total payment. Kasi connected sa Drive,
+        kahit sino sa finance team na may access, makikita rin agad. Pero kasi manual pa
+        rin lahat, kailangan i-verify at i-update isa-isa, kaya minsan tumatagal lalo kapag
+        maraming students.
+
+
+        Interviewer: Ah, okay po. Parang centralized na siya sa registrar, cashier, at
+        financier?
+
+
+        Interviewee: Oo, tatlo kami ang directly nagma-manage nito, tapos meron din
+        kaming external accountant. So apat ang nakaka-access sa Drive. Pero kahit
+        centralized, manually pa rin i-update at i-check bawat record para siguradong
+        consistent ang lahat.
+
+
+        Interviewer: Tatlo po?
+
+
+        Interviewee: Oo. Dalawa sa amin nagre-record, tapos ang accountant nagdo-
+        double check ng summary. Pero lahat ng data manually pa rin pinapasa at i-verify.
+
+
+        Interviewer: Then, ma’am, madalas po ba kayong makaranas ng errors o delay sa
+        pag-update ng payment record?
+
+
+        Interviewee: Oo, may delay minsan kasi manual ang proseso. Kapag may online
+        payment or on-site payment, kailangan i-update isa-isa sa sheet. Kapag maraming
+        payments sabay-sabay, may delay bago makita sa system ang updated balance ng
+        student. Kadalasan, may time gap sa pag-record ng transaction at sa availability ng
+        data sa spreadsheet.
+
+
+        Interviewer: Ay ma'am, paano po ma-determine na hindi na-update?
+
+
+
+
+STI College Munoz-EDSA                                                                        54
+        Interviewee: Usually, nakikita namin sa statement of account. May mga different
+        modes of payment GCash, BDO, on-site. Pag hindi pa na-update ang payment sa
+        sheet, hindi pa rin reflected sa statement ng student. Minsan tumatagal bago
+        marecord, depende sa processing at pag-update sa Google Drive. Kaya may time
+        lag sa availability ng complete data.
+
+
+        Interviewer: May mga errors po. Ma'am, ano po yung karaniwang dahilan ng
+        discrepancy o pagkakaiba ng records?
+
+
+        Interviewee: Ang common issue talaga ay timing ng pag-update. Kapag may
+        multiple payments sa parehong araw, minsan hindi agad na-update sa sheet ang
+        lahat. Kailangan pa i-crosscheck sa sequence ng transactions. Isa pa, may mga
+        manual checks sa series ng ORs at transactions para siguradong kumpleto ang data.
+        So minsan delayed ang reflection sa summary hanggang ma-verify.
+
+
+        Interviewer: Then ma'am, gano'ng katagal ma-update ang balance ng estudyante
+        pagkatapos mabayad?
+
+
+        Interviewee: Yung on-site payments, usually agad na-update sa same day kasi dito
+        mismo sa office binabayad. Sa online transactions naman, depende sa processing
+        ng bank, usually maximum three days bago fully ma-update sa spreadsheet at
+        statement. Kailangan rin i-verify ang details bago ma-finalize para consistent sa
+        lahat ng reports.
+
+
+        Interviewer: Ay ma'am, paano po yan? Kunyari gusto ng parents makita ulit yung
+        binayaran nila at yung balance nila, papunta pa ba sila dito?
+
+
+        Interviewee: Pwede naman. May monthly statement of account na ibinibigay sa
+        kanila. Nakikita nila doon lahat ng payments at balances. Kapag may discrepancy,
+
+
+
+
+STI College Munoz-EDSA                                                                      55
+        puwede silang mag-email o tumawag para ma-clarify agad. Pero kailangan pa rin
+        i-verify sa records namin bago ma-update ang statement.
+
+
+        Interviewer: May POS po ba kayo, ma'am?
+
+
+        Interviewee: Wala, Excel-based talaga lahat. Walang point-of-sale system ngayon,
+        kaya manual pa rin ang recording at updating ng payments.
+
+
+        Interviewer: So, ma'am, parang anytime, makikita ng parents ang status nila?
+
+
+        Interviewee: Hindi agad. May monthly schedule kami ng statement updates. Kaya
+        kadalasan, nag-aantay muna sila ng monthly statement para makita ang current
+        balance at payments.
+
+
+        Interviewer: Gano'ng kadalas nagtatanong ang mga magulang at estudyante
+        tungkol sa tuition balance o payment status?
+
+
+        Interviewee: Mostly monthly, kapag may statement of account. May mga parents
+        rin na mas proactive, nagche-check ng payment online, pero karamihan naghihintay
+        muna ng official statement para makita ang full details.
+
+
+        Interviewer: Ano ang karaniwang paraan ng pagbibigay nyo ng updates, text,
+        printed statements, or in-person?
+
+
+        Interviewee: May messaging system kami para automatic makapag-notify kapag
+        may statement. Pero may printed statement din na ibinibigay monthly. Lalo na sa
+        mga parents na mas comfortable sa printed copy, parang mas madaling ma-verify
+        nila. May iba rin pumupunta para personal check.
+        Interviewer: I-email lang po talaga? Wala po kayong messenger?
+
+
+        Interviewee: May email at messaging, pero mas madalas na-print out. Kasi dati,
+
+
+
+STI College Munoz-EDSA                                                                     56
+        email lang, minsan hindi nababasa ng parents, lalo na yung lola't lolo. Kaya mas
+        maayos na may physical copy.
+
+
+        Interviewer: Ma'am, may mga pagkakataon ang updates kaya nagkakaroon ng
+        misunderstanding sa payment?
+
+
+        Interviewee: Oo, minsan may confusion. Pag may transactions na hindi pa fully
+        na-update sa sheet, may parents na nagtatanong kung na-record na. Kailangan
+        naming i-verify ang data sa spreadsheet bago ma-finalize.
+
+
+        Interviewer: Anong klaseng errors po yung nae-encounter niyo, ma'am?
+
+
+        Interviewee: Yung mga delay sa pag-record ng payments at hindi agad na-update
+        sa statement. Pag automatic at real-time, agad lalabas ang updated balance at
+        transaction history.
+
+
+        Interviewer: Paano niyo po ginagawa mga financial reports tulad ng payment
+        summaries, outstandings, balances?
+
+
+        Interviewee: Excel-based din. May Statement of Account kami, balance sheets, at
+        summary per section at grade level. Ina-update daily ang payments, tapos may
+        outstanding balances na nakalista. Binibigyan rin ng copy ang teachers para
+        makatulong sa follow-up. May external accountant din na nag-summarize ng total
+        financial statement, pero manual pa rin ang proseso.
+
+
+        Interviewer: Gano'n po katagal yan, ma'am? Estimated lang po.
+
+
+        Interviewee: Daily kami nag-uupdate. May weekly summary, tapos monthly
+        reports. So araw-araw may review at update, tapos weekly at monthly check sa
+        external accountant. Pero bawat step, manual pa rin, kaya time-consuming.
+
+
+
+
+STI College Munoz-EDSA                                                                     57
+        Interviewer: Ma'am, paano po kayo nakipag-coordinate sa registrar o admin kapag
+        may updates sa enrollment or payment data?
+
+
+        Interviewee: Google Drive ang ginagamit namin. Pwede agad makita ng registrar
+        ang total balances. Lalo na kapag exam at may card release, kailangan ma-check
+        kung may outstanding payments bago ma-release. Kung hindi updated, puwedeng
+        ma-delay yung card release.
+
+
+        Interviewer: May tanong po pala ako sa grades, pag release po ba ng card, required
+        na bayad na yung estudyante?
+
+
+        Interviewee: Oo, required na bayad bago ma-release ang card. Ito ang pang-hold
+        ng school.
+
+
+        Interviewer: May mga chance bang nagkakaroon ng problema sa synchronization
+        ng data sa ibang department?
+
+
+        Interviewee: Wala naman major, kasi centralized sa akin lahat ng payments. Pero
+        minsan, kapag may delay sa update, puwedeng magkaroon ng problema sa
+        registrar, halimbawa, hindi updated ang balance sa card release.
+        Interviewer: Then ma'am, last question po. Ano ang mga challenges na gusto
+        niyong mawala kung magkakaroon ng automated financial system?
+
+
+        Interviewee: Madami. Gusto ko maiwasan ang delays sa pag-update, magkaroon
+        ng transparency sa parents, at ma-monitor agad ang payments. Lalo na kapag
+        marami na kaming students 500 plus na ngayon. Kasama rin yung books, uniforms,
+        supplies. Iba’t ibang payment modes. Kung automated, mabilis na makaka-generate
+        ng reports, maayos ang tracking ng enrollment count at payments, at mas efficient
+        ang daily work ko.
+
+
+        Interviewer: Like, ma'am, iisa-isa yun yung hahanapin pa?
+
+
+
+STI College Munoz-EDSA                                                                       58
+        Interviewee: Oo, isa-isa. Kaya sobrang busy kapag enrollment. Kapag automated,
+        immediate na lalabas lahat ng details, ORs, history ng payments, previous year info,
+        delinquent or not. Mas madali at mas efficient.
+
+
+        Interviewer: Okay na po, ma'am. Thank you.
+
+
+B.4 Teacher
+
+        Interviewer:             Jade            Michael             D.            Godalle
+        Interviewee: Mrs. Fe Mercedes M. Cavitt
+
+
+        Interviewer: Paano ninyo kasalukuyang nirerecord ang attendance ng mga
+        estudyante?
+
+
+        Interviewee: Ah, ngayon po, manual pa rin talaga. Gumagamit kami ng attendance
+        sheets na printed. Kada pasok sa classroom, dala namin yung sheet tapos isa-isa
+        naming tine-tick kung sino ang present. Medyo matrabaho lalo na sa unang period
+        kasi kailangan talagang i-check. Minsan inaabot pa bago makumpleto, lalo na
+        kapag may mga late.
+        Interviewer: Ah okay, manual po?
+
+
+        Interviewee: Oo, manual talaga. At dahil papel, kailangan pang ilipat-lipat minsan
+        nasa classroom, minsan naiipon sa adviser’s table bago ma-process.
+
+
+        Interviewer: May times po ba na nagkakaroon ng errors or delays sa pag-submit
+        ng attendance?
+
+
+        Interviewee: Nagkakaroon ng delay kapag maraming klase sa isang araw. Yung
+        attendance sheet kasi kailangan pang i-collect at i-review, lalo na kung may excused
+        o may follow-up. Dahil hiwa-hiwalay yung sheets per section, medyo tumatagal
+
+
+
+
+STI College Munoz-EDSA                                                                         59
+        bago ma-compile. Hindi naman malaki ang delay, pero mabagal yung flow dahil
+        bawat update nililipat pa sa ibang record.
+
+
+        Interviewer: Ma'am, ano ang mga dahilan kung bakit minsan naging mahirap i-
+        manage ang attendance logs?
+
+
+        Interviewee: Mahirap siya kapag marami kang hawak na klase. Kahit familiar ka
+        na sa students, kailangan mo pa ring isa-isahin lalo na pag may absent o bagong
+        transfer. Tapos dahil papel lahat, kailangan mo pang i-store nang maayos. Kapag
+        may hinahanap na past attendance, babalikan mo pa yung lumang sheets, kaya
+        natatagalan talaga.
+
+
+        Interviewer: Ma'am, gaano po kahalaga sa inyo na real-time makita ng school at
+        ng magulang ang attendance ng bata?
+
+
+        Interviewee: Importante po, lalo na para sa parents. May mga bata kasi na
+        pumapasok pero hindi agad nalalaman ng magulang kung anong oras sila dumating.
+        At may mga students din na minsan lumiliban. Kung real-time, mas mabilis yung
+        coordination, at mas nakakatulong siya sa safety ng bata.
+
+
+        Interviewer: Ma'am, paano niyo po karaniwang sinasubmit ang grades sa
+        registrar?
+
+
+        Interviewee: May deadlines po kami. Pero bago ma-submit, dadaan pa sa
+        encoding, checking, at computation. Yung grades kasi nakahiwalay written works,
+        performance tasks, exams kaya kailangan pang pagsama-samahin. Kapag
+        maraming students, tumatagal talaga bago maging final yung records.
+
+
+        Interviewer: Gumagamit po ba kayo ng tools tulad ng Excel para isubmit sa
+        registrar?
+
+
+
+
+STI College Munoz-EDSA                                                                    60
+        Interviewee: Oo, gumagamit kami ng Excel. Pero hindi lahat agad na-eencode kasi
+        hindi naman kami laging nasa computer. Madalas sinusulat muna sa papel habang
+        nasa classroom, tapos lumilipat na lang sa Excel kapag nasa faculty na. Kaya parang
+        doble trabaho pa rin.
+
+
+        Interviewer: So ma'am, wala pong case na na-delay yung paper submission sa
+        registrar?
+
+
+        Interviewee: Meron pa rin minsan, lalo na kapag may revisions o may kulang pa
+        sa requirements. Hindi naman sobrang late pero naaapektuhan yung bilis ng
+        finalization kasi kailangan munang kompletuhin lahat bago isumite.
+
+
+        Interviewer: Paano po kung late na talaga ang submission?
+
+
+        Interviewee: Kapag late, mas maraming naaapektuhan kasi naka-depende yung
+        reports ng admin sa grades namin. Sa deliberation pa lang, matagal na ang
+        checking. Pag marami yung students, mas matagal pa bago matapos kaya may mga
+        pagkakataon na halos dikit sa deadline yung submission.
+
+
+        Interviewer: Ma'am, nahihirapan ba kayo mag-update ng student records kapag
+        nagkakaroon ng revisions?
+
+
+        Interviewee: Oo, lalo na kung revisions galing sa FAPE o admin. Maraming
+        kailangan i-update names, sections, requirements. Dahil hiwa-hiwalay yung copies
+        sa adviser, subject teachers, at registrar, isa-isang ina-adjust para pare-pareho.
+        Kapag may kulang pang dokumento, balik na naman sa manual checking.
+
+
+        Interviewer: Paano po kayo karaniwang nakikipag-ugnayan sa mga magulang
+        tungkol sa performance ng estudyante?
+
+
+
+
+STI College Munoz-EDSA                                                                        61
+        Interviewee: Mostly sa PTA or conferences. Pero kung may urgent, tinatawagan
+        namin. Ang challenge lang, minsan matagal bago maiparating yung information
+        dahil sa schedules ng parents at teachers.
+
+
+        Interviewer: Ano sa palagay nyo ang pinaka-challenges sa current system ng
+        record keeping?
+
+
+        Interviewee: Sa ngayon, yung dami ng papeles at records talaga ang mabigat. Iba-
+        iba ang documents attendance, grades, requirements, behavior notes. Pag may
+        kailangan ang admin o parent, hahanapin mo pa kung nasaan yung specific file.
+        Minsan nasa classroom, minsan nasa faculty. At kapag marami kang sections, mas
+        matagal yung paghanap at pag-ayos ng data. Hindi naman dahil may maling
+        ginawa, pero dahil sa dami ng hawak na records, mabigat talaga sa oras at proseso.
+
+
+
+
+B.5 Security Guard
+
+        Interviewer: Jade Michael D. Godalle
+
+        Interviewee: Mr. Davey
+
+        Interviewer: Paano niyo nalalaman kung sino na ang mga estudyante sa school, lalo na sa
+        umaga, at kung sino ang wala pa?
+
+
+        Interviewee: Nakikita ko lang sila sa gate habang pumapasok. Isa-isa ko tinitingnan kung
+        sino ang andun na at sino pa yung wala. Minsan, kapag marami, medyo mahirap i-track
+        lahat agad kasi sabay-sabay din pumapasok yung iba.
+
+
+        Interviewer: May record ba kayo kung anong oras pumasok ang isang estudyante, o naka-
+        base lang kayo sa obserbasyon?
+
+
+
+
+STI College Munoz-EDSA                                                                             62
+        Interviewee: Observation lang talaga. Wala kaming exact record ng oras, kaya minsan
+        nakadepende lang sa mata ko kung sino ang dumating. Kung gusto ko i-note, kailangan ko
+        pang isulat manually sa notebook, pero kapag busy sa gate, kadalasan hindi ko na agad
+        nasusulat.
+
+
+        Interviewer: Kapag dumating ang mga service gaya ng tricycle o school van, paano niyo
+        tinitiyak na tama ang mga batang sinasakay nila, lalo na kapag sabay-sabay?
+
+
+        Interviewee: Tatanungin ko muna yung driver at iche-check kung tama yung pangalan ng
+        bata sa listahan. Kapag sabay-sabay ang mga service, medyo nagkakagulo, kaya pinapila
+        ko sila at tinatawag isa-isa yung bata para siguradong tama.
+
+
+        Interviewer: Kapag may bagong driver o pinalitang service, paano niyo chine-check kung
+        authorized silang kumuha ng bata?
+
+
+        Interviewee: Tinitignan ko muna sa list sa admin kung nakalista sila. Kung wala, hindi ko
+        pinapayagang sumakay yung bata. Kailangan talaga ma-verify para maiwasan yung
+        problema sa parents o sa school.
+
+
+        Interviewer: Paano niyo nalalaman kung nakauwi na o na-pick up na ang bata, at paano
+        niyo pinapaalam sa admin o teacher?
+
+
+        Interviewee: Tinitingnan ko kung sumakay na yung bata sa tricycle o van. Kapag marami
+        sabay-sabay, minsan medyo nakakalito, kaya kailangan ko i-check isa-isa. Pagkatapos,
+        sinasabi ko sa admin o teacher kung sino na ang nakalabas o nasundo, minsan nililista rin
+        sa logbook para may reference.
+
+
+        Interviewer: May mga pagkakataon ba na nag-aalala ang magulang kung nakauwi na ang
+        bata, at madali ba silang ma-update?
+
+
+        Interviewee: Oo, madalas tumatawag o nagte-text sila para siguraduhin na safe yung anak
+        nila. Kadalasan kailangan ko pang hanapin sa logbook at sabihin sa kanila isa-isa kasi
+        walang ibang record na mabilis makita.
+
+
+
+STI College Munoz-EDSA                                                                              63
+        Interviewer: Kapag may event o emergency, paano niyo nalalaman kung sino pa ang nasa
+        loob ng school?
+
+
+        Interviewee: Kailangan ko i-check isa-isa yung mga bata para malaman kung sino ang
+        andun at sino ang wala. Medyo matagal minsan kasi maraming bata at maraming service
+        ang sabay-sabay dumating.
+
+
+        Interviewer: Sa tingin niyo, ano ang pinakamalaking dahilan kung bakit minsan matagal
+        ang dismissal process, at paano niyo gustong ma-improve ang sistema?
+
+
+        Interviewee: Minsan, dahil sabay-sabay dumadating ang mga service at manual pa rin ang
+        pag-check ng bawat bata, natatagal ang proseso. Siguro mas maayos kung mas maayos
+        yung coordination sa gate at may paraan para mas malinaw kung sino ang sinundo na at
+        sino pa ang naghihintay.
+
+
+
+
+STI College Munoz-EDSA                                                                           64
+                         APPENDIX C.
+
+
+
+
+STI College Munoz-EDSA                 65
+                                                      Curriculum Vitae of
+                                         Jade Michael D. Godalle
+            28 Sitio Barimbao, Tandang Sora, Quezon City, Metro Manila, Philippines
+                                   godallejade69@gmail.com
+                                          09637425619
+
+
+                                        EDUCATIONAL BACKGROUND
+             Level                      Inclusive Dates  Name of school/ Institution
+            Tertiary                   September 2022 -  STI College Munoz-EDSA
+                                            Present
+   Vocational/Technical                      N/A
+      High School                     June 2016 - March  Bulan National High School
+                                             2022
+          Elementary                  June 2010 - March Bulan North Central School - B
+                                             2016
+
+
+PROFESSIONAL OR VOLUNTEER EXPERIENCE
+                  Nature of Experience/                                     Name and Address of Company or
+  Inclusive Dates
+                        Job Title                                                    Organization
+       N/A                N/A                                                           N/A
+
+
+
+Listed in reverse chronological order (most recent first).
+
+
+
+AFFILIATIONS
+ Inclusive Dates                    Name of Organization                               Position
+      N/A                                   N/A                                         N/A
+
+
+
+Listed in reverse chronological order (most recent first).
+
+
+
+SKILLS
+           SKILLS                              Level of Competency                     Date Acquired
+ Basic Programming                           Conscious Competence                       Year 2022
+
+
+
+
+TRAININGS, SEMINARS, OR WORKSHOPS ATTENDED
+ Inclusive Dates Title of Training, Seminar, or Workshop
+    Year 2025    Beyond Firewalls: Strengthening People and Systems for a Secured
+                 Digital Future
+    Year 2023    Tagisan ng Taleno - Codefest
+
+
+
+
+STI College Munoz-EDSA                                                                                       66
+                                                      Curriculum Vitae of
+                                          Edson John R. Solitario
+             34 Union Ext., Barangay Culiat, Quezon City, Metro Manila, Philippines
+                                 edsonsolitario246@gmail.com
+                                         09951648943
+
+
+                                        EDUCATIONAL BACKGROUND
+             Level                      Inclusive Dates  Name of school/ Institution
+            Tertiary                   September 2022 -  STI College Munoz-EDSA
+                                            Present
+   Vocational/Technical                      N/A
+      High School                     June 2013 - March    STI College of Ormoc
+                                             2022
+          Elementary                  June 2007 - March  New Era Elementary School
+                                             2013
+
+
+PROFESSIONAL OR VOLUNTEER EXPERIENCE
+                  Nature of Experience/                                     Name and Address of Company or
+  Inclusive Dates
+                        Job Title                                                    Organization
+       N/A                N/A                                                           N/A
+
+
+
+Listed in reverse chronological order (most recent first).
+
+
+
+AFFILIATIONS
+ Inclusive Dates                    Name of Organization                               Position
+      N/A                                   N/A                                         N/A
+
+
+
+Listed in reverse chronological order (most recent first).
+
+
+
+SKILLS
+           SKILLS                              Level of Competency                     Date Acquired
+ Preventive Maintenance                      Conscious Competence                       Year 2022
+
+
+
+
+TRAININGS, SEMINARS, OR WORKSHOPS ATTENDED
+ Inclusive Dates Title of Training, Seminar, or Workshop
+    Year 2025    Beyond Firewalls: Strengthening People and Systems for a Secured
+                 Digital Future
+
+
+
+
+STI College Munoz-EDSA                                                                                       67
+                                                      Curriculum Vitae of
+                                           Francis Jay D. Raagas
+                     370 Lucas Cuadra, Caloocan City, Metro Manila, Philippines
+                                   francisraagas44@gmail.com
+                                           09614066285
+
+
+                                        EDUCATIONAL BACKGROUND
+             Level                      Inclusive Dates      Name of school/ Institution
+            Tertiary                   September 2022 -      STI College Munoz-EDSA
+                                            Present
+   Vocational/Technical                      N/A
+      High School                     June -2016 - March Ismael Mathay Senior High School
+                                             2022
+          Elementary                  June 2010 - March    Sta. Quiteria Elementary School
+                                             2016
+
+
+PROFESSIONAL OR VOLUNTEER EXPERIENCE
+                  Nature of Experience/                                     Name and Address of Company or
+  Inclusive Dates
+                        Job Title                                                    Organization
+       N/A                N/A                                                           N/A
+
+
+
+
+AFFILIATIONS
+ Inclusive Dates                    Name of Organization                               Position
+      N/A                                   N/A                                         N/A
+
+
+
+Listed in reverse chronological order (most recent first).
+
+
+
+SKILLS
+           SKILLS                              Level of Competency                     Date Acquired
+ Basic Programming                           Conscious Competence                       Year 2022
+                                                                                        month year
+                                                                                        month year
+
+
+TRAININGS, SEMINARS, OR WORKSHOPS ATTENDED
+ Inclusive Dates Title of Training, Seminar, or Workshop
+    Year 2025    Beyond Firewalls: Strengthening People and Systems for a Secured
+                 Digital Future
+
+
+
+
+STI College Munoz-EDSA                                                                                       68
+                                      Curriculum Vitae of
+                         Laurence Emmanuel M. Supangan
+   38 San Jose, Barangay San Antonio, S.F.D.M, Quezon City, Metro Manila, Philippines
+                             laurencesupangan@gmail.com
+                                      09217871567
+
+
+                             EDUCATIONAL BACKGROUND
+          Level              Inclusive Dates    Name of school/ Institution
+         Tertiary           September 2022 -     STI College Munoz-EDSA
+                                 Present
+  Vocational/Technical            N/A
+     High School           June 2016 - March    San Francisco High School
+                                  2022
+        Elementary         June 2010 - March Esteban Abada Elementary School
+                                  2016
+
+
+PROFESSIONAL OR VOLUNTEER EXPERIENCE
+                  Nature of Experience/                     Name and Address of Company or
+  Inclusive Dates
+                         Job Title                                   Organization
+    Year 2021     Social Media Manager                        Barangay San Antonio Hall
+
+
+
+
+AFFILIATIONS
+ Inclusive Dates          Name of Organization                         Position
+      N/A                         N/A                                   N/A
+
+
+
+
+SKILLS
+           SKILLS                 Level of Competency                  Date Acquired
+ Basic Programming              Conscious Competence                    Year 2022
+ Photo Editing                  Conscious Competence                    Year 2022
+ Video Editing                  Conscious Competence                    Year 2022
+
+
+TRAININGS, SEMINARS, OR WORKSHOPS ATTENDED
+ Inclusive Dates Title of Training, Seminar, or Workshop
+    Year 2025    Beyond Firewalls: Strengthening People and Systems for a Secured
+                 Digital Future
+    Year 2025    Catholic Youth Leaders Conference
+    Year 2024    Catholic Social Teachings
+
+
+
+
+STI College Munoz-EDSA                                                                       69
+STI College Munoz-EDSA   70
+

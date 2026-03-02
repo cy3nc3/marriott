@@ -1,0 +1,46 @@
+        handle ng tuition, paano nagva-verify ng student records. Kasi kapag consistent ang
+        process, mas mabilis maayos ang error, mas mabilis ma-access ang info, at mas
+        maiiwasan ang conflicts sa data. Mas mapapabilis ang trabaho at maiiwasan ang
+        hassle sa lahat.
+
+
+
+
+B.2 Registrar’s Office
+
+        Interviewer: Jade Michael D. Godalle
+        Interviewee: Mrs. Jocelyn M. Cleofe
+
+
+        Interviewer: Paano niyo po mini-maintain at ina-update ng records ng mga
+        students ninyo?
+
+
+        Interviewee: Sa ngayon, manual pa rin kami sa Google Sheets at Excel. Kailangan
+        namin i-update isa-isa ang bawat record, tsaka i-double check rin para siguradong
+        tama ang lahat ng details. Kapag maraming students, tumatagal ang proseso kasi
+        may sections na nagkaka-overlap, kailangan i-verify ang bawat entry at minsan
+        kailangang i-crosscheck sa ibang forms.
+
+        Interviewer: Madalas ba kayong makaranas ng errors o data inconsistency sa
+        records ng students?
+
+        Interviewee: Oo, minsan may inconsistency sa data lalo na kapag maraming
+        updates sa parehong oras. Kadalasan, kailangan i-compare ang entries sa Excel at
+        Google Sheets, tapos siguraduhin na parehong information ang nakalagay sa lahat
+        ng files. Hindi ito agad naayos, kaya minsan tumatagal bago maging final.
+        Interviewer: Included po ba dito yung duplicated entries, late submissions, o
+        miscommunications, ma’am?
+
+        Interviewee: Oo, minsan may overlapping entries, tapos minsan late rin ang
+        submission ng requirements. Halimbawa, yung enrollment forms o proof of
+        residency, minsan dumarating lang after deadline. Kaya minsan delayed din ang
+        pag-update ng records, tapos kailangan i-follow up sa parents at teachers.
+
+        Interviewer: Pero ma’am, may instance na po ba na nag-duplicate yung record?
+
+
+
+
+STI College Munoz-EDSA                                                                        49
+

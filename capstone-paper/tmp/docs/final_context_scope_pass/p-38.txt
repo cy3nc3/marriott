@@ -1,0 +1,52 @@
+REFERENCES
+
+
+Chai, W. C., & Mostafa, S. A. (2021). Bright Kids tuition centre management information
+system. Applied Information Technology and Computer Science, 2(2), 937-957.
+https://doi.org/10.30880/aitcs.2021.02.02.059
+
+Esquivel, J. A., & Esquivel, J. A. (2021). A machine learning based DSS in predicting
+undergraduate freshmen enrolment in a Philippine university. International Journal of
+Computer            Trends        and        Technology,         69(5),        50-54.
+https://doi.org/10.14445/22312803/IJCTT-V69I5P107
+
+Grepon, B. G. S., Baran, N. T., Gumonan, K. M. V., Martinez, A. L. M., & Lacsa, M. L.
+E. (2021). Designing and implementing e-school systems: An information systems
+approach to school management of a community college in Northern Mindanao,
+Philippines. International Journal of Computing Sciences Research, 5(1), 380-392.
+https://doi.org/10.25147/ijcsr.2017.001.1.74
+
+Hussain, J., Rosangliana, D., & Vanlalruata. (2023). Student gross enrolment ratio
+forecasting: A comparative study using statistical method and machine learning.
+International Journal of Information and Education Technology, 13(3), 439-447.
+https://doi.org/10.18178/ijiet.2023.13.3.1824
+
+Kanona, R. M. (2022). Student information management system for Baghdad College of
+Economic Sciences University (SIMS-BC) as: A case study. Journal of Baghdad College
+of          Economic        Sciences         University,        67(1),     316-325.
+https://ojs.baghdadcollege.edu.iq/index.php/BCESUJ/article/view/120
+
+Muller, T., Rudova, H., & Mullerova, Z. (2025). Real-world university course timetabling
+at the International Timetabling Competition 2019. Journal of Scheduling, 28, 247-267.
+https://doi.org/10.1007/s10951-023-00801-w
+
+Navarra, J., & Antonio, E. (2025). Efficient student monitoring and data tracking system.
+Psychology and Education: A Multidisciplinary Journal, 35(8), 848-867.
+https://doi.org/10.70838/pemj.350801
+
+Porlas, A. A. J., Lapatha, L. A., Requillo, S. H., & Tunacao, J. A. (2023). Comparative
+analysis on the efficiency of LIS vis-a-vis SMIS: A case study. American Journal of
+Multidisciplinary Research and Innovation, 2(2). https://doi.org/10.54536/ajmri.v2i2.1299
+
+Wulandari, C. P., & Pinandito, A. (2021). Designing decision support system for midwifery
+students' tuition fees problem. International Journal of Innovation in Enterprise System,
+5(2), 157-171. https://doi.org/10.25124/ijies.v5i02.101
+
+Zulueta, M. C. E., Buno, R. M. V., Dela Cruz, A. C., Sagun, A. J., San Buenaventura, M.
+D., Talidano, A. S., & Cabrera, W. C. (2021). A comparative case study on the challenges
+encountered by Philippine private and public educational institutions with their existing
+management information system. International Journal of Multidisciplinary: Applied
+
+
+STI College Munoz-EDSA                                                                      34
+

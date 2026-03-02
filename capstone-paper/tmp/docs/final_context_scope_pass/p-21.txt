@@ -1,0 +1,39 @@
+study therefore supports the inclusion of forecasting-ready analytics in the administrative
+dashboard model.
+
+Comparative Analysis on the Efficiency of LIS Vis-a-Vis SMIS: A Case Study
+
+Porlas et al. (2023) compared the efficiency of DepEd LIS processes and school-level
+MIS workflows, emphasizing the operational consequences of inconsistent
+synchronization between compliance-oriented and institution-level records. The study
+highlighted that when local school systems do not align cleanly with reporting structures,
+institutions face additional validation burden and inconsistent data interpretation across
+offices.
+
+This finding is highly relevant to MarriottConnect because the system is intentionally
+designed for LIS-aware processing rather than isolated internal encoding. The staged
+model used in the capstone intake, cashier posting, and SF1/LRN-based enrichment
+directly addresses the synchronization challenge discussed by Porlas et al. (2023). The
+source strengthens the justification for treating enrollment data quality and reporting
+alignment as core architectural requirements, not post-processing tasks.
+
+Efficient Student Monitoring and Data Tracking System
+
+Navarra and Antonio (2025) developed and evaluated a web-based student monitoring
+and tracking approach with positive functional and usability outcomes among teachers,
+students, and parents. The study underscored the value of timely visibility, clearer
+communication channels, and improved access to student-related information for both
+institutional actors and families.
+
+For MarriottConnect, this is strongly relevant to stakeholder-facing modules. Appendix
+responses indicate that parents often experience delayed or incomplete updates, while
+offices rely on fragmented communication channels to resolve record issues. Navarra and
+Antonio (2025) supports the system's parent and student portal strategy, where authorized
+users can access updated academic and billing-related information through one secure
+platform rather than informal or delayed communication paths.
+
+
+
+
+STI College Munoz-EDSA                                                                        17
+

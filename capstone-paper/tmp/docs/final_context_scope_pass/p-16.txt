@@ -1,0 +1,41 @@
+        for class-level monitoring.
+    ● Gradebook Validation Module - Review grading completeness, submission status,
+        and correction checkpoints.
+    ● Instructional Analytics Console - Analyze class performance trends, completion
+        alerts, and quarter progress indicators.
+
+The Parents can access the following:
+
+    ● Parent Academic Visibility Module - Access authorized child grades, subject
+        performance, and quarter outcomes.
+    ● Parent Schedule Visibility Module - View child schedules, class timing, and
+        section-related timetable context.
+    ● Parent Billing Visibility Module - Track dues schedules, payment history, and
+        current balance snapshots.
+    ● Parent Notification Module - Receive school announcements, reminders, and
+        response-linked communication updates.
+    ● Parent Analytics Console - Review child-focused academic and billing indicators
+        for timely family decisions.
+
+
+
+The Students can access the following:
+
+    ● Student Academic Records Module - Access own quarter and final grade records
+        under role-scoped permissions.
+    ● Student Schedule Module - View personal class schedules, subject timing, and
+        advisory allocations.
+    ● Student Attendance and Conduct View Module - Review personal attendance and
+        conduct-related status summaries.
+    ● Student Learning Analytics Console - Review personal learning indicators,
+        progress trends, and academic alerts.
+
+The School Administrators (Academic Head/Principal) can access the following:
+
+    ● Academic Lifecycle Management Module - Configure school-year dates, quarter
+        transitions, and implementation controls.
+    ● Curriculum, Section, and Class List Module - Manage subjects, section structures,
+
+
+STI College Munoz-EDSA                                                                    12
+

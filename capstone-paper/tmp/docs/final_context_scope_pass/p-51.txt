@@ -1,0 +1,44 @@
+        Interviewee: Sa Google Drive, nakaset kung sino lang ang pwedeng mag-view o
+        mag-edit. Tinitiyak naming limited lang yung access, at sino ang editor, sino ang
+        viewer. So may kontrol pero kailangan palaging bantayan.
+
+
+        Interviewer: Bakit mahalaga magkaroon ng secure password-protected system
+        para dito?
+
+
+        Interviewee: Para ma-minimize yung risk na may makaka-access ng data na hindi
+        dapat. Importante na alam namin sino lang ang may right mag-edit o mag-view ng
+        file.
+
+
+        Interviewer: Paano naapektohan ng manual process ang productivity ng teachers
+        at staff?
+
+
+        Interviewee: Medyo mabagal talaga, kasi one by one ang process. Mas maraming
+        steps, mas matagal matapos. Pero sa kabilang banda, mas mabusisi. Nakikita mo
+        lahat ng details. Pero kung mas mabilis at organized, mas maraming nagagawa sa
+        parehong oras.
+
+
+        Interviewer: Gaano kayo nakakaranas ng delay sa paggawa ng reports dahil sa
+        disorganized data?
+
+
+        Interviewee: Hindi naman totally disorganized kasi may sariling process kami.
+        Pero syempre, kapag manual, mas matagal ang reporting. Kailangan i-verify lahat
+        ng data bago i-finalize. Kaya minsan, may delays kahit planado ang workflow.
+
+
+        Interviewer: Paano naapektohan ng kakulangan ng automation ang accuracy at
+        timeliness ng data?
+
+
+        Interviewee: Dito nakakaapekto sa speed at accuracy. Kadalasan, mas matagal
+        mag-update, mas prone sa delay, kasi manual pa rin. Kailangan i-double check, i-
+
+
+
+STI College Munoz-EDSA                                                                      47
+

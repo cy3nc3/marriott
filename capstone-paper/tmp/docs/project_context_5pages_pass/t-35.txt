@@ -1,0 +1,40 @@
+Requirements Documentation
+
+The MarriottConnect system is composed of integrated
+modules that operate on shared records to support registrar,
+finance, academic, governance, and stakeholder workflows in
+one centralized environment.
+The Registry and Enrollment module captures intake entries,
+maintains student directory records, and supports SF1 upload
+for learner enrichment and LIS-aligned reconciliation.
+The Cashiering and Finance module handles payment
+posting, ledger movement, transaction history, and billing
+visibility through configurable fee and discount structures.
+The Academic Planning module supports school-year
+controls, curriculum context, section management, schedule
+preparation, and class list coordination.
+The Teacher module provides grading workflows for rubric
+design,
+
+graded
+
+activity
+
+setup,
+
+score
+
+encoding,
+
+draft
+
+preservation, and quarter submission.
+The Student module provides secure personal access to
+schedule and grade information derived from authorized
+records.
+
+STI College Munoz-EDSA
+
+31
+
+

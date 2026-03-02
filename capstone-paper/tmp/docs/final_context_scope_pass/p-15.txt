@@ -1,0 +1,40 @@
+    ● Permanent Records and Archival Module - Maintain historical academic records
+        and document continuity across school years.
+    ● Batch Promotion and Student Departure Module - Process promotion outcomes
+        and departure workflows under registrar controls.
+    ● Registrar Analytics Console - Review intake movement, enrichment status, record-
+        completion indicators, and registrar risk alerts.
+
+The Finance Officer can access the following:
+
+    ● Cashiering and Posting Module - Assess charges, accept payments, and post
+        transactions with immediate balance reflection.
+    ● Student Ledger Management Module - Track debit-credit movement, running
+        balances, and learner-level financial history.
+    ● Transaction Controls Module - Review transaction history and perform authorized
+        void, refund, and reissue actions.
+    ● Billing Schedule and Due Allocation Module - Manage due schedules and map
+        posted payments to outstanding obligations.
+    ● Fee and Remedial Fee Configuration Module - Maintain standard fee definitions
+        and remedial subject fee policies.
+    ● Discount and Scholarship Rules Module - Configure discount policies and apply
+        student-level discount tagging controls.
+    ● Inventory and Ancillary Charges Module - Manage finance-related item catalogs
+        and charge integration in cashier workflows.
+    ● Financial Analytics Console - Monitor collection trends, billing risk indicators,
+        reminder outputs, and daily finance performance.
+
+The Teachers can access the following:
+
+    ● Instructional Schedule Module - Access assigned teaching loads, class timetables,
+        and advisory schedule context.
+    ● Grading and Submission Module - Configure rubrics, create assessments, encode
+        scores, and submit quarter grades.
+    ● Attendance Monitoring Module - Record SF2-aligned attendance statuses linked
+        to subject-assignment context.
+    ● Advisory Conduct Module - Encode conduct indicators and advisory observations
+
+
+
+STI College Munoz-EDSA                                                                    11
+

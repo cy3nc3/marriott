@@ -1,0 +1,41 @@
+integrated parent and finance views where institutional records and stakeholder-facing
+status updates remain synchronized.
+
+Academic scheduling and class-list coordination reveal a similar structural challenge.
+Subject assignments, section constraints, and teacher availability must be reconciled in
+ways that prevent conflicts while preserving instructional continuity. Manual cross-
+checking can complete the task, but it often increases cycle time and revision overhead.
+According to Muller et al. (2025), timetable quality improves when constraints are explicitly
+modeled and resolved systematically, not manually improvised. In Marriott School's
+context, this supports the move toward structured schedule governance where academic
+planning outputs are reliable before dissemination to teachers, students, and parents.
+
+Instructional workflows also require coherent links between attendance, grading, and
+verification stages. If class-level records are maintained in disconnected channels,
+teachers must repeatedly transfer and validate entries before submission, increasing the
+chance of latency and inconsistency. According to Zulueta et al. (2021), socio-technical
+alignment in MIS means process rules and system workflows must evolve together to
+sustain reliability. MarriottConnect addresses this by treating attendance, score encoding,
+grade submission, and verification checkpoints as connected institutional processes
+rather than isolated encoding tasks.
+
+Governance and access control requirements further shape the project context. Schools
+need role boundaries that prevent unauthorized edits while still allowing authorized users
+to access what they need on time. According to Kanona (2022), central database controls
+and role-scoped access are key to protecting information integrity in academic systems.
+The same governance logic is reflected in MarriottConnect through policy-driven access
+controls, audit visibility, and announcement/notification traceability, so transparency is
+achieved without sacrificing operational discipline.
+
+Cross-role communication is another decisive factor in institutional performance. When
+offices and stakeholders rely on ad hoc messaging to confirm record status, coordination
+overhead grows and official channels lose authority. According to Chai and Mostafa
+(2021), integrated web-based school information environments improve communication
+consistency by keeping users connected to one authoritative dataset. This is why
+MarriottConnect pairs transaction modules with structured announcement and notification
+
+
+
+
+STI College Munoz-EDSA                                                                          5
+

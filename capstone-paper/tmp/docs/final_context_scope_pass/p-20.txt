@@ -1,0 +1,38 @@
+A Comparative Case Study on the Challenges Encountered by Philippine Private and
+Public Educational Institutions with their Existing Management Information System
+
+Zulueta et al. (2021) examined real implementation barriers experienced by Philippine
+educational institutions using existing MIS environments. Their findings highlighted
+persistent gaps in process standardization, infrastructure readiness, user adaptation, and
+operational support mechanisms. Rather than focusing only on technical features, the
+study framed MIS effectiveness as a socio-technical issue where organizational workflow
+discipline and system design quality must evolve together.
+
+For MarriottConnect, this study is relevant because the appendices show that current
+delays are not caused by a single office failure but by cross-office coordination friction.
+Zulueta et al. (2021) supports the capstone's staged rollout logic and reinforces the need
+for clear role-specific workflows, consistent operational rules, and adoption-oriented
+implementation practices. It also strengthens the rationale for including governance-
+related controls and maintainability planning, not just transactional modules.
+
+A Machine Learning Based DSS in Predicting Undergraduate Freshmen Enrolment in a
+Philippine University
+
+Esquivel and Esquivel (2021) demonstrated how machine-learning-based decision
+support can transform historical enrollment records into forecasting outputs usable for
+institutional planning. The study showed that data-driven prediction methods can reduce
+reliance on manual trend estimation and improve preparation for upcoming academic
+periods. Its contribution is particularly valuable because it connects routine data storage
+with forward-looking administrative action.
+
+This is directly applicable to MarriottConnect's analytics direction, where enrollment
+trend interpretation is expected to support section planning, staffing preparation, and
+capacity decisions. In the appendices, school leadership noted difficulty producing
+consolidated trend insights from dispersed records; Esquivel and Esquivel (2021)
+provides a methodological bridge from transactional history to planning intelligence. The
+
+
+
+
+STI College Munoz-EDSA                                                                        16
+

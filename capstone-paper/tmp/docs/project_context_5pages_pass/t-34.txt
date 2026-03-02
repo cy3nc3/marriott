@@ -1,0 +1,21 @@
+mobile screen contexts.
+
+5.
+
+Maintainability Requirements
+
+5.1.
+
+The system must support controlled updates to school-year settings, fee
+structures, and role configurations.
+
+5.2.
+
+Core modules must remain maintainable so policy updates and institutional
+enhancements can be integrated without destabilizing existing workflows.
+
+STI College Munoz-EDSA
+
+30
+
+
