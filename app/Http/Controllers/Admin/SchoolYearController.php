@@ -6,13 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\InitializeAcademicYearRequest;
 use App\Http\Requests\Admin\UpdateAcademicYearDatesRequest;
 use App\Models\AcademicYear;
+use App\Models\GradeLevel;
 use App\Models\GradeSubmission;
+use App\Models\Section;
 use App\Models\Setting;
 use App\Services\AuditLogService;
 use App\Services\DashboardCacheService;
 use App\Services\Registrar\BatchPromotionService;
 use App\Services\SystemBackupService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,27 +23,29 @@ class SchoolYearController extends Controller
 {
     public function index(): Response
     {
-        // Priority: 1. Ongoing year, 2. First Upcoming year, 3. Most recent Completed year
-        $currentYear = AcademicYear::where('status', 'ongoing')->first()
-            ?? AcademicYear::where('status', 'upcoming')->orderBy('start_date', 'asc')->first()
-            ?? AcademicYear::orderBy('end_date', 'desc')->first();
+        $this->syncUpcomingYearIfDue();
+
+        $currentYear = AcademicYear::query()
+            ->where('status', 'ongoing')
+            ->orderByDesc('start_date')
+            ->first();
+        $upcomingYear = AcademicYear::query()
+            ->where('status', 'upcoming')
+            ->orderBy('start_date', 'asc')
+            ->first();
 
         $nextYearName = null;
-
-        // Find the absolute latest year record to determine what the 'next' one should be named
-        $latestRecord = AcademicYear::orderBy('end_date', 'desc')->first();
+        $latestRecord = AcademicYear::query()
+            ->orderByDesc('created_at')
+            ->first();
 
         if ($latestRecord) {
-            $years = explode('-', $latestRecord->name);
-            if (count($years) === 2) {
-                $nextStart = (int) $years[0] + 1;
-                $nextEnd = (int) $years[1] + 1;
-                $nextYearName = "{$nextStart}-{$nextEnd}";
-            }
+            $nextYearName = $this->buildNextYearNameFromName($latestRecord->name);
         }
 
         return Inertia::render('admin/academic-controls/index', [
             'currentYear' => $currentYear,
+            'upcomingYear' => $upcomingYear,
             'nextYearName' => $nextYearName,
             'allYears' => AcademicYear::orderBy('start_date', 'desc')->get(),
         ]);
@@ -79,15 +84,25 @@ class SchoolYearController extends Controller
         InitializeAcademicYearRequest $request,
         AuditLogService $auditLogService,
     ): RedirectResponse {
+        $upcomingExists = AcademicYear::query()
+            ->where('status', 'upcoming')
+            ->exists();
+
+        if ($upcomingExists) {
+            return back()->with('error', 'An upcoming school year already exists.');
+        }
+
         $validated = $request->validated();
+        $yearName = $validated['name'];
 
         $academicYear = AcademicYear::query()->create([
-            'name' => $validated['name'],
-            'start_date' => $validated['start_date'],
-            'end_date' => $validated['end_date'],
+            'name' => $yearName,
+            'start_date' => null,
+            'end_date' => null,
             'status' => 'upcoming',
             'current_quarter' => '1',
         ]);
+        $this->seedDefaultSectionsForAcademicYear($academicYear);
 
         $auditLogService->log('academic_year.initialized', $academicYear, null, $academicYear->only([
             'id',
@@ -100,7 +115,7 @@ class SchoolYearController extends Controller
 
         DashboardCacheService::bust();
 
-        return back()->with('success', 'Next school year initialized.');
+        return back()->with('success', "School year {$academicYear->name} initialized as pre-opening.");
     }
 
     public function simulateOpening(
@@ -113,6 +128,10 @@ class SchoolYearController extends Controller
 
         if ($academicYear->status === 'completed') {
             return back()->with('error', 'Completed school years cannot be reopened through simulation.');
+        }
+
+        if (! $academicYear->start_date || ! $academicYear->end_date) {
+            return back()->with('error', 'Set the school year dates before opening the cycle.');
         }
 
         $otherOngoingYearExists = AcademicYear::query()
@@ -182,11 +201,16 @@ class SchoolYearController extends Controller
             ->first();
 
         if (! $targetAcademicYear) {
-            $auditLogService->log('academic_year.close_blocked', $academicYear, null, [
-                'reason' => 'missing_upcoming_school_year',
-            ]);
+            $targetAcademicYear = $this->createUpcomingAcademicYearFrom($academicYear);
 
-            return back()->with('error', 'Cannot close school year without an upcoming school year record.');
+            $auditLogService->log('academic_year.auto_initialized', $targetAcademicYear, null, $targetAcademicYear->only([
+                'id',
+                'name',
+                'status',
+                'start_date',
+                'end_date',
+                'current_quarter',
+            ]));
         }
 
         $pendingVerificationCount = GradeSubmission::query()
@@ -270,5 +294,111 @@ class SchoolYearController extends Controller
     private function isSimulationBlocked(): bool
     {
         return app()->environment('production') || config('app.env') === 'production';
+    }
+
+    private function createUpcomingAcademicYearFrom(AcademicYear $academicYear): AcademicYear
+    {
+        $nextYearName = $this->buildNextYearNameFromName($academicYear->name);
+        if (! $nextYearName) {
+            $nextYearName = "{$academicYear->name}-NEXT";
+        }
+
+        $nextStartDate = null;
+        $nextEndDate = null;
+
+        if ($academicYear->start_date && $academicYear->end_date) {
+            $nextStartDate = Carbon::parse($academicYear->start_date)->addYear()->toDateString();
+            $nextEndDate = Carbon::parse($academicYear->end_date)->addYear()->toDateString();
+        }
+
+        $existingAcademicYear = AcademicYear::query()
+            ->where('name', $nextYearName)
+            ->first();
+
+        if ($existingAcademicYear) {
+            return $existingAcademicYear;
+        }
+
+        $nextAcademicYear = AcademicYear::query()->create([
+            'name' => $nextYearName,
+            'start_date' => $nextStartDate,
+            'end_date' => $nextEndDate,
+            'status' => 'upcoming',
+            'current_quarter' => '1',
+        ]);
+        $this->seedDefaultSectionsForAcademicYear($nextAcademicYear);
+
+        return $nextAcademicYear;
+    }
+
+    private function buildNextYearNameFromName(?string $name): ?string
+    {
+        if (! is_string($name) || preg_match('/^(\d{4})-(\d{4})$/', $name, $matches) !== 1) {
+            return null;
+        }
+
+        $startYear = (int) $matches[1];
+        $endYear = (int) $matches[2];
+
+        if ($endYear !== $startYear + 1) {
+            return null;
+        }
+
+        return ($startYear + 1).'-'.($endYear + 1);
+    }
+
+    private function syncUpcomingYearIfDue(): void
+    {
+        $ongoingYearExists = AcademicYear::query()
+            ->where('status', 'ongoing')
+            ->exists();
+
+        if ($ongoingYearExists) {
+            return;
+        }
+
+        $dueUpcomingYear = AcademicYear::query()
+            ->where('status', 'upcoming')
+            ->whereNotNull('start_date')
+            ->whereDate('start_date', '<=', today()->toDateString())
+            ->orderBy('start_date')
+            ->first();
+
+        if (! $dueUpcomingYear) {
+            return;
+        }
+
+        $dueUpcomingYear->update([
+            'status' => 'ongoing',
+            'current_quarter' => '1',
+        ]);
+
+        DashboardCacheService::bust();
+    }
+
+    private function seedDefaultSectionsForAcademicYear(AcademicYear $academicYear): void
+    {
+        $defaultSectionNames = [
+            'Rizal',
+            'Bonifacio',
+            'Mabini',
+            'Del Pilar',
+            'Luna',
+            'Aguinaldo',
+        ];
+
+        $gradeLevels = GradeLevel::query()
+            ->orderBy('level_order')
+            ->get(['id']);
+
+        foreach ($gradeLevels as $gradeLevel) {
+            foreach ($defaultSectionNames as $sectionName) {
+                Section::query()->updateOrCreate([
+                    'academic_year_id' => $academicYear->id,
+                    'grade_level_id' => $gradeLevel->id,
+                    'name' => $sectionName,
+                ]);
+            }
+        }
     }
 }

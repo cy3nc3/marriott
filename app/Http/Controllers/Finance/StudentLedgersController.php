@@ -48,6 +48,7 @@ class StudentLedgersController extends Controller
         $dateFrom = $validated['date_from'] ?? null;
         $dateTo = $validated['date_to'] ?? null;
         $showPaidDues = $request->boolean('show_paid_dues');
+        $normalizedSearch = strtolower($search);
 
         $students = Student::query()
             ->when($selectedAcademicYearId > 0, function ($query) use ($selectedAcademicYearId) {
@@ -55,12 +56,14 @@ class StudentLedgersController extends Controller
                     $enrollmentQuery->where('academic_year_id', $selectedAcademicYearId);
                 });
             })
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($searchQuery) use ($search) {
+            ->when($search !== '', function ($query) use ($normalizedSearch) {
+                $query->where(function ($searchQuery) use ($normalizedSearch) {
                     $searchQuery
-                        ->where('lrn', 'like', "%{$search}%")
-                        ->orWhere('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%");
+                        ->whereRaw('LOWER(lrn) LIKE ?', ["%{$normalizedSearch}%"])
+                        ->orWhereRaw('LOWER(first_name) LIKE ?', ["%{$normalizedSearch}%"])
+                        ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$normalizedSearch}%"])
+                        ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ["%{$normalizedSearch}%"])
+                        ->orWhereRaw("LOWER(CONCAT(last_name, ' ', first_name)) LIKE ?", ["%{$normalizedSearch}%"]);
                 });
             })
             ->orderBy('last_name')

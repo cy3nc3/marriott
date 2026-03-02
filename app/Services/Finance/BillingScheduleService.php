@@ -34,9 +34,15 @@ class BillingScheduleService
         }
 
         $paymentTerm = $this->normalizePaymentTerm((string) $enrollment->payment_term);
-        $remainingBalance = $this->resolveRemainingBalance($enrollment);
+        $assessmentSummary = $this->resolveAssessmentSummary($enrollment);
 
-        if ($paymentTerm === 'cash' || $remainingBalance <= 0) {
+        if (
+            $paymentTerm === 'cash'
+            || (
+                $assessmentSummary['remaining_balance'] <= 0
+                && $assessmentSummary['downpayment'] <= 0
+            )
+        ) {
             if ($existingSchedules->isNotEmpty()) {
                 BillingSchedule::query()
                     ->where('student_id', $enrollment->student_id)
@@ -47,7 +53,12 @@ class BillingScheduleService
             return;
         }
 
-        $scheduleRows = $this->buildScheduleRows($enrollment, $paymentTerm, $remainingBalance);
+        $scheduleRows = $this->buildScheduleRows(
+            $enrollment,
+            $paymentTerm,
+            $assessmentSummary['remaining_balance'],
+            $assessmentSummary['downpayment']
+        );
 
         BillingSchedule::query()
             ->where('student_id', $enrollment->student_id)
@@ -76,10 +87,25 @@ class BillingScheduleService
         return $paymentTerm;
     }
 
-    private function resolveRemainingBalance(Enrollment $enrollment): float
+    /**
+     * @return array{
+     *     assessment_fee_total: float,
+     *     discount_amount: float,
+     *     net_assessment_total: float,
+     *     downpayment: float,
+     *     remaining_balance: float
+     * }
+     */
+    private function resolveAssessmentSummary(Enrollment $enrollment): array
     {
         if (! $enrollment->grade_level_id) {
-            return 0;
+            return [
+                'assessment_fee_total' => 0.0,
+                'discount_amount' => 0.0,
+                'net_assessment_total' => 0.0,
+                'downpayment' => 0.0,
+                'remaining_balance' => 0.0,
+            ];
         }
 
         $assessmentFeeTotal = $this->resolveAssessmentFeeTotal(
@@ -89,9 +115,16 @@ class BillingScheduleService
         $discountAmount = $this->resolveDiscountAmount($enrollment, $assessmentFeeTotal);
         $netAssessmentFeeTotal = max($assessmentFeeTotal - $discountAmount, 0);
 
-        $downpayment = (float) $enrollment->downpayment;
+        $downpayment = round(max((float) $enrollment->downpayment, 0), 2);
+        $remainingBalance = round(max($netAssessmentFeeTotal - $downpayment, 0), 2);
 
-        return round(max($netAssessmentFeeTotal - $downpayment, 0), 2);
+        return [
+            'assessment_fee_total' => $assessmentFeeTotal,
+            'discount_amount' => $discountAmount,
+            'net_assessment_total' => $netAssessmentFeeTotal,
+            'downpayment' => $downpayment,
+            'remaining_balance' => $remainingBalance,
+        ];
     }
 
     private function resolveAssessmentFeeTotal(int $gradeLevelId, int $academicYearId): float
@@ -158,19 +191,37 @@ class BillingScheduleService
     /**
      * @return array<int, array{description: string, due_date: string, amount_due: float}>
      */
-    private function buildScheduleRows(Enrollment $enrollment, string $paymentTerm, float $remainingBalance): array
-    {
+    private function buildScheduleRows(
+        Enrollment $enrollment,
+        string $paymentTerm,
+        float $remainingBalance,
+        float $downpayment
+    ): array {
         $startDate = Carbon::parse((string) $enrollment->academicYear?->start_date);
         $endDate = Carbon::parse((string) $enrollment->academicYear?->end_date);
+        $normalizedDownpayment = round(max($downpayment, 0), 2);
 
         $firstDueMonth = $startDate->copy()->startOfMonth()->addMonth();
         $finalSchoolMonth = $endDate->copy()->startOfMonth();
+        $scheduleRows = [];
+
+        if ($normalizedDownpayment > 0) {
+            $scheduleRows[] = [
+                'description' => 'Upon Enrollment',
+                'due_date' => $startDate->toDateString(),
+                'amount_due' => $normalizedDownpayment,
+            ];
+        }
+
+        if ($remainingBalance <= 0) {
+            return $scheduleRows;
+        }
 
         $windowMonths = $this->buildWindowMonths($firstDueMonth, $finalSchoolMonth);
         $windowMonthCount = count($windowMonths);
 
         if ($windowMonthCount === 0) {
-            return [];
+            return $scheduleRows;
         }
 
         $installmentCount = match ($paymentTerm) {
@@ -189,8 +240,6 @@ class BillingScheduleService
         $dueMonths = $paymentTerm === 'monthly'
             ? $windowMonths
             : $this->selectAnchoredDueMonths($windowMonths, $installmentCount);
-
-        $scheduleRows = [];
 
         for ($index = 0; $index < count($installmentAmounts); $index++) {
             $dueMonth = $dueMonths[$index];

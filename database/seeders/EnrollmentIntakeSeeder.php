@@ -5,13 +5,13 @@ namespace Database\Seeders;
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
-use App\Models\GradeLevel;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\Finance\BillingScheduleService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -21,7 +21,6 @@ class EnrollmentIntakeSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            AcademicYearSeeder::class,
             GradeLevelSeeder::class,
             SectionSeeder::class,
         ]);
@@ -29,8 +28,18 @@ class EnrollmentIntakeSeeder extends Seeder
         $activeAcademicYear = AcademicYear::query()
             ->where('status', 'ongoing')
             ->orderByDesc('start_date')
-            ->first() ?? AcademicYear::query()->orderByDesc('start_date')->first();
+            ->first();
+
         if (! $activeAcademicYear instanceof AcademicYear) {
+            $activeAcademicYear = AcademicYear::query()
+                ->where('status', 'upcoming')
+                ->orderByDesc('created_at')
+                ->first();
+        }
+
+        if (! $activeAcademicYear instanceof AcademicYear) {
+            $this->command?->warn('No school year found with status ongoing or upcoming. Set one first, then run EnrollmentIntakeSeeder again.');
+
             return;
         }
 
@@ -120,8 +129,19 @@ class EnrollmentIntakeSeeder extends Seeder
         $paymentTerms = ['cash', 'monthly', 'quarterly', 'semi-annual'];
         $nonCashDeposits = [1500.0, 2500.0, 3200.0, 4200.0, 5000.0];
         $billingScheduleService = app(BillingScheduleService::class);
+        $activeYearSections = Section::query()
+            ->where('academic_year_id', $activeAcademicYear->id)
+            ->orderBy('id')
+            ->get();
+        $completedYearSections = $completedAcademicYear instanceof AcademicYear
+            ? Section::query()
+                ->where('academic_year_id', $completedAcademicYear->id)
+                ->orderBy('id')
+                ->get()
+            : collect();
 
-        $rowIndex = 0;
+        $activeIntakeIndex = 0;
+        $pastYearIntakeIndex = 0;
         foreach ($sf1Rows as $row) {
             $normalizedRow = $this->normalizeSf1Row($row);
             if (! $normalizedRow) {
@@ -136,59 +156,71 @@ class EnrollmentIntakeSeeder extends Seeder
             $student = $this->upsertStudentWithAccounts($normalizedRow);
 
             if (isset($profileOnlyLrns[$lrn])) {
-                $rowIndex++;
-
                 continue;
             }
 
-            $paymentTerm = $paymentTerms[$rowIndex % count($paymentTerms)];
-            $downpayment = $paymentTerm === 'cash'
-                ? 0.0
-                : $nonCashDeposits[$rowIndex % count($nonCashDeposits)];
+            if (isset($pastYearOnlyLrns[$lrn])) {
+                if (
+                    $completedAcademicYear instanceof AcademicYear
+                    && (int) $completedAcademicYear->id !== (int) $activeAcademicYear->id
+                ) {
+                    $pastPaymentTerm = $paymentTerms[$pastYearIntakeIndex % count($paymentTerms)];
+                    $pastDownpayment = $pastPaymentTerm === 'cash'
+                        ? 0.0
+                        : $nonCashDeposits[$pastYearIntakeIndex % count($nonCashDeposits)];
 
-            if (
-                isset($pastYearOnlyLrns[$lrn])
-                && $completedAcademicYear instanceof AcademicYear
-                && (int) $completedAcademicYear->id !== (int) $activeAcademicYear->id
-            ) {
-                $pastEnrollment = $this->upsertEnrollmentForYear(
-                    $student,
-                    $completedAcademicYear,
-                    $normalizedRow['grade_level'],
-                    $normalizedRow['section'],
-                    $paymentTerm,
-                    $downpayment,
-                    'enrolled'
-                );
+                    $pastSection = $this->resolveSectionAssignment(
+                        $completedYearSections,
+                        "{$lrn}|{$completedAcademicYear->id}|past"
+                    );
+                    if ($pastSection instanceof Section) {
+                        $pastEnrollment = $this->upsertEnrollmentForYear(
+                            $student,
+                            $completedAcademicYear,
+                            $pastSection,
+                            $pastPaymentTerm,
+                            $pastDownpayment,
+                            'enrolled'
+                        );
 
-                if ($pastEnrollment instanceof Enrollment) {
-                    $billingScheduleService->syncForEnrollment($pastEnrollment);
+                        if ($pastEnrollment instanceof Enrollment) {
+                            $billingScheduleService->syncForEnrollment($pastEnrollment);
+                        }
+                    }
+
+                    $pastYearIntakeIndex++;
                 }
 
-                $rowIndex++;
-
                 continue;
             }
 
-            $status = ($paymentTerm === 'cash' || $rowIndex % 2 === 0)
-                ? 'for_cashier_payment'
-                : 'partial_payment';
+            $paymentTerm = $paymentTerms[$activeIntakeIndex % count($paymentTerms)];
+            $downpayment = $paymentTerm === 'cash'
+                ? 0.0
+                : $nonCashDeposits[$activeIntakeIndex % count($nonCashDeposits)];
+
+            $activeSection = $this->resolveSectionAssignment(
+                $activeYearSections,
+                "{$lrn}|{$activeAcademicYear->id}|active"
+            );
+            if (! $activeSection instanceof Section) {
+                continue;
+            }
 
             $activeEnrollment = $this->upsertEnrollmentForYear(
                 $student,
                 $activeAcademicYear,
-                $normalizedRow['grade_level'],
-                $normalizedRow['section'],
+                $activeSection,
                 $paymentTerm,
                 $downpayment,
-                $status
+                'for_cashier_payment'
             );
 
             if ($activeEnrollment instanceof Enrollment) {
                 $billingScheduleService->syncForEnrollment($activeEnrollment);
             }
 
-            $rowIndex++;
+            $activeIntakeIndex++;
         }
 
         $this->command?->info('Enrollment intake seeding completed.');
@@ -384,45 +416,36 @@ class EnrollmentIntakeSeeder extends Seeder
     private function upsertEnrollmentForYear(
         Student $student,
         AcademicYear $academicYear,
-        string $gradeLevelName,
-        string $sectionName,
+        Section $section,
         string $paymentTerm,
         float $downpayment,
         string $status
-    ): ?Enrollment {
-        $gradeLevel = GradeLevel::query()
-            ->whereRaw('LOWER(REPLACE(name, \' \', \'\')) = ?', [
-                strtolower(str_replace(' ', '', trim($gradeLevelName))),
-            ])
-            ->first();
-
-        if (! $gradeLevel instanceof GradeLevel) {
-            return null;
-        }
-
-        $section = Section::query()
-            ->where('academic_year_id', $academicYear->id)
-            ->where('grade_level_id', $gradeLevel->id)
-            ->whereRaw('LOWER(name) = ?', [strtolower(trim($sectionName))])
-            ->first();
-
-        if (! $section instanceof Section) {
-            return null;
-        }
-
+    ): Enrollment {
         return Enrollment::query()->updateOrCreate(
             [
                 'student_id' => $student->id,
                 'academic_year_id' => $academicYear->id,
             ],
             [
-                'grade_level_id' => $gradeLevel->id,
+                'grade_level_id' => (int) $section->grade_level_id,
                 'section_id' => $section->id,
                 'payment_term' => $paymentTerm,
                 'downpayment' => $paymentTerm === 'cash' ? 0 : round($downpayment, 2),
                 'status' => $status,
             ]
         );
+    }
+
+    private function resolveSectionAssignment(Collection $sections, string $seed): ?Section
+    {
+        if ($sections->isEmpty()) {
+            return null;
+        }
+
+        $index = (int) sprintf('%u', crc32($seed)) % $sections->count();
+        $section = $sections->values()->get($index);
+
+        return $section instanceof Section ? $section : null;
     }
 
     private function normalizeGender(string $value): string

@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { Printer, Save } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,6 +60,14 @@ interface Props {
         selected_subject_assignment_id: number | null;
         selected_month: string;
         active_school_year: string | null;
+    };
+    feature_lock: {
+        is_locked: boolean;
+        message: string | null;
+    };
+    month_scope: {
+        is_out_of_scope: boolean;
+        message: string | null;
     };
     days: DayColumn[];
     rows: AttendanceRow[];
@@ -164,6 +173,8 @@ function Sf2MarkCell({
 
 export default function TeacherAttendance({
     context,
+    feature_lock,
+    month_scope,
     days,
     rows,
     status_options,
@@ -203,9 +214,15 @@ export default function TeacherAttendance({
         return count;
     }, [rows, days, workingStatuses, initialStatuses]);
 
+    const isFeatureLocked = feature_lock.is_locked;
+    const isMonthOutOfScope = month_scope.is_out_of_scope;
     const hasClasses = context.class_options.length > 0;
     const hasSelectedClass = context.selected_subject_assignment_id !== null;
-    const canEdit = hasSelectedClass && rows.length > 0;
+    const canEdit =
+        !isFeatureLocked &&
+        !isMonthOutOfScope &&
+        hasSelectedClass &&
+        rows.length > 0;
 
     const handleClassChange = (value: string) => {
         if (value === 'class-none') {
@@ -312,7 +329,7 @@ export default function TeacherAttendance({
                                 <Select
                                     value={selectedClassValue}
                                     onValueChange={handleClassChange}
-                                    disabled={!hasClasses}
+                                    disabled={!hasClasses || isFeatureLocked}
                                 >
                                     <SelectTrigger className="w-full sm:w-64">
                                         <SelectValue />
@@ -344,6 +361,7 @@ export default function TeacherAttendance({
                                 <MonthPicker
                                     value={context.selected_month}
                                     onValueChange={handleMonthChange}
+                                    disabled={isFeatureLocked}
                                     className="w-full sm:w-44"
                                 />
                             </div>
@@ -370,6 +388,22 @@ export default function TeacherAttendance({
                         </div>
                     </CardContent>
                 </Card>
+                {isFeatureLocked && feature_lock.message ? (
+                    <Alert>
+                        <AlertTitle>Attendance Unavailable</AlertTitle>
+                        <AlertDescription>
+                            {feature_lock.message}
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
+                {isMonthOutOfScope && month_scope.message ? (
+                    <Alert>
+                        <AlertTitle>Selected Month Is Read Only</AlertTitle>
+                        <AlertDescription>
+                            {month_scope.message}
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
 
                 <Card className="gap-2">
                     <CardHeader className="border-b">
@@ -454,8 +488,9 @@ export default function TeacherAttendance({
                                                 colSpan={days.length + 1}
                                                 className="py-10 text-center text-sm text-muted-foreground"
                                             >
-                                                No enrolled students found for
-                                                this class and month.
+                                                {isMonthOutOfScope
+                                                    ? 'Selected month is outside the school year date range.'
+                                                    : 'No enrolled students found for this class and month.'}
                                             </TableCell>
                                         </TableRow>
                                     ) : (

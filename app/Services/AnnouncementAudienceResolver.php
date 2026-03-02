@@ -268,7 +268,6 @@ class AnnouncementAudienceResolver
     {
         $financeActiveStatuses = [
             'for_cashier_payment',
-            'partial_payment',
             'enrolled',
         ];
 

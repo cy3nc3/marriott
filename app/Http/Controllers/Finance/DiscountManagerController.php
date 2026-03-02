@@ -8,14 +8,18 @@ use App\Http\Requests\Finance\StoreStudentDiscountRequest;
 use App\Http\Requests\Finance\UpdateDiscountRequest;
 use App\Models\AcademicYear;
 use App\Models\Discount;
+use App\Models\Enrollment;
 use App\Models\Student;
 use App\Models\StudentDiscount;
+use App\Services\Finance\BillingScheduleService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DiscountManagerController extends Controller
 {
+    public function __construct(private BillingScheduleService $billingScheduleService) {}
+
     public function index(): Response
     {
         $activeAcademicYear = $this->resolveActiveAcademicYear();
@@ -94,6 +98,16 @@ class DiscountManagerController extends Controller
     ): RedirectResponse {
         $discount->update($request->validated());
 
+        StudentDiscount::query()
+            ->where('discount_id', $discount->id)
+            ->get(['student_id', 'academic_year_id'])
+            ->each(function (StudentDiscount $studentDiscount): void {
+                $this->syncEnrollmentBillingSchedule(
+                    (int) $studentDiscount->student_id,
+                    (int) $studentDiscount->academic_year_id
+                );
+            });
+
         return back()->with('success', 'Discount program updated.');
     }
 
@@ -128,13 +142,17 @@ class DiscountManagerController extends Controller
             'discount_id' => $validated['discount_id'],
             'academic_year_id' => $activeAcademicYear->id,
         ]);
+        $this->syncEnrollmentBillingSchedule((int) $validated['student_id'], (int) $activeAcademicYear->id);
 
         return back()->with('success', 'Student discount tagged.');
     }
 
     public function untagStudent(StudentDiscount $studentDiscount): RedirectResponse
     {
+        $studentId = (int) $studentDiscount->student_id;
+        $academicYearId = (int) $studentDiscount->academic_year_id;
         $studentDiscount->delete();
+        $this->syncEnrollmentBillingSchedule($studentId, $academicYearId);
 
         return back()->with('success', 'Student discount removed.');
     }
@@ -163,5 +181,21 @@ class DiscountManagerController extends Controller
         }
 
         return 'PHP '.number_format($value, 2);
+    }
+
+    private function syncEnrollmentBillingSchedule(int $studentId, int $academicYearId): void
+    {
+        $enrollment = Enrollment::query()
+            ->where('student_id', $studentId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('status', 'for_cashier_payment')
+            ->latest('id')
+            ->first();
+
+        if (! $enrollment) {
+            return;
+        }
+
+        $this->billingScheduleService->syncForEnrollment($enrollment);
     }
 }

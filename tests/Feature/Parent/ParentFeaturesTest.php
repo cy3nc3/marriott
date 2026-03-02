@@ -9,6 +9,7 @@ use App\Models\FinalGrade;
 use App\Models\GradeLevel;
 use App\Models\LedgerEntry;
 use App\Models\Section;
+use App\Models\Setting;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\SubjectAssignment;
@@ -742,6 +743,22 @@ test('parent dashboard route renders linked child analytics', function () {
             ->where('kpis.0.id', 'child-section')
             ->where('trends.1.id', 'upcoming-dues-timeline')
         );
+});
+
+test('parent portal disabled page renders logout action for parent accounts', function () {
+    try {
+        Setting::set('parent_portal', '0', 'system');
+
+        $this->get('/parent/grades')
+            ->assertStatus(403)
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('parent/portal-disabled')
+                ->where('title', 'Parent Portal Disabled')
+                ->where('requested_path', '/parent/grades')
+            );
+    } finally {
+        Setting::set('parent_portal', '1', 'system');
+    }
 });
 
 test('parent dashboard caps upcoming dues timeline to the next four items', function () {

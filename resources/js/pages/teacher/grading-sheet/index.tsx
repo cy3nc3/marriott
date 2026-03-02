@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { CheckCircle2, Plus, Settings2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +82,10 @@ type StudentRow = {
 
 interface Props {
     context: Context;
+    feature_lock: {
+        is_locked: boolean;
+        message: string | null;
+    };
     rubric_weights: RubricWeights;
     grouped_assessments: AssessmentGroup[];
     quarterly_exam_assessment: Assessment | null;
@@ -109,6 +114,7 @@ const asNumber = (value: string): number => {
 
 export default function GradingSheet({
     context,
+    feature_lock,
     rubric_weights,
     grouped_assessments,
     quarterly_exam_assessment,
@@ -118,6 +124,7 @@ export default function GradingSheet({
     can_edit,
 }: Props) {
     const gradingSheetRoute = teacher.grading_sheet;
+    const isFeatureLocked = feature_lock.is_locked;
 
     const statusLabel =
         status === 'submitted'
@@ -370,17 +377,17 @@ export default function GradingSheet({
                     <CardHeader className="border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Class and Subject</CardTitle>
-                                <Badge
-                                    variant={
-                                        status === 'verified'
-                                            ? 'default'
-                                            : status === 'submitted'
-                                              ? 'secondary'
-                                              : status === 'returned'
-                                                ? 'destructive'
-                                                : 'outline'
-                                    }
-                                >
+                            <Badge
+                                variant={
+                                    status === 'verified'
+                                        ? 'default'
+                                        : status === 'submitted'
+                                          ? 'secondary'
+                                          : status === 'returned'
+                                            ? 'destructive'
+                                            : 'outline'
+                                }
+                            >
                                 Status: {statusLabel}
                             </Badge>
                         </div>
@@ -399,6 +406,7 @@ export default function GradingSheet({
                                 <Select
                                     value={selectedSectionValue}
                                     onValueChange={handleSectionChange}
+                                    disabled={isFeatureLocked}
                                 >
                                     <SelectTrigger className="w-full sm:w-56">
                                         <SelectValue />
@@ -427,6 +435,7 @@ export default function GradingSheet({
                                 <Select
                                     value={selectedSubjectValue}
                                     onValueChange={handleSubjectChange}
+                                    disabled={isFeatureLocked}
                                 >
                                     <SelectTrigger className="w-full sm:w-48">
                                         <SelectValue />
@@ -455,6 +464,7 @@ export default function GradingSheet({
                                 <Select
                                     value={context.selected_quarter}
                                     onValueChange={handleQuarterChange}
+                                    disabled={isFeatureLocked}
                                 >
                                     <SelectTrigger className="w-full sm:w-36">
                                         <SelectValue />
@@ -481,7 +491,8 @@ export default function GradingSheet({
                                     variant="outline"
                                     onClick={() => setIsRubricModalOpen(true)}
                                     disabled={
-                                        !context.selected_subject_id || !can_edit
+                                        !context.selected_subject_id ||
+                                        !can_edit
                                     }
                                 >
                                     <Settings2 className="size-4" />
@@ -503,6 +514,14 @@ export default function GradingSheet({
                         </div>
                     </CardContent>
                 </Card>
+                {isFeatureLocked && feature_lock.message ? (
+                    <Alert>
+                        <AlertTitle>Grading Sheet Unavailable</AlertTitle>
+                        <AlertDescription>
+                            {feature_lock.message}
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
 
                 <Card>
                     <CardHeader className="border-b">
@@ -720,64 +739,64 @@ export default function GradingSheet({
                         </div>
                     }
                 >
-                        <div className="grid gap-4">
+                    <div className="grid gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="assessment-title">
+                                Assessment Title
+                            </Label>
+                            <Input
+                                id="assessment-title"
+                                value={assessmentTitle}
+                                onChange={(event) =>
+                                    setAssessmentTitle(event.target.value)
+                                }
+                                placeholder="e.g. Unit Quiz 2"
+                            />
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
-                                <Label htmlFor="assessment-title">
-                                    Assessment Title
+                                <Label>Component</Label>
+                                <Select
+                                    value={assessmentComponent}
+                                    onValueChange={(value) =>
+                                        setAssessmentComponent(
+                                            value as 'WW' | 'PT' | 'QA',
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="WW">
+                                            Written Works
+                                        </SelectItem>
+                                        <SelectItem value="PT">
+                                            Performance Tasks
+                                        </SelectItem>
+                                        <SelectItem value="QA">
+                                            Quarterly Exam
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="assessment-max">
+                                    Max Points
                                 </Label>
                                 <Input
-                                    id="assessment-title"
-                                    value={assessmentTitle}
+                                    id="assessment-max"
+                                    type="text"
+                                    value={assessmentMaxPoints}
                                     onChange={(event) =>
-                                        setAssessmentTitle(event.target.value)
+                                        setAssessmentMaxPoints(
+                                            event.target.value,
+                                        )
                                     }
-                                    placeholder="e.g. Unit Quiz 2"
                                 />
                             </div>
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label>Component</Label>
-                                    <Select
-                                        value={assessmentComponent}
-                                        onValueChange={(value) =>
-                                            setAssessmentComponent(
-                                                value as 'WW' | 'PT' | 'QA',
-                                            )
-                                        }
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="WW">
-                                                Written Works
-                                            </SelectItem>
-                                            <SelectItem value="PT">
-                                                Performance Tasks
-                                            </SelectItem>
-                                            <SelectItem value="QA">
-                                                Quarterly Exam
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="assessment-max">
-                                        Max Points
-                                    </Label>
-                                    <Input
-                                        id="assessment-max"
-                                        type="text"
-                                        value={assessmentMaxPoints}
-                                        onChange={(event) =>
-                                            setAssessmentMaxPoints(
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                </div>
-                            </div>
                         </div>
+                    </div>
                 </ResponsiveFormDialog>
 
                 <ResponsiveFormDialog
@@ -798,56 +817,54 @@ export default function GradingSheet({
                         </div>
                     }
                 >
-                        <div className="grid gap-4">
-                            <div className="grid gap-4 sm:grid-cols-3">
-                                <div className="space-y-2">
-                                    <Label htmlFor="rubric-written">
-                                        Written
-                                    </Label>
-                                    <Input
-                                        id="rubric-written"
-                                        type="text"
-                                        value={rubricForm.ww_weight}
-                                        onChange={(event) =>
-                                            setRubricForm((previousForm) => ({
-                                                ...previousForm,
-                                                ww_weight: event.target.value,
-                                            }))
-                                        }
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="rubric-performance">
-                                        Performance
-                                    </Label>
-                                    <Input
-                                        id="rubric-performance"
-                                        type="text"
-                                        value={rubricForm.pt_weight}
-                                        onChange={(event) =>
-                                            setRubricForm((previousForm) => ({
-                                                ...previousForm,
-                                                pt_weight: event.target.value,
-                                            }))
-                                        }
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="rubric-exam">Exam</Label>
-                                    <Input
-                                        id="rubric-exam"
-                                        type="text"
-                                        value={rubricForm.qa_weight}
-                                        onChange={(event) =>
-                                            setRubricForm((previousForm) => ({
-                                                ...previousForm,
-                                                qa_weight: event.target.value,
-                                            }))
-                                        }
-                                    />
-                                </div>
+                    <div className="grid gap-4">
+                        <div className="grid gap-4 sm:grid-cols-3">
+                            <div className="space-y-2">
+                                <Label htmlFor="rubric-written">Written</Label>
+                                <Input
+                                    id="rubric-written"
+                                    type="text"
+                                    value={rubricForm.ww_weight}
+                                    onChange={(event) =>
+                                        setRubricForm((previousForm) => ({
+                                            ...previousForm,
+                                            ww_weight: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="rubric-performance">
+                                    Performance
+                                </Label>
+                                <Input
+                                    id="rubric-performance"
+                                    type="text"
+                                    value={rubricForm.pt_weight}
+                                    onChange={(event) =>
+                                        setRubricForm((previousForm) => ({
+                                            ...previousForm,
+                                            pt_weight: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="rubric-exam">Exam</Label>
+                                <Input
+                                    id="rubric-exam"
+                                    type="text"
+                                    value={rubricForm.qa_weight}
+                                    onChange={(event) =>
+                                        setRubricForm((previousForm) => ({
+                                            ...previousForm,
+                                            qa_weight: event.target.value,
+                                        }))
+                                    }
+                                />
                             </div>
                         </div>
+                    </div>
                 </ResponsiveFormDialog>
             </div>
         </AppLayout>

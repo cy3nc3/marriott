@@ -51,9 +51,11 @@ type SelectedStudent = {
     lrn: string;
     name: string;
     grade_and_section: string;
+    enrollment_status: string | null;
     payment_plan: string | null;
     stated_downpayment: number;
     remaining_balance: number;
+    assessment_total_before_downpayment: number;
     remedial_case: {
         id: number;
         status: string;
@@ -111,6 +113,17 @@ type CurrentTransactionItem = {
     fee_id: number | null;
     inventory_item_id: number | null;
 };
+
+const buildDownpaymentTransactionItem = (
+    amount: number,
+): CurrentTransactionItem => ({
+    id: 'auto-downpayment',
+    type: 'assessment_fee',
+    description: 'Enrollment Downpayment',
+    amount: Number(amount.toFixed(2)),
+    fee_id: null,
+    inventory_item_id: null,
+});
 
 interface Props {
     students: StudentOption[];
@@ -175,6 +188,8 @@ export default function CashierPanel({
     const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
     const [isIntakesDialogOpen, setIsIntakesDialogOpen] = useState(false);
     const [isRemedialDialogOpen, setIsRemedialDialogOpen] = useState(false);
+    const [intakeSearchQuery, setIntakeSearchQuery] = useState('');
+    const [intakePage, setIntakePage] = useState(1);
 
     const [itemType, setItemType] = useState<
         'assessment_fee' | 'remedial_fee' | 'inventory' | 'custom'
@@ -213,6 +228,52 @@ export default function CashierPanel({
     const totalAmount = useMemo(() => {
         return transactionItems.reduce((sum, item) => sum + item.amount, 0);
     }, [transactionItems]);
+    const intakePageSize = 8;
+
+    const filteredPendingIntakes = useMemo(() => {
+        const normalizedQuery = intakeSearchQuery.trim().toLowerCase();
+
+        if (normalizedQuery === '') {
+            return pending_intakes;
+        }
+
+        return pending_intakes.filter((intake) => {
+            const studentName = intake.student_name.toLowerCase();
+            const lrn = (intake.lrn ?? '').toLowerCase();
+            const gradeAndSection = intake.grade_and_section.toLowerCase();
+
+            return (
+                studentName.includes(normalizedQuery) ||
+                lrn.includes(normalizedQuery) ||
+                gradeAndSection.includes(normalizedQuery)
+            );
+        });
+    }, [intakeSearchQuery, pending_intakes]);
+
+    const intakeTotalPages = useMemo(() => {
+        return Math.max(
+            1,
+            Math.ceil(filteredPendingIntakes.length / intakePageSize),
+        );
+    }, [filteredPendingIntakes.length]);
+
+    const paginatedPendingIntakes = useMemo(() => {
+        const pageStart = (intakePage - 1) * intakePageSize;
+
+        return filteredPendingIntakes.slice(
+            pageStart,
+            pageStart + intakePageSize,
+        );
+    }, [filteredPendingIntakes, intakePage]);
+
+    const intakeRangeStart =
+        filteredPendingIntakes.length === 0
+            ? 0
+            : (intakePage - 1) * intakePageSize + 1;
+    const intakeRangeEnd = Math.min(
+        intakePage * intakePageSize,
+        filteredPendingIntakes.length,
+    );
 
     const assessmentFeeOptions = useMemo(
         () => fee_options.filter((fee) => fee.type === 'assessment_fee'),
@@ -269,6 +330,44 @@ export default function CashierPanel({
     useEffect(() => {
         setSearchSuggestions(baseSearchSuggestions);
     }, [baseSearchSuggestions]);
+
+    useEffect(() => {
+        setIntakePage(1);
+    }, [intakeSearchQuery]);
+
+    useEffect(() => {
+        if (intakePage > intakeTotalPages) {
+            setIntakePage(intakeTotalPages);
+        }
+    }, [intakePage, intakeTotalPages]);
+
+    useEffect(() => {
+        if (!selected_student) {
+            setTransactionItems([]);
+
+            return;
+        }
+
+        const statedDownpayment = Number(selected_student.stated_downpayment);
+        const shouldAutoSetDownpaymentItem =
+            selected_student.enrollment_status === 'for_cashier_payment' &&
+            Number.isFinite(statedDownpayment) &&
+            statedDownpayment > 0;
+
+        if (!shouldAutoSetDownpaymentItem) {
+            setTransactionItems([]);
+
+            return;
+        }
+
+        setTransactionItems([
+            buildDownpaymentTransactionItem(statedDownpayment),
+        ]);
+    }, [
+        selected_student?.id,
+        selected_student?.enrollment_status,
+        selected_student?.stated_downpayment,
+    ]);
 
     useEffect(() => {
         const normalizedQuery = searchQuery.trim();
@@ -582,11 +681,12 @@ export default function CashierPanel({
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-sm text-muted-foreground">
-                                            Remaining Balance
+                                            Total Assessment (Before
+                                            Downpayment)
                                         </p>
                                         <p className="text-lg font-semibold">
                                             {formatCurrency(
-                                                selected_student.remaining_balance,
+                                                selected_student.assessment_total_before_downpayment,
                                             )}
                                         </p>
                                     </div>
@@ -736,6 +836,15 @@ export default function CashierPanel({
                     <DialogHeader>
                         <DialogTitle>Enrollment Intakes Queue</DialogTitle>
                     </DialogHeader>
+                    <div className="space-y-3">
+                        <Input
+                            placeholder="Search student, LRN, or section"
+                            value={intakeSearchQuery}
+                            onChange={(event) =>
+                                setIntakeSearchQuery(event.target.value)
+                            }
+                        />
+                    </div>
                     <div className="rounded-md border">
                         <Table>
                             <TableHeader>
@@ -761,17 +870,19 @@ export default function CashierPanel({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {pending_intakes.length === 0 ? (
+                                {paginatedPendingIntakes.length === 0 ? (
                                     <TableRow>
                                         <TableCell
                                             colSpan={6}
                                             className="py-8 text-center text-sm text-muted-foreground"
                                         >
-                                            No intakes pending cashier payment.
+                                            {pending_intakes.length === 0
+                                                ? 'No intakes pending cashier payment.'
+                                                : 'No intake matches your search.'}
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    pending_intakes.map((intake) => (
+                                    paginatedPendingIntakes.map((intake) => (
                                         <TableRow key={intake.id}>
                                             <TableCell className="pl-6 font-medium">
                                                 {intake.student_name}
@@ -809,6 +920,46 @@ export default function CashierPanel({
                                 )}
                             </TableBody>
                         </Table>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">
+                            Showing {intakeRangeStart}-{intakeRangeEnd} of{' '}
+                            {filteredPendingIntakes.length} entries
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                    setIntakePage((previousPage) =>
+                                        Math.max(previousPage - 1, 1),
+                                    )
+                                }
+                                disabled={intakePage <= 1}
+                            >
+                                Previous
+                            </Button>
+                            <p className="text-sm text-muted-foreground">
+                                Page {intakePage} of {intakeTotalPages}
+                            </p>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                    setIntakePage((previousPage) =>
+                                        Math.min(
+                                            previousPage + 1,
+                                            intakeTotalPages,
+                                        ),
+                                    )
+                                }
+                                disabled={intakePage >= intakeTotalPages}
+                            >
+                                Next
+                            </Button>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

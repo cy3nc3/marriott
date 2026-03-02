@@ -25,6 +25,36 @@ class AttendanceController extends Controller
             ->where('status', 'ongoing')
             ->first()
             ?? AcademicYear::query()->orderByDesc('start_date')->first();
+        $selectedMonth = (string) ($validated['month'] ?? now()->format('Y-m'));
+        $monthStart = Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+        $featureLocked = ! $this->isTeacherAcademicFeatureAvailable($activeAcademicYear);
+        $monthOutOfScope = ! $this->doesMonthOverlapAcademicYear(
+            $monthStart->toDateString(),
+            $monthEnd->toDateString(),
+            $activeAcademicYear
+        );
+        $featureLockMessage = $featureLocked
+            ? $this->resolveFeatureLockMessage($activeAcademicYear, 'Attendance')
+            : null;
+
+        $days = collect(range(1, $monthStart->daysInMonth))
+            ->map(function (int $day) use ($monthStart) {
+                $date = $monthStart->copy()->day($day);
+
+                return [
+                    'date' => $date->toDateString(),
+                    'day' => $date->format('j'),
+                    'weekday' => strtoupper($date->format('D')),
+                ];
+            })
+            ->filter(function (array $dayItem) {
+                return ! in_array((string) $dayItem['weekday'], ['SAT', 'SUN'], true);
+            })
+            ->filter(function (array $dayItem) use ($activeAcademicYear) {
+                return $this->isDateWithinAcademicYear($dayItem['date'], $activeAcademicYear);
+            })
+            ->values();
 
         $classAssignments = SubjectAssignment::query()
             ->with([
@@ -78,25 +108,6 @@ class AttendanceController extends Controller
         if (! in_array($selectedAssignmentId, $allowedAssignmentIds, true)) {
             $selectedAssignmentId = (int) ($classOptions->first()['id'] ?? 0);
         }
-
-        $selectedMonth = (string) ($validated['month'] ?? now()->format('Y-m'));
-        $monthStart = Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth();
-        $monthEnd = $monthStart->copy()->endOfMonth();
-
-        $days = collect(range(1, $monthStart->daysInMonth))
-            ->map(function (int $day) use ($monthStart) {
-                $date = $monthStart->copy()->day($day);
-
-                return [
-                    'date' => $date->toDateString(),
-                    'day' => $date->format('j'),
-                    'weekday' => strtoupper($date->format('D')),
-                ];
-            })
-            ->filter(function (array $dayItem) {
-                return ! in_array((string) $dayItem['weekday'], ['SAT', 'SUN'], true);
-            })
-            ->values();
 
         $selectedAssignment = $classAssignments->firstWhere('id', $selectedAssignmentId);
 
@@ -160,6 +171,16 @@ class AttendanceController extends Controller
                 'selected_month' => $selectedMonth,
                 'active_school_year' => $activeAcademicYear?->name,
             ],
+            'feature_lock' => [
+                'is_locked' => $featureLocked,
+                'message' => $featureLockMessage,
+            ],
+            'month_scope' => [
+                'is_out_of_scope' => $monthOutOfScope,
+                'message' => $monthOutOfScope
+                    ? $this->resolveMonthScopeLockMessage($activeAcademicYear)
+                    : null,
+            ],
             'days' => $days,
             'rows' => $rows,
             'status_options' => Attendance::STATUSES,
@@ -181,6 +202,10 @@ class AttendanceController extends Controller
 
         if (! $assignment?->section) {
             return back()->with('error', 'You can only update attendance for your assigned classes.');
+        }
+        $assignmentAcademicYear = AcademicYear::query()->find($assignment->section->academic_year_id);
+        if (! $this->isTeacherAcademicFeatureAvailable($assignmentAcademicYear)) {
+            return back()->with('error', $this->resolveFeatureLockMessage($assignmentAcademicYear, 'Attendance'));
         }
 
         $monthStart = Carbon::createFromFormat('Y-m', (string) $validated['month'])->startOfMonth();
@@ -208,6 +233,10 @@ class AttendanceController extends Controller
                 return back()->with('error', 'Attendance entry date is outside the selected month.');
             }
 
+            if (! $this->isDateWithinAcademicYear($dateValue, $assignmentAcademicYear)) {
+                return back()->with('error', 'Attendance entry date is outside the configured school year range.');
+            }
+
             if ($status === Attendance::STATUS_PRESENT) {
                 Attendance::query()
                     ->where('subject_assignment_id', $assignment->id)
@@ -232,5 +261,70 @@ class AttendanceController extends Controller
         }
 
         return back()->with('success', 'Attendance saved.');
+    }
+
+    private function isTeacherAcademicFeatureAvailable(?AcademicYear $academicYear): bool
+    {
+        if (! $academicYear) {
+            return false;
+        }
+
+        if ((string) $academicYear->status !== 'ongoing') {
+            return false;
+        }
+
+        if (! in_array((string) $academicYear->current_quarter, ['1', '2', '3', '4'], true)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function resolveFeatureLockMessage(?AcademicYear $academicYear, string $featureLabel): string
+    {
+        if (! $academicYear) {
+            return "{$featureLabel} is unavailable because no active school year is configured.";
+        }
+
+        if ((string) $academicYear->status !== 'ongoing') {
+            return "{$featureLabel} is unavailable during pre-opening. It will be available once the school year is marked as ongoing.";
+        }
+
+        return "{$featureLabel} is unavailable because the current quarter is outside 1st to 4th quarter.";
+    }
+
+    private function doesMonthOverlapAcademicYear(
+        string $monthStartDate,
+        string $monthEndDate,
+        ?AcademicYear $academicYear
+    ): bool {
+        if (! $academicYear?->start_date || ! $academicYear?->end_date) {
+            return true;
+        }
+
+        return $monthEndDate >= (string) $academicYear->start_date
+            && $monthStartDate <= (string) $academicYear->end_date;
+    }
+
+    private function isDateWithinAcademicYear(string $dateValue, ?AcademicYear $academicYear): bool
+    {
+        if (! $academicYear?->start_date || ! $academicYear?->end_date) {
+            return true;
+        }
+
+        return $dateValue >= (string) $academicYear->start_date
+            && $dateValue <= (string) $academicYear->end_date;
+    }
+
+    private function resolveMonthScopeLockMessage(?AcademicYear $academicYear): string
+    {
+        if (! $academicYear?->start_date || ! $academicYear?->end_date) {
+            return 'The selected month is outside the editable attendance range.';
+        }
+
+        $startDateLabel = Carbon::parse((string) $academicYear->start_date)->format('F j, Y');
+        $endDateLabel = Carbon::parse((string) $academicYear->end_date)->format('F j, Y');
+
+        return "The selected month is outside the school year range ({$startDateLabel} to {$endDateLabel}).";
     }
 }

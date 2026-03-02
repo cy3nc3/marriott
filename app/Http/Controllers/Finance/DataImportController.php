@@ -593,7 +593,7 @@ class DataImportController extends Controller
 
         return match ($normalized) {
             'for_cashier_payment' => 'for_cashier_payment',
-            'partial_payment' => 'partial_payment',
+            'partial_payment' => 'for_cashier_payment',
             'enrolled' => 'enrolled',
             default => null,
         };
@@ -785,16 +785,17 @@ class DataImportController extends Controller
 
         $totalPaidInYear = (float) Transaction::query()
             ->where('student_id', $student->id)
-            ->whereBetween('created_at', [
-                "{$academicYear->start_date} 00:00:00",
-                "{$academicYear->end_date} 23:59:59",
-            ])
             ->whereNotIn('status', ['voided', 'refunded', 'reissued'])
+            ->whereHas('ledgerEntries', function ($query) use ($academicYear) {
+                $query
+                    ->where('academic_year_id', $academicYear->id)
+                    ->whereNotNull('credit');
+            })
             ->sum('total_amount');
 
         $newStatus = $totalPaidInYear >= (float) $enrollment->downpayment
             ? 'enrolled'
-            : 'partial_payment';
+            : 'for_cashier_payment';
 
         $enrollment->update(['status' => $newStatus]);
     }

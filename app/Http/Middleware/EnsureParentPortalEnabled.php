@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Setting;
 use Closure;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureParentPortalEnabled
@@ -34,7 +35,15 @@ class EnsureParentPortalEnabled
         $role = $user->role?->value ?? (string) $user->role;
 
         if ($role === 'parent') {
-            abort(403, 'Parent portal is currently disabled.');
+            if (! $request->isMethod('GET') && ! $request->isMethod('HEAD')) {
+                abort(403, 'Parent portal is currently disabled.');
+            }
+
+            return Inertia::render('parent/portal-disabled', [
+                'title' => 'Parent Portal Disabled',
+                'message' => 'Parent portal access is temporarily disabled by system settings.',
+                'requested_path' => '/'.$request->path(),
+            ])->toResponse($request)->setStatusCode(403);
         }
 
         return $next($request);

@@ -12,6 +12,14 @@ use Illuminate\Support\Facades\Hash;
 uses(RefreshDatabase::class);
 
 test('enrollment intake seeder creates intake records with accounts and leaves two manual-enrollment students unseeded', function () {
+    AcademicYear::query()->create([
+        'name' => '2030-2031',
+        'start_date' => '2030-06-01',
+        'end_date' => '2031-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
     $this->seed(EnrollmentIntakeSeeder::class);
 
     $sf1Rows = enrollmentIntakeReadCsvRows(base_path('tests/Fixtures/imports/registrar_sf1_sample.csv'));
@@ -93,8 +101,20 @@ test('enrollment intake seeder creates intake records with accounts and leaves t
         ->first();
 
     expect($activeEnrollment)->not->toBeNull();
-    expect($activeEnrollment?->status)->toBeIn(['for_cashier_payment', 'partial_payment']);
+    expect($activeEnrollment?->status)->toBe('for_cashier_payment');
     expect((string) $activeEnrollment?->payment_term)->toBeIn(['cash', 'monthly', 'quarterly', 'semi-annual']);
+
+    $activeYearPaymentTerms = Enrollment::query()
+        ->where('academic_year_id', $activeAcademicYear?->id)
+        ->where('status', 'for_cashier_payment')
+        ->distinct()
+        ->pluck('payment_term')
+        ->all();
+
+    expect($activeYearPaymentTerms)->toContain('cash');
+    expect($activeYearPaymentTerms)->toContain('monthly');
+    expect($activeYearPaymentTerms)->toContain('quarterly');
+    expect($activeYearPaymentTerms)->toContain('semi-annual');
 
     foreach ($profileOnly as $profileRow) {
         $student = Student::query()
@@ -132,6 +152,25 @@ test('enrollment intake seeder creates intake records with accounts and leaves t
             )->toBeTrue();
         }
     }
+});
+
+test('enrollment intake seeder targets upcoming school year when ongoing year is absent', function () {
+    $upcomingYear = AcademicYear::query()->create([
+        'name' => '2031-2032',
+        'start_date' => null,
+        'end_date' => null,
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $this->seed(EnrollmentIntakeSeeder::class);
+
+    $seededCount = Enrollment::query()
+        ->where('academic_year_id', $upcomingYear->id)
+        ->where('status', 'for_cashier_payment')
+        ->count();
+
+    expect($seededCount)->toBeGreaterThan(0);
 });
 
 /**

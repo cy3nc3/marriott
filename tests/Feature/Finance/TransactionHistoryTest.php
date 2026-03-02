@@ -253,6 +253,62 @@ test('finance transaction history filters by school year', function () {
         );
 });
 
+test('finance transaction history school year filter includes transaction mapped by ledger year', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'upcoming',
+        'current_quarter' => 'pre_opening',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '811122223333',
+        'first_name' => 'Sofia',
+        'last_name' => 'Castro',
+    ]);
+
+    $transaction = Transaction::query()->create([
+        'or_number' => 'OR-SY-LEDGER-1001',
+        'student_id' => $student->id,
+        'cashier_id' => $this->finance->id,
+        'total_amount' => 3000,
+        'payment_mode' => 'cash',
+    ]);
+
+    $transaction->items()->create([
+        'description' => 'Enrollment Downpayment',
+        'amount' => 3000,
+    ]);
+
+    Transaction::query()->whereKey($transaction->id)->update([
+        'created_at' => '2026-03-10 10:00:00',
+        'updated_at' => '2026-03-10 10:00:00',
+    ]);
+
+    LedgerEntry::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'date' => '2026-03-10',
+        'description' => 'Payment (OR-SY-LEDGER-1001)',
+        'debit' => null,
+        'credit' => 3000,
+        'running_balance' => -3000,
+        'reference_id' => $transaction->id,
+    ]);
+
+    $this->get("/finance/transaction-history?academic_year_id={$schoolYear->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/transaction-history/index')
+            ->where('selected_school_year_id', $schoolYear->id)
+            ->has('transactions.data', 1)
+            ->where('transactions.data.0.or_number', 'OR-SY-LEDGER-1001')
+            ->where('summary.count', 1)
+            ->where('filters.academic_year_id', $schoolYear->id)
+        );
+});
+
 test('finance can void a transaction and rollback dues and ledger entries', function () {
     $academicYear = AcademicYear::query()->create([
         'name' => '2025-2026',

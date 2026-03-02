@@ -316,6 +316,155 @@ test('teacher attendance page renders sf2 style attendance rows for subject clas
         );
 });
 
+test('teacher attendance is locked during pre-opening before first quarter starts', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => now()->addDays(7)->toDateString(),
+        'end_date' => now()->addMonths(10)->toDateString(),
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => null,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'ENG7',
+        'subject_name' => 'English 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $this->get('/teacher/attendance')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teacher/attendance/index')
+            ->where('feature_lock.is_locked', true)
+            ->where('context.selected_subject_assignment_id', $assignment->id)
+            ->has('context.class_options', 1)
+            ->has('rows', 0)
+            ->where('feature_lock.message', function ($message): bool {
+                return is_string($message) && str_contains(strtolower($message), 'pre-opening');
+            })
+        );
+});
+
+test('teacher attendance is editable for simulated first quarter even with future start date', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => now()->addDays(7)->toDateString(),
+        'end_date' => now()->addMonths(10)->toDateString(),
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => null,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'ENG7',
+        'subject_name' => 'English 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $this->get('/teacher/attendance')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teacher/attendance/index')
+            ->where('feature_lock.is_locked', false)
+            ->where('context.selected_subject_assignment_id', $assignment->id)
+            ->has('context.class_options', 1)
+        );
+});
+
+test('teacher attendance month outside school year range is read only', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Mabini',
+        'adviser_id' => null,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'SCI7',
+        'subject_name' => 'Science 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $this->get('/teacher/attendance?month=2026-04')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teacher/attendance/index')
+            ->where('feature_lock.is_locked', false)
+            ->where('month_scope.is_out_of_scope', true)
+            ->where('context.selected_subject_assignment_id', $assignment->id)
+            ->has('days', 0)
+            ->where('month_scope.message', function ($message): bool {
+                return is_string($message) && str_contains(strtolower($message), 'outside the school year range');
+            })
+        );
+});
+
 test('teacher can store sf2 attendance statuses and reset a mark back to present', function () {
     $schoolYear = AcademicYear::query()->create([
         'name' => '2025-2026',
@@ -407,6 +556,144 @@ test('teacher can store sf2 attendance statuses and reset a mark back to present
         'enrollment_id' => $enrollment->id,
         'date' => '2026-03-02',
     ]);
+});
+
+test('teacher attendance mutation is blocked during pre-opening', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => now()->addDays(7)->toDateString(),
+        'end_date' => now()->addMonths(10)->toDateString(),
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Mabini',
+        'adviser_id' => null,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'MATH7',
+        'subject_name' => 'Mathematics 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '989999999999',
+        'first_name' => 'Mila',
+        'last_name' => 'Reyes',
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $this->post('/teacher/attendance', [
+        'subject_assignment_id' => $assignment->id,
+        'month' => now()->format('Y-m'),
+        'entries' => [
+            [
+                'enrollment_id' => $enrollment->id,
+                'date' => now()->format('Y-m-d'),
+                'status' => 'absent',
+            ],
+        ],
+    ])->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect(Attendance::query()->count())->toBe(0);
+});
+
+test('teacher attendance mutation is blocked when date is outside school year range', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => null,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'MATH7',
+        'subject_name' => 'Mathematics 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '989999999998',
+        'first_name' => 'Mika',
+        'last_name' => 'Lopez',
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $this->post('/teacher/attendance', [
+        'subject_assignment_id' => $assignment->id,
+        'month' => '2026-04',
+        'entries' => [
+            [
+                'enrollment_id' => $enrollment->id,
+                'date' => '2026-04-15',
+                'status' => 'absent',
+            ],
+        ],
+    ])->assertRedirect()
+        ->assertSessionHas('error', 'Attendance entry date is outside the configured school year range.');
+
+    expect(Attendance::query()->count())->toBe(0);
 });
 
 test('teacher dashboard reports quarter grade completion by class based on locked final grades', function () {
@@ -962,6 +1249,108 @@ test('teacher grading sheet renders rubric assessments and computed grades', fun
         );
 });
 
+test('teacher grading sheet is locked during pre-opening before first quarter starts', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => now()->addDays(10)->toDateString(),
+        'end_date' => now()->addMonths(10)->toDateString(),
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Bonifacio',
+        'adviser_id' => $this->teacher->id,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'SCI7',
+        'subject_name' => 'Science 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $this->get('/teacher/grading-sheet')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teacher/grading-sheet/index')
+            ->where('feature_lock.is_locked', true)
+            ->where('context.has_assignment', true)
+            ->where('can_edit', false)
+            ->has('context.section_options', 1)
+            ->where('context.selected_assignment_id', $assignment->id)
+            ->has('students', 0)
+            ->where('feature_lock.message', function ($message): bool {
+                return is_string($message) && str_contains(strtolower($message), 'pre-opening');
+            })
+        );
+});
+
+test('teacher grading sheet is editable for simulated first quarter even with future start date', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => now()->addDays(10)->toDateString(),
+        'end_date' => now()->addMonths(10)->toDateString(),
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Bonifacio',
+        'adviser_id' => $this->teacher->id,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'SCI7',
+        'subject_name' => 'Science 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $this->get('/teacher/grading-sheet')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teacher/grading-sheet/index')
+            ->where('feature_lock.is_locked', false)
+            ->where('context.has_assignment', true)
+            ->where('can_edit', true)
+            ->where('context.selected_assignment_id', $assignment->id)
+            ->has('context.section_options', 1)
+        );
+});
+
 test('teacher grading sheet actions update rubric add assessments and submit grades', function () {
     $schoolYear = AcademicYear::query()->create([
         'name' => '2025-2026',
@@ -1093,6 +1482,55 @@ test('teacher grading sheet actions update rubric add assessments and submit gra
     ])
         ->assertRedirect()
         ->assertSessionHas('error', 'This class-quarter is already finalized. Return it first before editing scores.');
+});
+
+test('teacher grading sheet assessment mutation is blocked during pre-opening', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => now()->addDays(10)->toDateString(),
+        'end_date' => now()->addMonths(10)->toDateString(),
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Mabini',
+        'adviser_id' => null,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'SCI7',
+        'subject_name' => 'Science 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $this->post('/teacher/grading-sheet/assessments', [
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'type' => 'WW',
+        'title' => 'Quiz 1',
+        'max_score' => 20,
+    ])->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect(GradedActivity::query()->count())->toBe(0);
 });
 
 test('teacher advisory board renders advisory class grades and conduct rows from real records', function () {

@@ -273,10 +273,17 @@ test('admin dashboard forecast remains stable with partial history and zero base
 });
 
 test('admin academic controls actions work', function () {
+    GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+    GradeLevel::query()->create([
+        'name' => 'Grade 8',
+        'level_order' => 8,
+    ]);
+
     $this->post('/admin/academic-controls/initialize', [
         'name' => '2025-2026',
-        'start_date' => '2025-06-01',
-        'end_date' => '2026-03-31',
     ])->assertRedirect();
 
     $academicYear = AcademicYear::query()
@@ -285,6 +292,9 @@ test('admin academic controls actions work', function () {
 
     expect($academicYear)->not->toBeNull();
     expect($academicYear->status)->toBe('upcoming');
+    expect($academicYear->start_date)->toBeNull();
+    expect($academicYear->end_date)->toBeNull();
+    expect(Section::query()->where('academic_year_id', $academicYear->id)->count())->toBe(12);
 
     $this->patch("/admin/academic-controls/{$academicYear->id}/dates", [
         'start_date' => '2025-06-15',
@@ -315,7 +325,7 @@ test('admin academic controls actions work', function () {
     expect(AcademicYear::count())->toBe(0);
 });
 
-test('admin academic controls validation rejects overlaps and invalid date ranges', function () {
+test('admin academic controls validation rejects duplicates and invalid date ranges', function () {
     $existingYear = AcademicYear::query()->create([
         'name' => '2025-2026',
         'start_date' => '2025-06-01',
@@ -325,11 +335,9 @@ test('admin academic controls validation rejects overlaps and invalid date range
     ]);
 
     $this->post('/admin/academic-controls/initialize', [
-        'name' => '2026-2027',
-        'start_date' => '2026-01-01',
-        'end_date' => '2027-03-31',
+        'name' => '2025-2026',
     ])->assertRedirect()
-        ->assertSessionHasErrors(['start_date']);
+        ->assertSessionHasErrors(['name']);
 
     expect(AcademicYear::query()->count())->toBe(1);
 
@@ -338,6 +346,44 @@ test('admin academic controls validation rejects overlaps and invalid date range
         'end_date' => '2026-05-01',
     ])->assertRedirect()
         ->assertSessionHasErrors(['end_date']);
+});
+
+test('admin academic controls initialization requires consecutive school year name', function () {
+    $this->post('/admin/academic-controls/initialize', [
+        'name' => '2025-2027',
+    ])->assertRedirect()
+        ->assertSessionHasErrors(['name']);
+
+    expect(AcademicYear::query()->count())->toBe(0);
+});
+
+test('upcoming school year remains pre-opening when dates are not set', function () {
+    $upcomingYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => null,
+        'end_date' => null,
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $this->get('/admin/academic-controls')->assertSuccessful();
+
+    expect($upcomingYear->fresh()->status)->toBe('upcoming');
+});
+
+test('upcoming school year auto-switches to first quarter on start date', function () {
+    $upcomingYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => now()->subDay()->toDateString(),
+        'end_date' => now()->addMonths(9)->toDateString(),
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $this->get('/admin/academic-controls')->assertSuccessful();
+
+    expect($upcomingYear->fresh()->status)->toBe('ongoing');
+    expect($upcomingYear->fresh()->current_quarter)->toBe('1');
 });
 
 test('simulation actions are blocked in production mode', function () {
@@ -397,14 +443,6 @@ test('admin year close runs batch promotion and creates next year enrollment', f
         'end_date' => '2026-03-31',
         'status' => 'ongoing',
         'current_quarter' => '4',
-    ]);
-
-    $targetYear = AcademicYear::query()->create([
-        'name' => '2026-2027',
-        'start_date' => '2026-06-01',
-        'end_date' => '2027-03-31',
-        'status' => 'upcoming',
-        'current_quarter' => '1',
     ]);
 
     $grade7 = GradeLevel::query()->create([
@@ -473,6 +511,13 @@ test('admin year close runs batch promotion and creates next year enrollment', f
         ->assertRedirect();
 
     expect($sourceYear->fresh()->status)->toBe('completed');
+    $targetYear = AcademicYear::query()
+        ->where('name', '2026-2027')
+        ->first();
+
+    expect($targetYear)->not->toBeNull();
+    expect($targetYear->status)->toBe('upcoming');
+    expect(Section::query()->where('academic_year_id', $targetYear->id)->count())->toBeGreaterThan(0);
 
     $nextEnrollment = Enrollment::query()
         ->where('student_id', $student->id)

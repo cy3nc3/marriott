@@ -37,6 +37,14 @@ class GradingSheetController extends Controller
 
         $selectedQuarter = (string) ($validated['quarter']
             ?? ($activeYear?->current_quarter ?: '1'));
+        if (! in_array($selectedQuarter, ['1', '2', '3', '4'], true)) {
+            $selectedQuarter = '1';
+        }
+
+        $featureLocked = ! $this->isTeacherAcademicFeatureAvailable($activeYear);
+        $featureLockMessage = $featureLocked
+            ? $this->resolveFeatureLockMessage($activeYear, 'Grading sheet')
+            : null;
 
         $teacherAssignments = SubjectAssignment::query()
             ->with([
@@ -223,6 +231,10 @@ class GradingSheetController extends Controller
             }
         }
 
+        if ($featureLocked) {
+            $canEdit = false;
+        }
+
         return Inertia::render('teacher/grading-sheet/index', [
             'context' => [
                 'section_options' => $sectionOptions,
@@ -232,6 +244,10 @@ class GradingSheetController extends Controller
                 'selected_assignment_id' => $selectedAssignment?->id,
                 'selected_quarter' => $selectedQuarter,
                 'has_assignment' => (bool) $selectedAssignment,
+            ],
+            'feature_lock' => [
+                'is_locked' => $featureLocked,
+                'message' => $featureLockMessage,
             ],
             'rubric_weights' => $rubricWeights,
             'grouped_assessments' => [
@@ -275,6 +291,14 @@ class GradingSheetController extends Controller
     public function updateRubric(UpdateGradingRubricRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $activeYear = AcademicYear::query()
+            ->where('status', 'ongoing')
+            ->first()
+            ?? AcademicYear::query()->orderByDesc('start_date')->first();
+
+        if (! $this->isTeacherAcademicFeatureAvailable($activeYear)) {
+            return back()->with('error', $this->resolveFeatureLockMessage($activeYear, 'Grading sheet'));
+        }
 
         $teacherOwnsSubject = TeacherSubject::query()
             ->where('teacher_id', auth()->id())
@@ -306,11 +330,18 @@ class GradingSheetController extends Controller
         $validated = $request->validated();
 
         $subjectAssignment = SubjectAssignment::query()
+            ->with('section:id,academic_year_id')
             ->whereKey($validated['subject_assignment_id'])
             ->whereHas('teacherSubject', function ($query) {
                 $query->where('teacher_id', auth()->id());
             })
             ->firstOrFail();
+        $assignmentAcademicYear = $subjectAssignment->section
+            ? AcademicYear::query()->find($subjectAssignment->section->academic_year_id)
+            : null;
+        if (! $this->isTeacherAcademicFeatureAvailable($assignmentAcademicYear)) {
+            return back()->with('error', $this->resolveFeatureLockMessage($assignmentAcademicYear, 'Grading sheet'));
+        }
 
         $gradeSubmission = GradeSubmission::query()
             ->where('academic_year_id', $subjectAssignment->section?->academic_year_id)
@@ -352,6 +383,12 @@ class GradingSheetController extends Controller
                 $query->where('teacher_id', auth()->id());
             })
             ->firstOrFail();
+        $assignmentAcademicYear = $subjectAssignment->section
+            ? AcademicYear::query()->find($subjectAssignment->section->academic_year_id)
+            : null;
+        if (! $this->isTeacherAcademicFeatureAvailable($assignmentAcademicYear)) {
+            return back()->with('error', $this->resolveFeatureLockMessage($assignmentAcademicYear, 'Grading sheet'));
+        }
 
         $gradeSubmission = GradeSubmission::query()
             ->where('academic_year_id', $subjectAssignment->section?->academic_year_id)
@@ -569,5 +606,35 @@ class GradingSheetController extends Controller
         $componentPercentage = ($studentTotalScore / $totalMaxScore) * 100;
 
         return ($componentPercentage * $componentWeight) / 100;
+    }
+
+    private function isTeacherAcademicFeatureAvailable(?AcademicYear $academicYear): bool
+    {
+        if (! $academicYear) {
+            return false;
+        }
+
+        if ((string) $academicYear->status !== 'ongoing') {
+            return false;
+        }
+
+        if (! in_array((string) $academicYear->current_quarter, ['1', '2', '3', '4'], true)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function resolveFeatureLockMessage(?AcademicYear $academicYear, string $featureLabel): string
+    {
+        if (! $academicYear) {
+            return "{$featureLabel} is unavailable because no active school year is configured.";
+        }
+
+        if ((string) $academicYear->status !== 'ongoing') {
+            return "{$featureLabel} is unavailable during pre-opening. It will be available once the school year is marked as ongoing.";
+        }
+
+        return "{$featureLabel} is unavailable because the current quarter is outside 1st to 4th quarter.";
     }
 }

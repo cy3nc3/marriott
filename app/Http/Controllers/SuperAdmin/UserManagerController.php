@@ -83,7 +83,10 @@ class UserManagerController extends Controller
             $count++;
         }
 
-        $password = date('Ymd', strtotime($validated['birthday']));
+        $password = $this->buildDefaultPassword(
+            (string) $validated['first_name'],
+            (string) $validated['birthday']
+        );
 
         $user = User::create([
             'first_name' => $validated['first_name'],
@@ -164,20 +167,23 @@ class UserManagerController extends Controller
             return back()->with('error', 'User birthday is not set. Cannot auto-generate password.');
         }
 
-        $password = date('Ymd', strtotime($user->birthday));
+        $password = $this->buildDefaultPassword(
+            (string) ($user->first_name ?: $user->name),
+            (string) $user->birthday
+        );
         $user->update([
             'password' => Hash::make($password),
             'must_change_password' => true,
         ]);
 
         $auditLogService->log('user.password_reset', $user, null, [
-            'reset_method' => 'birthday_default',
+            'reset_method' => 'name_birthday_default',
             'birthday' => date('Y-m-d', strtotime((string) $user->birthday)),
         ]);
 
         DashboardCacheService::bust();
 
-        return back()->with('success', 'Password reset to default (birthday) successfully.');
+        return back()->with('success', 'Password reset to default successfully.');
     }
 
     public function toggleStatus(User $user, AuditLogService $auditLogService): RedirectResponse
@@ -222,5 +228,19 @@ class UserManagerController extends Controller
             ->where('role', UserRole::SUPER_ADMIN->value)
             ->where('is_active', true)
             ->count();
+    }
+
+    private function buildDefaultPassword(string $rawFirstName, string $birthday): string
+    {
+        $firstToken = trim(explode(' ', trim($rawFirstName))[0] ?? '');
+        $normalizedToken = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $firstToken));
+
+        if ($normalizedToken === '') {
+            $normalizedToken = 'user';
+        }
+
+        $birthdaySegment = date('mdY', strtotime($birthday));
+
+        return "{$normalizedToken}@{$birthdaySegment}";
     }
 }

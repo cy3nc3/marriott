@@ -152,6 +152,55 @@ test('registrar sf1 upload updates section assignment based on sf1 section value
     expect($enrollment?->section_id)->toBe($secondSection->id);
 });
 
+test('registrar student directory exposes discrepancy reason in lis status payload', function () {
+    $section = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Rizal',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '222233334444',
+        'first_name' => 'Lian',
+        'last_name' => 'Vergara',
+        'is_lis_synced' => false,
+        'sync_error_flag' => false,
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    $csvContent = "LRN,First Name,Last Name,Section,Grade Level\n".
+        "222233334444,Lian,Vergara,Unknown Section,Grade 7\n";
+    $file = UploadedFile::fake()->createWithContent('sf1-discrepancy.csv', $csvContent);
+
+    $this->post('/registrar/student-directory/sf1-upload', [
+        'sf1_file' => $file,
+        'academic_year_id' => $this->academicYear->id,
+    ])->assertRedirect();
+
+    $student->refresh();
+
+    expect($student->sync_error_flag)->toBeTrue();
+    expect($student->sync_error_notes)->toBe('Unable to resolve section assignment from SF1 row.');
+
+    $this->get('/registrar/student-directory')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/student-directory/index')
+            ->where('students.data.0.lrn', '222233334444')
+            ->where('students.data.0.lis_status', 'discrepancy')
+            ->where('students.data.0.lis_status_reason', 'Unable to resolve section assignment from SF1 row.')
+        );
+});
+
 test('registrar enrollment page filters queue by selected school year', function () {
     $completedYear = AcademicYear::query()->create([
         'name' => '2024-2025',
@@ -338,7 +387,7 @@ test('registrar dashboard shows lis sync pie and payment method trends', functio
         ['status' => 'for_cashier_payment', 'payment_term' => 'monthly', 'days_ago' => 1, 'is_lis_synced' => true, 'sync_error_flag' => false],
         ['status' => 'for_cashier_payment', 'payment_term' => 'quarterly', 'days_ago' => 4, 'is_lis_synced' => false, 'sync_error_flag' => false],
         ['status' => 'for_cashier_payment', 'payment_term' => 'full', 'days_ago' => 10, 'is_lis_synced' => false, 'sync_error_flag' => true],
-        ['status' => 'partial_payment', 'payment_term' => 'monthly', 'days_ago' => 20, 'is_lis_synced' => false, 'sync_error_flag' => false],
+        ['status' => 'for_cashier_payment', 'payment_term' => 'monthly', 'days_ago' => 20, 'is_lis_synced' => false, 'sync_error_flag' => false],
     ];
 
     $counter = 0;
@@ -585,10 +634,11 @@ test('registrar enrollment intake supports create update and delete', function (
         ->orderBy('due_date')
         ->get();
 
-    expect($monthlySchedules)->toHaveCount(9);
-    expect($monthlySchedules->first()?->due_date?->toDateString())->toBe('2025-07-01');
+    expect($monthlySchedules)->toHaveCount(10);
+    expect($monthlySchedules->first()?->due_date?->toDateString())->toBe('2025-06-01');
+    expect($monthlySchedules->first()?->description)->toBe('Upon Enrollment');
     expect($monthlySchedules->last()?->due_date?->toDateString())->toBe('2026-03-01');
-    expect(round((float) $monthlySchedules->sum('amount_due'), 2))->toBe(7500.0);
+    expect(round((float) $monthlySchedules->sum('amount_due'), 2))->toBe(9000.0);
     expect($monthlySchedules->every(fn (BillingSchedule $billingSchedule): bool => $billingSchedule->status === 'unpaid'))->toBeTrue();
 
     expect(User::query()->where('email', "santos.{$lrn}@marriott.edu")->exists())->toBeTrue();
@@ -635,14 +685,15 @@ test('registrar enrollment intake supports create update and delete', function (
         ->orderBy('due_date')
         ->get();
 
-    expect($quarterlySchedules)->toHaveCount(4);
+    expect($quarterlySchedules)->toHaveCount(5);
     expect($quarterlySchedules->pluck('due_date')->map(fn ($date) => $date?->toDateString())->all())->toBe([
+        '2025-06-01',
         '2025-07-01',
         '2025-10-01',
         '2025-12-01',
         '2026-03-01',
     ]);
-    expect(round((float) $quarterlySchedules->sum('amount_due'), 2))->toBe(6500.0);
+    expect(round((float) $quarterlySchedules->sum('amount_due'), 2))->toBe(9000.0);
 
     $this->patch("/registrar/enrollment/{$enrollment->id}", [
         'first_name' => 'Maria',
@@ -662,12 +713,13 @@ test('registrar enrollment intake supports create update and delete', function (
         ->orderBy('due_date')
         ->get();
 
-    expect($semiAnnualSchedules)->toHaveCount(2);
+    expect($semiAnnualSchedules)->toHaveCount(3);
     expect($semiAnnualSchedules->pluck('due_date')->map(fn ($date) => $date?->toDateString())->all())->toBe([
+        '2025-06-01',
         '2025-07-01',
         '2026-03-01',
     ]);
-    expect(round((float) $semiAnnualSchedules->sum('amount_due'), 2))->toBe(6000.0);
+    expect(round((float) $semiAnnualSchedules->sum('amount_due'), 2))->toBe(9000.0);
 
     $this->patch("/registrar/enrollment/{$enrollment->id}", [
         'first_name' => 'Maria',
@@ -902,7 +954,7 @@ test('billing schedules are not regenerated when payment activity already exists
         ->orderBy('due_date')
         ->get();
 
-    expect($beforeSchedules)->toHaveCount(9);
+    expect($beforeSchedules)->toHaveCount(10);
 
     $firstSchedule = $beforeSchedules->first();
 
@@ -930,7 +982,7 @@ test('billing schedules are not regenerated when payment activity already exists
         ->orderBy('due_date')
         ->get();
 
-    expect($afterSchedules)->toHaveCount(9);
+    expect($afterSchedules)->toHaveCount(10);
     expect($afterSchedules->first()?->id)->toBe($firstSchedule->id);
     expect((float) $afterSchedules->first()?->amount_paid)->toBe(500.0);
     expect($afterSchedules->first()?->status)->toBe('partially_paid');
@@ -1013,8 +1065,8 @@ test('billing schedules apply student discount on assessment total before downpa
         ->where('academic_year_id', $this->academicYear->id)
         ->get();
 
-    expect($discountedSchedules)->toHaveCount(9);
-    expect(round((float) $discountedSchedules->sum('amount_due'), 2))->toBe(7100.0);
+    expect($discountedSchedules)->toHaveCount(10);
+    expect(round((float) $discountedSchedules->sum('amount_due'), 2))->toBe(8100.0);
 });
 
 test('registrar remedial entry stores recomputed grades and updates student flag', function () {

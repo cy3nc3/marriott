@@ -1,7 +1,11 @@
 <?php
 
 use App\Models\AcademicYear;
+use App\Models\BillingSchedule;
 use App\Models\Discount;
+use App\Models\Enrollment;
+use App\Models\Fee;
+use App\Models\GradeLevel;
 use App\Models\Student;
 use App\Models\StudentDiscount;
 use App\Models\User;
@@ -66,6 +70,35 @@ test('finance can create update and delete discount programs and tag students', 
         'first_name' => 'Maria',
         'last_name' => 'Santos',
     ]);
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 1000,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    Fee::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'academic_year_id' => $academicYear->id,
+        'type' => 'tuition',
+        'name' => 'Tuition Fee',
+        'amount' => 7000,
+    ]);
+    Fee::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'academic_year_id' => $academicYear->id,
+        'type' => 'miscellaneous',
+        'name' => 'Miscellaneous Fee',
+        'amount' => 2000,
+    ]);
 
     $this->post('/finance/discount-manager', [
         'name' => 'Sibling Discount',
@@ -103,11 +136,19 @@ test('finance can create update and delete discount programs and tag students', 
     expect($studentDiscount->student_id)->toBe($student->id);
     expect($studentDiscount->discount_id)->toBe($discount->id);
     expect($studentDiscount->academic_year_id)->toBe($academicYear->id);
+    expect(round((float) BillingSchedule::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $academicYear->id)
+        ->sum('amount_due'), 2))->toBe(7500.0);
 
     $this->delete("/finance/discount-manager/tag-student/{$studentDiscount->id}")
         ->assertRedirect();
 
     expect(StudentDiscount::query()->whereKey($studentDiscount->id)->exists())->toBeFalse();
+    expect(round((float) BillingSchedule::query()
+        ->where('student_id', $student->id)
+        ->where('academic_year_id', $academicYear->id)
+        ->sum('amount_due'), 2))->toBe(9000.0);
 
     $this->delete("/finance/discount-manager/{$discount->id}")
         ->assertRedirect();

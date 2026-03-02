@@ -83,6 +83,7 @@ class StudentDirectoryController extends Controller
                     'student_name' => trim("{$student->first_name} {$student->last_name}"),
                     'grade_section' => $gradeSection,
                     'lis_status' => $this->resolveLisStatus($student),
+                    'lis_status_reason' => $this->resolveLisStatusReason($student),
                 ];
             });
 
@@ -281,6 +282,17 @@ class StudentDirectoryController extends Controller
         }
 
         return 'pending';
+    }
+
+    private function resolveLisStatusReason(Student $student): ?string
+    {
+        if (! $student->sync_error_flag) {
+            return null;
+        }
+
+        $reason = trim((string) $student->sync_error_notes);
+
+        return $reason !== '' ? $reason : 'Discrepancy found during SF1 reconciliation.';
     }
 
     private function firstAvailable(array $row, array $keys): ?string

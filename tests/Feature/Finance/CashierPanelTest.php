@@ -11,6 +11,7 @@ use App\Models\RemedialCase;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -90,7 +91,10 @@ test('cashier panel renders selected student profile and payment options', funct
             ->has('students', 1)
             ->where('selected_student.lrn', '123456789012')
             ->where('selected_student.grade_and_section', 'Grade 7')
+            ->where('selected_student.enrollment_status', 'for_cashier_payment')
             ->where('selected_student.payment_plan', 'monthly')
+            ->where('selected_student.stated_downpayment', 3000)
+            ->where('selected_student.assessment_total_before_downpayment', 3000)
             ->where('selected_student.remaining_balance', 17000)
             ->has('fee_options', 1)
             ->has('inventory_options', 1)
@@ -100,7 +104,7 @@ test('cashier panel renders selected student profile and payment options', funct
         );
 });
 
-test('cashier panel pending intakes include active year for cashier payment statuses only', function () {
+test('cashier panel pending intakes include only active year for cashier payment statuses', function () {
     $activeYear = AcademicYear::query()->create([
         'name' => '2025-2026',
         'start_date' => '2025-06-01',
@@ -126,12 +130,6 @@ test('cashier panel pending intakes include active year for cashier payment stat
         'lrn' => '765432109876',
         'first_name' => 'Ari',
         'last_name' => 'Lopez',
-    ]);
-
-    $excludedCurrentYearStudent = Student::query()->create([
-        'lrn' => '876543210987',
-        'first_name' => 'Ben',
-        'last_name' => 'Tan',
     ]);
 
     $excludedPreviousYearStudent = Student::query()->create([
@@ -164,16 +162,6 @@ test('cashier panel pending intakes include active year for cashier payment stat
         'payment_term' => 'quarterly',
         'downpayment' => 2500,
         'status' => 'for_cashier_payment',
-    ]);
-
-    Enrollment::query()->create([
-        'student_id' => $excludedCurrentYearStudent->id,
-        'academic_year_id' => $activeYear->id,
-        'grade_level_id' => $gradeLevel->id,
-        'section_id' => null,
-        'payment_term' => 'monthly',
-        'downpayment' => 3500,
-        'status' => 'partial_payment',
     ]);
 
     Enrollment::query()->create([
@@ -412,7 +400,7 @@ test('cashier panel suggestions endpoint returns latest case insensitive matches
         ->assertJsonPath('students.1.id', $secondMatch->id);
 });
 
-test('cashier can post transaction and update enrollment status to partial payment', function () {
+test('cashier can post transaction and keep enrollment status in cashier queue before downpayment is reached', function () {
     $academicYear = AcademicYear::query()->create([
         'name' => '2025-2026',
         'start_date' => '2025-06-01',
@@ -507,7 +495,7 @@ test('cashier can post transaction and update enrollment status to partial payme
     expect((float) $paymentLedgerEntry->credit)->toBe(2500.0);
 
     $enrollment->refresh();
-    expect($enrollment->status)->toBe('partial_payment');
+    expect($enrollment->status)->toBe('for_cashier_payment');
 });
 
 test('cashier transaction marks non cash enrollment as enrolled when downpayment is reached', function () {
@@ -558,6 +546,63 @@ test('cashier transaction marks non cash enrollment as enrolled when downpayment
 
     $enrollment->refresh();
     expect($enrollment->status)->toBe('enrolled');
+});
+
+test('cashier transaction still enrolls when posted date is outside school year date range', function () {
+    Carbon::setTestNow('2026-03-15 09:00:00');
+
+    try {
+        $academicYear = AcademicYear::query()->create([
+            'name' => '2026-2027',
+            'start_date' => '2026-06-01',
+            'end_date' => '2027-03-31',
+            'status' => 'upcoming',
+            'current_quarter' => 'pre_opening',
+        ]);
+
+        $gradeLevel = GradeLevel::query()->create([
+            'name' => 'Grade 9',
+            'level_order' => 9,
+        ]);
+
+        $student = Student::query()->create([
+            'lrn' => '445566778899',
+            'first_name' => 'Sofia',
+            'last_name' => 'Castro',
+        ]);
+
+        $enrollment = Enrollment::query()->create([
+            'student_id' => $student->id,
+            'academic_year_id' => $academicYear->id,
+            'grade_level_id' => $gradeLevel->id,
+            'section_id' => null,
+            'payment_term' => 'quarterly',
+            'downpayment' => 3000,
+            'status' => 'for_cashier_payment',
+        ]);
+
+        $this->post('/finance/cashier-panel/transactions', [
+            'student_id' => $student->id,
+            'or_number' => 'OR-2026-OUTSIDE-RANGE-01',
+            'payment_mode' => 'cash',
+            'reference_no' => null,
+            'remarks' => null,
+            'tendered_amount' => 3000,
+            'items' => [
+                [
+                    'type' => 'assessment_fee',
+                    'description' => 'Enrollment Downpayment',
+                    'amount' => 3000,
+                ],
+            ],
+        ])->assertRedirect();
+
+        $enrollment->refresh();
+
+        expect($enrollment->status)->toBe('enrolled');
+    } finally {
+        Carbon::setTestNow();
+    }
 });
 
 test('cashier transaction validates tendered amount', function () {

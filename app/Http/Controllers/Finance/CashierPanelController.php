@@ -12,6 +12,7 @@ use App\Models\InventoryItem;
 use App\Models\LedgerEntry;
 use App\Models\RemedialCase;
 use App\Models\Student;
+use App\Models\StudentDiscount;
 use App\Models\Transaction;
 use App\Services\DashboardCacheService;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +28,8 @@ class CashierPanelController extends Controller
     public function index(Request $request): Response
     {
         $search = trim((string) $request->input('search', ''));
+        $activeAcademicYear = $this->resolveActiveAcademicYear();
+        $this->reconcileEnrollmentQueueStatuses($activeAcademicYear);
 
         $students = $this->resolveStudentOptions($search, 20);
 
@@ -69,6 +72,23 @@ class CashierPanelController extends Controller
                 $totalCharges = (float) (clone $ledgerQuery)->sum('debit');
                 $totalPayments = (float) (clone $ledgerQuery)->sum('credit');
                 $remainingBalance = round($totalCharges - $totalPayments, 2);
+                $assessmentTotalBeforeDownpayment = 0.0;
+
+                if ($selectedEnrollment?->grade_level_id) {
+                    $assessmentFeeTotal = $this->resolveAssessmentFeeTotal(
+                        (int) $selectedEnrollment->grade_level_id,
+                        (int) ($selectedEnrollment->academic_year_id ?? $selectedAcademicYear?->id ?? 0)
+                    );
+                    $discountAmount = $this->resolveDiscountAmount(
+                        (int) $selectedStudent->id,
+                        (int) ($selectedEnrollment->academic_year_id ?? $selectedAcademicYear?->id ?? 0),
+                        $assessmentFeeTotal
+                    );
+                    $assessmentTotalBeforeDownpayment = round(
+                        max($assessmentFeeTotal - $discountAmount, 0),
+                        2
+                    );
+                }
 
                 $gradeAndSection = 'Unassigned';
                 if ($selectedEnrollment?->gradeLevel?->name && $selectedEnrollment?->section?->name) {
@@ -82,9 +102,11 @@ class CashierPanelController extends Controller
                     'lrn' => $selectedStudent->lrn,
                     'name' => trim("{$selectedStudent->first_name} {$selectedStudent->last_name}"),
                     'grade_and_section' => $gradeAndSection,
+                    'enrollment_status' => $selectedEnrollment?->status,
                     'payment_plan' => $selectedEnrollment?->payment_term,
                     'stated_downpayment' => (float) ($selectedEnrollment?->downpayment ?? 0),
                     'remaining_balance' => $remainingBalance,
+                    'assessment_total_before_downpayment' => $assessmentTotalBeforeDownpayment,
                     'remedial_case' => $selectedRemedialCase ? [
                         'id' => (int) $selectedRemedialCase->id,
                         'status' => $selectedRemedialCase->status,
@@ -147,7 +169,6 @@ class CashierPanelController extends Controller
             })
             ->values();
 
-        $activeAcademicYear = $this->resolveActiveAcademicYear();
         $pendingIntakes = $this->resolvePendingCashierIntakes($activeAcademicYear);
         $pendingRemedialCases = $this->resolvePendingRemedialCases($activeAcademicYear);
 
@@ -167,6 +188,7 @@ class CashierPanelController extends Controller
     public function studentSuggestions(Request $request): JsonResponse
     {
         $search = trim((string) $request->input('search', ''));
+        $this->reconcileEnrollmentQueueStatuses($this->resolveActiveAcademicYear());
 
         if ($search === '') {
             return response()->json([
@@ -466,16 +488,17 @@ class CashierPanelController extends Controller
 
         $totalPaidInYear = (float) Transaction::query()
             ->where('student_id', $student->id)
-            ->whereBetween('created_at', [
-                "{$academicYear->start_date} 00:00:00",
-                "{$academicYear->end_date} 23:59:59",
-            ])
             ->whereNotIn('status', ['voided', 'refunded', 'reissued'])
+            ->whereHas('ledgerEntries', function ($query) use ($academicYear) {
+                $query
+                    ->where('academic_year_id', $academicYear->id)
+                    ->whereNotNull('credit');
+            })
             ->sum('total_amount');
 
         $newStatus = $totalPaidInYear >= (float) $enrollment->downpayment
             ? 'enrolled'
-            : 'partial_payment';
+            : 'for_cashier_payment';
 
         $enrollment->update(['status' => $newStatus]);
     }
@@ -556,6 +579,44 @@ class CashierPanelController extends Controller
             ->sum('amount'), 2);
     }
 
+    private function resolveDiscountAmount(int $studentId, int $academicYearId, float $assessmentFeeTotal): float
+    {
+        if ($assessmentFeeTotal <= 0 || $studentId <= 0 || $academicYearId <= 0) {
+            return 0.0;
+        }
+
+        $studentDiscounts = StudentDiscount::query()
+            ->with('discount:id,type,value')
+            ->where('student_id', $studentId)
+            ->where('academic_year_id', $academicYearId)
+            ->get();
+
+        if ($studentDiscounts->isEmpty()) {
+            return 0.0;
+        }
+
+        $totalDiscountAmount = $studentDiscounts->reduce(
+            function (float $carry, StudentDiscount $studentDiscount) use ($assessmentFeeTotal): float {
+                $discount = $studentDiscount->discount;
+
+                if (! $discount) {
+                    return $carry;
+                }
+
+                $discountAmount = match ($discount->type) {
+                    'percentage' => round($assessmentFeeTotal * ((float) $discount->value / 100), 2),
+                    'fixed' => round((float) $discount->value, 2),
+                    default => 0.0,
+                };
+
+                return $carry + max($discountAmount, 0);
+            },
+            0.0
+        );
+
+        return round(min($assessmentFeeTotal, $totalDiscountAmount), 2);
+    }
+
     private function applyPaymentToRemedialCase(
         Student $student,
         AcademicYear $academicYear,
@@ -593,5 +654,59 @@ class CashierPanelController extends Controller
             'status' => $nextStatus,
             'paid_at' => $nextStatus === 'paid' ? now() : null,
         ]);
+    }
+
+    private function reconcileEnrollmentQueueStatuses(?AcademicYear $academicYear): void
+    {
+        if (! $academicYear) {
+            return;
+        }
+
+        $pendingEnrollments = Enrollment::query()
+            ->where('academic_year_id', $academicYear->id)
+            ->where('status', 'for_cashier_payment')
+            ->get(['id', 'student_id', 'payment_term', 'downpayment']);
+
+        if ($pendingEnrollments->isEmpty()) {
+            return;
+        }
+
+        $paidByStudent = Transaction::query()
+            ->selectRaw('student_id, SUM(total_amount) as total_paid')
+            ->whereIn('student_id', $pendingEnrollments->pluck('student_id')->all())
+            ->whereNotIn('status', ['voided', 'refunded', 'reissued'])
+            ->whereHas('ledgerEntries', function ($query) use ($academicYear) {
+                $query
+                    ->where('academic_year_id', $academicYear->id)
+                    ->whereNotNull('credit');
+            })
+            ->groupBy('student_id')
+            ->pluck('total_paid', 'student_id');
+
+        $idsToMarkEnrolled = [];
+
+        foreach ($pendingEnrollments as $enrollment) {
+            $totalPaid = (float) ($paidByStudent[(int) $enrollment->student_id] ?? 0);
+
+            if ((string) $enrollment->payment_term === 'cash') {
+                if ($totalPaid > 0) {
+                    $idsToMarkEnrolled[] = (int) $enrollment->id;
+                }
+
+                continue;
+            }
+
+            if ($totalPaid >= (float) $enrollment->downpayment) {
+                $idsToMarkEnrolled[] = (int) $enrollment->id;
+            }
+        }
+
+        if ($idsToMarkEnrolled === []) {
+            return;
+        }
+
+        Enrollment::query()
+            ->whereIn('id', $idsToMarkEnrolled)
+            ->update(['status' => 'enrolled']);
     }
 }

@@ -1,9 +1,9 @@
 # HANDOFF SUMMARY
 
-Last updated: 2026-03-01
+Last updated: 2026-03-02
 Project path: `c:\Users\jadeg\Documents\Capstone\marriott`
 Primary branch: `main`
-Current HEAD before this documentation update: `8fab87b`
+Current HEAD before this documentation update: `bfab86a`
 
 ---
 
@@ -850,3 +850,119 @@ These are excluded by `EnrollmentIntakeSeeder` so they can be enrolled manually 
 2. `npm run types`
 3. `php artisan test --compact tests/Feature/EnrollmentIntakeSeederTest.php`
 4. `php artisan test --compact tests/Feature/Registrar/RegistrarFeaturesTest.php --filter="sf1 upload"`
+
+---
+
+## 19) Latest Session Progress (2026-03-02)
+
+### 19.1 Academic controls initialization + no-active-year setup hardening
+
+1. School year setup flow was hardened for first-run scenarios where no active school year exists.
+2. Date handling was updated so school-year dates can remain unset during initial cycle setup and be filled later.
+3. Admin academic controls behavior now supports explicit first-year initialization flow before normal quarter progression.
+4. Files:
+    - `app/Http/Controllers/Admin/SchoolYearController.php`
+    - `app/Http/Requests/Admin/InitializeAcademicYearRequest.php`
+    - `resources/js/pages/admin/academic-controls/index.tsx`
+
+### 19.2 Enrollment status normalization (queue consistency)
+
+1. Enrollment queue statuses were normalized to remove partial-payment status drift from old records.
+2. Current registrar/finance intake queue behavior is aligned around `for_cashier_payment` and enrolled progression logic.
+3. Migration added:
+    - `database/migrations/2026_03_02_054148_normalize_enrollment_partial_payment_statuses.php`
+
+### 19.3 Parent portal disabled experience wired
+
+1. Parent-portal-disabled handling now routes to a dedicated Inertia page instead of blank/unstyled fallback paths.
+2. Middleware handling for disabled parent portal now consistently renders user-facing context.
+3. Files:
+    - `app/Http/Middleware/EnsureParentPortalEnabled.php`
+    - `resources/js/pages/parent/portal-disabled.tsx`
+    - `tests/Feature/Parent/ParentFeaturesTest.php`
+
+### 19.4 Registrar SF1 upload reliability + LIS discrepancy UX
+
+1. Student Directory SF1 upload form now synchronizes selected school year reliably in request payload.
+2. Upload validation feedback for `sf1_file` and `academic_year_id` is now shown inline to avoid silent failure.
+3. Desktop-only upload behavior is now explicitly shown in UI when on handheld.
+4. LIS discrepancy now shows as:
+    - badge label remains `Discrepancy`
+    - detailed reason shown via tooltip on hover
+5. Backend payload now includes `lis_status_reason` for discrepancy rows.
+6. Files:
+    - `app/Http/Controllers/Registrar/StudentDirectoryController.php`
+    - `resources/js/pages/registrar/student-directory/index.tsx`
+    - `tests/Feature/Registrar/RegistrarFeaturesTest.php`
+
+### 19.5 Finance and enrollment lifecycle recomputation updates
+
+1. Finance and registrar flow updates were applied to keep intake, due computation, cashier selection, and ledger/reporting views synchronized.
+2. Billing schedule recomputation logic was updated to preserve intended due sequencing under edited intake contexts.
+3. Affected backend files:
+    - `app/Http/Controllers/Finance/CashierPanelController.php`
+    - `app/Http/Controllers/Finance/DailyReportsController.php`
+    - `app/Http/Controllers/Finance/DataImportController.php`
+    - `app/Http/Controllers/Finance/DiscountManagerController.php`
+    - `app/Http/Controllers/Finance/StudentLedgersController.php`
+    - `app/Http/Controllers/Finance/TransactionHistoryController.php`
+    - `app/Http/Controllers/Registrar/EnrollmentController.php`
+    - `app/Services/Finance/BillingScheduleService.php`
+    - `app/Models/Transaction.php`
+
+### 19.6 User/account defaults + seeded dataset updates
+
+1. User manager and enrollment-linked account generation behavior were updated to match revised password format and role flow expectations.
+2. Seeder flows were updated to reflect new academic-year initialization assumptions and enrollment-intake QA dataset behavior.
+3. Files:
+    - `app/Http/Controllers/SuperAdmin/UserManagerController.php`
+    - `database/seeders/AcademicYearSeeder.php`
+    - `database/seeders/EnrollmentIntakeSeeder.php`
+    - `database/seeders/DatabaseSeeder.php`
+    - `app/Services/AnnouncementAudienceResolver.php` (audience resolution compatibility updates)
+
+### 19.7 Teacher feature gating alignment
+
+1. Teacher attendance and grading editability logic was aligned with quarter-status gating behavior used in simulation/testing workflows.
+2. Files:
+    - `app/Http/Controllers/Teacher/AttendanceController.php`
+    - `app/Http/Controllers/Teacher/GradingSheetController.php`
+    - `resources/js/pages/teacher/attendance/index.tsx`
+    - `resources/js/pages/teacher/grading-sheet/index.tsx`
+
+### 19.8 Additional migration added in this session
+
+1. `database/migrations/2026_03_02_043859_make_academic_year_dates_nullable.php`
+    - allows nullable `academic_years.start_date` and `academic_years.end_date` to support setup-before-dates workflow.
+
+### 19.9 Validation coverage touched in this session
+
+1. Updated/expanded tests across:
+    - `tests/Feature/Admin/AdminFeaturesTest.php`
+    - `tests/Feature/EnrollmentIntakeSeederTest.php`
+    - `tests/Feature/Finance/CashierPanelTest.php`
+    - `tests/Feature/Finance/DailyReportsTest.php`
+    - `tests/Feature/Finance/DataImportTest.php`
+    - `tests/Feature/Finance/DiscountManagerTest.php`
+    - `tests/Feature/Finance/StudentLedgersTest.php`
+    - `tests/Feature/Finance/TransactionHistoryTest.php`
+    - `tests/Feature/Parent/ParentFeaturesTest.php`
+    - `tests/Feature/Registrar/RegistrarFeaturesTest.php`
+    - `tests/Feature/SuperAdmin/UserManagerTest.php`
+    - `tests/Feature/Teacher/TeacherFeaturesTest.php`
+
+### 19.10 Required setup after pulling this session
+
+1. Run migrations:
+    - `php artisan migrate`
+2. If reseeding test dataset:
+    - `php artisan db:seed --no-interaction`
+3. Rebuild assets if needed:
+    - `npm run dev` or `npm run build`
+
+### 19.11 Quick verification commands
+
+1. `npm run types`
+2. `php artisan test --compact tests/Feature/Registrar/RegistrarFeaturesTest.php --filter="sf1"`
+3. `php artisan test --compact tests/Feature/Parent/ParentFeaturesTest.php`
+4. `vendor/bin/pint --dirty --format agent`

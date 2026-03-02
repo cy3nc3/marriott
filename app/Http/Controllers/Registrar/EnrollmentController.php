@@ -52,7 +52,7 @@ class EnrollmentController extends Controller
             ? AcademicYear::query()->find($selectedAcademicYearId)
             : null;
 
-        $queueStatuses = ['for_cashier_payment', 'partial_payment'];
+        $queueStatuses = ['for_cashier_payment'];
 
         $baseQuery = Enrollment::query()
             ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
@@ -140,7 +140,6 @@ class EnrollmentController extends Controller
             'selected_school_year_status' => $selectedAcademicYear?->status,
             'summary' => [
                 'for_cashier_payment' => (clone $baseQuery)->where('status', 'for_cashier_payment')->count(),
-                'partial_payment' => (clone $baseQuery)->where('status', 'partial_payment')->count(),
             ],
             'filters' => [
                 'search' => $search,
@@ -298,7 +297,6 @@ class EnrollmentController extends Controller
             'emergency_contact' => 'nullable|string|digits:11',
             'payment_term' => 'required|string|in:cash,full,monthly,quarterly,semi-annual',
             'downpayment' => 'nullable|numeric|min:0|max:999999.99',
-            'status' => 'required|string|in:for_cashier_payment,partial_payment',
             'section_id' => 'nullable|integer|exists:sections,id',
             'grade_level_id' => 'nullable|integer|exists:grade_levels,id',
         ], [
@@ -348,7 +346,7 @@ class EnrollmentController extends Controller
                     'section_id' => $selectedSection?->id,
                     'payment_term' => $paymentTerm,
                     'downpayment' => $downpayment,
-                    'status' => $validated['status'],
+                    'status' => 'for_cashier_payment',
                 ]);
 
                 $this->billingScheduleService->syncForEnrollment($enrollment);

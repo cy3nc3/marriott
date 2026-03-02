@@ -39,6 +39,7 @@ test('super admin user manager actions write audit logs', function () {
 
     expect($managedUser)->not->toBeNull();
     expect($managedUser?->must_change_password)->toBeTrue();
+    expect(Hash::check('john@01152000', (string) $managedUser?->password))->toBeTrue();
     expect(AuditLog::query()
         ->where('action', 'user.created')
         ->where('model_type', User::class)
@@ -63,7 +64,7 @@ test('super admin user manager actions write audit logs', function () {
     $this->post("/super-admin/user-manager/{$managedUser->id}/reset-password")
         ->assertRedirect();
 
-    expect(Hash::check('20000115', (string) $managedUser->fresh()->password))->toBeTrue();
+    expect(Hash::check('johnny@01152000', (string) $managedUser->fresh()->password))->toBeTrue();
     expect($managedUser->fresh()->must_change_password)->toBeTrue();
     expect(AuditLog::query()
         ->where('action', 'user.password_reset')

@@ -42,7 +42,7 @@ test('finance student ledgers page renders selected student profile dues and ent
         'section_id' => null,
         'payment_term' => 'monthly',
         'downpayment' => 3000,
-        'status' => 'partial_payment',
+        'status' => 'for_cashier_payment',
     ]);
 
     BillingSchedule::query()->create([
@@ -131,7 +131,7 @@ test('finance student ledgers filters entries and can include paid dues', functi
         'section_id' => null,
         'payment_term' => 'quarterly',
         'downpayment' => 5000,
-        'status' => 'partial_payment',
+        'status' => 'for_cashier_payment',
     ]);
 
     BillingSchedule::query()->create([
@@ -292,5 +292,45 @@ test('finance student ledgers filters records by selected school year', function
             ->where('dues_schedule.0.description', 'SY One Due')
             ->has('ledger_entries', 1)
             ->where('ledger_entries.0.reference', 'SY One Charge')
+        );
+});
+
+test('finance student ledgers search matches full name case insensitively', function () {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '612345678901',
+        'first_name' => 'Sofia',
+        'last_name' => 'Castro',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'quarterly',
+        'downpayment' => 3000,
+        'status' => 'enrolled',
+    ]);
+
+    $this->get('/finance/student-ledgers?search=soFia%20caStro')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/student-ledgers/index')
+            ->has('students', 1)
+            ->where('students.0.id', $student->id)
+            ->where('students.0.name', 'Sofia Castro')
         );
 });

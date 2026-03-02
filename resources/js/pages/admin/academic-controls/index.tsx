@@ -55,33 +55,39 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 interface Props {
     currentYear: AcademicYear | null;
+    upcomingYear: AcademicYear | null;
     nextYearName: string | null;
     allYears: AcademicYear[];
 }
 
 export default function AcademicControls({
     currentYear,
+    upcomingYear,
     nextYearName,
     allYears,
 }: Props) {
     const [isInitNextYearOpen, setIsInitNextYearOpen] = useState(false);
     const [isEditDatesOpen, setIsEditDatesOpen] = useState(false);
+    const operationYear = currentYear ?? upcomingYear;
 
     const initForm = useForm({
         name: nextYearName || '',
-        start_date: '',
-        end_date: '',
     });
 
     const editForm = useForm({
-        start_date: currentYear?.start_date || '',
-        end_date: currentYear?.end_date || '',
+        start_date: operationYear?.start_date || '',
+        end_date: operationYear?.end_date || '',
     });
 
     useEffect(() => {
-        if (nextYearName) {
-            initForm.setData('name', nextYearName);
-        }
+        editForm.setData({
+            start_date: operationYear?.start_date || '',
+            end_date: operationYear?.end_date || '',
+        });
+    }, [operationYear?.id, operationYear?.start_date, operationYear?.end_date]);
+
+    useEffect(() => {
+        initForm.setData('name', nextYearName || '');
     }, [nextYearName]);
 
     const handleInitialize = () => {
@@ -94,15 +100,15 @@ export default function AcademicControls({
     };
 
     const handleUpdateDates = () => {
-        if (!currentYear) return;
-        editForm.submit(update_dates({ academicYear: currentYear.id }), {
+        if (!operationYear) return;
+        editForm.submit(update_dates({ academicYear: operationYear.id }), {
             onSuccess: () => setIsEditDatesOpen(false),
         });
     };
 
     const handleSimulateOpening = () => {
-        if (!currentYear) return;
-        router.post(simulate_opening({ academicYear: currentYear.id }).url);
+        if (!upcomingYear) return;
+        router.post(simulate_opening({ academicYear: upcomingYear.id }).url);
     };
 
     const handleAdvanceQuarter = () => {
@@ -117,56 +123,34 @@ export default function AcademicControls({
     };
 
     const getStatusBadge = () => {
-        switch (currentYear?.status) {
-            case 'ongoing':
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400"
-                    >
-                        Ongoing
-                    </Badge>
-                );
-            case 'upcoming':
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400"
-                    >
-                        Pre-Opening
-                    </Badge>
-                );
-            case 'completed':
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="bg-indigo-500/15 text-indigo-700 hover:bg-indigo-500/25 dark:text-indigo-400"
-                    >
-                        Awaiting Setup
-                    </Badge>
-                );
-            default:
-                return <Badge variant="secondary">No Active Year</Badge>;
-        }
-    };
-
-    const getSmartButton = () => {
-        if (!currentYear || currentYear.status === 'completed') {
+        if (currentYear?.status === 'ongoing') {
             return (
-                <Button
-                    className="w-full gap-2"
-                    onClick={() => setIsInitNextYearOpen(true)}
+                <Badge
+                    variant="secondary"
+                    className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400"
                 >
-                    <PlayCircle className="size-4" />
-                    {currentYear
-                        ? `Setup S.Y. ${nextYearName}`
-                        : 'Initialize First School Year'}
-                </Button>
+                    Ongoing
+                </Badge>
             );
         }
 
-        switch (currentYear.status) {
-            case 'upcoming':
+        if (!currentYear && upcomingYear) {
+            return (
+                <Badge
+                    variant="secondary"
+                    className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400"
+                >
+                    Pre-Opening
+                </Badge>
+            );
+        }
+
+        return <Badge variant="secondary">No Active Year</Badge>;
+    };
+
+    const getSmartButton = () => {
+        if (!currentYear) {
+            if (upcomingYear) {
                 return (
                     <Button
                         className="w-full gap-2"
@@ -174,40 +158,51 @@ export default function AcademicControls({
                         disabled
                     >
                         <Clock className="size-4" />
-                        Awaiting Start of Classes
+                        Pre-Opening Year Ready
                     </Button>
                 );
-            case 'ongoing':
-                return (
-                    <Button
-                        className="w-full gap-2"
-                        variant={
-                            currentYear.current_quarter === '4'
-                                ? 'destructive'
-                                : 'default'
-                        }
-                        onClick={handleAdvanceQuarter}
-                    >
-                        {currentYear.current_quarter === '4' ? (
-                            <>
-                                <Archive className="size-4" />
-                                Close & Archive Year
-                            </>
-                        ) : (
-                            <>
-                                <ArrowRightCircle className="size-4" />
-                                Advance to{' '}
-                                {currentYear.current_quarter === '1'
-                                    ? '2ND'
-                                    : currentYear.current_quarter === '2'
-                                      ? '3RD'
-                                      : '4TH'}{' '}
-                                Quarter
-                            </>
-                        )}
-                    </Button>
-                );
+            }
+
+            return (
+                <Button
+                    className="w-full gap-2"
+                    onClick={() => setIsInitNextYearOpen(true)}
+                >
+                    <PlayCircle className="size-4" />
+                    Initialize First School Year
+                </Button>
+            );
         }
+
+        return (
+            <Button
+                className="w-full gap-2"
+                variant={
+                    currentYear.current_quarter === '4'
+                        ? 'destructive'
+                        : 'default'
+                }
+                onClick={handleAdvanceQuarter}
+            >
+                {currentYear.current_quarter === '4' ? (
+                    <>
+                        <Archive className="size-4" />
+                        Close & Archive Year
+                    </>
+                ) : (
+                    <>
+                        <ArrowRightCircle className="size-4" />
+                        Advance to{' '}
+                        {currentYear.current_quarter === '1'
+                            ? '2ND'
+                            : currentYear.current_quarter === '2'
+                              ? '3RD'
+                              : '4TH'}{' '}
+                        Quarter
+                    </>
+                )}
+            </Button>
+        );
     };
 
     return (
@@ -223,10 +218,7 @@ export default function AcademicControls({
                                 </Label>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <p className="text-2xl font-bold">
-                                        {currentYear?.status === 'completed'
-                                            ? nextYearName
-                                            : currentYear?.name ||
-                                              '---- - ----'}
+                                        {operationYear?.name || '---- - ----'}
                                     </p>
                                     {getStatusBadge()}
                                 </div>
@@ -237,12 +229,11 @@ export default function AcademicControls({
                                 </Label>
                                 <div className="flex items-center gap-3">
                                     <p className="text-2xl font-bold">
-                                        {currentYear?.status === 'completed' ||
-                                        !currentYear
-                                            ? 'Awaiting Setup'
-                                            : currentYear?.status === 'upcoming'
+                                        {currentYear
+                                            ? `${currentYear.current_quarter}${currentYear.current_quarter === '1' ? 'st' : currentYear.current_quarter === '2' ? 'nd' : currentYear.current_quarter === '3' ? 'rd' : 'th'} Quarter`
+                                            : upcomingYear
                                               ? 'Pre-Opening'
-                                              : `${currentYear.current_quarter}${currentYear.current_quarter === '1' ? 'st' : currentYear.current_quarter === '2' ? 'nd' : currentYear.current_quarter === '3' ? 'rd' : 'th'} Quarter`}
+                                              : 'Awaiting Setup'}
                                     </p>
                                 </div>
                             </div>
@@ -252,9 +243,7 @@ export default function AcademicControls({
                                 </Label>
                                 <p className="flex items-center gap-2 text-2xl font-bold">
                                     <Calendar className="size-3.5 opacity-50" />
-                                    {currentYear?.status === 'completed'
-                                        ? 'Not Set'
-                                        : currentYear?.start_date || '---'}
+                                    {operationYear?.start_date || '---'}
                                 </p>
                             </div>
                             <div className="space-y-1">
@@ -263,25 +252,24 @@ export default function AcademicControls({
                                 </Label>
                                 <p className="flex items-center gap-2 text-2xl font-bold">
                                     <Calendar className="size-3.5 opacity-50" />
-                                    {currentYear?.status === 'completed'
-                                        ? 'Not Set'
-                                        : currentYear?.end_date || '---'}
+                                    {operationYear?.end_date || '---'}
                                 </p>
                             </div>
                         </div>
-                        {currentYear?.status !== 'completed' && currentYear && (
-                            <div className="mt-2 mb-4 grid grid-cols-1 gap-2 md:grid-cols-4">
-                                <div className="hidden md:col-span-2 md:block" />
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 w-full text-xs font-semibold md:col-span-2 md:col-start-3"
-                                    onClick={() => setIsEditDatesOpen(true)}
-                                >
-                                    Edit Dates
-                                </Button>
-                            </div>
-                        )}
+                        {operationYear &&
+                            operationYear.status !== 'completed' && (
+                                <div className="mt-2 mb-4 grid grid-cols-1 gap-2 md:grid-cols-4">
+                                    <div className="hidden md:col-span-2 md:block" />
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 w-full text-xs font-semibold md:col-span-2 md:col-start-3"
+                                        onClick={() => setIsEditDatesOpen(true)}
+                                    >
+                                        Edit Dates
+                                    </Button>
+                                </div>
+                            )}
 
                         <div className="space-y-4">
                             {getSmartButton()}
@@ -314,7 +302,7 @@ export default function AcademicControls({
 
                             <div className="flex items-center justify-between border-t border-dashed pt-4">
                                 <div className="flex items-center gap-4">
-                                    {currentYear?.status === 'upcoming' && (
+                                    {!currentYear && upcomingYear && (
                                         <Button
                                             variant="secondary"
                                             size="sm"
@@ -457,68 +445,34 @@ export default function AcademicControls({
                 >
                     <DialogContent className="sm:max-w-[400px]">
                         <DialogHeader>
-                            <DialogTitle>
-                                {nextYearName
-                                    ? `Setup SY ${nextYearName}`
-                                    : 'Initialize Year'}
-                            </DialogTitle>
+                            <DialogTitle>Initialize School Year</DialogTitle>
                             <DialogDescription>
-                                Define the operational window for this academic
-                                cycle.
+                                Set the school year label first. Dates can be
+                                configured afterward.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
-                            {!nextYearName && (
-                                <div className="grid gap-2">
-                                    <Label htmlFor="year_name">
-                                        School Year Name
-                                    </Label>
-                                    <Input
-                                        id="year_name"
-                                        placeholder="e.g. 2024-2025"
-                                        value={initForm.data.name}
-                                        onChange={(e) =>
-                                            initForm.setData(
-                                                'name',
-                                                e.target.value,
-                                            )
-                                        }
-                                    />
+                            {initForm.errors.name && (
+                                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                                    Please review the school year name and try
+                                    again.
                                 </div>
                             )}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="setup_start">
-                                        Opening Day
-                                    </Label>
-                                    <Input
-                                        id="setup_start"
-                                        type="date"
-                                        value={initForm.data.start_date}
-                                        onChange={(e) =>
-                                            initForm.setData(
-                                                'start_date',
-                                                e.target.value,
-                                            )
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="setup_end">
-                                        Closing Day
-                                    </Label>
-                                    <Input
-                                        id="setup_end"
-                                        type="date"
-                                        value={initForm.data.end_date}
-                                        onChange={(e) =>
-                                            initForm.setData(
-                                                'end_date',
-                                                e.target.value,
-                                            )
-                                        }
-                                    />
-                                </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="setup_name">School Year</Label>
+                                <Input
+                                    id="setup_name"
+                                    placeholder="e.g. 2026-2027"
+                                    value={initForm.data.name}
+                                    onChange={(e) =>
+                                        initForm.setData('name', e.target.value)
+                                    }
+                                />
+                                {initForm.errors.name && (
+                                    <p className="text-xs text-destructive">
+                                        {initForm.errors.name}
+                                    </p>
+                                )}
                             </div>
                         </div>
                         <DialogFooter>

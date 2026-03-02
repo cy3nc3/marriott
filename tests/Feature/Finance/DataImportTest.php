@@ -123,7 +123,7 @@ test('finance import can create dues and allocate payment using payment plan fie
 
     expect($enrollment?->payment_term)->toBe('monthly');
     expect((float) $enrollment?->downpayment)->toBe(3000.0);
-    expect($enrollment?->status)->toBe('partial_payment');
+    expect($enrollment?->status)->toBe('for_cashier_payment');
 
     $billingSchedule = BillingSchedule::query()
         ->where('student_id', $student?->id)

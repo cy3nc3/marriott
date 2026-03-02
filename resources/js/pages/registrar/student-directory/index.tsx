@@ -1,6 +1,7 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { CheckCircle2, Clock3, TriangleAlert, UploadCloud } from 'lucide-react';
 import type { ChangeEvent } from 'react';
+import { useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +20,11 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import registrar from '@/routes/registrar';
 import { sf1_upload } from '@/routes/registrar/student_directory';
@@ -37,6 +43,7 @@ interface StudentRow {
     student_name: string;
     grade_section: string;
     lis_status: 'matched' | 'pending' | 'discrepancy';
+    lis_status_reason: string | null;
 }
 
 interface Props {
@@ -86,17 +93,28 @@ export default function StudentDirectory({
             ? String(selected_school_year_id)
             : '',
     });
-    const canUploadSf1 = uploadForm.data.academic_year_id !== '';
+    const canUploadSf1 = uploadForm.data.academic_year_id !== '' && !isHandheld;
+
+    useEffect(() => {
+        uploadForm.setData(
+            'academic_year_id',
+            selected_school_year_id ? String(selected_school_year_id) : '',
+        );
+    }, [selected_school_year_id]);
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        uploadForm.setData('sf1_file', file);
+        uploadForm.transform((data) => ({
+            ...data,
+            sf1_file: file,
+        }));
         uploadForm.post(sf1_upload().url, {
             forceFormData: true,
             preserveScroll: true,
             onFinish: () => {
+                uploadForm.transform((data) => data);
                 uploadForm.reset('sf1_file');
                 event.target.value = '';
             },
@@ -116,7 +134,9 @@ export default function StudentDirectory({
         return `Last SF1 upload: ${formattedDate}`;
     };
 
-    const statusBadge = (status: StudentRow['lis_status']) => {
+    const statusBadge = (student: StudentRow) => {
+        const { lis_status: status, lis_status_reason: reason } = student;
+
         if (status === 'matched') {
             return (
                 <Badge variant="secondary">
@@ -128,10 +148,17 @@ export default function StudentDirectory({
 
         if (status === 'discrepancy') {
             return (
-                <Badge variant="destructive">
-                    <TriangleAlert className="size-3" />
-                    Discrepancy
-                </Badge>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span className="inline-flex">
+                            <Badge variant="destructive">
+                                <TriangleAlert className="size-3" />
+                                Discrepancy
+                            </Badge>
+                        </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{reason ?? 'Needs review'}</TooltipContent>
+                </Tooltip>
             );
         }
 
@@ -234,6 +261,21 @@ export default function StudentDirectory({
                                     </label>
                                 </Button>
                             </div>
+                            {isHandheld ? (
+                                <p className="text-xs text-muted-foreground">
+                                    SF1 upload is available on desktop only.
+                                </p>
+                            ) : null}
+                            {uploadForm.errors.academic_year_id ? (
+                                <p className="text-xs text-destructive">
+                                    {uploadForm.errors.academic_year_id}
+                                </p>
+                            ) : null}
+                            {uploadForm.errors.sf1_file ? (
+                                <p className="text-xs text-destructive">
+                                    {uploadForm.errors.sf1_file}
+                                </p>
+                            ) : null}
                             <p className="text-xs text-muted-foreground">
                                 {lastUploadLabel()}
                             </p>
@@ -262,11 +304,7 @@ export default function StudentDirectory({
                                             <p className="text-xs text-muted-foreground">
                                                 {student.grade_section}
                                             </p>
-                                            <div>
-                                                {statusBadge(
-                                                    student.lis_status,
-                                                )}
-                                            </div>
+                                            <div>{statusBadge(student)}</div>
                                         </div>
                                     ))
                                 )}
@@ -312,9 +350,7 @@ export default function StudentDirectory({
                                                     {student.grade_section}
                                                 </TableCell>
                                                 <TableCell className="border-l pr-6">
-                                                    {statusBadge(
-                                                        student.lis_status,
-                                                    )}
+                                                    {statusBadge(student)}
                                                 </TableCell>
                                             </TableRow>
                                         ))

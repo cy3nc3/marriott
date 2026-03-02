@@ -80,10 +80,18 @@ class TransactionHistoryController extends Controller
                 $query->where('payment_mode', $paymentMode);
             })
             ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
-                $query->whereBetween('created_at', [
-                    "{$selectedAcademicYear->start_date} 00:00:00",
-                    "{$selectedAcademicYear->end_date} 23:59:59",
-                ]);
+                $query->where(function ($yearQuery) use ($selectedAcademicYear) {
+                    $yearQuery
+                        ->whereBetween('created_at', [
+                            "{$selectedAcademicYear->start_date} 00:00:00",
+                            "{$selectedAcademicYear->end_date} 23:59:59",
+                        ])
+                        ->orWhereHas('ledgerEntries', function ($ledgerQuery) use ($selectedAcademicYear) {
+                            $ledgerQuery
+                                ->where('academic_year_id', $selectedAcademicYear->id)
+                                ->whereNotNull('credit');
+                        });
+                });
             })
             ->when($dateFrom, function ($query, $dateFrom) {
                 $query->whereDate('created_at', '>=', $dateFrom);
@@ -733,11 +741,12 @@ class TransactionHistoryController extends Controller
 
         $totalPaidInYear = round((float) Transaction::query()
             ->where('student_id', $studentId)
-            ->whereBetween('created_at', [
-                "{$academicYear->start_date} 00:00:00",
-                "{$academicYear->end_date} 23:59:59",
-            ])
             ->whereNotIn('status', ['voided', 'refunded', 'reissued'])
+            ->whereHas('ledgerEntries', function ($query) use ($academicYearId) {
+                $query
+                    ->where('academic_year_id', $academicYearId)
+                    ->whereNotNull('credit');
+            })
             ->sum('total_amount'), 2);
 
         if ($enrollment->payment_term === 'cash') {
@@ -750,12 +759,6 @@ class TransactionHistoryController extends Controller
 
         if ($totalPaidInYear >= (float) $enrollment->downpayment) {
             $enrollment->update(['status' => 'enrolled']);
-
-            return;
-        }
-
-        if ($totalPaidInYear > 0) {
-            $enrollment->update(['status' => 'partial_payment']);
 
             return;
         }

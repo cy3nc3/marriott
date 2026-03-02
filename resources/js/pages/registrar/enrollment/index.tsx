@@ -85,7 +85,6 @@ interface Props {
     selected_school_year_status: string | null;
     summary: {
         for_cashier_payment: number;
-        partial_payment: number;
     };
     filters: {
         search?: string;
@@ -140,7 +139,6 @@ export default function Enrollment({
         section_id: '',
         payment_term: 'monthly',
         downpayment: '',
-        status: 'for_cashier_payment',
     });
 
     const createSectionOptions = useMemo(() => {
@@ -228,7 +226,6 @@ export default function Enrollment({
             section_id: item.section_id ? String(item.section_id) : '',
             payment_term: item.payment_term,
             downpayment: String(item.downpayment ?? 0),
-            status: normalizeStatus(item.status),
         });
     };
 
@@ -295,7 +292,6 @@ export default function Enrollment({
         const normalized = normalizeStatus(status);
         const labelMap: Record<string, string> = {
             for_cashier_payment: 'For Cashier Payment',
-            partial_payment: 'Partial Payment',
         };
 
         return (
@@ -1042,10 +1038,6 @@ export default function Enrollment({
                                         For Cashier Payment:{' '}
                                         {summary.for_cashier_payment}
                                     </Badge>
-                                    <Badge variant="outline">
-                                        Partial Payment:{' '}
-                                        {summary.partial_payment}
-                                    </Badge>
                                 </div>
                                 <div className="flex flex-col gap-3 sm:flex-row">
                                     <Select
@@ -1462,28 +1454,6 @@ export default function Enrollment({
                                     }
                                 />
                             </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>Status</Label>
-                            <Select
-                                value={editForm.data.status}
-                                onValueChange={(value) =>
-                                    editForm.setData('status', value)
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="for_cashier_payment">
-                                        For Cashier Payment
-                                    </SelectItem>
-                                    <SelectItem value="partial_payment">
-                                        Partial Payment
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
                         </div>
                     </div>
                     <DialogFooter>

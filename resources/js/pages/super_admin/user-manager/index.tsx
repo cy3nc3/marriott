@@ -199,7 +199,7 @@ export default function UserManager({ users, filters }: Props) {
     const handleResetPassword = (user: User) => {
         if (
             confirm(
-                `Reset ${user.name}'s password to their birthday (YYYYMMDD)?`,
+                `Reset ${user.name}'s password to the default format ([first-name-token]@MMDDYYYY)?`,
             )
         ) {
             router.post(
@@ -559,7 +559,7 @@ export default function UserManager({ users, filters }: Props) {
                                 />
                                 <p className="text-xs text-muted-foreground">
                                     Password will be auto-generated from this
-                                    date (YYYYMMDD).
+                                    format: [first-name-token]@MMDDYYYY.
                                 </p>
                             </div>
 

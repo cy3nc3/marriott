@@ -79,4 +79,9 @@ class Transaction extends Model
     {
         return $this->hasMany(TransactionDueAllocation::class);
     }
+
+    public function ledgerEntries(): HasMany
+    {
+        return $this->hasMany(LedgerEntry::class, 'reference_id');
+    }
 }

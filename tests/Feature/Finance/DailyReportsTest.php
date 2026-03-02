@@ -4,6 +4,7 @@ use App\Models\AcademicYear;
 use App\Models\Fee;
 use App\Models\GradeLevel;
 use App\Models\InventoryItem;
+use App\Models\LedgerEntry;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\User;
@@ -322,5 +323,62 @@ test('finance daily reports filters by school year', function () {
             ->where('filters.academic_year_id', $schoolYearOne->id)
             ->has('transaction_rows.data', 1)
             ->where('transaction_rows.data.0.or_number', 'OR-DAILY-SY-1')
+        );
+});
+
+test('finance daily reports school year filter includes transaction mapped by ledger year', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'upcoming',
+        'current_quarter' => 'pre_opening',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '781234567890',
+        'first_name' => 'Sofia',
+        'last_name' => 'Castro',
+    ]);
+
+    $transaction = Transaction::query()->create([
+        'or_number' => 'OR-DAILY-LEDGER-1',
+        'student_id' => $student->id,
+        'cashier_id' => $this->finance->id,
+        'total_amount' => 3200,
+        'payment_mode' => 'cash',
+    ]);
+
+    $transaction->items()->create([
+        'description' => 'Enrollment Downpayment',
+        'amount' => 3200,
+    ]);
+
+    Transaction::query()->whereKey($transaction->id)->update([
+        'created_at' => '2026-03-12 08:00:00',
+        'updated_at' => '2026-03-12 08:00:00',
+    ]);
+
+    LedgerEntry::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'date' => '2026-03-12',
+        'description' => 'Payment (OR-DAILY-LEDGER-1)',
+        'debit' => null,
+        'credit' => 3200,
+        'running_balance' => -3200,
+        'reference_id' => $transaction->id,
+    ]);
+
+    $this->get("/finance/daily-reports?academic_year_id={$schoolYear->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/daily-reports/index')
+            ->where('selected_school_year_id', $schoolYear->id)
+            ->where('summary.transaction_count', 1)
+            ->where('summary.gross_collection', 3200)
+            ->where('filters.academic_year_id', $schoolYear->id)
+            ->has('transaction_rows.data', 1)
+            ->where('transaction_rows.data.0.or_number', 'OR-DAILY-LEDGER-1')
         );
 });
