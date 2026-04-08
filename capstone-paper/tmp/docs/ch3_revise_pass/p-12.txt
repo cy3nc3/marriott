@@ -1,0 +1,39 @@
+Taken together, these interview findings show that Marriott School's general problem is
+workflow fragmentation across registrar, finance, and academic operations. Because
+offices validate the same learner information in different files and at different times,
+turnaround slows and management receives consolidated information later than needed for
+timely decisions.
+
+Specific Problems:
+
+    ➢ How can a centralized registrar workflow be developed to capture enrollment
+        intake, support SF1 upload, and enrich learner records by LRN to reduce duplicate
+        encoding?
+
+        According to the Registrar interview (Appendix B.2), intake encoding, profile
+        corrections, and enrichment checks are repeatedly validated across separate files
+        before release. The same interview indicates that this verification burden becomes
+        more severe during enrollment peaks, confirming duplicate encoding and repeated
+        checking as persistent registrar-side bottlenecks.
+
+    ➢ How can integrated cashiering and billing workflows be developed to automate
+        posting, update balances immediately, and keep ledgers and parent billing views
+        synchronized?
+
+        According to the Finance interview (Appendix B.3), payment entries and balance
+        confirmations often require manual cross-referencing before official status can be
+        released. The interview further indicates that when multiple transactions are posted
+        in close succession, reconciliation workload increases, which confirms cashiering
+        and billing synchronization as a real institutional problem.
+
+    ➢ How can schedule and class-list workflows be developed to support academic
+        planning while minimizing timetable conflicts and repetitive manual verification?
+
+        According to the Registrar and Teacher interviews (Appendices B.2 and B.4),
+        schedule checks, class-list preparation, and grade-related validation are repetitive
+        and labor-intensive. Their accounts show that academic coordination slows down
+
+
+
+STI College Munoz-EDSA                                                                         8
+

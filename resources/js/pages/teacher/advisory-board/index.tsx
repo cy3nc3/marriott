@@ -228,10 +228,11 @@ export default function AdvisoryBoard({
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Advisory Context</CardTitle>
                             <Badge
-                                variant={
+                                variant="outline"
+                                className={
                                     status === 'locked'
-                                        ? 'secondary'
-                                        : 'outline'
+                                        ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                        : ''
                                 }
                             >
                                 Status:{' '}

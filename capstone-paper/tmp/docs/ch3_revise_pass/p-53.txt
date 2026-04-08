@@ -1,0 +1,44 @@
+        verify, tapos maayos bago ma-release. Kung automated, mas mabilis at mas ma-
+        track.
+
+
+        Interviewer: Sir, sa inyong palagay, ano ang pinakamalaking challenge sa
+        kasalukuyang sistema ng school?
+
+
+        Interviewee: Marami. Pero ang pinakamalaking problema, talaga, yung kahirapan
+        sa coordination ng iba't ibang departments. Halimbawa, kung enrollment, finance,
+        at teachers, bawat isa may sariling paraan, tapos need i-merge manually. Minsan,
+        nagka-conflict yung numbers student count, tuition payment, attendance.
+        Kailangan mag-check isa-isa para ma-align.
+
+
+        Interviewer: Paano nito naapektohan ang trabaho ninyo at ang students?
+
+
+        Interviewee: Mas maraming oras ang nauubos sa pag-verify ng data kaysa sa actual
+        na tasks. Teachers at staff, kailangan mag-double check ng entries, kaya delay sa
+        reporting. Students, minsan natatambakan ng late updates sa grades, attendance, at
+        payments. Ang stress, hindi sa work lang, pati sa operations ng school.
+
+
+        Interviewer: Sir, bakit sa tingin nyo nanatili pa rin ang mga problema na ito
+        hanggang ngayon?
+
+
+        Interviewee: Siguro kasi complex ang system namin. Maraming tools at manual
+        processes. Lahat connected sa ibang tasks. Wala pang streamlined workflow na
+        madaling ma-access ng lahat. Kaya hanggang ngayon, ganito pa rin.
+
+
+        Interviewer: Ano ang tingin nyo na solusyon para maayos ang mga problemang
+        ito?
+
+
+        Interviewee: Siguro, kailangan ng mas malinaw at standardized workflow.
+        Halimbawa, kung paano kino-collect at chine-check ang attendance, paano nagha-
+
+
+
+STI College Munoz-EDSA                                                                       49
+

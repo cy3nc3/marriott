@@ -571,13 +571,14 @@ export default function TransactionHistory({
                                             </TableCell>
                                             <TableCell className="border-l">
                                                 <Badge
-                                                    variant={
+                                                    variant="outline"
+                                                    className={
                                                         transaction.status ===
                                                             'voided' ||
                                                         transaction.status ===
                                                             'refunded'
-                                                            ? 'destructive'
-                                                            : 'secondary'
+                                                            ? 'bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800'
+                                                            : 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
                                                     }
                                                 >
                                                     {transaction.status_label}

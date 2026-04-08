@@ -1,0 +1,41 @@
+                            TECHNICAL BACKGROUND
+
+
+Overview of Current Technologies Used in the System
+
+MarriottConnect is implemented as a modern web-based school information system that
+centralizes institutional records, enforces role-based operations, and delivers analytics-
+ready outputs for decision support.
+
+The backend uses Laravel 12 on PHP 8.5 with PostgreSQL as the primary relational
+database. Authentication and access security are handled through Laravel Fortify, while
+role middleware and route-group policies control authorized module access.
+
+The frontend uses Inertia.js v2 with React 19 and TypeScript to support structured,
+responsive workflows per role. Tailwind CSS v4 and Shadcn component patterns are used
+to maintain consistent interfaces across registrar, finance, academic, and governance
+pages.
+
+For analytics and reporting, shared chart wrappers support line, bar, area, and pie
+visualizations, enabling trend interpretation through standardized dashboard payloads.
+
+
+
+
+Prototyping Model
+
+The study follows an iterative prototyping model to ensure that system behavior
+continuously reflects validated operational requirements from school stakeholders.
+
+
+
+
+Figure 1. Prototype Model
+
+Reference model: iterative prototyping cycle for requirement validation, controlled
+implementation, and continuous refinement.
+
+
+
+STI College Munoz-EDSA                                                                       23
+

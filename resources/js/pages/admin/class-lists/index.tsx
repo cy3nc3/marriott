@@ -136,13 +136,13 @@ export default function ClassLists({ gradeLevels, activeYear }: Props) {
     const getStatusBadge = (status: string) => {
         switch (status.toLowerCase()) {
             case 'enrolled':
-                return <Badge variant="outline">Active</Badge>;
+                return <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">Active</Badge>;
             case 'transferred':
-                return <Badge variant="outline">Transferred</Badge>;
+                return <Badge variant="outline" className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800">Transferred</Badge>;
             case 'dropped':
-                return <Badge variant="outline">Dropped</Badge>;
+                return <Badge variant="outline" className="bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800">Dropped</Badge>;
             default:
-                return <Badge variant="secondary">{status}</Badge>;
+                return <Badge variant="outline">{status}</Badge>;
         }
     };
 

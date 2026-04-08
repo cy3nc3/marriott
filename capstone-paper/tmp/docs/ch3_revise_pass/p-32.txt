@@ -1,0 +1,45 @@
+1. Authorized administrators must manage academic controls, sections, schedules, and
+class visibility through one secure interface.
+
+2. Administrative users must review KPI cards, alerts, and trends that summarize real-
+time operational conditions.
+
+3. Administrative outputs must support school-year planning, staffing decisions, and
+workflow correction.
+
+
+C. System Requirements
+
+        Major System Capabilities
+
+1. The system operates as a role-based web platform accessible through modern desktop
+and supported mobile browsers.
+
+2. The system centralizes learner, enrollment, grading, and finance records under one
+validated data model.
+
+3. The system enforces role-based access for super admin, admin, registrar, finance,
+teacher, student, and parent users.
+
+4. The system supports registrar intake, student directory maintenance, and SF1 upload
+processing.
+
+5. The system supports finance cashiering, ledger updates, due allocation, fee
+configuration, and transaction history actions.
+
+6. The system supports teacher grading workflows including rubric setup, activity
+encoding, score entry, and quarter submission.
+
+7. The system provides dashboard analytics through KPI cards, alerts, and trend
+visualizations.
+
+8. The system preserves governance through settings control, audit logging, permissions
+visibility, and announcement management.
+
+Major System Conditions
+
+
+
+
+STI College Munoz-EDSA                                                                    28
+

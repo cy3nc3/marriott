@@ -1,0 +1,39 @@
+of communication between institutions and parents, and being able to access timely
+information about their child’s academic progress.
+
+For MarriottConnect, this is strongly relevant to stakeholder-facing modules. Appendix
+responses indicate that parents often experience delayed or incomplete updates, while
+offices rely on fragmented communication channels to resolve record issues. Navarra and
+Antonio (2025) supports the system's parent and student portal strategy, where authorized
+users can access updated academic and billing-related information through one secure
+platform rather than informal or delayed communication paths.
+
+International Studies
+
+Designing Decision Support System for Midwifery Students' Tuition Fees Problem
+
+Wulandari and Pinandito (2021) proposed a decision support model for tuition
+delinquency management using structured decision logic. Their study moved beyond
+simple balance viewing by showing how financial status classification can be translated
+into actionable policy options for school management. The research demonstrated that
+decision-support logic can improve consistency and speed in handling financially
+sensitive student cases.
+
+This aligns directly with MarriottConnect's finance goals, particularly delinquency
+identification and actionable payment-status interpretation. In appendix interviews, the
+Finance office described delays caused by manual cross-referencing of ledgers during
+multiple payment events. Wulandari and Pinandito (2021) supports the inclusion of
+structured delinquency analytics so finance decisions are guided by standardized rules
+and timely data, not fragmented manual reconciliation.
+
+Bright Kids Tuition Centre Management Information System
+
+Mostafa and Chai (2021) created a web-based information management system, which
+provided an interconnected environment in which many different parties (students,
+parents, staff) could obtain access to the same set of records. The results of their study
+showed that using a common platform for records that were being shared led to some
+
+
+
+STI College Munoz-EDSA                                                                       19
+

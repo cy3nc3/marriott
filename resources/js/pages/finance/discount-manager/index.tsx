@@ -1,4 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -103,6 +104,10 @@ export default function DiscountManager({
     const [isTagStudentOpen, setIsTagStudentOpen] = useState(false);
     const [editingProgram, setEditingProgram] =
         useState<DiscountProgramRow | null>(null);
+    const [programToDelete, setProgramToDelete] =
+        useState<DiscountProgramRow | null>(null);
+    const [taggedStudentToDelete, setTaggedStudentToDelete] =
+        useState<StudentDiscountRow | null>(null);
 
     const createProgramForm = useForm({
         name: '',
@@ -167,12 +172,15 @@ export default function DiscountManager({
     };
 
     const removeProgram = (program: DiscountProgramRow) => {
-        if (!confirm(`Remove "${program.name}" discount program?`)) {
-            return;
-        }
+        setProgramToDelete(program);
+    };
 
-        router.delete(destroy({ discount: program.id }).url, {
+    const submitDeleteProgram = () => {
+        if (!programToDelete) return;
+
+        router.delete(destroy({ discount: programToDelete.id }).url, {
             preserveScroll: true,
+            onSuccess: () => setProgramToDelete(null),
         });
     };
 
@@ -196,21 +204,21 @@ export default function DiscountManager({
     };
 
     const removeTaggedStudent = (row: StudentDiscountRow) => {
-        if (
-            !confirm(
-                `Remove ${row.student_name} from ${row.program} discount registry?`,
-            )
-        ) {
-            return;
-        }
+        setTaggedStudentToDelete(row);
+    };
 
-        router.delete(untag_student({ studentDiscount: row.id }).url, {
+    const submitDeleteTaggedStudent = () => {
+        if (!taggedStudentToDelete) return;
+
+        router.delete(untag_student({ studentDiscount: taggedStudentToDelete.id }).url, {
             preserveScroll: true,
+            onSuccess: () => setTaggedStudentToDelete(null),
         });
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
+            <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Discount Manager" />
 
             <div className="flex flex-col gap-6">
@@ -700,7 +708,28 @@ export default function DiscountManager({
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                <ActionConfirmDialog
+                    open={programToDelete !== null}
+                    onOpenChange={(open) => !open && setProgramToDelete(null)}
+                    title="Remove Discount Program"
+                    description={`Are you sure you want to remove the "${programToDelete?.name}" discount program? This will not affect students already tagged but will prevent new tags from being created.`}
+                    variant="destructive"
+                    confirmLabel="Remove Program"
+                    onConfirm={submitDeleteProgram}
+                />
+
+                <ActionConfirmDialog
+                    open={taggedStudentToDelete !== null}
+                    onOpenChange={(open) => !open && setTaggedStudentToDelete(null)}
+                    title="Remove Student Discount"
+                    description={`Are you sure you want to remove ${taggedStudentToDelete?.student_name} from the ${taggedStudentToDelete?.program} discount registry? This will affect their future ledger calculations.`}
+                    variant="destructive"
+                    confirmLabel="Remove Tag"
+                    onConfirm={submitDeleteTaggedStudent}
+                />
             </div>
         </AppLayout>
-    );
+    </>
+);
 }

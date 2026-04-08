@@ -1,4 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -71,6 +72,9 @@ const formatDateTime = (value: string | null) => {
 export default function DueReminderSettings({ rules, automation }: Props) {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [editingRule, setEditingRule] = useState<ReminderRuleRow | null>(
+        null,
+    );
+    const [ruleToDelete, setRuleToDelete] = useState<ReminderRuleRow | null>(
         null,
     );
 
@@ -151,12 +155,15 @@ export default function DueReminderSettings({ rules, automation }: Props) {
     };
 
     const removeRule = (rule: ReminderRuleRow) => {
-        if (!confirm(`Delete reminder rule: ${rule.label}?`)) {
-            return;
-        }
+        setRuleToDelete(rule);
+    };
 
-        router.delete(destroy({ financeDueReminderRule: rule.id }).url, {
+    const submitDeleteRule = () => {
+        if (!ruleToDelete) return;
+
+        router.delete(destroy({ financeDueReminderRule: ruleToDelete.id }).url, {
             preserveScroll: true,
+            onSuccess: () => setRuleToDelete(null),
         });
     };
 
@@ -168,7 +175,8 @@ export default function DueReminderSettings({ rules, automation }: Props) {
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
+            <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Due Reminder Settings" />
 
             <div className="flex flex-col gap-6">
@@ -447,7 +455,18 @@ export default function DueReminderSettings({ rules, automation }: Props) {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                <ActionConfirmDialog
+                    open={ruleToDelete !== null}
+                    onOpenChange={(open) => !open && setRuleToDelete(null)}
+                    title="Delete Reminder Rule"
+                    description={`Are you sure you want to delete the reminder rule "${ruleToDelete?.label}"? This will stop all automatic notifications associated with this rule.`}
+                    variant="destructive"
+                    confirmLabel="Delete Rule"
+                    onConfirm={submitDeleteRule}
+                />
             </div>
         </AppLayout>
-    );
+    </>
+);
 }

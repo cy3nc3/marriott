@@ -1,4 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -85,6 +86,7 @@ export default function ProductInventory({ product_items }: Props) {
     const [categoryFilter, setCategoryFilter] = useState<
         'all-categories' | ItemType
     >('all-categories');
+    const [itemToRemove, setItemToRemove] = useState<ProductItemRow | null>(null);
 
     const createForm = useForm({
         name: '',
@@ -167,13 +169,12 @@ export default function ProductInventory({ product_items }: Props) {
         });
     };
 
-    const removeItem = (item: ProductItemRow) => {
-        if (!confirm(`Remove "${item.name}" from price catalog?`)) {
-            return;
-        }
+    const submitRemove = () => {
+        if (!itemToRemove) return;
 
-        router.delete(destroy({ inventoryItem: item.id }).url, {
+        router.delete(destroy({ inventoryItem: itemToRemove.id }).url, {
             preserveScroll: true,
+            onSuccess: () => setItemToRemove(null),
         });
     };
 
@@ -278,7 +279,7 @@ export default function ProductInventory({ product_items }: Props) {
                                                     size="icon"
                                                     className="size-8"
                                                     onClick={() =>
-                                                        removeItem(row)
+                                                        setItemToRemove(row)
                                                     }
                                                 >
                                                     <Trash2 className="size-4" />
@@ -492,6 +493,16 @@ export default function ProductInventory({ product_items }: Props) {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                <ActionConfirmDialog
+                    open={!!itemToRemove}
+                    onOpenChange={(open) => !open && setItemToRemove(null)}
+                    title="Remove Product"
+                    description={`Are you sure you want to remove "${itemToRemove?.name}" from the price catalog? This action will prevent this item from being selected in new billing entries.`}
+                    variant="destructive"
+                    confirmLabel="Remove Item"
+                    onConfirm={submitRemove}
+                />
             </div>
         </AppLayout>
     );

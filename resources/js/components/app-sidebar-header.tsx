@@ -191,7 +191,7 @@ export function AppSidebarHeader({
                     className="max-w-[11rem] truncate text-xs"
                     title={activeAcademicYearName}
                 >
-                    {activeAcademicYearName}
+                    S.Y. {activeAcademicYearName}
                 </Badge>
             </div>
         </header>

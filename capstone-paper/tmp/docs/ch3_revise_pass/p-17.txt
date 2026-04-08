@@ -1,0 +1,38 @@
+    ● Discount and Scholarship Rules Module - Configure discount policies and apply
+        student-level discount tagging controls.
+    ● Inventory Charges Module - Manage finance-related item catalogs and charge
+        integration in cashier workflows.
+    ● Financial Analytics - Monitor collection trends, billing risk indicators, reminder
+        outputs, and daily finance performance.
+
+The Teachers can access the following:
+
+    ● Schedule Module - Access assigned teaching loads, class timetables, and advisory
+        schedule context.
+    ● Grading and Submission Module - Configure rubrics, create assessments, encode
+        scores, and submit quarter grades.
+    ● Attendance Monitoring Module - Record SF2-aligned attendance statuses linked
+        to subject-assignment context.
+    ● Advisory Conduct Module - Encode conduct indicators and advisory observations
+        for class-level monitoring.
+    ● Gradebook Validation Module - Review grading completeness, submission
+        status, and correction checkpoints.
+    ● Instructional Analytics - Analyze class performance trends, completion alerts,
+        and quarter progress indicators.
+
+The Parents can access the following:
+
+    ● Schedule Module - View child schedules, class timing, and section-related
+        timetable context.
+    ● Billing Module - Track dues schedules, payment history, and current balance
+        snapshots.
+    ● Parent Analytics - Review child-focused academic and billing indicators for
+        timely family decisions.
+    ● Academic Records Module - Access child’s quarter and final grade records under
+        role-scoped permissions.
+
+
+
+
+STI College Munoz-EDSA                                                                     13
+

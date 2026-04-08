@@ -1,4 +1,5 @@
 import { Head, router } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { CheckCircle2, Plus, Settings2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -137,6 +138,7 @@ export default function GradingSheet({
 
     const [isAssessmentModalOpen, setIsAssessmentModalOpen] = useState(false);
     const [isRubricModalOpen, setIsRubricModalOpen] = useState(false);
+    const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
 
     const [assessmentTitle, setAssessmentTitle] = useState('');
     const [assessmentComponent, setAssessmentComponent] = useState<
@@ -364,12 +366,16 @@ export default function GradingSheet({
             },
             {
                 preserveScroll: true,
+                onSuccess: () => {
+                    setIsSubmitConfirmOpen(false);
+                },
             },
         );
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
+            <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Grading Sheet" />
 
             <div className="flex flex-col gap-6">
@@ -378,14 +384,15 @@ export default function GradingSheet({
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Class and Subject</CardTitle>
                             <Badge
-                                variant={
+                                variant="outline"
+                                className={
                                     status === 'verified'
-                                        ? 'default'
+                                        ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
                                         : status === 'submitted'
-                                          ? 'secondary'
+                                          ? 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800'
                                           : status === 'returned'
-                                            ? 'destructive'
-                                            : 'outline'
+                                            ? 'bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800'
+                                            : ''
                                 }
                             >
                                 Status: {statusLabel}
@@ -499,7 +506,7 @@ export default function GradingSheet({
                                     Configure Rubric
                                 </Button>
                                 <Button
-                                    onClick={() => submitScores('submitted')}
+                                    onClick={() => setIsSubmitConfirmOpen(true)}
                                     disabled={
                                         !can_edit ||
                                         !context.has_assignment ||
@@ -707,7 +714,7 @@ export default function GradingSheet({
                                 Save Draft
                             </Button>
                             <Button
-                                onClick={() => submitScores('submitted')}
+                                onClick={() => setIsSubmitConfirmOpen(true)}
                                 disabled={
                                     !can_edit ||
                                     !context.has_assignment ||
@@ -866,7 +873,18 @@ export default function GradingSheet({
                         </div>
                     </div>
                 </ResponsiveFormDialog>
+
+                <ActionConfirmDialog
+                    open={isSubmitConfirmOpen}
+                    onOpenChange={setIsSubmitConfirmOpen}
+                    title="Submit Final Grades"
+                    description={`Are you sure you want to submit the grades for ${context.selected_quarter}${context.selected_quarter === '1' ? 'st' : context.selected_quarter === '2' ? 'nd' : context.selected_quarter === '3' ? 'rd' : 'th'} Quarter? This will lock the current entries and notify the registrar for verification.`}
+                    confirmLabel="Confirm Submission"
+                    loading={false}
+                    onConfirm={() => submitScores('submitted')}
+                />
             </div>
         </AppLayout>
-    );
+    </>
+);
 }

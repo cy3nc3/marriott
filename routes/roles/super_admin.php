@@ -27,6 +27,7 @@ Route::middleware(['auth', 'verified', 'role:super_admin'])->prefix('super-admin
 
     // Permissions
     Route::get('/permissions', [PermissionController::class, 'index'])->middleware('desktop_only')->name('permissions');
+    Route::post('/permissions', [PermissionController::class, 'update'])->middleware('desktop_only')->name('permissions.update');
 
     // System Settings
     Route::get('/system-settings', [SettingController::class, 'index'])->middleware('desktop_only')->name('system_settings');

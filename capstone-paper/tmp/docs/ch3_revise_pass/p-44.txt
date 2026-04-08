@@ -1,0 +1,43 @@
+B.1 Academic Head
+
+        Interviewer: Jade Michael D. Godalle
+        Interviewee: Mr. Alexander F. Avellanosa
+
+        Interviewer: Good afternoon po, Sir Alex. I’m Jade po ulit. Nandito po ulit kami
+        para sa interview. Sir, diba yung previous natin, gumagamit po kayo ng Excel or
+        manual files. Bakit po sir, hanggang ngayon gumagamit pa rin po kayo ng Excel?
+
+
+        Interviewee: Actually, i-clarify ko lang. Excel na nasa G-Drive po 'yan. So, manual
+        siya, pero nasa cloud, naka-share. Alam mo yun, parang okay na rin siya sa simula,
+        kasi lahat makakakita, makaka-access, pero mahirap i-manage. Kasi ang dami-dami
+        ng files, bawat department may kanya-kanyang Excel, at minsan kailangan i-
+        compare manually. Kahit nasa cloud, kung sabay-sabay nagta-trabaho, hindi mo na
+        talaga ma-track kung sino nag-edit, paano nag-change yung data. Talagang hassle.
+        Kaya nga kahit may Excel, hindi pa rin siya ganap na efficient.
+
+
+        Interviewer: Sir, yung mga nag-offer sa inyo, nag-offer ng ano? Alam po ba nila
+        yung problem kaya nag-offer sila ng ganong system sa inyo?
+
+
+        Interviewee: Ah, yun. Dami nag-offer sa amin ng enrollment systems or iba pang
+        system. Pero honestly, di namin sigurado kung fully nila naintindihan yung
+        ganyang specific problems namin. Kasi ang hirap talaga, iba-iba yung situation
+        namin. Yung mga ino-offer nila, parang standard package lang sa ibang schools.
+        Hindi naman sila talaga fit sa workflow namin. Kaya kung gagamitin namin yun,
+        baka mas magulo pa. Talagang kailangan namin maintindihan muna bago i-adopt.
+
+
+        Interviewer: Sir, ano po ang mahirap na naranasan kapag sabay-sabay na nag-edit
+        o nag-access ng parehong file ang iba't iba?
+
+
+        Interviewee: Oo, tama. Mahirap talaga. Halimbawa, sabay nag-e-edit si Finance at
+        si Registrar sa parehong Excel file sa Google Drive. Pag may mali, kailangan i-
+        trace kung sino nag-edit, ano yung nagbago, saan nagkamali. Parang, ini-examine
+
+
+
+STI College Munoz-EDSA                                                                        40
+

@@ -13,17 +13,7 @@ use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardControll
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/pwa-manifest.webmanifest', function () {
-    $manifestPath = public_path('manifest.webmanifest');
-    abort_unless(is_file($manifestPath), 404);
 
-    return response()->file($manifestPath, [
-        'Content-Type' => 'application/manifest+json',
-        'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-        'Pragma' => 'no-cache',
-        'Expires' => '0',
-    ]);
-})->name('pwa.manifest');
 
 Route::get('/', function () {
     if (auth()->check()) {

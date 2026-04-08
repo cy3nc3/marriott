@@ -70,7 +70,7 @@ class ScheduleController extends Controller
                 }),
             'sectionSchedules' => ClassSchedule::whereHas('section', function ($q) use ($activeYear) {
                 $q->where('academic_year_id', $activeYear->id);
-            })->with(['subjectAssignment.teacherSubject.subject', 'subjectAssignment.teacherSubject.teacher'])->get(),
+            })->with(['section.gradeLevel', 'subjectAssignment.teacherSubject.subject', 'subjectAssignment.teacherSubject.teacher'])->get(),
         ]);
     }
 
@@ -101,7 +101,25 @@ class ScheduleController extends Controller
 
     public function update(UpdateScheduleRequest $request, ClassSchedule $schedule): RedirectResponse
     {
-        $schedule->update($request->validated());
+        $data = $request->validated();
+
+        if ($request->type === 'academic' && $request->filled(['subject_id', 'teacher_id'])) {
+            $teacherSubject = TeacherSubject::firstOrCreate([
+                'teacher_id' => $request->teacher_id,
+                'subject_id' => $request->subject_id,
+            ]);
+
+            $assignment = SubjectAssignment::firstOrCreate([
+                'section_id' => $schedule->section_id,
+                'teacher_subject_id' => $teacherSubject->id,
+            ]);
+
+            $data['subject_assignment_id'] = $assignment->id;
+        } elseif ($request->type !== 'academic') {
+            $data['subject_assignment_id'] = null;
+        }
+
+        $schedule->update($data);
 
         return back()->with('success', 'Schedule updated.');
     }

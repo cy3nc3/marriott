@@ -1,0 +1,38 @@
+empirical support for replacing that process with integrated registrar-to-finance-to-
+academic data continuity. The study also justifies the system's modular but connected
+architecture, where each office retains role boundaries while operating on shared records.
+
+A Comparative Case Study on the Challenges Encountered by Philippine Private
+and Public Educational Institutions with their Existing Management Information
+System
+
+In their study, Zulueta and colleagues (2021) analyzed challenges related to the
+implementation of Management Information Systems (MIS) that had been experienced in
+the Philippine Education System. The authors determined that there were ongoing issues
+relating to the standardization of processes, readiness of physical infrastructure, user
+adaptation, and operational support mechanisms based on real-world experiences. In
+addition to considering technical characteristics of MIS applications as a parameter for
+measuring performance, the authors also evaluated the effectiveness of these systems
+through a socio-technical lens (interaction of the organizational work structure and the
+quality of MIS system design) and emphasized that coordination of these two elements
+was vital for effective implementation.
+
+For MarriottConnect, this study is relevant because the appendices show that current
+delays are not caused by a single office failure but by cross-office coordination friction.
+Zulueta et al. (2021) supports the capstone's staged rollout logic and reinforces the need
+for clear role-specific workflows, consistent operational rules, and adoption-oriented
+implementation practices. It also strengthens the rationale for including governance-
+related controls and maintainability planning, not just transactional modules.
+
+A Machine Learning Based DSS in Predicting Undergraduate Freshmen Enrolment
+in a Philippine University
+
+Esquivel and Esquivel (2021) demonstrated how machine-learning-based decision
+support can transform historical enrollment records into forecasting outputs usable for
+institutional planning. The study showed that data-driven prediction methods can reduce
+reliance on manual trend estimation and improve preparation for upcoming academic
+
+
+
+STI College Munoz-EDSA                                                                        17
+

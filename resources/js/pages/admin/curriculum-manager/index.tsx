@@ -1,9 +1,11 @@
 import { Head, useForm, router } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Plus, UserPlus, Edit2, Search, X, Users, Trash2 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useInitials } from '@/hooks/use-initials';
 import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
@@ -89,6 +91,7 @@ const FacultyCertificationList = ({
     onToggle,
     filteredTeachers,
 }: FacultyListProps) => {
+    const getInitials = useInitials();
     const selectedList = teachers.filter((t) => selectedIds.includes(t.id));
 
     return (
@@ -115,7 +118,7 @@ const FacultyCertificationList = ({
                                     >
                                         <Avatar className="size-6">
                                             <AvatarFallback>
-                                                {teacher.initial}
+                                                {getInitials(teacher.name)}
                                             </AvatarFallback>
                                         </Avatar>
                                         <span className="font-medium">
@@ -150,7 +153,7 @@ const FacultyCertificationList = ({
                                 <div className="flex items-center gap-3">
                                     <Avatar className="size-8">
                                         <AvatarFallback>
-                                            {teacher.initial}
+                                            {getInitials(teacher.name)}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div>
@@ -192,6 +195,7 @@ export default function CurriculumManager({
     gradeLevels: GradeLevel[];
     teachers: Teacher[];
 }) {
+    const getInitials = useInitials();
     const [activeTab, setActiveTab] = useState(
         gradeLevels[0]?.id.toString() || '',
     );
@@ -202,6 +206,9 @@ export default function CurriculumManager({
         null,
     );
     const [searchQuery, setSearchQuery] = useState('');
+    const [subjectIdToDelete, setSubjectIdToDelete] = useState<number | null>(
+        null,
+    );
 
     const addForm = useForm({
         grade_level_id: activeTab,
@@ -274,9 +281,14 @@ export default function CurriculumManager({
     };
 
     const handleDeleteSubject = (id: number) => {
-        if (confirm('Are you sure you want to remove this subject?')) {
-            router.delete(destroy({ subject: id }).url);
-        }
+        setSubjectIdToDelete(id);
+    };
+
+    const submitDeleteSubject = () => {
+        if (!subjectIdToDelete) return;
+        router.delete(destroy({ subject: subjectIdToDelete }).url, {
+            onSuccess: () => setSubjectIdToDelete(null),
+        });
     };
 
     const toggleTeacher = (teacherId: number, formType: 'add' | 'certify') => {
@@ -299,7 +311,8 @@ export default function CurriculumManager({
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
+            <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Curriculum Manager" />
             <TooltipProvider>
                 <div className="flex flex-col gap-6">
@@ -390,9 +403,7 @@ export default function CurriculumManager({
                                                                             >
                                                                                 <Avatar className="size-8">
                                                                                     <AvatarFallback>
-                                                                                        {
-                                                                                            t.initial
-                                                                                        }
+                                                                                        {getInitials(t.name)}
                                                                                     </AvatarFallback>
                                                                                 </Avatar>
                                                                             </TooltipTrigger>
@@ -702,6 +713,17 @@ export default function CurriculumManager({
                     </Dialog>
                 </div>
             </TooltipProvider>
+
+            <ActionConfirmDialog
+                open={subjectIdToDelete !== null}
+                onOpenChange={(open) => !open && setSubjectIdToDelete(null)}
+                title="Remove Subject"
+                description="Are you sure you want to remove this subject? This will delete the subject from the curriculum and remove all associated teacher certifications."
+                variant="destructive"
+                confirmLabel="Remove Subject"
+                onConfirm={submitDeleteSubject}
+            />
         </AppLayout>
-    );
+    </>
+);
 }

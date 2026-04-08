@@ -139,7 +139,7 @@ export default function StudentDirectory({
 
         if (status === 'matched') {
             return (
-                <Badge variant="secondary">
+                <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">
                     <CheckCircle2 className="size-3" />
                     Matched
                 </Badge>
@@ -151,7 +151,7 @@ export default function StudentDirectory({
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <span className="inline-flex">
-                            <Badge variant="destructive">
+                            <Badge variant="outline" className="bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800">
                                 <TriangleAlert className="size-3" />
                                 Discrepancy
                             </Badge>
@@ -163,7 +163,7 @@ export default function StudentDirectory({
         }
 
         return (
-            <Badge variant="outline">
+            <Badge variant="outline" className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800">
                 <Clock3 className="size-3" />
                 Pending
             </Badge>

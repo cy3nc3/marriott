@@ -1,4 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -142,6 +143,7 @@ export default function RemedialEntry({
               ? String(students[0].id)
               : '',
     );
+    const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
     const searchSuggestions = students.map((student) => ({
         id: student.id,
         label: student.name,
@@ -357,7 +359,8 @@ export default function RemedialEntry({
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
+            <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Remedial Entry" />
 
             <div className="flex flex-col gap-6">
@@ -567,10 +570,17 @@ export default function RemedialEntry({
                                         <p className="text-sm text-muted-foreground">
                                             Remedial Intake
                                         </p>
-                                        <Badge variant="outline">
+                                        <Badge
+                                            variant="outline"
+                                            className={
+                                                remedial_case.status === 'paid'
+                                                    ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                                    : 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                                            }
+                                        >
                                             {remedial_case.status
                                                 .replaceAll('_', ' ')
-                                                .toUpperCase()}
+                                                .replace(/\b\w/g, (c) => c.toUpperCase())}
                                         </Badge>
                                     </div>
                                     <div className="flex items-center justify-between">
@@ -697,11 +707,13 @@ export default function RemedialEntry({
                                                 </TableCell>
                                                 <TableCell className="border-l pr-6 text-right">
                                                     <Badge
-                                                        variant={
-                                                            liveRow.status ===
-                                                            'Passed'
-                                                                ? 'secondary'
-                                                                : 'outline'
+                                                        variant="outline"
+                                                        className={
+                                                            liveRow.status === 'Passed'
+                                                                ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                                                : liveRow.status === 'Failed'
+                                                                  ? 'bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800'
+                                                                  : ''
                                                         }
                                                     >
                                                         {liveRow.status}
@@ -737,7 +749,7 @@ export default function RemedialEntry({
                                 Save Draft
                             </Button>
                             <Button
-                                onClick={() => save('submitted')}
+                                onClick={() => setIsSubmitConfirmOpen(true)}
                                 disabled={
                                     remedialForm.processing ||
                                     !studentId ||
@@ -790,10 +802,11 @@ export default function RemedialEntry({
                                         <TableCell>{row.updated_at}</TableCell>
                                         <TableCell className="pr-6 text-right">
                                             <Badge
-                                                variant={
+                                                variant="outline"
+                                                className={
                                                     row.status === 'Submitted'
-                                                        ? 'secondary'
-                                                        : 'outline'
+                                                        ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                                        : ''
                                                 }
                                             >
                                                 {row.status}
@@ -817,5 +830,16 @@ export default function RemedialEntry({
                 </Card>
             </div>
         </AppLayout>
+
+        <ActionConfirmDialog
+            open={isSubmitConfirmOpen}
+            onOpenChange={setIsSubmitConfirmOpen}
+            title="Submit Remedial Results"
+            description="Are you sure you want to submit these remedial results? This will finalize the student's grades for the affected subjects and may update their overall status."
+            confirmLabel="Confirm Submission"
+            loading={remedialForm.processing}
+            onConfirm={() => save('submitted')}
+        />
+        </>
     );
 }

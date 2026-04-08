@@ -38,17 +38,52 @@ function AvatarImage({
 
 function AvatarFallback({
   className,
+  children,
   ...props
 }: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+  let colorClass = "bg-muted text-muted-foreground";
+
+  let childrenString = '';
+  if (typeof children === 'string') {
+     childrenString = children.trim();
+  } else if (typeof children === 'number') {
+     childrenString = String(children);
+  } else if (Array.isArray(children)) {
+     childrenString = children.filter(c => typeof c === 'string' || typeof c === 'number').join('').trim();
+  }
+
+  if (childrenString.length > 0) {
+    const bgColors = [
+      'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400',
+      'bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400',
+      'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400',
+      'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400',
+      'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-400',
+      'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400',
+      'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-400',
+      'bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-400',
+      'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-950/50 dark:text-fuchsia-400',
+      'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400',
+    ];
+    let hash = 0;
+    for (let i = 0; i < childrenString.length; i++) {
+        hash = childrenString.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % bgColors.length;
+    colorClass = bgColors[colorIndex];
+  }
+
   return (
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "bg-muted text-muted-foreground flex size-full items-center justify-center rounded-full text-sm group-data-[size=sm]/avatar:text-xs",
+        `flex size-full items-center justify-center font-medium rounded-full ${colorClass} text-sm group-data-[size=sm]/avatar:text-xs`,
         className
       )}
       {...props}
-    />
+    >
+      {children}
+    </AvatarPrimitive.Fallback>
   )
 }
 

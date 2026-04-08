@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use App\Services\DashboardCacheService;
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
 class Setting extends Model
 {
+    use Auditable;
     protected $fillable = ['key', 'value', 'group'];
 
     protected $casts = [

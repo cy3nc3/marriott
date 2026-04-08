@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,7 +16,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use Auditable, HasFactory, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -27,12 +28,15 @@ class User extends Authenticatable
         'last_name',
         'name',
         'email',
+        'avatar',
         'password',
         'birthday',
         'role',
         'is_active',
         'access_expires_at',
         'must_change_password',
+        'notification_settings',
+        'password_updated_at',
     ];
 
     /**
@@ -63,6 +67,8 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'access_expires_at' => 'datetime',
             'must_change_password' => 'boolean',
+            'notification_settings' => 'array',
+            'password_updated_at' => 'datetime',
         ];
     }
 

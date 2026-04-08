@@ -1,0 +1,38 @@
+MarriottConnect addresses this by treating attendance, score encoding, grade submission,
+and verification checkpoints as connected institutional processes rather than isolated
+encoding tasks.
+
+Governance and access control requirements further shape the project context. Schools
+need role boundaries that prevent unauthorized edits while still allowing authorized users
+to access what they need on time. According to Kanona (2022), central database controls
+and role-scoped access are key to protecting information integrity in academic systems.
+The same governance logic is reflected in MarriottConnect through policy-driven access
+controls, audit visibility, and announcement/notification traceability, so transparency is
+achieved without sacrificing operational discipline.
+
+Cross-role communication is another decisive factor in institutional performance. When
+offices and stakeholders rely on ad hoc messaging to confirm record status, coordination
+overhead grows and official channels lose authority. According to Chai and Mostafa
+(2021), integrated web-based school information environments improve communication
+consistency by keeping users connected to one authoritative dataset. This is why
+MarriottConnect pairs transaction modules with structured announcement and notification
+workflows: operational decisions and stakeholder communication should reference the
+same validated institutional data context.
+
+At the leadership tier, the school's need is not only to store records but to interpret
+operational movement in time for planning. Enrollment growth, payment behavior, grade-
+submission cadence, and risk indicators all require timely synthesis to support proactive
+decisions. According to Esquivel and Esquivel (2021), decision-support value increases
+when institutional records are converted into forecasting-capable signals. Hussain et al.
+(2023) further demonstrates that trend modeling helps institutions prepare staffing and
+resource allocations more effectively than static historical review alone.
+
+The implication for Marriott School is clear: reliable decision support depends on
+operational data continuity, and operational continuity depends on architecture that treats
+registrar, finance, academic, and stakeholder modules as one coordinated system.
+According to Grepon et al. (2021), integrated school information architectures improve
+
+
+
+STI College Munoz-EDSA                                                                        6
+

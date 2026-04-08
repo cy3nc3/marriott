@@ -5,7 +5,6 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\AuditLogService;
 use App\Services\DashboardCacheService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,7 +57,7 @@ class UserManagerController extends Controller
         ]);
     }
 
-    public function store(Request $request, AuditLogService $auditLogService): RedirectResponse
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
@@ -88,7 +87,7 @@ class UserManagerController extends Controller
             (string) $validated['birthday']
         );
 
-        $user = User::create([
+        User::create([
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
             'name' => $validated['first_name'].' '.$validated['last_name'],
@@ -99,20 +98,12 @@ class UserManagerController extends Controller
             'must_change_password' => true,
         ]);
 
-        $auditLogService->log('user.created', $user, null, $user->only([
-            'id',
-            'name',
-            'email',
-            'role',
-            'is_active',
-        ]));
-
         DashboardCacheService::bust();
 
         return back()->with('success', 'User account created successfully.');
     }
 
-    public function update(Request $request, User $user, AuditLogService $auditLogService): RedirectResponse
+    public function update(Request $request, User $user): RedirectResponse
     {
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
@@ -130,15 +121,6 @@ class UserManagerController extends Controller
             return back()->with('error', 'At least one active super admin account must remain active.');
         }
 
-        $oldValues = $user->only([
-            'id',
-            'first_name',
-            'last_name',
-            'name',
-            'birthday',
-            'role',
-        ]);
-
         $user->update([
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
@@ -147,21 +129,12 @@ class UserManagerController extends Controller
             'role' => $validated['role'],
         ]);
 
-        $auditLogService->log('user.updated', $user, $oldValues, $user->only([
-            'id',
-            'first_name',
-            'last_name',
-            'name',
-            'birthday',
-            'role',
-        ]));
-
         DashboardCacheService::bust();
 
         return back()->with('success', 'User account updated successfully.');
     }
 
-    public function resetPassword(User $user, AuditLogService $auditLogService): RedirectResponse
+    public function resetPassword(User $user): RedirectResponse
     {
         if (! $user->birthday) {
             return back()->with('error', 'User birthday is not set. Cannot auto-generate password.');
@@ -174,11 +147,7 @@ class UserManagerController extends Controller
         $user->update([
             'password' => Hash::make($password),
             'must_change_password' => true,
-        ]);
-
-        $auditLogService->log('user.password_reset', $user, null, [
-            'reset_method' => 'name_birthday_default',
-            'birthday' => date('Y-m-d', strtotime((string) $user->birthday)),
+            'password_updated_at' => now(),
         ]);
 
         DashboardCacheService::bust();
@@ -186,7 +155,7 @@ class UserManagerController extends Controller
         return back()->with('success', 'Password reset to default successfully.');
     }
 
-    public function toggleStatus(User $user, AuditLogService $auditLogService): RedirectResponse
+    public function toggleStatus(User $user): RedirectResponse
     {
         if (
             $user->is_active
@@ -196,16 +165,8 @@ class UserManagerController extends Controller
             return back()->with('error', 'At least one active super admin account must remain active.');
         }
 
-        $oldStatus = $user->is_active;
-
         $user->update([
             'is_active' => ! $user->is_active,
-        ]);
-
-        $auditLogService->log('user.status_toggled', $user, [
-            'is_active' => $oldStatus,
-        ], [
-            'is_active' => $user->is_active,
         ]);
 
         DashboardCacheService::bust();

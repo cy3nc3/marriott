@@ -1,4 +1,5 @@
 import { Head, useForm, router } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import {
     Calendar,
     Clock,
@@ -23,6 +24,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -51,7 +53,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 // Configuration
 const START_HOUR = 7;
 const END_HOUR = 17;
-const HOUR_HEIGHT = 56;
+const HOUR_HEIGHT = 96;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 interface Teacher {
@@ -76,6 +78,8 @@ interface ScheduleItem {
     day: string;
     start_time: string;
     end_time: string;
+    section?: { id: number; name: string; grade_level?: { id: number; name: string } };
+    _sections?: string[];
     subject_assignment?: {
         teacher_subject?: {
             subject?: { id: number; subject_name: string };
@@ -127,6 +131,7 @@ export default function ScheduleBuilder({
     );
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<ScheduleItem | null>(null);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
     useEffect(() => {
         const grade = gradeLevels.find(
@@ -152,6 +157,8 @@ export default function ScheduleBuilder({
 
     const editForm = useForm({
         type: 'academic' as 'academic' | 'break' | 'ceremony',
+        subject_id: null as number | null,
+        teacher_id: null as number | null,
         label: '',
         day: '',
         start_time: '',
@@ -162,6 +169,33 @@ export default function ScheduleBuilder({
         if (!time) return 0;
         const [hours, minutes] = time.split(':').map(Number);
         return hours * 60 + minutes;
+    };
+
+    const getSubjectColor = (subjectName: string | null | undefined) => {
+        if (!subjectName) return 'border-border bg-muted/70 text-foreground';
+        
+        const colors = [
+            { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-700 dark:text-red-400', hover: 'hover:border-red-500/60' },
+            { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-700 dark:text-orange-400', hover: 'hover:border-orange-500/60' },
+            { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-700 dark:text-amber-400', hover: 'hover:border-amber-500/60' },
+            { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-700 dark:text-emerald-400', hover: 'hover:border-emerald-500/60' },
+            { bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-700 dark:text-cyan-400', hover: 'hover:border-cyan-500/60' },
+            { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-700 dark:text-blue-400', hover: 'hover:border-blue-500/60' },
+            { bg: 'bg-indigo-500/10', border: 'border-indigo-500/30', text: 'text-indigo-700 dark:text-indigo-400', hover: 'hover:border-indigo-500/60' },
+            { bg: 'bg-violet-500/10', border: 'border-violet-500/30', text: 'text-violet-700 dark:text-violet-400', hover: 'hover:border-violet-500/60' },
+            { bg: 'bg-fuchsia-500/10', border: 'border-fuchsia-500/30', text: 'text-fuchsia-700 dark:text-fuchsia-400', hover: 'hover:border-fuchsia-500/60' },
+            { bg: 'bg-rose-500/10', border: 'border-rose-500/30', text: 'text-rose-700 dark:text-rose-400', hover: 'hover:border-rose-500/60' },
+        ];
+        
+        const normalizedName = subjectName.trim().toUpperCase();
+        let hash = 0;
+        for (let i = 0; i < normalizedName.length; i++) {
+            hash = normalizedName.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const index = Math.abs(hash) % colors.length;
+        const color = colors[index];
+        
+        return `${color.bg} ${color.border} ${color.text} ${color.hover}`;
     };
 
     const getPosition = (time: string) =>
@@ -183,12 +217,38 @@ export default function ScheduleBuilder({
 
     const activeGhostBlocks = useMemo(() => {
         if (!selectedTeacherId || selectedTeacherId === 'none') return [];
-        return sectionSchedules.filter(
+        const ghosts = sectionSchedules.filter(
             (s) =>
                 s.subject_assignment?.teacher_subject?.teacher?.id.toString() ===
                     selectedTeacherId &&
                 s.section_id.toString() !== selectedSectionId,
         );
+
+        const uniqueGhosts: ScheduleItem[] = [];
+        const seen = new Map<string, number>();
+
+        for (const g of ghosts) {
+            const subjectName = g.subject_assignment?.teacher_subject?.subject?.subject_name || g.label || '';
+            const key = `${g.day}-${g.start_time}-${g.end_time}-${subjectName}`;
+            
+            if (seen.has(key)) {
+                // Add the section to the existing ghost
+                const index = seen.get(key)!;
+                if (g.section?.name) {
+                    const sectionName = g.section.grade_level ? `${g.section.grade_level.name} - ${g.section.name}` : g.section.name;
+                    if (!uniqueGhosts[index]._sections?.includes(sectionName)) {
+                        uniqueGhosts[index]._sections!.push(sectionName);
+                    }
+                }
+            } else {
+                seen.set(key, uniqueGhosts.length);
+                const sectionName = g.section?.grade_level ? `${g.section.grade_level.name} - ${g.section?.name}` : g.section?.name;
+                const gClone = { ...g, _sections: sectionName ? [sectionName] : [] };
+                uniqueGhosts.push(gClone);
+            }
+        }
+
+        return uniqueGhosts;
     }, [sectionSchedules, selectedTeacherId, selectedSectionId]);
 
     const selectedGrade = useMemo(() => {
@@ -228,6 +288,8 @@ export default function ScheduleBuilder({
         setSelectedItem(item);
         editForm.setData({
             type: item.type,
+            subject_id: item.subject_assignment?.teacher_subject?.subject?.id || null,
+            teacher_id: item.subject_assignment?.teacher_subject?.teacher?.id || null,
             label: item.label || '',
             day: item.day,
             start_time: item.start_time.substring(0, 5),
@@ -256,12 +318,17 @@ export default function ScheduleBuilder({
     };
 
     const handleDelete = () => {
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const submitDelete = () => {
         if (!selectedItem) return;
-        if (confirm('Are you sure you want to remove this slot?')) {
-            router.delete(destroy({ schedule: selectedItem.id }).url, {
-                onSuccess: () => setIsDialogOpen(false),
-            });
-        }
+        router.delete(destroy({ schedule: selectedItem.id }).url, {
+            onSuccess: () => {
+                setIsDeleteConfirmOpen(false);
+                setIsDialogOpen(false);
+            },
+        });
     };
 
     if (!activeYear) {
@@ -300,7 +367,8 @@ export default function ScheduleBuilder({
     );
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
+            <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Schedule Builder" />
             <TooltipProvider>
                 <div className="flex flex-col gap-6">
@@ -560,16 +628,18 @@ export default function ScheduleBuilder({
                                                                                 ),
                                                                     );
 
+                                                                const ghostSubjectName = ghost.subject_assignment?.teacher_subject?.subject?.subject_name || ghost.label;
+                                                                
                                                                 return (
                                                                     <div
                                                                         key={
                                                                             ghost.id
                                                                         }
                                                                         className={cn(
-                                                                            'absolute inset-x-1 z-0 rounded-md border border-dashed px-1 py-1',
+                                                                            'absolute inset-x-1 z-0 rounded-md border px-1 py-1 opacity-[0.65]',
                                                                             isConflicting
-                                                                                ? 'border-destructive/50 bg-destructive/10'
-                                                                                : 'border-border bg-muted/40',
+                                                                                ? 'border-dashed border-destructive/50 bg-destructive/10 text-destructive grayscale-[0.2]'
+                                                                                : 'border-dashed border-border/80 bg-muted/40 text-muted-foreground',
                                                                         )}
                                                                         style={{
                                                                             top: getPosition(
@@ -585,15 +655,18 @@ export default function ScheduleBuilder({
                                                                             <p
                                                                                 className={cn(
                                                                                     'truncate text-[10px] font-semibold tracking-wide uppercase',
-                                                                                    isConflicting
-                                                                                        ? 'text-destructive'
-                                                                                        : 'text-muted-foreground',
+                                                                                    isConflicting ? 'text-destructive' : ''
                                                                                 )}
                                                                             >
                                                                                 {isConflicting
                                                                                     ? 'Conflict'
-                                                                                    : 'Occupied'}
+                                                                                    : ghostSubjectName || 'Occupied'}
                                                                             </p>
+                                                                            {ghost._sections && ghost._sections.length > 0 && !isConflicting && (
+                                                                                <p className="mt-[2px] truncate text-[9px] leading-tight font-medium opacity-80 uppercase tracking-widest">
+                                                                                    [{ghost._sections.join(', ')}]
+                                                                                </p>
+                                                                            )}
                                                                         </div>
                                                                     </div>
                                                                 );
@@ -669,8 +742,8 @@ export default function ScheduleBuilder({
                                                                                 : 'opacity-40 grayscale',
                                                                             item.type ===
                                                                                 'academic'
-                                                                                ? 'border-primary/30 bg-primary/5 hover:border-primary/60'
-                                                                                : 'border-border bg-muted/70',
+                                                                                ? getSubjectColor(subjectName)
+                                                                                : 'border-border bg-muted/70 text-foreground',
                                                                             hasTeacherConflict
                                                                                 ? 'right-1 left-[28%] border-destructive/50 bg-destructive/10 ring-1 ring-destructive/30'
                                                                                 : 'right-1 left-1',
@@ -697,13 +770,7 @@ export default function ScheduleBuilder({
                                                                             <div className="space-y-1">
                                                                                 <div className="flex items-center justify-between gap-1">
                                                                                     <p
-                                                                                        className={cn(
-                                                                                            'truncate text-xs leading-tight font-semibold',
-                                                                                            item.type ===
-                                                                                                'academic'
-                                                                                                ? 'text-primary'
-                                                                                                : 'text-foreground',
-                                                                                        )}
+                                                                                        className="truncate text-xs leading-tight font-semibold"
                                                                                     >
                                                                                         {
                                                                                             subjectName
@@ -831,6 +898,15 @@ export default function ScheduleBuilder({
                                     </div>
                                 </div>
 
+                                <InputError
+                                    message={
+                                        selectedItem
+                                            ? editForm.errors.start_time
+                                            : addForm.errors.start_time || addForm.errors.teacher_id
+                                    }
+                                    className="col-span-2"
+                                />
+
                                 <div className="grid gap-2">
                                     <Label className="text-xs text-muted-foreground">
                                         Period Type
@@ -885,31 +961,71 @@ export default function ScheduleBuilder({
                                         <div className="flex items-center gap-2 text-primary">
                                             <BookOpen className="size-4" />
                                             <p className="text-xs font-semibold tracking-wider uppercase">
-                                                Assignment Preview
+                                                Academic Assignment
                                             </p>
                                         </div>
 
-                                        <div className="grid gap-2">
+                                        <div className="grid gap-4">
                                             <div className="grid gap-1">
                                                 <Label className="text-xs text-muted-foreground">
                                                     Subject
                                                 </Label>
-                                                <div className="rounded-md border bg-background px-3 py-2 text-sm font-medium">
-                                                    {currentAddSubject
-                                                        ? currentAddSubject.name
-                                                        : 'Select subject above'}
-                                                </div>
+                                                <Select
+                                                    value={(selectedItem ? editForm.data.subject_id : addForm.data.subject_id)?.toString() || ''}
+                                                    onValueChange={(val) => {
+                                                        const numVal = parseInt(val);
+                                                        if (selectedItem) {
+                                                            editForm.setData('subject_id', numVal);
+                                                        } else {
+                                                            addForm.setData('subject_id', numVal);
+                                                        }
+                                                    }}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select subject..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {subjects.map((s) => (
+                                                            <SelectItem key={s.id} value={s.id.toString()}>
+                                                                {s.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
 
                                             <div className="grid gap-1">
                                                 <Label className="text-xs text-muted-foreground">
                                                     Assigned Teacher
                                                 </Label>
-                                                <div className="rounded-md border bg-background px-3 py-2 text-sm font-medium">
-                                                    {currentAddTeacher
-                                                        ? currentAddTeacher.name
-                                                        : 'Select teacher above'}
-                                                </div>
+                                                <Select
+                                                    value={(selectedItem ? editForm.data.teacher_id : addForm.data.teacher_id)?.toString() || ''}
+                                                    onValueChange={(val) => {
+                                                        const numVal = parseInt(val);
+                                                        if (selectedItem) {
+                                                            editForm.setData('teacher_id', numVal);
+                                                        } else {
+                                                            addForm.setData('teacher_id', numVal);
+                                                        }
+                                                    }}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select teacher..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {(() => {
+                                                            const currentFormSubjectId = selectedItem ? editForm.data.subject_id : addForm.data.subject_id;
+                                                            const modalFilteredTeachers = currentFormSubjectId
+                                                                ? teachers.filter((t) => subjects.find((s) => s.id === currentFormSubjectId)?.qualifiedTeachers.includes(t.id))
+                                                                : teachers;
+                                                            return modalFilteredTeachers.map((t) => (
+                                                                <SelectItem key={t.id} value={t.id.toString()}>
+                                                                    {t.name}
+                                                                </SelectItem>
+                                                            ));
+                                                        })()}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                         </div>
                                     </div>
@@ -965,9 +1081,9 @@ export default function ScheduleBuilder({
                                     disabled={
                                         addForm.processing ||
                                         editForm.processing ||
-                                        (addForm.data.type === 'academic' &&
-                                            (!addForm.data.subject_id ||
-                                                !addForm.data.teacher_id))
+                                        (selectedItem
+                                            ? editForm.data.type === 'academic' && (!editForm.data.subject_id || !editForm.data.teacher_id)
+                                            : addForm.data.type === 'academic' && (!addForm.data.subject_id || !addForm.data.teacher_id))
                                     }
                                 >
                                     {selectedItem ? 'Update' : 'Create'}
@@ -977,6 +1093,17 @@ export default function ScheduleBuilder({
                     </Dialog>
                 </div>
             </TooltipProvider>
+
+            <ActionConfirmDialog
+                open={isDeleteConfirmOpen}
+                onOpenChange={setIsDeleteConfirmOpen}
+                title="Remove Schedule Slot"
+                description="Are you sure you want to remove this schedule slot? This will free up the time period for this section and teacher."
+                variant="destructive"
+                confirmLabel="Remove Slot"
+                onConfirm={submitDelete}
+            />
         </AppLayout>
-    );
+    </>
+);
 }

@@ -1,0 +1,34 @@
+documentation were completed to establish the project problem context.
+
+
+
+
+September - Scope definition, chapter drafting, and requirements consolidation were
+aligned with observed institutional workflows.
+
+
+
+
+October - Module architecture and functional design were revised based on consolidated
+interview insights and process-validation results.
+
+
+
+
+November - Final validation inputs were integrated, and technical and functional sections
+were updated to reflect the complete implementation design.
+
+
+
+
+Gantt's Chart of Activity
+
+
+
+
+                              Figure 2: Gantt's Chart of Activity
+
+
+
+STI College Munoz-EDSA                                                                      25
+

@@ -107,15 +107,15 @@ interface Props {
 
 function statusBadge(status: PermanentRecordStatus) {
     if (status === 'promoted') {
-        return <Badge variant="secondary">Promoted</Badge>;
+        return <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">Promoted</Badge>;
     }
 
     if (status === 'conditional') {
-        return <Badge variant="outline">Conditional</Badge>;
+        return <Badge variant="outline" className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800">Conditional</Badge>;
     }
 
     if (status === 'retained') {
-        return <Badge variant="destructive">Retained</Badge>;
+        return <Badge variant="outline" className="bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800">Retained</Badge>;
     }
 
     return <Badge variant="outline">Completed</Badge>;

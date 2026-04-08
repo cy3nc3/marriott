@@ -1,0 +1,38 @@
+benefit, such as reduced duplication of data entries; and by providing better means of
+communicating, it enabled a more effective means of accessing and managing those
+records by the different types of users.
+
+This is relevant to MarriottConnect because the capstone addresses the same
+fragmentation pattern observed at Marriott School: separate operational trackers, repeated
+validation, and delayed reporting. Chai and Mostafa (2021) supports the system's web-
+first architecture and validates the design choice of linking registrar, academic, and
+stakeholder views to one connected data model. It also reinforces the need for clear role-
+scoped access in shared operational systems.
+
+Student Information Management System for Baghdad College of Economic
+Sciences University (SIMS-BC): A Case Study
+
+Kanona (2022) examined the transition from manual student record handling to a secure
+database-driven system, emphasizing gains in retrieval speed, consistency, and data
+protection. The study showed that procedural efficiency and information integrity
+improve when record operations are backed by structured database controls rather than ad
+hoc file management.
+
+For MarriottConnect, this source supports both architecture and governance components.
+The appendix also states that offices spend an inordinate amount of time currently
+validating records in a variety of formats and files; Kanona (2022) proposes a method for
+handling records by utilizing a central database with role-based controls to alleviate that
+burden and meet the overall security posture of the school where only authorized users
+have access to sensitive student and finance information while protecting that information
+from unauthorized modifications.
+
+Student Gross Enrolment Ratio Forecasting: A Comparative Study Using Statistical
+Method and Machine Learning
+
+Hussain et al. (2023) compared forecasting approaches such as ARIMA and LSTM for
+educational enrollment trends, demonstrating that historical institutional data can be
+transformed into more reliable forward-looking indicators. The study contributes
+
+
+STI College Munoz-EDSA                                                                        20
+

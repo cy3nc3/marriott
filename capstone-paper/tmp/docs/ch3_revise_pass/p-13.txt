@@ -1,0 +1,40 @@
+        when subject, section, and teacher records must be manually verified across
+        disconnected references before release.
+
+    ➢ How can secure student and parent portals be developed to provide authorized
+        visibility to schedules, grades, and billing information?
+
+        According to stakeholder-facing interview evidence in the appendices, delayed
+        record synchronization affects how quickly families receive complete updates. The
+        Finance interview (Appendix B.3) indicates that parent balance communication is
+        not always immediate, and related field accounts show that guardians often rely on
+        follow-ups when records are still being reconciled across offices.
+
+    ➢ How can role dashboards and governance controls be developed to produce
+        actionable indicators for enrollment trends, payment behavior, and operational
+        risk monitoring?
+
+        According to the Academic Head interview (Appendix B.1), leadership reporting
+        is slowed when department outputs come from separate files and require manual
+        consolidation before review. This confirms that management-level indicators for
+        enrollment movement, payment status, and academic monitoring are often delayed
+        by fragmented data preparation practices.
+
+Objectives
+
+
+The objectives of this study are aligned directly with the general and specific problems
+above so that every development target has explicit operational and literature-based
+justification. Each objective is formulated as a direct development response to a
+corresponding problem condition validated by interviews and supported by recent RRL.
+
+General Objective:
+
+To develop MarriottConnect as an integrated student information system with decision
+support analytics for Marriott School.
+
+This general objective is relevant because Marriott School requires a single operational
+
+
+STI College Munoz-EDSA                                                                       9
+

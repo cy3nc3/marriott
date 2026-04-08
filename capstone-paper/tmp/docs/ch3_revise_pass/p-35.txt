@@ -1,0 +1,44 @@
+        5.2.    5.2 The system shall support conflict-aware schedule preparation and
+                class-list validation workflows.
+
+  6.    6. Provide Decision Support Analytics
+
+        6.1.    6.1 The system shall process operational metrics for enrollment movement,
+                payment behavior, and risk monitoring.
+
+        6.2.    6.2 The system shall visualize trends using standardized chart-ready
+                payloads for management decisions.
+
+  7.    7. Generate Operational Reports
+
+        7.1.    7.1 The system shall provide structured outputs for enrollment, finance,
+                and academic summaries.
+
+        7.2.    7.2 Reports shall remain consistent with authorized data sources and
+                institutional formatting policies.
+
+
+F. Non-Functional Requirements
+
+Operational Requirements
+
+  1.    1. The system must remain accessible through supported web clients for office
+        and stakeholder use.
+
+        1.1.    2. The system requires stable connectivity for synchronized transactions
+                and dashboard updates.
+
+        1.2.    Performance Requirements
+
+  2.    1. Posting and grade-related updates must reflect promptly after validated
+        submissions.
+
+        2.1.    2. The platform should maintain reliable responsiveness during normal
+                school-hour usage.
+
+        2.2.    Security Requirements
+
+
+
+STI College Munoz-EDSA                                                                      31
+

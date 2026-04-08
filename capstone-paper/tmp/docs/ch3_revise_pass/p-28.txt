@@ -1,0 +1,45 @@
+The model applies the following stages to maintain user-centered and operationally
+aligned development:
+
+    1. 1. Requirements Gathering and Analysis
+
+        Interviews, process mapping, and role-task validation are used to identify
+        bottlenecks in enrollment, cashiering, scheduling, grading, and reporting
+        workflows.
+
+    2. 2. Quick Design
+
+        Initial page flows, data mappings, and module interaction logic are prepared based
+        on verified responsibilities and system boundaries.
+
+    3. 3. Build Prototype
+
+        A working prototype is produced for core operational modules, including registrar
+        intake, finance posting, instructional grading, and role dashboards.
+
+    4. 4. Initial User Evaluation
+
+        Key users from registrar, finance, academic, and administration evaluate usability,
+        output validity, and workflow fit against actual office practice.
+
+    5. 5. Refine Prototype
+
+        Evaluation feedback is applied iteratively to improve data accuracy, process
+        speed, and interface clarity until acceptance criteria are satisfied.
+
+    6. 6. Implement and Maintain
+
+        Validated modules are rolled out for controlled use, followed by user orientation,
+        policy alignment, and maintenance planning for sustained operations.
+
+
+
+
+Calendar of Activities
+
+August - Initial data gathering, stakeholder interviews, and baseline workflow
+
+
+
+STI College Munoz-EDSA                                                                        24
+

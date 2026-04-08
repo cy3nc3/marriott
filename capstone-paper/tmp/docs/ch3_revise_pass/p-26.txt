@@ -1,0 +1,20 @@
+literature confirms contextual fit for Philippine school operations, including LIS-aligned
+processes, implementation barriers, and stakeholder communication realities.
+
+International literature complements this by supplying deeper methodological support for
+tuition decision support, secure information management, enrollment forecasting, and
+constraint-driven scheduling. Together, the local and international sets provide both
+contextual grounding and technical depth for MarriottConnect's major modules.
+
+Most importantly, the literature aligns with evidence from Marriott School's own
+appendix interviews. Registrar one-by-one encoding concerns, finance reconciliation
+delays, and leadership reporting difficulties all map directly to the problem domains
+addressed by the selected sources. For this reason, the RRL foundation not only supports
+conceptual design but also validates the system's implementation priorities and module-
+level direction for the capstone.
+
+
+
+
+STI College Munoz-EDSA                                                                       22
+

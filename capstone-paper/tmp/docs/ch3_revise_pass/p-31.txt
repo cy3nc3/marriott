@@ -1,0 +1,46 @@
+        Code for implementation, integration, and deployment preparation.
+
+    ● Quality and Collaboration Tools: Figma for interface planning, with Pest, PHPUnit,
+        Pint, ESLint, and Prettier for quality assurance and code consistency.
+
+Requirements Analysis
+
+
+This section defines the requirements needed to address Marriott School's validated
+operational constraints through MarriottConnect, with emphasis on centralized data
+handling, role-based process control, and analytics-backed decision visibility.
+
+
+A. Requirement
+
+Marriott School requires one integrated platform that captures enrollment intake, supports
+finance posting, enables grading workflows, and provides role-scoped dashboards while
+maintaining LIS-aligned learner record continuity.
+
+
+B. Business / User Requirement
+
+The system must minimize repetitive encoding and manual reconciliation by ensuring that
+validated records flow consistently across registrar, finance, teacher, student, parent, and
+governance modules under controlled permissions.
+
+System Integration for Student Information and Operations
+
+1. The system must allow registrar intake data to become reusable input for finance and
+academic workflows.
+
+2. The system must support staged enrichment through SF1 upload and learner matching
+by LRN.
+
+3. The system must synchronize balances, schedules, and grade visibility across
+authorized role portals.
+
+4. The system must provide audit-aware and role-scoped access to protect sensitive
+transactions and records.
+
+Web-Based Administrative and Analytics Workspace
+
+
+
+STI College Munoz-EDSA                                                                         27
+

@@ -1,9 +1,11 @@
 import { Head, useForm, router } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Plus, Edit2, Trash2, Search, X, AlertCircle } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useInitials } from '@/hooks/use-initials';
 import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
@@ -77,6 +79,7 @@ export default function SectionManager({
     teachers,
     activeYear,
 }: Props) {
+    const getInitials = useInitials();
     const [activeTab, setActiveTab] = useState(
         gradeLevels[0]?.id.toString() || '',
     );
@@ -86,6 +89,7 @@ export default function SectionManager({
         null,
     );
     const [searchQuery, setSearchQuery] = useState('');
+    const [idToDelete, setIdToDelete] = useState<number | null>(null);
 
     const addForm = useForm({
         grade_level_id: activeTab,
@@ -146,9 +150,14 @@ export default function SectionManager({
     };
 
     const handleDelete = (id: number) => {
-        if (confirm('Are you sure you want to remove this section?')) {
-            router.delete(destroy({ section: id }).url);
-        }
+        setIdToDelete(id);
+    };
+
+    const submitDelete = () => {
+        if (!idToDelete) return;
+        router.delete(destroy({ section: idToDelete }).url, {
+            onSuccess: () => setIdToDelete(null),
+        });
     };
 
     const selectAdviser = (teacher: Teacher) => {
@@ -188,7 +197,8 @@ export default function SectionManager({
     }
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
+            <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Section Manager" />
             <TooltipProvider>
                 <div className="flex flex-col gap-6">
@@ -263,11 +273,7 @@ export default function SectionManager({
                                                                 <div className="flex items-center gap-2">
                                                                     <Avatar className="size-7">
                                                                         <AvatarFallback>
-                                                                            {
-                                                                                sec
-                                                                                    .adviser
-                                                                                    .initial
-                                                                            }
+                                                                            {getInitials(sec.adviser.name)}
                                                                         </AvatarFallback>
                                                                     </Avatar>
                                                                     <span className="text-sm">
@@ -409,7 +415,7 @@ export default function SectionManager({
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="size-10">
                                                     <AvatarFallback>
-                                                        {currentAdviser.initial}
+                                                        {getInitials(currentAdviser.name)}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div>
@@ -468,9 +474,7 @@ export default function SectionManager({
                                                                     >
                                                                         <Avatar className="size-6">
                                                                             <AvatarFallback>
-                                                                                {
-                                                                                    teacher.initial
-                                                                                }
+                                                                                {getInitials(teacher.name)}
                                                                             </AvatarFallback>
                                                                         </Avatar>
                                                                         <span className="font-medium">
@@ -547,7 +551,7 @@ export default function SectionManager({
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="size-10">
                                                     <AvatarFallback>
-                                                        {currentAdviser.initial}
+                                                        {getInitials(currentAdviser.name)}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div>
@@ -606,9 +610,7 @@ export default function SectionManager({
                                                                     >
                                                                         <Avatar className="size-6">
                                                                             <AvatarFallback>
-                                                                                {
-                                                                                    teacher.initial
-                                                                                }
+                                                                                {getInitials(teacher.name)}
                                                                             </AvatarFallback>
                                                                         </Avatar>
                                                                         <span className="font-medium">
@@ -651,6 +653,17 @@ export default function SectionManager({
                     </Dialog>
                 </div>
             </TooltipProvider>
+
+            <ActionConfirmDialog
+                open={idToDelete !== null}
+                onOpenChange={(open) => !open && setIdToDelete(null)}
+                title="Remove Section"
+                description="Are you sure you want to remove this section? This action may affect existing enrollments and schedules. This cannot be undone."
+                variant="destructive"
+                confirmLabel="Remove Section"
+                onConfirm={submitDelete}
+            />
         </AppLayout>
-    );
+    </>
+);
 }

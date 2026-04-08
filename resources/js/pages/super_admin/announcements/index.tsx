@@ -1,4 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import {
     BarChart3,
     Bell,
@@ -147,6 +148,8 @@ export default function Announcements({
     const [searchQuery, setSearchQuery] = useState<string>(
         filters.search || '',
     );
+    const [idToDelete, setIdToDelete] = useState<number | null>(null);
+    const [idToCancel, setIdToCancel] = useState<number | null>(null);
     const attachmentInputRef = useRef<HTMLInputElement | null>(null);
 
     const searchSuggestions = useMemo(
@@ -297,29 +300,26 @@ export default function Announcements({
         });
     };
 
-    const handleDelete = (announcementId: number) => {
-        if (!confirm('Delete this announcement?')) {
-            return;
-        }
-
-        router.delete(announcementsRoutes.destroy.url(announcementId));
+    const submitDelete = () => {
+        if (!idToDelete) return;
+        router.delete(announcementsRoutes.destroy.url(idToDelete), {
+            onSuccess: () => setIdToDelete(null),
+        });
     };
 
-    const handleCancelEvent = (announcementId: number) => {
-        const cancelReason = window.prompt(
-            'Optional cancellation reason for recipients:',
-        );
-
+    const submitCancel = () => {
+        if (!idToCancel) return;
         router.post(
-            announcementsRoutes.cancel.url(announcementId),
+            announcementsRoutes.cancel.url(idToCancel),
+            {},
             {
-                cancel_reason: cancelReason ?? undefined,
-            },
-            {
+                onSuccess: () => setIdToCancel(null),
                 preserveScroll: true,
             },
         );
     };
+
+    // Cancellation is now handled via submitCancel after confirmation
 
     const applyFilters = (search: string, role: string) => {
         router.get(
@@ -627,7 +627,7 @@ export default function Announcements({
                                                         size="icon"
                                                         className="h-8 w-8"
                                                         onClick={() =>
-                                                            handleCancelEvent(
+                                                            setIdToCancel(
                                                                 item.id,
                                                             )
                                                         }
@@ -640,7 +640,7 @@ export default function Announcements({
                                                     size="icon"
                                                     className="h-8 w-8"
                                                     onClick={() =>
-                                                        handleDelete(item.id)
+                                                        setIdToDelete(item.id)
                                                     }
                                                 >
                                                     <Trash2 className="size-4" />
@@ -654,7 +654,7 @@ export default function Announcements({
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() =>
-                                                        handleCancelEvent(
+                                                        setIdToCancel(
                                                             item.id,
                                                         )
                                                     }
@@ -1011,6 +1011,26 @@ export default function Announcements({
                     </div>
                 </div>
             </ResponsiveFormDialog>
+
+            <ActionConfirmDialog
+                open={!!idToDelete}
+                onOpenChange={(open) => !open && setIdToDelete(null)}
+                title="Delete Announcement"
+                description="Are you sure you want to delete this announcement? This action is irreversible and it will be removed for all recipients."
+                variant="destructive"
+                confirmLabel="Delete"
+                onConfirm={submitDelete}
+            />
+
+            <ActionConfirmDialog
+                open={!!idToCancel}
+                onOpenChange={(open) => !open && setIdToCancel(null)}
+                title="Cancel Event"
+                description="Are you sure you want to cancel this event? A cancellation notice will be sent to all recipients."
+                variant="warning"
+                confirmLabel="Cancel Event"
+                onConfirm={submitCancel}
+            />
         </AppLayout>
     );
 }

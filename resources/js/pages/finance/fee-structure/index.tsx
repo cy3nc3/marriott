@@ -1,4 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -134,6 +135,9 @@ export default function FeeStructure({
     const [remedialFieldErrors, setRemedialFieldErrors] = useState<
         Record<number, string>
     >({});
+    const [feeItemToDelete, setFeeItemToDelete] = useState<FeeItem | null>(
+        null,
+    );
 
     const createForm = useForm({
         grade_level_id: String(grade_level_fees[0]?.id ?? ''),
@@ -244,15 +248,18 @@ export default function FeeStructure({
     };
 
     const removeItem = (feeItem: FeeItem) => {
-        if (!confirm(`Remove "${feeItem.label}"?`)) {
-            return;
-        }
+        setFeeItemToDelete(feeItem);
+    };
 
-        router.delete(destroy({ fee: feeItem.id }).url, {
+    const submitDeleteFee = () => {
+        if (!feeItemToDelete) return;
+
+        router.delete(destroy({ fee: feeItemToDelete.id }).url, {
             data: {
                 academic_year_id: selectedSchoolYearId || undefined,
             },
             preserveScroll: true,
+            onSuccess: () => setFeeItemToDelete(null),
         });
     };
 
@@ -306,7 +313,8 @@ export default function FeeStructure({
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
+            <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Fee Structure" />
 
             <div className="flex flex-col gap-6">
@@ -970,7 +978,18 @@ export default function FeeStructure({
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                <ActionConfirmDialog
+                    open={feeItemToDelete !== null}
+                    onOpenChange={(open) => !open && setFeeItemToDelete(null)}
+                    title="Remove Fee Item"
+                    description={`Are you sure you want to remove "${feeItemToDelete?.label}" from the fee structure? This action cannot be undone if the fee has already been used in transactions.`}
+                    variant="destructive"
+                    confirmLabel="Remove Fee"
+                    onConfirm={submitDeleteFee}
+                />
             </div>
         </AppLayout>
-    );
+    </>
+);
 }

@@ -1,4 +1,5 @@
 import { Head, useForm, router, Link } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import {
     ArrowRightCircle,
     Archive,
@@ -68,6 +69,9 @@ export default function AcademicControls({
 }: Props) {
     const [isInitNextYearOpen, setIsInitNextYearOpen] = useState(false);
     const [isEditDatesOpen, setIsEditDatesOpen] = useState(false);
+    const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+    const [isAdvanceConfirmOpen, setIsAdvanceConfirmOpen] = useState(false);
+    const [isSimulateConfirmOpen, setIsSimulateConfirmOpen] = useState(false);
     const operationYear = currentYear ?? upcomingYear;
 
     const initForm = useForm({
@@ -106,20 +110,24 @@ export default function AcademicControls({
         });
     };
 
-    const handleSimulateOpening = () => {
+    const submitSimulateOpening = () => {
         if (!upcomingYear) return;
-        router.post(simulate_opening({ academicYear: upcomingYear.id }).url);
+        router.post(simulate_opening({ academicYear: upcomingYear.id }).url, {}, {
+            onSuccess: () => setIsSimulateConfirmOpen(false)
+        });
     };
 
-    const handleAdvanceQuarter = () => {
+    const submitAdvanceQuarter = () => {
         if (!currentYear) return;
-        router.post(advance_quarter({ academicYear: currentYear.id }).url);
+        router.post(advance_quarter({ academicYear: currentYear.id }).url, {}, {
+            onSuccess: () => setIsAdvanceConfirmOpen(false)
+        });
     };
 
-    const handleResetSimulation = () => {
-        if (confirm('This will wipe all school year data. Continue?')) {
-            router.post(reset_simulation().url);
-        }
+    const submitResetSimulation = () => {
+        router.post(reset_simulation().url, {}, {
+            onSuccess: () => setIsResetConfirmOpen(false)
+        });
     };
 
     const getStatusBadge = () => {
@@ -182,7 +190,7 @@ export default function AcademicControls({
                         ? 'destructive'
                         : 'default'
                 }
-                onClick={handleAdvanceQuarter}
+                onClick={() => setIsAdvanceConfirmOpen(true)}
             >
                 {currentYear.current_quarter === '4' ? (
                     <>
@@ -307,7 +315,7 @@ export default function AcademicControls({
                                             variant="secondary"
                                             size="sm"
                                             className="gap-2"
-                                            onClick={handleSimulateOpening}
+                                            onClick={() => setIsSimulateConfirmOpen(true)}
                                         >
                                             <Zap className="size-3.5" />
                                             Simulate Opening Day
@@ -317,7 +325,7 @@ export default function AcademicControls({
                                         variant="ghost"
                                         size="sm"
                                         className="gap-2 text-muted-foreground hover:text-destructive"
-                                        onClick={handleResetSimulation}
+                                        onClick={() => setIsResetConfirmOpen(true)}
                                     >
                                         <RefreshCcw className="size-3" />
                                         Wipe System Data
@@ -491,6 +499,40 @@ export default function AcademicControls({
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                <ActionConfirmDialog
+                    open={isResetConfirmOpen}
+                    onOpenChange={setIsResetConfirmOpen}
+                    title="Wipe System Data"
+                    description="Are you sure you want to wipe all school year data? This will delete all academic records, sections, and schedules for the current simulation. This action is irreversible."
+                    variant="destructive"
+                    confirmLabel="Wipe Data"
+                    onConfirm={submitResetSimulation}
+                />
+
+                <ActionConfirmDialog
+                    open={isAdvanceConfirmOpen}
+                    onOpenChange={setIsAdvanceConfirmOpen}
+                    title={currentYear?.current_quarter === '4' ? "Close School Year" : "Advance Quarter"}
+                    description={
+                        currentYear?.current_quarter === '4'
+                            ? "Are you sure you want to close and archive the current school year? This will finalize all records and prepare the system for the next cycle."
+                            : `Are you sure you want to advance to the next quarter? This will update the operational state for all classes and students.`
+                    }
+                    variant={currentYear?.current_quarter === '4' ? "destructive" : "warning"}
+                    confirmLabel={currentYear?.current_quarter === '4' ? "Close & Archive" : "Advance Quarter"}
+                    onConfirm={submitAdvanceQuarter}
+                />
+
+                <ActionConfirmDialog
+                    open={isSimulateConfirmOpen}
+                    onOpenChange={setIsSimulateConfirmOpen}
+                    title="Simulate Opening Day"
+                    description="Are you sure you want to simulate the opening day? This will transition the upcoming school year from 'Pre-Opening' to 'Ongoing' status."
+                    variant="default"
+                    confirmLabel="Simulate Opening"
+                    onConfirm={submitSimulateOpening}
+                />
             </div>
         </AppLayout>
     );

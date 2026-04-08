@@ -1,0 +1,40 @@
+transaction flow and record reliability by reducing isolated processing channels. Combined
+with LIS-alignment evidence from Porlas et al. (2023), this reinforces that institutional
+consistency is produced through design discipline, not post-hoc manual correction.
+
+Therefore, the project context must be interpreted as a systems-level coordination problem
+with      compliance,    governance,   and   stakeholder-service   dimensions    operating
+simultaneously. MarriottConnect is positioned to solve this by unifying module workflows,
+preserving role-based access discipline, and transforming validated operations into
+analytics-ready evidence for planning. In this framework, the problem statements below
+are not abstract design questions; they are direct responses to documented process friction
+and evidence-backed institutional needs observed in Marriott School and reinforced by
+recent literature.
+
+
+
+
+Statement of the Problem
+
+This study defines the operational problems of Marriott School based on interviews with
+key school stakeholders in the appendices, particularly the Academic Head (Appendix
+B.1), Registrar (Appendix B.2), Finance Officer (Appendix B.3), and Teacher (Appendix
+B.4). Their accounts consistently describe fragmented records, repeated reconciliation,
+delayed cross-office validation, and limited management visibility during high-volume
+cycles.
+
+General Problem:
+
+How can MarriottConnect be developed as an integrated student information system with
+decision support analytics for Marriott School?
+
+According to the Academic Head interview (Appendix B.1), departments still maintain
+separate files and manually reconcile figures before reports can be finalized. According to
+the Registrar interview (Appendix B.2), enrollment updates are still processed one-by-one
+with repeated cross-checking across records. According to the Finance interview
+(Appendix B.3), payment posting and balance confirmation can be delayed when
+transactions occur in close succession.
+
+
+STI College Munoz-EDSA                                                                        7
+

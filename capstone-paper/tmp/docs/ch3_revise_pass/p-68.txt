@@ -1,0 +1,46 @@
+        Interviewee: Observation lang talaga. Wala kaming exact record ng oras, kaya minsan
+        nakadepende lang sa mata ko kung sino ang dumating. Kung gusto ko i-note, kailangan ko
+        pang isulat manually sa notebook, pero kapag busy sa gate, kadalasan hindi ko na agad
+        nasusulat.
+
+
+        Interviewer: Kapag dumating ang mga service gaya ng tricycle o school van, paano niyo
+        tinitiyak na tama ang mga batang sinasakay nila, lalo na kapag sabay-sabay?
+
+
+        Interviewee: Tatanungin ko muna yung driver at iche-check kung tama yung pangalan ng
+        bata sa listahan. Kapag sabay-sabay ang mga service, medyo nagkakagulo, kaya pinapila
+        ko sila at tinatawag isa-isa yung bata para siguradong tama.
+
+
+        Interviewer: Kapag may bagong driver o pinalitang service, paano niyo chine-check kung
+        authorized silang kumuha ng bata?
+
+
+        Interviewee: Tinitignan ko muna sa list sa admin kung nakalista sila. Kung wala, hindi ko
+        pinapayagang sumakay yung bata. Kailangan talaga ma-verify para maiwasan yung
+        problema sa parents o sa school.
+
+
+        Interviewer: Paano niyo nalalaman kung nakauwi na o na-pick up na ang bata, at paano
+        niyo pinapaalam sa admin o teacher?
+
+
+        Interviewee: Tinitingnan ko kung sumakay na yung bata sa tricycle o van. Kapag marami
+        sabay-sabay, minsan medyo nakakalito, kaya kailangan ko i-check isa-isa. Pagkatapos,
+        sinasabi ko sa admin o teacher kung sino na ang nakalabas o nasundo, minsan nililista rin
+        sa logbook para may reference.
+
+
+        Interviewer: May mga pagkakataon ba na nag-aalala ang magulang kung nakauwi na ang
+        bata, at madali ba silang ma-update?
+
+
+        Interviewee: Oo, madalas tumatawag o nagte-text sila para siguraduhin na safe yung anak
+        nila. Kadalasan kailangan ko pang hanapin sa logbook at sabihin sa kanila isa-isa kasi
+        walang ibang record na mabilis makita.
+
+
+
+STI College Munoz-EDSA                                                                              64
+

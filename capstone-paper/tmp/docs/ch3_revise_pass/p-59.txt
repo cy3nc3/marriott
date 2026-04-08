@@ -1,0 +1,43 @@
+        payment mode, at balance. Kapag may nag-enroll, ini-encode namin ang details sa
+        sheet, tapos automatic nagkakalculate yung running balance at total enrollment. Sa
+        parehong sheet, nakikita rin namin ang total payment. Kasi connected sa Drive,
+        kahit sino sa finance team na may access, makikita rin agad. Pero kasi manual pa
+        rin lahat, kailangan i-verify at i-update isa-isa, kaya minsan tumatagal lalo kapag
+        maraming students.
+
+
+        Interviewer: Ah, okay po. Parang centralized na siya sa registrar, cashier, at
+        financier?
+
+
+        Interviewee: Oo, tatlo kami ang directly nagma-manage nito, tapos meron din
+        kaming external accountant. So apat ang nakaka-access sa Drive. Pero kahit
+        centralized, manually pa rin i-update at i-check bawat record para siguradong
+        consistent ang lahat.
+
+
+        Interviewer: Tatlo po?
+
+
+        Interviewee: Oo. Dalawa sa amin nagre-record, tapos ang accountant nagdo-
+        double check ng summary. Pero lahat ng data manually pa rin pinapasa at i-verify.
+
+
+        Interviewer: Then, ma’am, madalas po ba kayong makaranas ng errors o delay sa
+        pag-update ng payment record?
+
+
+        Interviewee: Oo, may delay minsan kasi manual ang proseso. Kapag may online
+        payment or on-site payment, kailangan i-update isa-isa sa sheet. Kapag maraming
+        payments sabay-sabay, may delay bago makita sa system ang updated balance ng
+        student. Kadalasan, may time gap sa pag-record ng transaction at sa availability ng
+        data sa spreadsheet.
+
+
+        Interviewer: Ay ma'am, paano po ma-determine na hindi na-update?
+
+
+
+
+STI College Munoz-EDSA                                                                        55
+

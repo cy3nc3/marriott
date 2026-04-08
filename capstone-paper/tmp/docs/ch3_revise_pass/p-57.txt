@@ -1,0 +1,44 @@
+        Interviewer: Sa enrollment summary?
+
+        Interviewee: Weekly namin kino-check at manu-manong nirerecord kung sino ang
+        nag-enroll at nagpa-reserve sa isang linggo. Kailangan i-update bawat list para
+        siguradong accurate, at minsan tumatagal lalo kapag maraming students ang nag-
+        enroll sabay-sabay.
+        Interviewer: Sa class list naman?
+
+        Interviewee: Dinidiretso manually. Kapag nag-enroll na ang student, saka lang
+        nilalagay sa section. Kailangan siguraduhin na tama ang lahat ng information at
+        consistent sa records, kaya minsan tumatagal lalo kapag maraming students.
+
+        Interviewer: Balik po tayo sa grade reports sa releasing of grades, manual po ba
+        yan o online?
+
+        Interviewee: Manual pa rin. Pupunta ang parents dito para kunin ang card.
+        Kailangan i-check muna ang lahat ng files bago ibigay para siguradong updated at
+        complete ang record ng student.
+
+        Interviewer: Wala po kayong soft copy?
+
+        Interviewee: Meron during pandemic sa Google Classroom, pero ngayon, hard
+        copy talaga ang ginagamit. Kailangan i-prepare isa-isa at siguraduhing consistent
+        sa lahat ng records.
+
+        Interviewer: So yung parents lang po ang may access sa grades?
+
+        Interviewee: Oo, parents lang. Guardian pwede rin kung mas matanda. Hindi
+        binibigyan ang students ng access para i-maintain ang consistency at privacy ng
+        records.
+
+        Interviewer: Ano po ang pinaka-challenge sa sistema ng record management sa
+        registrar office?
+
+        Interviewee: Pinakamahirap ay ang manual na pag-track at pag-update ng lahat ng
+        student information. Kailangan i-check sa maraming files bago maging final, lalo
+        na kapag maraming students at sections. Lahat ng entries ay mano-manong
+        nirereview para siguradong consistent at kumpleto.
+
+        Interviewer: How about sa pag-distribute?
+
+
+STI College Munoz-EDSA                                                                      53
+

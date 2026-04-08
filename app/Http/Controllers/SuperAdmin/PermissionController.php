@@ -4,6 +4,9 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\Permission;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -11,43 +14,40 @@ class PermissionController extends Controller
 {
     public function index(): Response
     {
-        $permissions = [
-            'Academic Controls' => [
-                'School Year Manager' => [UserRole::ADMIN, UserRole::SUPER_ADMIN],
-                'Curriculum Manager' => [UserRole::ADMIN, UserRole::SUPER_ADMIN],
-                'Section Manager' => [UserRole::ADMIN, UserRole::SUPER_ADMIN],
-                'Schedule Builder' => [UserRole::ADMIN, UserRole::SUPER_ADMIN],
-            ],
-            'Student Management' => [
-                'Student Directory' => [UserRole::REGISTRAR, UserRole::SUPER_ADMIN],
-                'Enrollment' => [UserRole::REGISTRAR, UserRole::SUPER_ADMIN],
-                'Class Lists' => [UserRole::REGISTRAR, UserRole::ADMIN, UserRole::SUPER_ADMIN],
-                'Permanent Records' => [UserRole::REGISTRAR, UserRole::SUPER_ADMIN],
-            ],
-            'Financials' => [
-                'Student Ledgers' => [UserRole::FINANCE, UserRole::SUPER_ADMIN],
-                'Cashier Panel' => [UserRole::FINANCE, UserRole::SUPER_ADMIN],
-                'Fee Structure' => [UserRole::FINANCE, UserRole::SUPER_ADMIN],
-            ],
-            'Instructional' => [
-                'Grading Sheet' => [UserRole::TEACHER],
-                'Advisory Board' => [UserRole::TEACHER],
-                'My Schedule' => [UserRole::TEACHER, UserRole::STUDENT, UserRole::PARENT],
-            ],
-            'System' => [
-                'User Manager' => [UserRole::SUPER_ADMIN],
-                'System Configuration' => [UserRole::SUPER_ADMIN],
-                'Audit Logs' => [UserRole::SUPER_ADMIN],
-                'Database Backup' => [UserRole::SUPER_ADMIN],
-            ]
-        ];
+        $allPermissions = Permission::all();
+        $grouped = [];
+
+        foreach ($allPermissions as $perm) {
+            $grouped[$perm->module][$perm->feature][$perm->role] = $perm->access_level;
+        }
 
         return Inertia::render('super_admin/permissions/index', [
-            'permissions' => $permissions,
+            'permissions' => $grouped,
             'roles' => array_map(fn($role) => [
                 'value' => $role->value,
                 'label' => $role->label()
             ], UserRole::cases())
         ]);
+    }
+
+    public function update(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'matrix' => 'required|array',
+            'matrix.*.*.*' => 'required|integer|in:0,1,2',
+        ]);
+
+        foreach ($request->matrix as $category => $features) {
+            foreach ($features as $feature => $roleLevels) {
+                foreach ($roleLevels as $role => $level) {
+                    Permission::updateOrCreate(
+                        ['role' => $role, 'feature' => $feature],
+                        ['module' => $category, 'access_level' => $level]
+                    );
+                }
+            }
+        }
+
+        return back()->with('success', 'Permissions updated successfully.');
     }
 }

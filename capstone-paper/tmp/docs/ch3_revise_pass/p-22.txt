@@ -1,0 +1,39 @@
+periods. Its contribution is particularly valuable because it connects routine data storage
+with forward-looking administrative action.
+
+This is directly applicable to MarriottConnect's analytics direction, where enrollment
+trend interpretation is expected to support section planning, staffing preparation, and
+capacity decisions. In the appendices, school leadership noted difficulty producing
+consolidated trend insights from dispersed records; Esquivel and Esquivel (2021)
+provides a methodological bridge from transactional history to planning intelligence. The
+study therefore supports the inclusion of forecasting-ready analytics in the administrative
+dashboard model.
+
+Comparative Analysis on the Efficiency of LIS Vis-a-Vis SMIS: A Case Study
+
+Porlas et al. (2023) compared the efficiency of DepEd LIS processes and school-level
+MIS workflows, emphasizing the operational consequences of inconsistent
+synchronization between compliance-oriented and institution-level records. The study
+highlighted that when local school systems do not align cleanly with reporting structures,
+institutions face additional validation burden and inconsistent data interpretation across
+offices.
+
+This finding is highly relevant to MarriottConnect because the system is intentionally
+designed for LIS-aware processing rather than isolated internal encoding. The staged
+model used in the capstone intake, cashier posting, and SF1/LRN-based enrichment
+directly addresses the synchronization challenge discussed by Porlas et al. (2023). The
+source strengthens the justification for treating enrollment data quality and reporting
+alignment as core architectural requirements, not post-processing tasks.
+
+Efficient Student Monitoring and Data Tracking System
+
+The research of Navarra & Antonio (2025) showed that by using a web-based approach
+for tracking and monitoring students, teachers, students and parents obtained positive
+results in terms of both functionality and usability. The findings of the study demonstrate
+the importance of having timely access to information about the school, having clear lines
+
+
+
+
+STI College Munoz-EDSA                                                                        18
+

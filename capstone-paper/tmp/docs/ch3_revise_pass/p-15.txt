@@ -1,0 +1,41 @@
+        assignment workflows. Muller et al., (2025) report that when design constraints are
+        identified and systematically addressed in a systematic manner, it leads to
+        improvement of scheduling quality, with respect to conflict-free scheduling.
+        Furthermore, Zulueta et al. (2021), note that schools need to create standardized
+        procedures in order to achieve sustainable operations for Marriott in educational
+        settings.
+
+    ➢ To develop secure student and parent portals that provide authorized visibility to
+        schedules, grades, and billing information.
+
+        This objective is relevant because stakeholder trust depends on timely and role-
+        appropriate access to validated school records. According to Navarra and Antonio
+        (2025), monitoring platforms improve communication and usability when data
+        visibility is immediate and structured. Chai and Mostafa (2021) similarly supports
+        connected web access as a way to strengthen school-family information flow.
+
+
+
+
+    ➢ To develop role dashboards and governance controls that produce actionable
+        indicators for enrollment trends, payment behavior, and operational risk
+        monitoring.
+
+        This objective is relevant because leadership planning requires decision-ready
+        indicators derived from validated operational data. Based on the research by
+        Esquivel and Esquivel (2021), utilizing historical data in decision-making
+        processes can enhance the value of decision-support systems. Hussain et al. (2023)
+        further demonstrates how trend forecasting can aid in planning for resources and
+        staffing, both of which contributes to a justification for developing KPI dashboards,
+        governance controls, and analytics as primary functions within institutions.
+
+
+Scope
+
+
+The proposed system provides module-based access for seven core roles: super admin,
+admin, registrar, finance, teacher, student, and parent. Access is structured by institutional
+
+
+STI College Munoz-EDSA                                                                           11
+

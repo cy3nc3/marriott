@@ -1,0 +1,38 @@
+responsibility and each module groups related actions into one operational unit.
+
+The scope centralizes enrollment, finance, academic, governance, and stakeholder
+communication workflows while assigning each role to complete modules that include
+transaction handling, validation, and analytics interpretation.
+
+The Registrar can access the following:
+
+    ● Enrollment Module - Manage intake creation, profile updates, and payment-linked
+        progression within one registrar workflow.
+    ● Student Directory Module - Maintain searchable learner profiles, identity
+        continuity, and authorized record retrieval.
+    ● SF1 Import Module - Upload SF1 records and execute LRN-based enrichment
+        aligned with LIS-oriented validation rules.
+    ● Permanent Records Module - Maintain historical academic records and document
+        continuity across school years.
+    ● Batch Promotion and Student Departure Module - Process promotion outcomes
+        and departure workflows under registrar controls.
+    ● Registrar Analytics - Review intake movement, enrichment status, record-
+        completion indicators, and registrar risk alerts.
+
+The Finance Officer can access the following:
+
+    ● Cashiering Module - Assess charges, accept payments, and post transactions with
+        immediate balance reflection.
+    ● Student Ledger Module - Track debit-credit movement, running balances, and
+        learner-level financial history.
+    ● Transaction History Module - Review transaction history and perform authorized
+        void, refund, and reissue actions.
+    ● Billing Schedule and Due Allocation Module - Manage due schedules and map
+        posted payments to outstanding obligations.
+    ● Fee and Remedial Fee Configuration Module - Maintain standard fee definitions
+        and remedial subject fee policies.
+
+
+
+STI College Munoz-EDSA                                                                  12
+

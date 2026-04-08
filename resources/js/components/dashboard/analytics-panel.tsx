@@ -1,5 +1,29 @@
 import { Link, usePage } from '@inertiajs/react';
-import { AlertCircle, ArrowRight, Bell, TrendingUp } from 'lucide-react';
+import {
+    AlertCircle,
+    AlertTriangle,
+    ArrowRight,
+    Bell,
+    BookOpen,
+    CheckCircle2,
+    ClipboardList,
+    Clock,
+    CloudOff,
+    DatabaseBackup,
+    GraduationCap,
+    HardDrive,
+    LayoutDashboard,
+    ListChecks,
+    Percent,
+    PiggyBank,
+    RefreshCw,
+    ShieldAlert,
+    TrendingDown,
+    TrendingUp,
+    Users,
+    Wallet,
+    type LucideIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import {
     Area,
@@ -45,6 +69,48 @@ interface DashboardAnalyticsPanelProps {
     children?: React.ReactNode;
 }
 
+// ─── KPI Icon Registry ──────────────────────────────────────────────────────
+
+type KpiIconConfig = {
+    icon: LucideIcon;
+    color: string;
+};
+
+const KPI_ICON_MAP: Record<string, KpiIconConfig> = {
+    // Admin
+    'enrollment-yoy-growth':    { icon: TrendingUp,       color: 'text-emerald-500' },
+    'unassigned-subjects':      { icon: BookOpen,          color: 'text-amber-500' },
+    'sections-without-adviser': { icon: Users,             color: 'text-orange-500' },
+    'schedule-conflicts':       { icon: AlertTriangle,     color: 'text-red-500' },
+    // Finance
+    'collection-efficiency':    { icon: Percent,           color: 'text-emerald-500' },
+    'outstanding-receivables':  { icon: Wallet,            color: 'text-amber-500' },
+    'overdue-concentration':    { icon: TrendingDown,      color: 'text-red-500' },
+    'next-month-forecast':      { icon: PiggyBank,         color: 'text-sky-500' },
+    // Registrar
+    'intake-queue':             { icon: ClipboardList,     color: 'text-sky-500' },
+    'cashier-pipeline':         { icon: ListChecks,        color: 'text-violet-500' },
+    'lis-sync-rate':            { icon: RefreshCw,         color: 'text-emerald-500' },
+    'sync-error-backlog':       { icon: CloudOff,          color: 'text-red-500' },
+    // Super Admin
+    'system-health':            { icon: HardDrive,         color: 'text-emerald-500' },
+    'account-governance':       { icon: Users,             color: 'text-sky-500' },
+    'audit-risk':               { icon: ShieldAlert,       color: 'text-red-500' },
+    'backup-freshness':         { icon: DatabaseBackup,    color: 'text-amber-500' },
+    // Teacher
+    'classes-today':            { icon: Clock,             color: 'text-sky-500' },
+    'quarter-grade-completion': { icon: CheckCircle2,      color: 'text-emerald-500' },
+    'grade-rows-pending':       { icon: GraduationCap,     color: 'text-amber-500' },
+    'at-risk-learners':         { icon: AlertTriangle,     color: 'text-red-500' },
+};
+
+const DEFAULT_KPI_ICON: KpiIconConfig = { icon: LayoutDashboard, color: 'text-primary' };
+
+const resolveKpiIcon = (kpiId: string): KpiIconConfig =>
+    KPI_ICON_MAP[kpiId] ?? DEFAULT_KPI_ICON;
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const formatTrendValue = (value: DashboardTrendPoint['value']) => {
     if (value === null || value === undefined) {
         return '-';
@@ -57,38 +123,41 @@ const formatTrendValue = (value: DashboardTrendPoint['value']) => {
     return value;
 };
 
-const resolveAlertBadgeVariant = (severity: DashboardAlert['severity']) => {
+const resolveAlertBadgeClass = (severity: DashboardAlert['severity']) => {
     if (severity === 'critical') {
-        return 'destructive';
+        return 'bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800';
     }
 
     if (severity === 'warning') {
-        return 'secondary';
+        return 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800';
     }
 
-    return 'outline';
+    return 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
 };
 
+const capitalize = (str: string) =>
+    str.charAt(0).toUpperCase() + str.slice(1);
+
 const CHART_COLORS = [
-    'var(--chart-1)',
-    'var(--chart-2)',
-    'var(--chart-3)',
-    'var(--chart-4)',
-    'var(--chart-5)',
+    '#6366f1', // Indigo 500
+    '#10b981', // Emerald 500
+    '#f59e0b', // Amber 500
+    '#f43f5e', // Rose 500
+    '#8b5cf6', // Violet 500
 ];
 
 const LIS_DISTRIBUTION_COLORS: Record<string, string> = {
-    synced: 'var(--primary)',
-    pending: 'var(--chart-1)',
-    errors: 'var(--destructive)',
+    synced: '#10b981',
+    pending: '#f59e0b',
+    errors: '#f43f5e',
 };
 
 const PAYMENT_METHOD_COLORS: Record<string, string> = {
-    cash: 'var(--primary)',
-    'e-wallet': 'var(--chart-1)',
-    'bank transfer': 'var(--chart-3)',
-    check: 'var(--chart-4)',
-    other: 'var(--chart-5)',
+    cash: '#10b981',
+    'e-wallet': '#3b82f6',
+    'bank transfer': '#8b5cf6',
+    check: '#f59e0b',
+    other: '#94a3b8',
 };
 
 const resolveSeriesColor = (index: number): string => {
@@ -579,8 +648,8 @@ export function DashboardAnalyticsPanel({
             <div key={alert.id} className="rounded-md border p-3">
                 <div className="mb-1.5 flex items-center justify-between gap-2">
                     <p className="text-sm font-medium">{alert.title}</p>
-                    <Badge variant={resolveAlertBadgeVariant(alert.severity)}>
-                        {alert.severity}
+                    <Badge variant="outline" className={resolveAlertBadgeClass(alert.severity)}>
+                        {capitalize(alert.severity)}
                     </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">{alert.message}</p>
@@ -648,9 +717,12 @@ export function DashboardAnalyticsPanel({
                     isHandheld ? 'grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-4',
                 )}
             >
-                {kpis.map((kpi) => (
+                {kpis.map((kpi) => {
+                    const { icon: KpiIcon, color: kpiColor } = resolveKpiIcon(kpi.id);
+                    return (
                     <Card key={kpi.id}>
-                        <CardHeader className="border-b py-3">
+                        <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
+                            <KpiIcon className={cn('size-4 shrink-0', kpiColor)} />
                             <CardTitle className="text-sm font-medium">
                                 {kpi.label}
                             </CardTitle>
@@ -671,7 +743,8 @@ export function DashboardAnalyticsPanel({
                             ) : null}
                         </CardContent>
                     </Card>
-                ))}
+                    );
+                })}
             </div>
 
             {children ? <div className="grid gap-3">{children}</div> : null}
@@ -693,7 +766,7 @@ export function DashboardAnalyticsPanel({
                     <TabsContent value="alerts" className="m-0">
                         <Card>
                             <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
-                                <Bell className="size-4 text-muted-foreground" />
+                                <Bell className="size-4 text-amber-500" />
                                 <CardTitle className="text-sm">Alerts</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-2.5 pt-3">
@@ -705,7 +778,7 @@ export function DashboardAnalyticsPanel({
                     <TabsContent value="trends" className="m-0">
                         <Card>
                             <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
-                                <TrendingUp className="size-4 text-muted-foreground" />
+                                <TrendingUp className="size-4 text-emerald-500" />
                                 <CardTitle className="text-sm">Trends</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-2.5 pt-3">
@@ -717,7 +790,7 @@ export function DashboardAnalyticsPanel({
                     <TabsContent value="actions" className="m-0">
                         <Card>
                             <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
-                                <ArrowRight className="size-4 text-muted-foreground" />
+                                <ArrowRight className="size-4 text-primary" />
                                 <CardTitle className="text-sm">
                                     Action Links
                                 </CardTitle>
@@ -733,7 +806,7 @@ export function DashboardAnalyticsPanel({
                     <div className="grid gap-3 lg:grid-cols-3">
                         <Card className="lg:col-span-2">
                             <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
-                                <Bell className="size-4 text-muted-foreground" />
+                                <Bell className="size-4 text-amber-500" />
                                 <CardTitle className="text-base">Alerts</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-2.5 pt-3">
@@ -743,7 +816,7 @@ export function DashboardAnalyticsPanel({
 
                         <Card>
                             <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
-                                <ArrowRight className="size-4 text-muted-foreground" />
+                                <ArrowRight className="size-4 text-primary" />
                                 <CardTitle className="text-base">
                                     Action Links
                                 </CardTitle>
@@ -756,7 +829,7 @@ export function DashboardAnalyticsPanel({
 
                     <Card>
                         <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
-                            <TrendingUp className="size-4 text-muted-foreground" />
+                            <TrendingUp className="size-4 text-emerald-500" />
                             <CardTitle className="text-base">Trends</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-3 pt-3 md:grid-cols-2">

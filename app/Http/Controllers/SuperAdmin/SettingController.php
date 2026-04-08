@@ -8,7 +8,6 @@ use App\Services\AuditLogService;
 use App\Services\SystemBackupService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -60,8 +59,6 @@ class SettingController extends Controller
 
             return back()->with('success', 'Backup restored successfully.');
         }
-
-        $beforeSettings = Setting::query()->pluck('value', 'key')->toArray();
 
         if (($validated['backup_interval'] ?? null) !== 'custom') {
             $validated['backup_interval_days'] = null;
@@ -126,27 +123,6 @@ class SettingController extends Controller
                 'file_name' => $backup['file_name'],
                 'reason' => $backup['reason'],
             ]);
-        }
-
-        $afterSettings = Setting::query()->pluck('value', 'key')->toArray();
-        $trackedKeys = array_unique(array_merge($settingKeys, ['logo', 'header']));
-        $oldValues = [];
-        $newValues = [];
-
-        foreach ($trackedKeys as $key) {
-            $oldValue = Arr::get($beforeSettings, $key);
-            $newValue = Arr::get($afterSettings, $key);
-
-            if ($oldValue === $newValue) {
-                continue;
-            }
-
-            $oldValues[$key] = $oldValue;
-            $newValues[$key] = $newValue;
-        }
-
-        if (count($oldValues) > 0 || count($newValues) > 0) {
-            $auditLogService->log('settings.updated', Setting::class, $oldValues, $newValues);
         }
 
         return back()->with('success', 'Settings updated successfully.');

@@ -296,26 +296,30 @@ export default function StudentLedgers({
 
     const dueBadgeVariant = (status: string) => {
         if (status === 'paid') {
-            return 'secondary';
+            return 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
         }
 
         if (status === 'partially_paid') {
-            return 'default';
+            return 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800';
         }
 
-        return 'outline';
+        if (status === 'overdue') {
+            return 'bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800';
+        }
+
+        return '';
     };
 
     const ledgerBadgeVariant = (entryType: string) => {
         if (entryType === 'payment') {
-            return 'secondary';
+            return 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
         }
 
         if (entryType === 'discount') {
-            return 'default';
+            return 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800';
         }
 
-        return 'outline';
+        return '';
     };
 
     return (
@@ -569,7 +573,8 @@ export default function StudentLedgers({
                                                     )}
                                                 </p>
                                                 <Badge
-                                                    variant={dueBadgeVariant(
+                                                    variant="outline"
+                                                    className={dueBadgeVariant(
                                                         due.status,
                                                     )}
                                                 >
@@ -625,7 +630,8 @@ export default function StudentLedgers({
                                                     </TableCell>
                                                     <TableCell className="border-l pr-6 text-right">
                                                         <Badge
-                                                            variant={dueBadgeVariant(
+                                                            variant="outline"
+                                                            className={dueBadgeVariant(
                                                                 due.status,
                                                             )}
                                                         >
@@ -711,7 +717,8 @@ export default function StudentLedgers({
                                                     {entry.reference}
                                                 </p>
                                                 <Badge
-                                                    variant={ledgerBadgeVariant(
+                                                    variant="outline"
+                                                    className={ledgerBadgeVariant(
                                                         entry.entry_type,
                                                     )}
                                                 >
@@ -794,7 +801,8 @@ export default function StudentLedgers({
                                                 </TableCell>
                                                 <TableCell className="border-l">
                                                     <Badge
-                                                        variant={ledgerBadgeVariant(
+                                                        variant="outline"
+                                                        className={ledgerBadgeVariant(
                                                             entry.entry_type,
                                                         )}
                                                     >

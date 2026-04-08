@@ -1,4 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import {
     AlertTriangle,
     Clock,
@@ -103,6 +104,9 @@ export default function SystemSettings({ settings, backups }: Props) {
     );
     const [isBackupConfigOpen, setIsBackupConfigOpen] = useState(false);
     const [isRestoreOpen, setIsRestoreOpen] = useState(false);
+    const [fileNameToRestore, setFileNameToRestore] = useState<string | null>(null);
+    const [pendingMaintenanceMode, setPendingMaintenanceMode] = useState<boolean | null>(null);
+    const [pendingParentPortal, setPendingParentPortal] = useState<boolean | null>(null);
 
     const handleFileChange = (
         e: React.ChangeEvent<HTMLInputElement>,
@@ -143,23 +147,20 @@ export default function SystemSettings({ settings, backups }: Props) {
         );
     };
 
-    const handleRestoreBackup = (fileName: string) => {
-        if (
-            !confirm(
-                `Restore backup "${fileName}"? This will replace current data.`,
-            )
-        ) {
-            return;
-        }
+    const submitRestoreBackup = () => {
+        if (!fileNameToRestore) return;
 
         router.post(
             store.url(),
             {
-                restore_file: fileName,
+                restore_file: fileNameToRestore,
             },
             {
                 preserveScroll: true,
-                onSuccess: () => setIsRestoreOpen(false),
+                onSuccess: () => {
+                    setIsRestoreOpen(false);
+                    setFileNameToRestore(null);
+                },
             },
         );
     };
@@ -366,7 +367,7 @@ export default function SystemSettings({ settings, backups }: Props) {
                                         id="maintenance-mode"
                                         checked={data.maintenance_mode}
                                         onCheckedChange={(val) =>
-                                            setData('maintenance_mode', val)
+                                            setPendingMaintenanceMode(val)
                                         }
                                     />
                                 </div>
@@ -384,7 +385,7 @@ export default function SystemSettings({ settings, backups }: Props) {
                                         id="parent-access"
                                         checked={data.parent_portal}
                                         onCheckedChange={(val) =>
-                                            setData('parent_portal', val)
+                                            setPendingParentPortal(val)
                                         }
                                     />
                                 </div>
@@ -476,7 +477,7 @@ export default function SystemSettings({ settings, backups }: Props) {
                                                                             <Button
                                                                                 size="sm"
                                                                                 onClick={() =>
-                                                                                    handleRestoreBackup(
+                                                                                    setFileNameToRestore(
                                                                                         backup.file_name,
                                                                                     )
                                                                                 }
@@ -731,6 +732,48 @@ export default function SystemSettings({ settings, backups }: Props) {
                     </Card>
                 </div>
             </div>
+
+            <ActionConfirmDialog
+                open={!!fileNameToRestore}
+                onOpenChange={(open) => !open && setFileNameToRestore(null)}
+                title="Restore Database"
+                description={`Are you sure you want to restore the backup "${fileNameToRestore}"? This will overwrite all current system data and is irreversible.`}
+                variant="destructive"
+                confirmLabel="Restore Database"
+                onConfirm={submitRestoreBackup}
+            />
+
+            <ActionConfirmDialog
+                open={pendingMaintenanceMode !== null}
+                onOpenChange={(open) => !open && setPendingMaintenanceMode(null)}
+                title={pendingMaintenanceMode ? "Enable Maintenance Mode" : "Disable Maintenance Mode"}
+                description={pendingMaintenanceMode 
+                    ? "Are you sure you want to enable Maintenance Mode? This will prevent all non-admin users from accessing the system."
+                    : "Are you sure you want to disable Maintenance Mode and allow all users to access the system again?"
+                }
+                variant={pendingMaintenanceMode ? "warning" : "default"}
+                confirmLabel={pendingMaintenanceMode ? "Enable" : "Disable"}
+                onConfirm={() => {
+                    setData('maintenance_mode', pendingMaintenanceMode!);
+                    setPendingMaintenanceMode(null);
+                }}
+            />
+
+            <ActionConfirmDialog
+                open={pendingParentPortal !== null}
+                onOpenChange={(open) => !open && setPendingParentPortal(null)}
+                title={pendingParentPortal ? "Enable Parent Portal" : "Disable Parent Portal"}
+                description={pendingParentPortal 
+                    ? "Are you sure you want to enable the Parent Portal? Parents will be able to view students' grades and billing information."
+                    : "Are you sure you want to disable the Parent Portal? Parents will lose access to their portal accounts."
+                }
+                variant="default"
+                confirmLabel={pendingParentPortal ? "Enable" : "Disable"}
+                onConfirm={() => {
+                    setData('parent_portal', pendingParentPortal!);
+                    setPendingParentPortal(null);
+                }}
+            />
         </AppLayout>
     );
 }

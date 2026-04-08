@@ -1,0 +1,41 @@
+        Interviewer: Sir, ano ang mga challenges kapag kinokolekta ang attendance mula
+        sa iba't ibang klase o section?
+
+
+        Interviewee: Ah, isa sa pinaka-problema namin ay manual talaga. May attendance
+        si teacher, may attendance ang class president, tapos kailangan i-compare. Kaya
+        minsan, hindi pareho ang record. Halimbawa, isang araw may na-miss ang teacher
+        mag-record, tapos may na-record yung student officer. Pag kinokolekta mo ulit,
+        kailangan i-check isa-isa, i-verify kung sino ang tama. Nakakapagod at prone sa
+        delay.
+
+
+        Interviewer: Sa anong katagal bago makonsolidate ang attendance data para sa
+        reports?
+
+
+        Interviewee: Usually, weekly. Lahat ng teachers at officers magkocollect mula
+        Monday to Friday. Pagkatapos, nire-review at kino-consolidate para sa monthly
+        report. Nakakapanood ka na lang minsan, tapos ayun, i-check mo ulit kung may
+        kulang or mali. Talagang time-consuming.
+
+
+        Interviewer: Sir, may mga pagkakataon bang kulang o mali ang attendance
+        records?
+
+
+        Interviewee: Oo, kadalasan dahil sa rushed yung teachers. Minsan nagtuturo pa
+        sila, tapos nakakalimutan mag-check ng attendance. Kaya kailangan i-recall the
+        next day or follow-up manually. Kung minsan, hindi na maalala kung sino talaga
+        ang present nung araw na yun. Kahit may manual record ang student, kailangan pa
+        rin i-double check.
+
+
+        Interviewer: Laiway po ba yung parents para mag-update ng attendance ng anak
+        nila?
+
+
+
+
+STI College Munoz-EDSA                                                                    43
+

@@ -31,16 +31,9 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavFooter } from '@/components/nav-footer';
-import { PwaInstallGuideDialog } from '@/components/pwa-install-guide-dialog';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
-import {
-    getDeferredInstallPrompt,
-    getInstallUnavailableMessage,
-    isLikelyAlreadyInstalled,
-    onInstallPromptAvailable,
-    onPwaAppInstalled,
-} from '@/lib/pwa-install';
+
 import {
     Sidebar,
     SidebarContent,
@@ -317,20 +310,7 @@ const filterNavItemsForHandheld = (
     return visibleItems;
 };
 
-const isStandaloneMode = (): boolean => {
-    if (typeof window === 'undefined') {
-        return false;
-    }
 
-    const standaloneMediaQuery = window.matchMedia(
-        '(display-mode: standalone)',
-    ).matches;
-    const iosStandalone = (
-        window.navigator as Navigator & { standalone?: boolean }
-    ).standalone;
-
-    return standaloneMediaQuery || iosStandalone === true;
-};
 
 const formatRoleLabel = (roleValue: string): string => {
     if (!roleValue) {
@@ -350,80 +330,47 @@ export function AppSidebar() {
     const role = (auth.user.role as string) || '';
     const roleLabel = formatRoleLabel(role);
     const isHandheld = Boolean(page.props.ui?.is_handheld);
-    const [deferredPrompt, setDeferredPrompt] = useState(
-        getDeferredInstallPrompt,
-    );
-    const [isInstalled, setIsInstalled] = useState(false);
-    const [isInstalling, setIsInstalling] = useState(false);
-    const [isGuideOpen, setIsGuideOpen] = useState(false);
-    const [installGuideMessage, setInstallGuideMessage] = useState('');
 
-    useEffect(() => {
-        if (!auth.user?.id || typeof window === 'undefined') {
-            return;
-        }
-
-        let isUnmounted = false;
-
-        if (isStandaloneMode()) {
-            setIsInstalled(true);
-
-            return;
-        }
-
-        void isLikelyAlreadyInstalled().then((alreadyInstalled) => {
-            if (alreadyInstalled && !isUnmounted) {
-                setIsInstalled(true);
-            }
-        });
-
-        const handleInstallPromptAvailable = () => {
-            setDeferredPrompt(getDeferredInstallPrompt());
-        };
-
-        const handleAppInstalled = () => {
-            setIsInstalled(true);
-            setDeferredPrompt(null);
-        };
-
-        handleInstallPromptAvailable();
-        const removeInstallPromptListener = onInstallPromptAvailable(
-            handleInstallPromptAvailable,
-        );
-        const removeAppInstalledListener =
-            onPwaAppInstalled(handleAppInstalled);
-
-        return () => {
-            isUnmounted = true;
-            removeInstallPromptListener();
-            removeAppInstalledListener();
-        };
-    }, [auth.user?.id]);
-
-    const installApp = async () => {
-        if (!deferredPrompt || isInstalling) {
-            const message = await getInstallUnavailableMessage();
-            setInstallGuideMessage(message);
-            setIsGuideOpen(true);
-
-            return;
-        }
-
-        setIsInstalling(true);
-        await deferredPrompt.prompt();
-        const result = await deferredPrompt.userChoice;
-        setIsInstalling(false);
-        setDeferredPrompt(null);
-
-        if (result.outcome === 'accepted') {
-            setIsInstalled(true);
-        }
-    };
 
     const roleItems = roleNavItems[role] || [];
     const visibleRoleItems = isHandheld
         ? filterNavItemsForHandheld(role, roleItems)
         : roleItems;
+
+    // Permissions Filtering Logic
+    const permissions = (page.props.permissions as Record<string, number>) || {};
+    
+    const filterByPermissions = (items: NavItem[]): NavItem[] => {
+        // Super Admin bypasses if needed, but the seeder gives them everything
+        // However, we check the actual levels returned from the server.
+        
+        return items.reduce((acc: NavItem[], item) => {
+            const hasChildren = item.items && item.items.length > 0;
+            const level = permissions[item.title];
+
+            // If it's a leaf node (no children) and level is 0, hide it
+            if (!hasChildren && level === 0) {
+                return acc;
+            }
+
+            // If it has children, filter them recursively
+            if (hasChildren) {
+                const filteredChildren = filterByPermissions(item.items!);
+                // If no children remain, hide the parent as well
+                if (filteredChildren.length === 0) {
+                    return acc;
+                }
+                acc.push({ ...item, items: filteredChildren });
+                return acc;
+            }
+
+            // Normal case: level > 0 or not found in matrix (default show for now)
+            acc.push(item);
+            return acc;
+        }, []);
+    };
+
+    const permittedRoleItems = filterByPermissions(visibleRoleItems);
 
     const mainNavItems: NavItem[] = [
         {
@@ -431,7 +378,7 @@ export function AppSidebar() {
             href: dashboard(),
             icon: LayoutGrid,
         },
-        ...visibleRoleItems,
+        ...permittedRoleItems,
     ];
 
     return (
@@ -453,32 +400,11 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                {auth.user?.id && !isInstalled ? (
-                    <SidebarMenu>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton
-                                onClick={installApp}
-                                tooltip="Install App"
-                                disabled={isInstalling}
-                            >
-                                <Download className="h-5 w-5" />
-                                <span>
-                                    {isInstalling
-                                        ? 'Installing...'
-                                        : 'Install App'}
-                                </span>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    </SidebarMenu>
-                ) : null}
+
                 <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
-            <PwaInstallGuideDialog
-                open={isGuideOpen}
-                onOpenChange={setIsGuideOpen}
-                message={installGuideMessage}
-            />
+
         </Sidebar>
     );
 }

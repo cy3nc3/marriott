@@ -1,4 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { type FormEvent, useState } from 'react';
 import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -56,21 +57,24 @@ export default function DataImport({ imports }: Props) {
     }>({
         import_file: null,
     });
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-    const submitImport = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
+    const submitImport = (event?: FormEvent<HTMLFormElement>) => {
+        if (event) event.preventDefault();
 
         importForm.post('/registrar/data-import/permanent-records', {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
                 importForm.reset('import_file');
+                setIsConfirmOpen(false);
             },
         });
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
+            <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Data Import" />
 
             <div className="flex flex-col gap-6">
@@ -109,8 +113,9 @@ export default function DataImport({ imports }: Props) {
                             </div>
                             <div className="flex items-end justify-end">
                                 <Button
-                                    type="submit"
-                                    disabled={importForm.processing}
+                                    type="button"
+                                    onClick={() => setIsConfirmOpen(true)}
+                                    disabled={importForm.processing || !importForm.data.import_file}
                                 >
                                     <Upload className="size-4" />
                                     Import CSV
@@ -330,5 +335,16 @@ export default function DataImport({ imports }: Props) {
                 </DialogContent>
             </Dialog>
         </AppLayout>
+
+        <ActionConfirmDialog
+            open={isConfirmOpen}
+            onOpenChange={setIsConfirmOpen}
+            title="Import Permanent Records"
+            description="Are you sure you want to import this CSV file? This will create new student records and update existing ones in the system. Please ensure the data layout is correct before proceeding."
+            confirmLabel="Confirm Import"
+            loading={importForm.processing}
+            onConfirm={() => submitImport()}
+        />
+        </>
     );
 }

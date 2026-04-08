@@ -1,0 +1,38 @@
+The Students can access the following:
+
+    ● Student Academic Records Module - Access own quarter and final grade records
+        under role-scoped permissions.
+    ● Student Schedule Module - View personal class schedules, subject timing, and
+        advisory allocations.
+    ● Student Learning Analytics - Review personal learning indicators, progress
+        trends, and academic alerts.
+
+The School Administrators (Academic Head/Principal) can access the following:
+
+    ● Academic Lifecycle Management Module - Configure school-year dates, quarter
+        transitions, and implementation controls.
+    ● Curriculum, Section, and Class List Module - Manage subjects, section
+        structures, adviser mapping, and roster outputs.
+    ● Schedule and Timetable Builder Module - Build and adjust schedules with
+        conflict-aware institutional controls.
+    ● Grade Verification and Compliance Module - Enforce submission deadlines,
+        review grade batches, and verify or return outputs.
+    ● Institutional Analytics - Monitor enrollment, financial risk, academic status,
+        compliance readiness, and KPI trends.
+
+The Super Admin (IT Personnel) can access the following:
+
+    ● User and Access Administration Module - Create accounts, assign roles, manage
+        status, and enforce credential controls.
+    ● Permission Matrix Module - Manage authorization views, role permissions, and
+        governance policy controls.
+    ● Audit Logs and Announcement Module - Review audit logs, publish
+        announcements, and monitor recipient engagement.
+    ● System Configuration and Governance Analytics - Control maintenance and
+        portal settings, institutional preferences, and governance performance indicators.
+
+
+
+
+STI College Munoz-EDSA                                                                       14
+

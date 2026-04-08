@@ -247,7 +247,7 @@ export default function AnnouncementReport({
                                             : 'Notice'}
                                     </Badge>
                                     {announcement.is_cancelled && (
-                                        <Badge variant="destructive">
+                                        <Badge variant="outline" className="bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800">
                                             Cancelled
                                         </Badge>
                                     )}
@@ -536,10 +536,11 @@ export default function AnnouncementReport({
                                             </div>
                                             <div className="flex flex-wrap items-center gap-2 text-xs">
                                                 <Badge
-                                                    variant={
+                                                    variant="outline"
+                                                    className={
                                                         recipient.is_read
-                                                            ? 'outline'
-                                                            : 'secondary'
+                                                            ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                                            : ''
                                                     }
                                                 >
                                                     {recipient.is_read
@@ -614,10 +615,11 @@ export default function AnnouncementReport({
                                                     </TableCell>
                                                     <TableCell>
                                                         <Badge
-                                                            variant={
+                                                            variant="outline"
+                                                            className={
                                                                 recipient.is_read
-                                                                    ? 'outline'
-                                                                    : 'secondary'
+                                                                    ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                                                    : ''
                                                             }
                                                         >
                                                             {recipient.is_read ? (

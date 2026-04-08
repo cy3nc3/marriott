@@ -1,0 +1,41 @@
+Review of Related Literature/Studies/Systems
+
+
+The present review of related literature and studies is designed to establish a strong
+theoretical and technical foundation for MarriottConnect by focusing only on sources that
+directly align with the school's documented operational problems. In this chapter,
+relevance is anchored on three validated issue clusters from the appendices: fragmented
+records across offices, delayed reconciliation in finance and registrar workflows, and
+limited decision-support visibility for planning.
+
+To strengthen applicability, the proponents use ten studies published from 2021 onward,
+with five local Philippine references and five international references. Each source is
+evaluated not only on conceptual contribution, but also on direct fit to MarriottConnect
+modules such as enrollment intake and enrichment, cashiering and ledger workflows,
+schedule management, stakeholder portals, and analytics-enabled dashboards.
+
+
+
+
+Local Studies
+
+Designing and Implementing e-School Systems: An Information Systems Approach
+to School Management of a Community College in Northern Mindanao, Philippines
+
+Grepon et al. (2021) conducted an applied research investigation into the creation of an
+integrated admission, record processing, and reporting system based on a unified digital
+work-flow. They qualified this research by demonstrating that if a school would work
+from a single set of shared data (rather than multiple sets of disconnected files) the time
+to process records and the reliability of records would improve. The study emphasized
+practical implementation behavior, including workflow continuity across offices and
+usability outcomes for non-technical institutional users.
+
+This source is highly relevant to MarriottConnect because it directly supports the
+system's central design objective: convert fragmented office transactions into a single
+source of truth. In the appendices, the Registrar repeatedly described one-by-one updates
+and manual double-checking as a major bottleneck; Grepon et al. (2021) provides
+
+
+
+STI College Munoz-EDSA                                                                        16
+

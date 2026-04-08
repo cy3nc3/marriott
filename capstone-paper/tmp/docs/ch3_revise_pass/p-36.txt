@@ -1,0 +1,43 @@
+  3.    1. Credentials must be protected through secure authentication handling and
+        password hashing.
+
+        3.1.    2. Authorization rules must prevent cross-role access to restricted modules
+                and records.
+
+        3.2.    3. Governance-relevant actions must be traceable through audit-ready
+                logging mechanisms.
+
+        3.3.    Usability Requirements
+
+  4.    1. Interfaces must present clear task flows aligned with each role's routine
+        operational responsibilities.
+
+        4.1.    2. Pages must maintain readability and consistency across desktop and
+                supported mobile contexts.
+
+        4.2.    Maintainability Requirements
+
+  5.    1. The system must support controlled updates to school-year settings, fee
+        structures, and role configurations.
+
+        5.1.    2. Core modules must remain maintainable so policy updates and
+                institutional enhancements can be integrated without destabilizing existing
+                workflows.
+
+        5.2.
+
+
+Requirements Documentation
+
+MarriottConnect is structured as an integrated module ecosystem where registrar, finance,
+academic, governance, and stakeholder services operate on one validated institutional
+dataset.
+
+The Registry and Enrollment module captures intake entries, maintains learner profiles,
+and supports SF1 upload with LRN-based reconciliation for LIS-aligned continuity.
+
+
+
+
+STI College Munoz-EDSA                                                                        32
+

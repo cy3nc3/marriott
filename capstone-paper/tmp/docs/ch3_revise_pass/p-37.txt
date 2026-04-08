@@ -1,0 +1,42 @@
+The Cashiering and Finance module manages assessment logic, payment posting, ledger
+updates, transaction actions, and billing visibility outputs for authorized users.
+
+The Academic Planning module supports school-year controls, curriculum mapping,
+section management, schedule preparation, and class-list coordination.
+
+The Teacher Operations module provides rubric configuration, graded activity encoding,
+attendance tracking, score submission, and gradebook validation workflows.
+
+The Student module provides secure personal access to schedules, grades, and learning
+indicators based on authorized academic records.
+
+The Parent module provides child-focused visibility to schedule, academic performance,
+billing status, and school-issued notifications.
+
+The analytics layer standardizes KPI cards, alerts, trend cards, and action links so each
+role receives decision-ready summaries from validated transactions.
+
+Trend rendering supports line, bar, area, and pie charts through normalized payload
+contracts to preserve readability and interpretation consistency.
+
+Governance services include user management, permission controls, audit logging,
+announcements, and system setting enforcement for operational integrity.
+
+These integrated requirements position MarriottConnect as a centralized, role-governed,
+and decision-support-oriented platform for Marriott School operations.
+
+
+Design of Software, System, Product, and/or Processes
+The software design of MarriottConnect follows a role-centered, modular architecture that
+separates registrar, finance, academic, stakeholder, and governance concerns while
+maintaining one shared institutional data model.
+
+At the backend layer, Laravel route groups and middleware enforce role boundaries so
+each user enters only authorized modules and actions. This design prevents cross-role
+data misuse while preserving workflow continuity across connected processes.
+
+
+
+
+STI College Munoz-EDSA                                                                      33
+

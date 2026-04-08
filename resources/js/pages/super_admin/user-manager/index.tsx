@@ -1,4 +1,5 @@
 import { Head, useForm, router } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { format } from 'date-fns';
 import {
     UserPlus,
@@ -109,6 +110,8 @@ export default function UserManager({ users, filters }: Props) {
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [roleFilter, setRoleFilter] = useState(filters.role || 'all');
+    const [confirmResetUser, setConfirmResetUser] = useState<User | null>(null);
+    const [confirmToggleUser, setConfirmToggleUser] = useState<User | null>(null);
 
     const createForm = useForm({
         first_name: '',
@@ -196,37 +199,28 @@ export default function UserManager({ users, filters }: Props) {
         });
     };
 
-    const handleResetPassword = (user: User) => {
-        if (
-            confirm(
-                `Reset ${user.name}'s password to the default format ([first-name-token]@MMDDYYYY)?`,
-            )
-        ) {
-            router.post(
-                reset_password(user.id).url,
-                {},
-                {
-                    preserveScroll: true,
-                },
-            );
-        }
+    const submitUpdatePassword = () => {
+        if (!confirmResetUser) return;
+        router.post(
+            reset_password(confirmResetUser.id).url,
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => setConfirmResetUser(null),
+            },
+        );
     };
 
-    const handleToggleStatus = (user: User) => {
-        const action = user.is_active ? 'deactivate' : 'activate';
-        if (
-            confirm(
-                `Are you sure you want to ${action} ${user.name}'s account?`,
-            )
-        ) {
-            router.post(
-                toggle_status(user.id).url,
-                {},
-                {
-                    preserveScroll: true,
-                },
-            );
-        }
+    const submitToggleStatus = () => {
+        if (!confirmToggleUser) return;
+        router.post(
+            toggle_status(confirmToggleUser.id).url,
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => setConfirmToggleUser(null),
+            },
+        );
     };
 
     const openEdit = (user: User) => {
@@ -340,7 +334,14 @@ export default function UserManager({ users, filters }: Props) {
                                                 {getRoleBadge(user.role)}
                                             </TableCell>
                                             <TableCell className="border-l text-center">
-                                                <Badge variant="outline">
+                                                <Badge
+                                                    variant="outline"
+                                                    className={
+                                                        user.is_active
+                                                            ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                                            : 'bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800'
+                                                    }
+                                                >
                                                     {user.is_active
                                                         ? 'Active'
                                                         : 'Inactive'}
@@ -376,7 +377,7 @@ export default function UserManager({ users, filters }: Props) {
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             onClick={() =>
-                                                                handleResetPassword(
+                                                                setConfirmResetUser(
                                                                     user,
                                                                 )
                                                             }
@@ -390,7 +391,7 @@ export default function UserManager({ users, filters }: Props) {
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem
                                                             onClick={() =>
-                                                                handleToggleStatus(
+                                                                setConfirmToggleUser(
                                                                     user,
                                                                 )
                                                             }
@@ -746,6 +747,40 @@ export default function UserManager({ users, filters }: Props) {
                     </form>
                 </DialogContent>
             </Dialog>
+
+            <ActionConfirmDialog
+                open={!!confirmResetUser}
+                onOpenChange={(open) => !open && setConfirmResetUser(null)}
+                title="Reset Password"
+                description={`Are you sure you want to reset ${confirmResetUser?.name}'s password? It will be set back to the default format ([first-name-token]@MMDDYYYY).`}
+                confirmLabel="Reset Password"
+                variant="warning"
+                onConfirm={submitUpdatePassword}
+            />
+
+            <ActionConfirmDialog
+                open={!!confirmToggleUser}
+                onOpenChange={(open) => !open && setConfirmToggleUser(null)}
+                title={
+                    confirmToggleUser?.is_active
+                        ? 'Deactivate Account'
+                        : 'Activate Account'
+                }
+                description={
+                    confirmToggleUser?.is_active
+                        ? `Are you sure you want to deactivate ${confirmToggleUser?.name}'s account? They will no longer be able to log in.`
+                        : `Are you sure you want to reactivate ${confirmToggleUser?.name}'s account?`
+                }
+                confirmLabel={
+                    confirmToggleUser?.is_active
+                        ? 'Deactivate'
+                        : 'Activate'
+                }
+                variant={
+                    confirmToggleUser?.is_active ? 'destructive' : 'default'
+                }
+                onConfirm={submitToggleStatus}
+            />
         </AppLayout>
     );
 }

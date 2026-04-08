@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { Bell, Palette, Shield, User, UserX } from 'lucide-react';
 import type { PropsWithChildren } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
@@ -8,29 +9,33 @@ import { cn, toUrl } from '@/lib/utils';
 import type { NavItem } from '@/types';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
-import { show } from '@/routes/two-factor';
 import { edit as editPassword } from '@/routes/user-password';
 
 const sidebarNavItems: NavItem[] = [
     {
         title: 'Profile',
         href: edit(),
-        icon: null,
+        icon: User,
     },
     {
-        title: 'Password',
+        title: 'Security',
         href: editPassword(),
-        icon: null,
+        icon: Shield,
     },
     {
-        title: 'Two-Factor Auth',
-        href: show(),
-        icon: null,
+        title: 'Notifications',
+        href: '/settings/notifications',
+        icon: Bell,
     },
     {
         title: 'Appearance',
         href: editAppearance(),
-        icon: null,
+        icon: Palette,
+    },
+    {
+        title: 'Account',
+        href: '/settings/account',
+        icon: UserX,
     },
 ];
 

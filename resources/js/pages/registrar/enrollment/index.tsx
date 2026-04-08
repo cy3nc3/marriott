@@ -1,4 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { format } from 'date-fns';
 import { Pencil, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -108,6 +109,8 @@ export default function Enrollment({
     const [selectedSchoolYearId, setSelectedSchoolYearId] = useState(
         selected_school_year_id ? String(selected_school_year_id) : '',
     );
+    const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
+    const [itemToRemove, setItemToRemove] = useState<EnrollmentRow | null>(null);
 
     const createForm = useForm({
         academic_year_id: selected_school_year_id
@@ -198,6 +201,7 @@ export default function Enrollment({
                 createForm.setData('grade_level_id', '');
                 createForm.setData('section_id', '');
                 setCreateStep(1);
+                setIsSaveConfirmOpen(false);
             },
         });
     };
@@ -241,15 +245,12 @@ export default function Enrollment({
         });
     };
 
-    const removeRow = (item: EnrollmentRow) => {
-        if (
-            !confirm(`Remove ${item.first_name} ${item.last_name} from queue?`)
-        ) {
-            return;
-        }
+    const submitRemove = () => {
+        if (!itemToRemove) return;
 
-        router.delete(destroy(item.id).url, {
+        router.delete(destroy(itemToRemove.id).url, {
             preserveScroll: true,
+            onSuccess: () => setItemToRemove(null),
         });
     };
 
@@ -292,12 +293,42 @@ export default function Enrollment({
         const normalized = normalizeStatus(status);
         const labelMap: Record<string, string> = {
             for_cashier_payment: 'For Cashier Payment',
+            enrolled: 'Enrolled',
+            rejected: 'Rejected',
+            pending: 'Pending',
+            pending_intake: 'Pending',
         };
 
+        const label = labelMap[normalized] || normalized
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+
+        if (normalized === 'enrolled') {
+            return (
+                <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">
+                    {label}
+                </Badge>
+            );
+        }
+
+        if (normalized === 'rejected') {
+            return (
+                <Badge variant="outline" className="bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800">
+                    {label}
+                </Badge>
+            );
+        }
+
+        if (normalized === 'for_cashier_payment') {
+            return (
+                <Badge variant="outline" className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800">
+                    {label}
+                </Badge>
+            );
+        }
+
         return (
-            <Badge variant="outline">
-                {labelMap[normalized] || normalized}
-            </Badge>
+            <Badge variant="outline">{label}</Badge>
         );
     };
 
@@ -445,7 +476,8 @@ export default function Enrollment({
         : 0;
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
+            <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Enrollment" />
 
             <div className="flex flex-col gap-6">
@@ -1009,7 +1041,9 @@ export default function Enrollment({
                                 {createStep === 4 && (
                                     <Button
                                         className="w-full whitespace-normal"
-                                        onClick={submitCreate}
+                                        onClick={() =>
+                                            setIsSaveConfirmOpen(true)
+                                        }
                                         disabled={
                                             createForm.processing ||
                                             intakeCreationDisabled
@@ -1141,7 +1175,7 @@ export default function Enrollment({
                                                         size="icon"
                                                         className="size-8"
                                                         onClick={() =>
-                                                            removeRow(item)
+                                                            setItemToRemove(item)
                                                         }
                                                     >
                                                         <Trash2 className="size-4" />
@@ -1473,5 +1507,26 @@ export default function Enrollment({
                 </DialogContent>
             </Dialog>
         </AppLayout>
+
+            <ActionConfirmDialog
+                open={isSaveConfirmOpen}
+                onOpenChange={setIsSaveConfirmOpen}
+                title="Save Enrollment Intake"
+                description={`Are you sure you want to save the enrollment intake for ${formatStudentName(createForm.data.first_name, createForm.data.middle_name || null, createForm.data.last_name)}? This will add them to the queue for cashier payment.`}
+                confirmLabel="Confirm Enrollment"
+                loading={createForm.processing}
+                onConfirm={submitCreate}
+            />
+
+            <ActionConfirmDialog
+                open={!!itemToRemove}
+                onOpenChange={(open) => !open && setItemToRemove(null)}
+                title="Remove from Queue"
+                description={`Are you sure you want to remove ${itemToRemove ? formatStudentName(itemToRemove.first_name, itemToRemove.middle_name, itemToRemove.last_name) : ''} from the enrollment queue? This action cannot be undone.`}
+                variant="destructive"
+                confirmLabel="Remove Entry"
+                onConfirm={submitRemove}
+            />
+        </>
     );
 }

@@ -62,6 +62,7 @@ class HandleInertiaRequests extends Middleware
                     'announcements' => [],
                     'unread_count' => 0,
                 ],
+            'permissions' => $user instanceof User ? \App\Models\Permission::where('role', $user->role->value)->pluck('access_level', 'feature')->toArray() : [],
             'ui' => [
                 'is_handheld' => $this->handheldDeviceDetector->isHandheldRequest($request),
             ],
