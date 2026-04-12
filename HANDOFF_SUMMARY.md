@@ -182,23 +182,16 @@ Role-specific dashboard compact strips:
 
 ---
 
-## 6) PWA State (Implemented)
+## 6) PWA State (Removed)
 
-Implemented:
+PWA support has been removed from the current application scope.
 
-1. Manifest + service worker + offline fallback page.
-2. Install prompt available for authenticated roles.
-3. Service worker update-detection flow with update action and reload.
-4. Cache versioning and old-cache cleanup.
+Removed behavior:
 
-Key files:
-
-1. `public/manifest.webmanifest`
-2. `public/sw.js`
-3. `public/offline.html`
-4. `resources/js/app.tsx`
-5. `resources/js/components/pwa-install-banner.tsx`
-6. `resources/views/app.blade.php`
+1. Web app manifest support.
+2. Service worker registration and offline fallback behavior.
+3. Install prompt / install banner behavior.
+4. PWA icon assets.
 
 ---
 

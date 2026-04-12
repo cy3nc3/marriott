@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { update as updateNotifications } from '@/routes/notifications';
 import type { BreadcrumbItem } from '@/types';
 
 interface NotificationPreferences {
@@ -30,12 +31,20 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Notifications({ settings }: { settings: NotificationPreferences }) {
+export default function Notifications({
+    settings,
+}: {
+    settings: NotificationPreferences;
+}) {
     const { data, setData, patch, processing, recentlySuccessful } = useForm({
         settings: settings,
     });
 
-    const updateSetting = (channel: keyof NotificationPreferences, type: string, value: boolean) => {
+    const updateSetting = (
+        channel: keyof NotificationPreferences,
+        type: string,
+        value: boolean,
+    ) => {
         setData('settings', {
             ...data.settings,
             [channel]: {
@@ -47,7 +56,7 @@ export default function Notifications({ settings }: { settings: NotificationPref
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        patch(route('notifications.update'), {
+        patch(updateNotifications.url(), {
             preserveScroll: true,
         });
     };
@@ -72,42 +81,86 @@ export default function Notifications({ settings }: { settings: NotificationPref
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2">
                                     <Mail className="h-4 w-4 text-muted-foreground" />
-                                    <h3 className="text-sm font-medium">Email Notifications</h3>
+                                    <h3 className="text-sm font-medium">
+                                        Email Notifications
+                                    </h3>
                                 </div>
                                 <div className="space-y-4 rounded-lg border p-4">
                                     <div className="flex items-center justify-between">
                                         <div className="space-y-0.5">
-                                            <Label htmlFor="email_announcements">Announcements</Label>
-                                            <p className="text-xs text-muted-foreground">Receive emails for new school-wide announcements</p>
+                                            <Label htmlFor="email_announcements">
+                                                Announcements
+                                            </Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                Receive emails for new
+                                                school-wide announcements
+                                            </p>
                                         </div>
                                         <Switch
                                             id="email_announcements"
-                                            checked={data.settings.email.announcements}
-                                            onCheckedChange={(val) => updateSetting('email', 'announcements', val)}
+                                            checked={
+                                                data.settings.email
+                                                    .announcements
+                                            }
+                                            onCheckedChange={(val) =>
+                                                updateSetting(
+                                                    'email',
+                                                    'announcements',
+                                                    val,
+                                                )
+                                            }
                                         />
                                     </div>
                                     <Separator />
                                     <div className="flex items-center justify-between">
                                         <div className="space-y-0.5">
-                                            <Label htmlFor="email_grades">Grade Submissions</Label>
-                                            <p className="text-xs text-muted-foreground">Get notified when new grades are submitted or updated</p>
+                                            <Label htmlFor="email_grades">
+                                                Grade Submissions
+                                            </Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                Get notified when new grades are
+                                                submitted or updated
+                                            </p>
                                         </div>
                                         <Switch
                                             id="email_grades"
-                                            checked={data.settings.email.grade_submissions}
-                                            onCheckedChange={(val) => updateSetting('email', 'grade_submissions', val)}
+                                            checked={
+                                                data.settings.email
+                                                    .grade_submissions
+                                            }
+                                            onCheckedChange={(val) =>
+                                                updateSetting(
+                                                    'email',
+                                                    'grade_submissions',
+                                                    val,
+                                                )
+                                            }
                                         />
                                     </div>
                                     <Separator />
                                     <div className="flex items-center justify-between">
                                         <div className="space-y-0.5">
-                                            <Label htmlFor="email_alerts">System Alerts</Label>
-                                            <p className="text-xs text-muted-foreground">Important security and system maintenance alerts</p>
+                                            <Label htmlFor="email_alerts">
+                                                System Alerts
+                                            </Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                Important security and system
+                                                maintenance alerts
+                                            </p>
                                         </div>
                                         <Switch
                                             id="email_alerts"
-                                            checked={data.settings.email.system_alerts}
-                                            onCheckedChange={(val) => updateSetting('email', 'system_alerts', val)}
+                                            checked={
+                                                data.settings.email
+                                                    .system_alerts
+                                            }
+                                            onCheckedChange={(val) =>
+                                                updateSetting(
+                                                    'email',
+                                                    'system_alerts',
+                                                    val,
+                                                )
+                                            }
                                         />
                                     </div>
                                 </div>
@@ -117,42 +170,86 @@ export default function Notifications({ settings }: { settings: NotificationPref
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2">
                                     <Monitor className="h-4 w-4 text-muted-foreground" />
-                                    <h3 className="text-sm font-medium">Desktop/Push Notifications</h3>
+                                    <h3 className="text-sm font-medium">
+                                        Desktop/Push Notifications
+                                    </h3>
                                 </div>
                                 <div className="space-y-4 rounded-lg border p-4">
                                     <div className="flex items-center justify-between">
                                         <div className="space-y-0.5">
-                                            <Label htmlFor="app_announcements">Announcements</Label>
-                                            <p className="text-xs text-muted-foreground">Show in-app alerts for new school-wide announcements</p>
+                                            <Label htmlFor="app_announcements">
+                                                Announcements
+                                            </Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                Show in-app alerts for new
+                                                school-wide announcements
+                                            </p>
                                         </div>
                                         <Switch
                                             id="app_announcements"
-                                            checked={data.settings.in_app.announcements}
-                                            onCheckedChange={(val) => updateSetting('in_app', 'announcements', val)}
+                                            checked={
+                                                data.settings.in_app
+                                                    .announcements
+                                            }
+                                            onCheckedChange={(val) =>
+                                                updateSetting(
+                                                    'in_app',
+                                                    'announcements',
+                                                    val,
+                                                )
+                                            }
                                         />
                                     </div>
                                     <Separator />
                                     <div className="flex items-center justify-between">
                                         <div className="space-y-0.5">
-                                            <Label htmlFor="app_grades">Grade Submissions</Label>
-                                            <p className="text-xs text-muted-foreground">Show in-app alerts for grade updates</p>
+                                            <Label htmlFor="app_grades">
+                                                Grade Submissions
+                                            </Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                Show in-app alerts for grade
+                                                updates
+                                            </p>
                                         </div>
                                         <Switch
                                             id="app_grades"
-                                            checked={data.settings.in_app.grade_submissions}
-                                            onCheckedChange={(val) => updateSetting('in_app', 'grade_submissions', val)}
+                                            checked={
+                                                data.settings.in_app
+                                                    .grade_submissions
+                                            }
+                                            onCheckedChange={(val) =>
+                                                updateSetting(
+                                                    'in_app',
+                                                    'grade_submissions',
+                                                    val,
+                                                )
+                                            }
                                         />
                                     </div>
                                     <Separator />
                                     <div className="flex items-center justify-between">
                                         <div className="space-y-0.5">
-                                            <Label htmlFor="app_alerts">System Alerts</Label>
-                                            <p className="text-xs text-muted-foreground">In-app alerts for security events</p>
+                                            <Label htmlFor="app_alerts">
+                                                System Alerts
+                                            </Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                In-app alerts for security
+                                                events
+                                            </p>
                                         </div>
                                         <Switch
                                             id="app_alerts"
-                                            checked={data.settings.in_app.system_alerts}
-                                            onCheckedChange={(val) => updateSetting('in_app', 'system_alerts', val)}
+                                            checked={
+                                                data.settings.in_app
+                                                    .system_alerts
+                                            }
+                                            onCheckedChange={(val) =>
+                                                updateSetting(
+                                                    'in_app',
+                                                    'system_alerts',
+                                                    val,
+                                                )
+                                            }
                                         />
                                     </div>
                                 </div>
@@ -161,7 +258,9 @@ export default function Notifications({ settings }: { settings: NotificationPref
 
                         <div className="flex items-center gap-4">
                             <Button disabled={processing}>
-                                {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {processing && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
                                 Save Preferences
                             </Button>
 
@@ -172,7 +271,9 @@ export default function Notifications({ settings }: { settings: NotificationPref
                                 leave="transition ease-in-out"
                                 leaveTo="opacity-0"
                             >
-                                <p className="text-sm text-neutral-600">Preferences updated</p>
+                                <p className="text-sm text-neutral-600">
+                                    Preferences updated
+                                </p>
                             </Transition>
                         </div>
                     </form>

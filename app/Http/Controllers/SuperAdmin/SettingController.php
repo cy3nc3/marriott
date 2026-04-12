@@ -76,6 +76,8 @@ class SettingController extends Controller
             'backup_on_year_end',
         ];
 
+        $updatedSettings = [];
+
         foreach ($settingKeys as $key) {
             if (! array_key_exists($key, $validated)) {
                 continue;
@@ -96,6 +98,7 @@ class SettingController extends Controller
                 : 'backup';
 
             Setting::set($key, $value, $group);
+            $updatedSettings[$key] = $value;
         }
 
         if ($request->hasFile('header')) {
@@ -104,6 +107,7 @@ class SettingController extends Controller
 
             $path = $request->file('header')->store('settings', 'public');
             Setting::set('header', '/storage/'.$path, 'appearance');
+            $updatedSettings['header'] = '/storage/'.$path;
         }
 
         if ($request->hasFile('logo')) {
@@ -112,6 +116,11 @@ class SettingController extends Controller
 
             $path = $request->file('logo')->store('settings', 'public');
             Setting::set('logo', '/storage/'.$path, 'appearance');
+            $updatedSettings['logo'] = '/storage/'.$path;
+        }
+
+        if ($updatedSettings !== []) {
+            $auditLogService->log('settings.updated', Setting::class, null, $updatedSettings);
         }
 
         if ($validated['run_backup'] ?? false) {

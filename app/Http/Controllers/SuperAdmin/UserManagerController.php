@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AuditLogService;
 use App\Services\DashboardCacheService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -57,7 +58,7 @@ class UserManagerController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, AuditLogService $auditLogService): RedirectResponse
     {
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
@@ -87,7 +88,7 @@ class UserManagerController extends Controller
             (string) $validated['birthday']
         );
 
-        User::create([
+        $managedUser = User::create([
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
             'name' => $validated['first_name'].' '.$validated['last_name'],
@@ -98,12 +99,14 @@ class UserManagerController extends Controller
             'must_change_password' => true,
         ]);
 
+        $auditLogService->log('user.created', $managedUser, null, $this->auditValues($managedUser));
+
         DashboardCacheService::bust();
 
         return back()->with('success', 'User account created successfully.');
     }
 
-    public function update(Request $request, User $user): RedirectResponse
+    public function update(Request $request, User $user, AuditLogService $auditLogService): RedirectResponse
     {
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
@@ -121,6 +124,8 @@ class UserManagerController extends Controller
             return back()->with('error', 'At least one active super admin account must remain active.');
         }
 
+        $oldValues = $this->auditValues($user);
+
         $user->update([
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
@@ -129,12 +134,14 @@ class UserManagerController extends Controller
             'role' => $validated['role'],
         ]);
 
+        $auditLogService->log('user.updated', $user, $oldValues, $this->auditValues($user));
+
         DashboardCacheService::bust();
 
         return back()->with('success', 'User account updated successfully.');
     }
 
-    public function resetPassword(User $user): RedirectResponse
+    public function resetPassword(User $user, AuditLogService $auditLogService): RedirectResponse
     {
         if (! $user->birthday) {
             return back()->with('error', 'User birthday is not set. Cannot auto-generate password.');
@@ -144,18 +151,22 @@ class UserManagerController extends Controller
             (string) ($user->first_name ?: $user->name),
             (string) $user->birthday
         );
+        $oldValues = $this->auditValues($user);
+
         $user->update([
             'password' => Hash::make($password),
             'must_change_password' => true,
             'password_updated_at' => now(),
         ]);
 
+        $auditLogService->log('user.password_reset', $user, $oldValues, $this->auditValues($user));
+
         DashboardCacheService::bust();
 
         return back()->with('success', 'Password reset to default successfully.');
     }
 
-    public function toggleStatus(User $user): RedirectResponse
+    public function toggleStatus(User $user, AuditLogService $auditLogService): RedirectResponse
     {
         if (
             $user->is_active
@@ -165,9 +176,13 @@ class UserManagerController extends Controller
             return back()->with('error', 'At least one active super admin account must remain active.');
         }
 
+        $oldValues = $this->auditValues($user);
+
         $user->update([
             'is_active' => ! $user->is_active,
         ]);
+
+        $auditLogService->log('user.status_toggled', $user, $oldValues, $this->auditValues($user));
 
         DashboardCacheService::bust();
 
@@ -189,6 +204,24 @@ class UserManagerController extends Controller
             ->where('role', UserRole::SUPER_ADMIN->value)
             ->where('is_active', true)
             ->count();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function auditValues(User $user): array
+    {
+        return [
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'name' => $user->name,
+            'email' => $user->email,
+            'birthday' => $user->birthday?->format('Y-m-d'),
+            'role' => $user->role instanceof UserRole ? $user->role->value : $user->role,
+            'is_active' => $user->is_active,
+            'must_change_password' => $user->must_change_password,
+            'password_updated_at' => $user->password_updated_at,
+        ];
     }
 
     private function buildDefaultPassword(string $rawFirstName, string $birthday): string

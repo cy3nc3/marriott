@@ -203,7 +203,6 @@ Frontend:
 3. Tailwind CSS v4
 4. Shadcn UI + Radix UI
 5. Recharts (through shared chart wrappers)
-6. PWA manifest support (`/pwa-manifest.webmanifest`)
 
 Quality and Tooling:
 

@@ -2,11 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-
 use App\Enums\UserRole;
 use App\Models\Permission;
+use Illuminate\Database\Seeder;
 
 class PermissionSeeder extends Seeder
 {
@@ -27,7 +25,7 @@ class PermissionSeeder extends Seeder
                 'Enrollment' => [UserRole::REGISTRAR, UserRole::SUPER_ADMIN],
                 'Class Lists' => [UserRole::REGISTRAR, UserRole::ADMIN, UserRole::SUPER_ADMIN],
                 'Permanent Records' => [UserRole::REGISTRAR, UserRole::SUPER_ADMIN],
-                'Data Import' => [UserRole::REGISTRAR, UserRole::SUPER_ADMIN],
+                'Data Import' => [UserRole::REGISTRAR, UserRole::FINANCE, UserRole::SUPER_ADMIN],
                 'Batch Promotion' => [UserRole::REGISTRAR, UserRole::SUPER_ADMIN],
                 'Remedial Entry' => [UserRole::REGISTRAR, UserRole::SUPER_ADMIN],
                 'Student Departure' => [UserRole::REGISTRAR, UserRole::SUPER_ADMIN],
@@ -61,7 +59,7 @@ class PermissionSeeder extends Seeder
                 // Initialize all roles for each feature
                 foreach (UserRole::cases() as $role) {
                     $level = in_array($role, $allowedRoles) ? 2 : 0; // Default Full Access if in list, else None
-                    
+
                     Permission::updateOrCreate(
                         ['role' => $role->value, 'feature' => $feature],
                         ['module' => $module, 'access_level' => $level]
