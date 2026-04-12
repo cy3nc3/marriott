@@ -9,6 +9,7 @@ use App\Models\Section;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Services\DashboardCacheService;
+use App\Services\SchoolForms\Sf1TemplateAdapter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -117,73 +118,84 @@ class StudentDirectoryController extends Controller
         ]);
     }
 
-    public function uploadSf1(Request $request): RedirectResponse
+    public function uploadSf1(Request $request, Sf1TemplateAdapter $sf1TemplateAdapter): RedirectResponse
     {
         $academicYearId = $request->integer('academic_year_id');
 
         $validated = $request->validate([
-            'sf1_file' => 'required|file|mimes:csv,txt|max:10240',
+            'sf1_file' => 'required|file|mimes:csv,txt,xls,xlsx|max:10240',
             'academic_year_id' => ['required', 'integer', 'exists:academic_years,id'],
         ]);
 
         $file = $validated['sf1_file'];
         $academicYearId = (int) $validated['academic_year_id'];
 
-        $handle = fopen($file->getRealPath(), 'r');
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+        if (in_array($extension, ['xls', 'xlsx'], true)) {
+            $parsedRows = $sf1TemplateAdapter->parseRows((string) $file->getRealPath());
+            $processedRows = count($parsedRows);
+            $lrns = array_values(array_filter(array_map(
+                fn (array $parsedRow): string => (string) $parsedRow['lrn'],
+                $parsedRows
+            )));
+        } else {
+            $handle = fopen($file->getRealPath(), 'r');
 
-        if ($handle === false) {
-            return back()->with('error', 'Unable to read SF1 file.');
-        }
+            if ($handle === false) {
+                return back()->with('error', 'Unable to read SF1 file.');
+            }
 
-        $headerRow = fgetcsv($handle);
-        if ($headerRow === false) {
+            $headerRow = fgetcsv($handle);
+            if ($headerRow === false) {
+                fclose($handle);
+
+                return back()->with('error', 'SF1 file is empty.');
+            }
+
+            $headers = array_map(function ($header) {
+                $value = strtolower(trim((string) $header));
+                $value = str_replace([' ', '-'], '_', $value);
+
+                return preg_replace('/[^a-z0-9_]/', '', $value) ?: '';
+            }, $headerRow);
+
+            $processedRows = 0;
+            $parsedRows = [];
+            $lrns = [];
+
+            while (($row = fgetcsv($handle)) !== false) {
+                if (count(array_filter($row, fn ($value) => trim((string) $value) !== '')) === 0) {
+                    continue;
+                }
+
+                $processedRows++;
+
+                $rowData = [];
+                foreach ($headers as $index => $header) {
+                    $rowData[$header] = trim((string) ($row[$index] ?? ''));
+                }
+
+                $lrn = preg_replace('/\D/', '', (string) $this->firstAvailable($rowData, [
+                    'lrn',
+                    'learner_reference_number',
+                ]));
+
+                $parsedRows[] = [
+                    'row_data' => $rowData,
+                    'lrn' => $lrn,
+                ];
+
+                if ($lrn !== '') {
+                    $lrns[] = $lrn;
+                }
+            }
+
             fclose($handle);
-
-            return back()->with('error', 'SF1 file is empty.');
         }
 
-        $headers = array_map(function ($header) {
-            $value = strtolower(trim((string) $header));
-            $value = str_replace([' ', '-'], '_', $value);
-
-            return preg_replace('/[^a-z0-9_]/', '', $value) ?: '';
-        }, $headerRow);
-
-        $processedRows = 0;
         $matched = 0;
         $discrepancy = 0;
         $reassigned = 0;
-        $parsedRows = [];
-        $lrns = [];
-
-        while (($row = fgetcsv($handle)) !== false) {
-            if (count(array_filter($row, fn ($value) => trim((string) $value) !== '')) === 0) {
-                continue;
-            }
-
-            $processedRows++;
-
-            $rowData = [];
-            foreach ($headers as $index => $header) {
-                $rowData[$header] = trim((string) ($row[$index] ?? ''));
-            }
-
-            $lrn = preg_replace('/\D/', '', (string) $this->firstAvailable($rowData, [
-                'lrn',
-                'learner_reference_number',
-            ]));
-
-            $parsedRows[] = [
-                'row_data' => $rowData,
-                'lrn' => $lrn,
-            ];
-
-            if ($lrn !== '') {
-                $lrns[] = $lrn;
-            }
-        }
-
-        fclose($handle);
 
         $studentsByLrn = Student::query()
             ->whereIn('lrn', array_values(array_unique($lrns)))
