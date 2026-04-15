@@ -5,11 +5,12 @@ namespace App\Services\Finance;
 use App\Models\BillingSchedule;
 use App\Models\Enrollment;
 use App\Models\Fee;
-use App\Models\StudentDiscount;
 use Illuminate\Support\Carbon;
 
 class BillingScheduleService
 {
+    public function __construct(private DiscountBucketCalculator $discountBucketCalculator) {}
+
     public function syncForEnrollment(Enrollment $enrollment): void
     {
         $enrollment->loadMissing('academicYear');
@@ -153,39 +154,11 @@ class BillingScheduleService
     private function resolveDiscountAmount(Enrollment $enrollment, float $assessmentFeeTotal): float
     {
         if ($assessmentFeeTotal <= 0) {
-            return 0;
+            return 0.0;
         }
 
-        $studentDiscounts = StudentDiscount::query()
-            ->with('discount:id,type,value')
-            ->where('student_id', $enrollment->student_id)
-            ->where('academic_year_id', $enrollment->academic_year_id)
-            ->get();
-
-        if ($studentDiscounts->isEmpty()) {
-            return 0;
-        }
-
-        $totalDiscountAmount = $studentDiscounts->reduce(
-            function (float $carry, StudentDiscount $studentDiscount) use ($assessmentFeeTotal): float {
-                $discount = $studentDiscount->discount;
-
-                if (! $discount) {
-                    return $carry;
-                }
-
-                $discountAmount = match ($discount->type) {
-                    'percentage' => round($assessmentFeeTotal * ((float) $discount->value / 100), 2),
-                    'fixed' => round((float) $discount->value, 2),
-                    default => 0.0,
-                };
-
-                return $carry + max($discountAmount, 0);
-            },
-            0.0
-        );
-
-        return round(min($assessmentFeeTotal, $totalDiscountAmount), 2);
+        return $this->discountBucketCalculator
+            ->summarizeForStudent((int) $enrollment->student_id, (int) $enrollment->academic_year_id, $assessmentFeeTotal)['total_discount_amount'];
     }
 
     /**

@@ -262,8 +262,36 @@ test('registrar enrollment page filters queue by selected school year', function
             ->where('filters.academic_year_id', $completedYear->id)
             ->has('grade_level_options', 1)
             ->where('grade_level_options.0.id', $this->gradeLevel->id)
-            ->has('enrollments', 1)
-            ->where('enrollments.0.lrn', '444455556666')
+            ->has('enrollments.data', 1)
+            ->where('enrollments.data.0.lrn', '444455556666')
+        );
+});
+
+test('registrar enrollment page paginates queue to 10 items per page', function () {
+    foreach (range(1, 12) as $index) {
+        $student = Student::query()->create([
+            'lrn' => str_pad((string) $index, 12, '0', STR_PAD_LEFT),
+            'first_name' => "Student{$index}",
+            'last_name' => 'Queue',
+        ]);
+
+        Enrollment::query()->create([
+            'student_id' => $student->id,
+            'academic_year_id' => $this->academicYear->id,
+            'grade_level_id' => $this->gradeLevel->id,
+            'payment_term' => 'monthly',
+            'downpayment' => 1000,
+            'status' => 'for_cashier_payment',
+        ]);
+    }
+
+    $this->get('/registrar/enrollment')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/enrollment/index')
+            ->where('enrollments.per_page', 10)
+            ->where('enrollments.total', 12)
+            ->has('enrollments.data', 10)
         );
 });
 
@@ -373,6 +401,69 @@ test('registrar student directory paginates to 15 entries per page', function ()
             ->where('students.from', 1)
             ->where('students.to', 15)
             ->where('students.total', 16)
+        );
+});
+
+test('registrar student directory searches by student name and lrn', function () {
+    $section = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Searchable',
+    ]);
+
+    $matchingStudent = Student::query()->create([
+        'lrn' => '123456789012',
+        'first_name' => 'Maria',
+        'last_name' => 'Santos',
+        'is_lis_synced' => true,
+        'sync_error_flag' => false,
+    ]);
+
+    $otherStudent = Student::query()->create([
+        'lrn' => '999988887777',
+        'first_name' => 'Paolo',
+        'last_name' => 'Reyes',
+        'is_lis_synced' => false,
+        'sync_error_flag' => false,
+    ]);
+
+    foreach ([$matchingStudent, $otherStudent] as $student) {
+        Enrollment::query()->create([
+            'student_id' => $student->id,
+            'academic_year_id' => $this->academicYear->id,
+            'grade_level_id' => $this->gradeLevel->id,
+            'section_id' => $section->id,
+            'payment_term' => 'cash',
+            'downpayment' => 0,
+            'status' => 'enrolled',
+        ]);
+    }
+
+    $this->get('/registrar/student-directory?search=maria')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/student-directory/index')
+            ->where('filters.search', 'maria')
+            ->has('students.data', 1)
+            ->where('students.data.0.lrn', '123456789012')
+        );
+
+    $this->get('/registrar/student-directory?search=MaRiA')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/student-directory/index')
+            ->where('filters.search', 'MaRiA')
+            ->has('students.data', 1)
+            ->where('students.data.0.student_name', 'Maria Santos')
+        );
+
+    $this->get('/registrar/student-directory?search=999988887777')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/student-directory/index')
+            ->where('filters.search', '999988887777')
+            ->has('students.data', 1)
+            ->where('students.data.0.student_name', 'Paolo Reyes')
         );
 });
 
@@ -649,6 +740,8 @@ test('registrar enrollment intake supports create update and delete', function (
     expect(Hash::check('maria@05122011', (string) $studentUser?->password))->toBeTrue();
     expect($studentUser?->must_change_password)->toBeTrue();
     expect($parentUser?->role?->value)->toBe(UserRole::PARENT->value);
+    expect($parentUser?->birthday?->toDateString())->toBe('1980-01-01');
+    expect(Hash::check('maria@05122011', (string) $parentUser?->password))->toBeTrue();
     expect($parentUser?->must_change_password)->toBeTrue();
 
     $this->patch("/registrar/enrollment/{$enrollment->id}", [

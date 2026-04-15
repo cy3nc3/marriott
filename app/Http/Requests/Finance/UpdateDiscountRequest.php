@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Finance;
 
+use App\Models\Discount;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateDiscountRequest extends FormRequest
@@ -17,6 +18,7 @@ class UpdateDiscountRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'in:percentage,fixed'],
             'value' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            'export_bucket' => ['required', 'in:'.implode(',', array_keys(Discount::exportBucketLabels()))],
         ];
     }
 }

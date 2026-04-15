@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProfileController extends Controller
 {
@@ -63,6 +64,23 @@ class ProfileController extends Controller
         $user->save();
 
         return to_route('profile.edit');
+    }
+
+    public function showAvatar(Request $request): StreamedResponse
+    {
+        $user = $request->user();
+
+        if (! $user || ! $user->avatar || ! Storage::disk('public')->exists($user->avatar)) {
+            abort(404);
+        }
+
+        return Storage::disk('public')->response(
+            $user->avatar,
+            basename($user->avatar),
+            [
+                'Content-Disposition' => 'inline; filename="'.basename($user->avatar).'"',
+            ]
+        );
     }
 
     /**

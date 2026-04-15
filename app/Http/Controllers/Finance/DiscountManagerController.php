@@ -35,6 +35,8 @@ class DiscountManagerController extends Controller
                     'calculation' => $this->formatCalculationLabel($discount->type),
                     'value' => (float) $discount->value,
                     'value_label' => $this->formatValueLabel($discount->type, (float) $discount->value),
+                    'export_bucket' => $discount->export_bucket,
+                    'export_bucket_label' => $discount->exportBucketLabel(),
                 ];
             })
             ->values();
@@ -76,6 +78,14 @@ class DiscountManagerController extends Controller
             'discount_programs' => $discountPrograms,
             'tagged_students' => $taggedStudents,
             'students' => $students,
+            'export_bucket_options' => collect(Discount::exportBucketLabels())
+                ->map(function (string $label, string $value): array {
+                    return [
+                        'value' => $value,
+                        'label' => $label,
+                    ];
+                })
+                ->values(),
             'active_academic_year' => $activeAcademicYear
                 ? [
                     'id' => $activeAcademicYear->id,

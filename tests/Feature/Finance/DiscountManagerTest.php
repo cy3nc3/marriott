@@ -35,6 +35,7 @@ test('finance discount manager page renders discount and tagged student data', f
         'name' => 'Academic Scholarship',
         'type' => 'percentage',
         'value' => 100,
+        'export_bucket' => 'overall_discount',
     ]);
 
     StudentDiscount::query()->create([
@@ -50,6 +51,8 @@ test('finance discount manager page renders discount and tagged student data', f
             ->has('discount_programs', 1)
             ->where('discount_programs.0.name', 'Academic Scholarship')
             ->where('discount_programs.0.calculation', 'Percentage')
+            ->where('discount_programs.0.export_bucket', 'overall_discount')
+            ->where('discount_programs.0.export_bucket_label', 'Over-All Discount')
             ->has('tagged_students', 1)
             ->where('tagged_students.0.student_name', 'Juan Dela Cruz')
             ->where('active_academic_year.name', '2025-2026')
@@ -104,6 +107,7 @@ test('finance can create update and delete discount programs and tag students', 
         'name' => 'Sibling Discount',
         'type' => 'percentage',
         'value' => 10,
+        'export_bucket' => 'tuition_sibling_discount',
     ])->assertRedirect();
 
     $discount = Discount::query()->first();
@@ -112,11 +116,13 @@ test('finance can create update and delete discount programs and tag students', 
     expect($discount->name)->toBe('Sibling Discount');
     expect($discount->type)->toBe('percentage');
     expect((float) $discount->value)->toBe(10.0);
+    expect($discount->export_bucket)->toBe('tuition_sibling_discount');
 
     $this->patch("/finance/discount-manager/{$discount->id}", [
         'name' => 'Sibling Discount Updated',
         'type' => 'fixed',
         'value' => 1500,
+        'export_bucket' => 'special_discount',
     ])->assertRedirect();
 
     $discount->refresh();
@@ -124,6 +130,7 @@ test('finance can create update and delete discount programs and tag students', 
     expect($discount->name)->toBe('Sibling Discount Updated');
     expect($discount->type)->toBe('fixed');
     expect((float) $discount->value)->toBe(1500.0);
+    expect($discount->export_bucket)->toBe('special_discount');
 
     $this->post('/finance/discount-manager/tag-student', [
         'student_id' => $student->id,

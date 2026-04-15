@@ -1,7 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -54,6 +54,8 @@ type DiscountProgramRow = {
     calculation: string;
     value: number;
     value_label: string;
+    export_bucket: string;
+    export_bucket_label: string;
 };
 
 type StudentDiscountRow = {
@@ -75,6 +77,10 @@ interface Props {
     discount_programs: DiscountProgramRow[];
     tagged_students: StudentDiscountRow[];
     students: StudentOption[];
+    export_bucket_options: {
+        value: string;
+        label: string;
+    }[];
     active_academic_year: {
         id: number;
         name: string;
@@ -98,6 +104,7 @@ export default function DiscountManager({
     discount_programs,
     tagged_students,
     students,
+    export_bucket_options,
     active_academic_year,
 }: Props) {
     const [isCreateProgramOpen, setIsCreateProgramOpen] = useState(false);
@@ -113,12 +120,14 @@ export default function DiscountManager({
         name: '',
         type: 'percentage' as DiscountType,
         value: '',
+        export_bucket: 'special_discount',
     });
 
     const editProgramForm = useForm({
         name: '',
         type: 'percentage' as DiscountType,
         value: '',
+        export_bucket: 'special_discount',
     });
 
     const tagStudentForm = useForm({
@@ -131,6 +140,7 @@ export default function DiscountManager({
             name: '',
             type: 'percentage',
             value: '',
+            export_bucket: 'special_discount',
         });
         createProgramForm.clearErrors();
         setIsCreateProgramOpen(true);
@@ -143,6 +153,7 @@ export default function DiscountManager({
                 setIsCreateProgramOpen(false);
                 createProgramForm.reset();
                 createProgramForm.setData('type', 'percentage');
+                createProgramForm.setData('export_bucket', 'special_discount');
             },
         });
     };
@@ -153,6 +164,7 @@ export default function DiscountManager({
             name: program.name,
             type: program.type,
             value: String(program.value),
+            export_bucket: program.export_bucket,
         });
         editProgramForm.clearErrors();
     };
@@ -245,6 +257,9 @@ export default function DiscountManager({
                                     <TableHead className="border-l">
                                         Value
                                     </TableHead>
+                                    <TableHead className="border-l">
+                                        Export Column
+                                    </TableHead>
                                     <TableHead className="border-l pr-6 text-right">
                                         Actions
                                     </TableHead>
@@ -261,6 +276,9 @@ export default function DiscountManager({
                                         </TableCell>
                                         <TableCell className="border-l">
                                             {program.value_label}
+                                        </TableCell>
+                                        <TableCell className="border-l">
+                                            {program.export_bucket_label}
                                         </TableCell>
                                         <TableCell className="border-l pr-6 text-right">
                                             <div className="flex justify-end gap-2">
@@ -293,7 +311,7 @@ export default function DiscountManager({
                                 {discount_programs.length === 0 && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={4}
+                                            colSpan={5}
                                             className="py-8 text-center text-sm text-muted-foreground"
                                         >
                                             No discount programs yet.
@@ -485,6 +503,37 @@ export default function DiscountManager({
                                     )}
                                 </div>
                             </div>
+                            <div className="space-y-2">
+                                <Label>Enrollment Export Column</Label>
+                                <Select
+                                    value={createProgramForm.data.export_bucket}
+                                    onValueChange={(value) =>
+                                        createProgramForm.setData(
+                                            'export_bucket',
+                                            value,
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {export_bucket_options.map((option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {createProgramForm.errors.export_bucket && (
+                                    <p className="text-sm text-destructive">
+                                        {createProgramForm.errors.export_bucket}
+                                    </p>
+                                )}
+                            </div>
                         </div>
                         <DialogFooter>
                             <Button
@@ -592,6 +641,37 @@ export default function DiscountManager({
                                         </p>
                                     )}
                                 </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Enrollment Export Column</Label>
+                                <Select
+                                    value={editProgramForm.data.export_bucket}
+                                    onValueChange={(value) =>
+                                        editProgramForm.setData(
+                                            'export_bucket',
+                                            value,
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {export_bucket_options.map((option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {editProgramForm.errors.export_bucket && (
+                                    <p className="text-sm text-destructive">
+                                        {editProgramForm.errors.export_bucket}
+                                    </p>
+                                )}
                             </div>
                         </div>
                         <DialogFooter>

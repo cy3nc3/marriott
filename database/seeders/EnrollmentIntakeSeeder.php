@@ -18,6 +18,8 @@ use Illuminate\Support\Str;
 
 class EnrollmentIntakeSeeder extends Seeder
 {
+    private const DEFAULT_PARENT_BIRTHDAY = '1980-01-01';
+
     public function run(): void
     {
         $this->call([
@@ -383,13 +385,24 @@ class EnrollmentIntakeSeeder extends Seeder
                 'first_name' => 'Parent',
                 'last_name' => $student->last_name,
                 'name' => "Parent {$student->last_name}",
-                'birthday' => '1980-01-01',
+                'birthday' => self::DEFAULT_PARENT_BIRTHDAY,
                 'role' => UserRole::PARENT,
                 'is_active' => true,
-                'password' => Hash::make($student->lrn),
+                'password' => Hash::make($this->buildStudentDefaultPassword($student)),
                 'must_change_password' => true,
             ]
         );
+
+        $parentUser->update([
+            'first_name' => 'Parent',
+            'last_name' => $student->last_name,
+            'name' => "Parent {$student->last_name}",
+            'birthday' => self::DEFAULT_PARENT_BIRTHDAY,
+            'role' => UserRole::PARENT,
+            'is_active' => true,
+            'access_expires_at' => null,
+            'must_change_password' => true,
+        ]);
 
         $linkExists = DB::table('parent_student')
             ->where('parent_id', $parentUser->id)
@@ -489,22 +502,29 @@ class EnrollmentIntakeSeeder extends Seeder
 
     private function buildStudentDefaultPassword(Student $student): string
     {
-        $firstNameToken = Str::of((string) $student->first_name)
-            ->trim()
-            ->explode(' ')
-            ->map(fn (string $value): string => trim($value))
-            ->filter(fn (string $value): bool => $value !== '')
-            ->first() ?? 'student';
-
-        $normalizedFirstName = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $firstNameToken));
-        if ($normalizedFirstName === '') {
-            $normalizedFirstName = 'student';
-        }
-
         $birthdate = $student->birthdate instanceof Carbon
             ? $student->birthdate
             : Carbon::parse((string) $student->birthdate);
 
-        return "{$normalizedFirstName}@{$birthdate->format('mdY')}";
+        return $this->buildDefaultPassword((string) $student->first_name, $birthdate->toDateString());
+    }
+
+    private function buildDefaultPassword(string $rawFirstName, string $birthday): string
+    {
+        $firstToken = Str::of($rawFirstName)
+            ->trim()
+            ->explode(' ')
+            ->map(fn (string $value): string => trim($value))
+            ->filter(fn (string $value): bool => $value !== '')
+            ->first() ?? 'user';
+
+        $normalizedToken = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $firstToken));
+        if ($normalizedToken === '') {
+            $normalizedToken = 'user';
+        }
+
+        $birthdaySegment = Carbon::parse($birthday)->format('mdY');
+
+        return "{$normalizedToken}@{$birthdaySegment}";
     }
 }

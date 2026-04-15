@@ -12,6 +12,8 @@ use App\Models\Student;
 use App\Models\User;
 use App\Services\DashboardCacheService;
 use App\Services\Finance\BillingScheduleService;
+use App\Services\SchoolForms\EnrollmentExportBuilder;
+use App\Services\SchoolForms\EnrollmentTemplateAdapter;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,9 +22,12 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class EnrollmentController extends Controller
 {
+    private const DEFAULT_PARENT_BIRTHDAY = '1980-01-01';
+
     public function __construct(private BillingScheduleService $billingScheduleService) {}
 
     public function index(Request $request): Response
@@ -78,8 +83,8 @@ class EnrollmentController extends Controller
                 });
             })
             ->latest('id')
-            ->get()
-            ->map(function (Enrollment $enrollment) {
+            ->paginate(10)
+            ->through(function (Enrollment $enrollment) {
                 return [
                     'id' => $enrollment->id,
                     'lrn' => $enrollment->student?->lrn ?? '',
@@ -100,7 +105,7 @@ class EnrollmentController extends Controller
                         : null,
                 ];
             })
-            ->values();
+            ->withQueryString();
 
         $gradeLevelOptions = GradeLevel::query()
             ->orderBy('level_order')
@@ -146,6 +151,40 @@ class EnrollmentController extends Controller
                 'academic_year_id' => $selectedAcademicYear?->id,
             ],
         ]);
+    }
+
+    public function export(
+        Request $request,
+        EnrollmentExportBuilder $builder,
+        EnrollmentTemplateAdapter $adapter,
+    ): BinaryFileResponse|RedirectResponse {
+        $selectedAcademicYearId = $request->integer('academic_year_id');
+
+        $academicYear = $selectedAcademicYearId > 0
+            ? AcademicYear::query()->find($selectedAcademicYearId)
+            : AcademicYear::query()->where('status', 'ongoing')->first();
+
+        if (! $academicYear) {
+            return back()->with('error', 'No academic year found for enrollment export.');
+        }
+
+        $outputPath = storage_path('app/temp/'.uniqid('enrollment-', true).'.xlsx');
+        if (! is_dir(dirname($outputPath))) {
+            mkdir(dirname($outputPath), 0777, true);
+        }
+
+        $adapter->exportRows(
+            base_path('templates/_SY 26-27 Enrolment.xlsx'),
+            $outputPath,
+            $builder->buildMetadata($academicYear),
+            $builder->buildRows($academicYear),
+        );
+
+        $sanitizedYear = strtolower((string) preg_replace('/[^A-Za-z0-9]+/', '-', $academicYear->name));
+
+        return response()
+            ->download($outputPath, "enrollment-{$sanitizedYear}.xlsx")
+            ->deleteFileAfterSend(true);
     }
 
     public function store(Request $request): RedirectResponse
@@ -451,12 +490,23 @@ class EnrollmentController extends Controller
                 'first_name' => 'Parent',
                 'last_name' => $student->last_name,
                 'name' => "Parent {$student->last_name}",
+                'birthday' => self::DEFAULT_PARENT_BIRTHDAY,
                 'role' => UserRole::PARENT->value,
                 'is_active' => true,
-                'password' => Hash::make($student->lrn),
+                'password' => Hash::make($this->buildStudentDefaultPassword($student)),
                 'must_change_password' => true,
             ]
         );
+
+        $parentUser->update([
+            'first_name' => 'Parent',
+            'last_name' => $student->last_name,
+            'name' => "Parent {$student->last_name}",
+            'birthday' => self::DEFAULT_PARENT_BIRTHDAY,
+            'role' => UserRole::PARENT->value,
+            'is_active' => true,
+            'access_expires_at' => null,
+        ]);
 
         $pivotQuery = DB::table('parent_student')
             ->where('parent_id', $parentUser->id)
@@ -498,24 +548,31 @@ class EnrollmentController extends Controller
 
     private function buildStudentDefaultPassword(Student $student): string
     {
-        $firstNameToken = Str::of((string) $student->first_name)
-            ->trim()
-            ->explode(' ')
-            ->map(fn (string $value): string => trim($value))
-            ->filter(fn (string $value): bool => $value !== '')
-            ->first() ?? 'student';
-
-        $normalizedFirstName = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $firstNameToken));
-        if ($normalizedFirstName === '') {
-            $normalizedFirstName = 'student';
-        }
-
         $birthdateSegment = $student->birthdate?->format('mdY');
         if (! $birthdateSegment) {
             throw new \RuntimeException('Student birthdate is required to generate default password.');
         }
 
-        return "{$normalizedFirstName}@{$birthdateSegment}";
+        return $this->buildDefaultPassword((string) $student->first_name, (string) $student->birthdate);
+    }
+
+    private function buildDefaultPassword(string $rawFirstName, string $birthday): string
+    {
+        $firstToken = Str::of($rawFirstName)
+            ->trim()
+            ->explode(' ')
+            ->map(fn (string $value): string => trim($value))
+            ->filter(fn (string $value): bool => $value !== '')
+            ->first() ?? 'user';
+
+        $normalizedToken = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $firstToken));
+        if ($normalizedToken === '') {
+            $normalizedToken = 'user';
+        }
+
+        $birthdaySegment = date('mdY', strtotime($birthday));
+
+        return "{$normalizedToken}@{$birthdaySegment}";
     }
 
     private function resolveSectionForIntake(?int $sectionId, int $academicYearId): ?Section

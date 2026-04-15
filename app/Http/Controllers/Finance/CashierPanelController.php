@@ -12,9 +12,9 @@ use App\Models\InventoryItem;
 use App\Models\LedgerEntry;
 use App\Models\RemedialCase;
 use App\Models\Student;
-use App\Models\StudentDiscount;
 use App\Models\Transaction;
 use App\Services\DashboardCacheService;
+use App\Services\Finance\DiscountBucketCalculator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +25,8 @@ use Inertia\Response;
 
 class CashierPanelController extends Controller
 {
+    public function __construct(private DiscountBucketCalculator $discountBucketCalculator) {}
+
     public function index(Request $request): Response
     {
         $search = trim((string) $request->input('search', ''));
@@ -581,40 +583,8 @@ class CashierPanelController extends Controller
 
     private function resolveDiscountAmount(int $studentId, int $academicYearId, float $assessmentFeeTotal): float
     {
-        if ($assessmentFeeTotal <= 0 || $studentId <= 0 || $academicYearId <= 0) {
-            return 0.0;
-        }
-
-        $studentDiscounts = StudentDiscount::query()
-            ->with('discount:id,type,value')
-            ->where('student_id', $studentId)
-            ->where('academic_year_id', $academicYearId)
-            ->get();
-
-        if ($studentDiscounts->isEmpty()) {
-            return 0.0;
-        }
-
-        $totalDiscountAmount = $studentDiscounts->reduce(
-            function (float $carry, StudentDiscount $studentDiscount) use ($assessmentFeeTotal): float {
-                $discount = $studentDiscount->discount;
-
-                if (! $discount) {
-                    return $carry;
-                }
-
-                $discountAmount = match ($discount->type) {
-                    'percentage' => round($assessmentFeeTotal * ((float) $discount->value / 100), 2),
-                    'fixed' => round((float) $discount->value, 2),
-                    default => 0.0,
-                };
-
-                return $carry + max($discountAmount, 0);
-            },
-            0.0
-        );
-
-        return round(min($assessmentFeeTotal, $totalDiscountAmount), 2);
+        return $this->discountBucketCalculator
+            ->summarizeForStudent($studentId, $academicYearId, $assessmentFeeTotal)['total_discount_amount'];
     }
 
     private function applyPaymentToRemedialCase(

@@ -25,6 +25,7 @@ class DiscountFactory extends Factory
             ]),
             'type' => fake()->randomElement(['percentage', 'fixed']),
             'value' => fake()->randomFloat(2, 100, 10000),
+            'export_bucket' => fake()->randomElement(array_keys(\App\Models\Discount::exportBucketLabels())),
         ];
     }
 }

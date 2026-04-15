@@ -83,8 +83,8 @@ export default function Profile({
                             <div className="flex items-center gap-6">
                                 <div className="group relative">
                                     <Avatar className="h-24 w-24 border-2 border-muted">
-                                        <AvatarImage 
-                                            src={avatarPreview || (auth.user.avatar ? `/storage/${auth.user.avatar}` : undefined)} 
+                                        <AvatarImage
+                                            src={avatarPreview || auth.user.avatar_url || undefined}
                                             className="object-cover"
                                         />
                                         <AvatarFallback className="text-xl">

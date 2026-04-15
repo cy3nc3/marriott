@@ -91,9 +91,13 @@ test('enrollment intake seeder creates intake records with accounts and leaves t
         .'@'.Carbon::parse($activeSeeded['birthdate'])->format('mdY');
 
     $activeStudentUser = User::query()->find($activeStudent?->user_id);
+    $activeParentUser = User::query()->where('email', "parent.{$activeSeeded['lrn']}@marriott.edu")->first();
     expect($activeStudentUser)->not->toBeNull();
+    expect($activeParentUser)->not->toBeNull();
     expect($activeStudentUser?->email)->toBe($expectedStudentEmail);
     expect(Hash::check($expectedPassword, (string) $activeStudentUser?->password))->toBeTrue();
+    expect($activeParentUser?->birthday?->toDateString())->toBe('1980-01-01');
+    expect(Hash::check($expectedPassword, (string) $activeParentUser?->password))->toBeTrue();
 
     $activeEnrollment = Enrollment::query()
         ->where('student_id', $activeStudent?->id)

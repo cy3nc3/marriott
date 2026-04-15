@@ -14,6 +14,7 @@ Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->
     Route::post('/student-directory/sf1-upload', [StudentDirectoryController::class, 'uploadSf1'])->middleware('desktop_only')->name('student_directory.sf1_upload');
 
     Route::get('/enrollment', [EnrollmentController::class, 'index'])->middleware('desktop_only')->name('enrollment');
+    Route::get('/enrollment/export', [EnrollmentController::class, 'export'])->middleware('desktop_only')->name('enrollment.export');
     Route::post('/enrollment', [EnrollmentController::class, 'store'])->middleware('desktop_only')->name('enrollment.store');
     Route::patch('/enrollment/{enrollment}', [EnrollmentController::class, 'update'])->middleware('desktop_only')->name('enrollment.update');
     Route::delete('/enrollment/{enrollment}', [EnrollmentController::class, 'destroy'])->middleware('desktop_only')->name('enrollment.destroy');

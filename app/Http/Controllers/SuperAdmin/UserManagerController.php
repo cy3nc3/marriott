@@ -143,13 +143,15 @@ class UserManagerController extends Controller
 
     public function resetPassword(User $user, AuditLogService $auditLogService): RedirectResponse
     {
-        if (! $user->birthday) {
+        $passwordIdentity = $this->resolvePasswordIdentity($user);
+
+        if ($passwordIdentity === null) {
             return back()->with('error', 'User birthday is not set. Cannot auto-generate password.');
         }
 
         $password = $this->buildDefaultPassword(
-            (string) ($user->first_name ?: $user->name),
-            (string) $user->birthday
+            $passwordIdentity['first_name'],
+            $passwordIdentity['birthday']
         );
         $oldValues = $this->auditValues($user);
 
@@ -164,6 +166,35 @@ class UserManagerController extends Controller
         DashboardCacheService::bust();
 
         return back()->with('success', 'Password reset to default successfully.');
+    }
+
+    /**
+     * @return array{first_name: string, birthday: string}|null
+     */
+    private function resolvePasswordIdentity(User $user): ?array
+    {
+        if ($user->role === UserRole::PARENT) {
+            $student = $user->students()
+                ->whereNotNull('birthdate')
+                ->orderBy('parent_student.student_id')
+                ->first(['students.first_name', 'students.birthdate']);
+
+            if ($student) {
+                return [
+                    'first_name' => (string) $student->first_name,
+                    'birthday' => (string) $student->birthdate,
+                ];
+            }
+        }
+
+        if (! $user->birthday) {
+            return null;
+        }
+
+        return [
+            'first_name' => (string) ($user->first_name ?: $user->name),
+            'birthday' => (string) $user->birthday,
+        ];
     }
 
     public function toggleStatus(User $user, AuditLogService $auditLogService): RedirectResponse

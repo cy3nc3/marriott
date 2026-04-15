@@ -1,7 +1,7 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { CheckCircle2, Clock3, TriangleAlert, UploadCloud } from 'lucide-react';
 import type { ChangeEvent } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Table,
     TableBody,
@@ -64,6 +65,10 @@ interface Props {
         status: string;
     }[];
     selected_school_year_id: number | null;
+    filters: {
+        search?: string;
+        academic_year_id?: number;
+    };
     summary: {
         matched: number;
         pending: number;
@@ -79,11 +84,13 @@ export default function StudentDirectory({
     students,
     school_year_options,
     selected_school_year_id,
+    filters,
     summary,
     last_upload,
 }: Props) {
     const { ui } = usePage<SharedData>().props;
     const isHandheld = Boolean(ui?.is_handheld);
+    const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const uploadForm = useForm<{
         sf1_file: File | null;
         academic_year_id: string;
@@ -95,12 +102,38 @@ export default function StudentDirectory({
     });
     const canUploadSf1 = uploadForm.data.academic_year_id !== '' && !isHandheld;
 
+    const searchSuggestions = students.data.map((student) => ({
+        id: student.id,
+        label: student.student_name,
+        value: student.student_name,
+        description: `LRN: ${student.lrn}`,
+        keywords: student.lrn,
+    }));
+
     useEffect(() => {
         uploadForm.setData(
             'academic_year_id',
             selected_school_year_id ? String(selected_school_year_id) : '',
         );
     }, [selected_school_year_id]);
+
+    const applyFilters = (academicYearId?: string, search?: string) => {
+        router.get(
+            registrar.student_directory.url({
+                query: {
+                    academic_year_id: academicYearId || undefined,
+                    search: search || undefined,
+                    page: undefined,
+                },
+            }),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -177,7 +210,7 @@ export default function StudentDirectory({
             <div className="flex flex-col gap-4">
                 <Card>
                     <CardHeader className="flex flex-col gap-1 border-b sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                        <div className="space-y-1">
+                            <div className="space-y-1">
                             <CardTitle>Student Directory</CardTitle>
                             <div className="flex flex-wrap items-center gap-2">
                                 <Select
@@ -187,20 +220,7 @@ export default function StudentDirectory({
                                             : ''
                                     }
                                     onValueChange={(value) => {
-                                        router.get(
-                                            registrar.student_directory.url({
-                                                query: {
-                                                    academic_year_id:
-                                                        value || undefined,
-                                                },
-                                            }),
-                                            {},
-                                            {
-                                                preserveState: false,
-                                                preserveScroll: true,
-                                                replace: true,
-                                            },
-                                        );
+                                        applyFilters(value, searchQuery);
                                     }}
                                 >
                                     <SelectTrigger className="w-[13rem]">
@@ -221,6 +241,24 @@ export default function StudentDirectory({
                                         )}
                                     </SelectContent>
                                 </Select>
+                                <SearchAutocompleteInput
+                                    wrapperClassName="w-full sm:w-[18rem]"
+                                    placeholder="Search by LRN or name..."
+                                    value={searchQuery}
+                                    onValueChange={(value) => {
+                                        setSearchQuery(value);
+                                        applyFilters(
+                                            selected_school_year_id
+                                                ? String(
+                                                      selected_school_year_id,
+                                                  )
+                                                : '',
+                                            value,
+                                        );
+                                    }}
+                                    suggestions={searchSuggestions}
+                                    showSuggestions={false}
+                                />
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-xs">
                                 <Badge variant="secondary">

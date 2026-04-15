@@ -1,8 +1,8 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { format } from 'date-fns';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Download, Pencil, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
     SelectContent,
@@ -23,7 +24,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Table,
     TableBody,
@@ -33,8 +33,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import { destroy, store, update } from '@/routes/registrar/enrollment';
 import registrar from '@/routes/registrar';
+import { destroy, store, update } from '@/routes/registrar/enrollment';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -74,7 +74,15 @@ interface SectionOption {
 }
 
 interface Props {
-    enrollments: EnrollmentRow[];
+    enrollments: {
+        data: EnrollmentRow[];
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+        from: number | null;
+        to: number | null;
+    };
     grade_level_options: GradeLevelOption[];
     section_options: SectionOption[];
     school_year_options: {
@@ -179,6 +187,7 @@ export default function Enrollment({
                 query: {
                     academic_year_id: selectedSchoolYearId || undefined,
                     search: value || undefined,
+                    page: undefined,
                 },
             }),
             {},
@@ -401,6 +410,7 @@ export default function Enrollment({
                 query: {
                     academic_year_id: value || undefined,
                     search: searchQuery || undefined,
+                    page: undefined,
                 },
             }),
             {},
@@ -412,9 +422,37 @@ export default function Enrollment({
         );
     };
 
+    const goToQueuePage = (page: number) => {
+        router.get(
+            registrar.enrollment.url({
+                query: {
+                    academic_year_id: selectedSchoolYearId || undefined,
+                    search: searchQuery || undefined,
+                    page: page > 1 ? page : undefined,
+                },
+            }),
+            {},
+            {
+                preserveState: true,
+                replace: true,
+                preserveScroll: true,
+            },
+        );
+    };
+
+    const exportEnrollmentWorkbook = () => {
+        const params = new URLSearchParams();
+
+        if (selectedSchoolYearId) {
+            params.set('academic_year_id', selectedSchoolYearId);
+        }
+
+        window.location.assign(`/registrar/enrollment/export?${params.toString()}`);
+    };
+
     const searchSuggestions = useMemo(
         () =>
-            enrollments.map((enrollment) => ({
+            enrollments.data.map((enrollment) => ({
                 id: enrollment.id,
                 label: formatStudentName(
                     enrollment.first_name,
@@ -429,7 +467,7 @@ export default function Enrollment({
                 description: `LRN: ${enrollment.lrn}`,
                 keywords: enrollment.lrn,
             })),
-        [enrollments],
+        [enrollments.data],
     );
 
     const selectedGradeLevelLabel =
@@ -481,8 +519,8 @@ export default function Enrollment({
             <Head title="Enrollment" />
 
             <div className="flex flex-col gap-6">
-                <div className="grid items-start gap-6 lg:grid-cols-3">
-                    <Card className="h-[calc(100svh-7rem)] gap-2 overflow-hidden lg:col-span-1">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+                    <Card className="h-[calc(100svh-7rem)] gap-2 overflow-hidden lg:sticky lg:top-6 lg:w-[25rem] lg:flex-none xl:w-[27rem]">
                         <CardHeader className="border-b">
                             <CardTitle>New Enrollment Intake</CardTitle>
                         </CardHeader>
@@ -605,9 +643,9 @@ export default function Enrollment({
                                                     )
                                                 }
                                             >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select gender" />
-                                                </SelectTrigger>
+                                            <SelectTrigger className="w-full min-w-0">
+                                                <SelectValue placeholder="Select gender" />
+                                            </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="none">
                                                         Select gender
@@ -643,7 +681,7 @@ export default function Enrollment({
                                                             : '',
                                                     )
                                                 }
-                                                className="w-full"
+                                                className="w-full min-w-0"
                                                 placeholder="Select date"
                                             />
                                         </div>
@@ -721,9 +759,9 @@ export default function Enrollment({
                                                     updateCreateGradeLevel
                                                 }
                                             >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select grade level" />
-                                                </SelectTrigger>
+                                            <SelectTrigger className="w-full min-w-0">
+                                                <SelectValue placeholder="Select grade level" />
+                                            </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="unselected">
                                                         Select grade level
@@ -791,7 +829,7 @@ export default function Enrollment({
                                                     }
                                                 }}
                                             >
-                                                <SelectTrigger>
+                                                <SelectTrigger className="w-full min-w-0">
                                                     <SelectValue
                                                         placeholder={
                                                             createForm.data
@@ -846,7 +884,7 @@ export default function Enrollment({
                                                     }
                                                 }}
                                             >
-                                                <SelectTrigger>
+                                                <SelectTrigger className="w-full min-w-0">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -1063,7 +1101,7 @@ export default function Enrollment({
                         </CardContent>
                     </Card>
 
-                    <Card className="lg:col-span-2">
+                    <Card className="min-w-0 flex-1">
                         <CardHeader className="border-b">
                             <div className="flex flex-col gap-3">
                                 <CardTitle>Enrollment Queue</CardTitle>
@@ -1073,7 +1111,7 @@ export default function Enrollment({
                                         {summary.for_cashier_payment}
                                     </Badge>
                                 </div>
-                                <div className="flex flex-col gap-3 sm:flex-row">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                                     <Select
                                         value={selectedSchoolYearId}
                                         onValueChange={switchSchoolYear}
@@ -1104,6 +1142,15 @@ export default function Enrollment({
                                         suggestions={searchSuggestions}
                                         showSuggestions={false}
                                     />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={exportEnrollmentWorkbook}
+                                        disabled={!selectedSchoolYearId}
+                                    >
+                                        <Download className="size-4" />
+                                        Export Workbook
+                                    </Button>
                                 </div>
                             </div>
                         </CardHeader>
@@ -1122,7 +1169,7 @@ export default function Enrollment({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {enrollments.map((item) => (
+                                    {enrollments.data.map((item) => (
                                         <TableRow key={item.id}>
                                             <TableCell className="pl-6">
                                                 <div className="space-y-1">
@@ -1184,7 +1231,7 @@ export default function Enrollment({
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {enrollments.length === 0 && (
+                                    {enrollments.data.length === 0 && (
                                         <TableRow>
                                             <TableCell
                                                 colSpan={4}
@@ -1196,6 +1243,48 @@ export default function Enrollment({
                                     )}
                                 </TableBody>
                             </Table>
+                            <div className="flex flex-col gap-3 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-sm text-muted-foreground">
+                                    {enrollments.total === 0
+                                        ? 'No enrollment intakes found.'
+                                        : `Showing ${enrollments.from}-${enrollments.to} of ${enrollments.total} intakes`}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                            goToQueuePage(
+                                                enrollments.current_page - 1,
+                                            )
+                                        }
+                                        disabled={
+                                            enrollments.current_page <= 1
+                                        }
+                                    >
+                                        Previous
+                                    </Button>
+                                    <span className="text-sm text-muted-foreground">
+                                        Page {enrollments.current_page} of{' '}
+                                        {enrollments.last_page}
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                            goToQueuePage(
+                                                enrollments.current_page + 1,
+                                            )
+                                        }
+                                        disabled={
+                                            enrollments.current_page >=
+                                            enrollments.last_page
+                                        }
+                                    >
+                                        Next
+                                    </Button>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>

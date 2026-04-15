@@ -15,6 +15,7 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
     Route::post('/grading-sheet/scores', [GradingSheetController::class, 'storeScores'])->name('grading_sheet.store_scores');
 
     Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance');
+    Route::get('/attendance/export-sf2', [AttendanceController::class, 'exportSf2'])->name('attendance.export_sf2');
     Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
 
     Route::get('/advisory-board', [AdvisoryBoardController::class, 'index'])->name('advisory_board');

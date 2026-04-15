@@ -380,7 +380,7 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                 >
                                     <Avatar className="size-8 overflow-hidden rounded-full">
                                         <AvatarImage
-                                            src={auth.user.avatar}
+                                            src={auth.user.avatar_url || auth.user.avatar}
                                             alt={auth.user.name}
                                         />
                                         <AvatarFallback className="rounded-lg">

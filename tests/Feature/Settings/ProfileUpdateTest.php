@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 
 test('profile page is displayed', function () {
     $user = User::factory()->create();
@@ -31,6 +34,47 @@ test('profile information can be updated', function () {
     expect($user->name)->toBe('Test User');
     expect($user->email)->toBe('test@example.com');
     expect($user->email_verified_at)->toBeNull();
+});
+
+test('profile picture can be updated and is shared as a public url', function () {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'avatar' => UploadedFile::fake()->image('avatar.jpg'),
+        ]);
+
+    $response
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('profile.edit'));
+
+    $user->refresh();
+
+    expect($user->avatar)->not->toBeNull();
+    Storage::disk('public')->assertExists($user->avatar);
+
+    $this->actingAs($user)
+        ->get(route('profile.edit'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('auth.user.avatar_url', route('profile.avatar.show'))
+        );
+});
+
+test('profile picture url can be rendered without a storage symlink', function () {
+    Storage::fake('public');
+
+    $user = User::factory()->create([
+        'avatar' => UploadedFile::fake()->image('avatar.jpg')->store('avatars', 'public'),
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('profile.avatar.show'))
+        ->assertOk();
 });
 
 test('email verification status is unchanged when the email address is unchanged', function () {

@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { Printer, Save } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -71,7 +71,6 @@ interface Props {
     };
     days: DayColumn[];
     rows: AttendanceRow[];
-    status_options: AttendanceStatus[];
 }
 
 const statusCycle: AttendanceStatus[] = [
@@ -123,7 +122,7 @@ function Sf2MarkCell({
     disabled: boolean;
     sizeClassName?: string;
 }) {
-    const shadeColor = 'rgba(148, 163, 184, 0.9)';
+    const shadeColor = 'rgba(0, 0, 0, 1)';
     const borderColor = 'currentColor';
 
     return (
@@ -145,7 +144,7 @@ function Sf2MarkCell({
                     <polygon points="0,0 100,0 0,100" fill={shadeColor} />
                 ) : null}
                 {status === 'tardy_cutting_classes' ? (
-                    <polygon points="100,100 100,0 0,100" fill={shadeColor} />
+                    <polygon points="100,0 0,100 100,100" fill={shadeColor} />
                 ) : null}
                 <line
                     x1="2"
@@ -177,20 +176,14 @@ export default function TeacherAttendance({
     month_scope,
     days,
     rows,
-    status_options,
 }: Props) {
+    const initialStatuses = useMemo(
+        () => flattenStatuses(rows, days),
+        [rows, days],
+    );
     const [workingStatuses, setWorkingStatuses] = useState<
         Record<string, AttendanceStatus>
-    >(() => flattenStatuses(rows, days));
-    const [initialStatuses, setInitialStatuses] = useState<
-        Record<string, AttendanceStatus>
-    >(() => flattenStatuses(rows, days));
-
-    useEffect(() => {
-        const flattened = flattenStatuses(rows, days);
-        setWorkingStatuses(flattened);
-        setInitialStatuses(flattened);
-    }, [rows, days]);
+    >(() => initialStatuses);
 
     const selectedClassValue = context.selected_subject_assignment_id
         ? String(context.selected_subject_assignment_id)
@@ -307,6 +300,19 @@ export default function TeacherAttendance({
         );
     };
 
+    const exportSf2 = () => {
+        if (!hasSelectedClass) {
+            return;
+        }
+
+        const params = new URLSearchParams({
+            subject_assignment_id: String(context.selected_subject_assignment_id),
+            month: context.selected_month,
+        });
+
+        window.location.assign(`/teacher/attendance/export-sf2?${params.toString()}`);
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Attendance" />
@@ -370,7 +376,13 @@ export default function TeacherAttendance({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    disabled
+                                    onClick={exportSf2}
+                                    disabled={
+                                        !hasSelectedClass ||
+                                        rows.length === 0 ||
+                                        isFeatureLocked ||
+                                        isMonthOutOfScope
+                                    }
                                 >
                                     <Printer className="size-4" />
                                     Print SF2

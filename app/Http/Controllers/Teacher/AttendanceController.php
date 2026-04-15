@@ -9,13 +9,73 @@ use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\Enrollment;
 use App\Models\SubjectAssignment;
+use App\Services\SchoolForms\Sf2ExportBuilder;
+use App\Services\SchoolForms\Sf2TemplateAdapter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AttendanceController extends Controller
 {
+    public function exportSf2(
+        IndexAttendanceRequest $request,
+        Sf2ExportBuilder $builder,
+        Sf2TemplateAdapter $adapter,
+    ): BinaryFileResponse|RedirectResponse {
+        $validated = $request->validated();
+        $teacherId = (int) auth()->id();
+        $selectedMonth = (string) ($validated['month'] ?? now()->format('Y-m'));
+        $assignment = SubjectAssignment::query()
+            ->with([
+                'section:id,academic_year_id,grade_level_id,name',
+                'section.gradeLevel:id,name',
+                'section.academicYear:id,name,status,start_date,end_date,current_quarter',
+            ])
+            ->whereKey((int) ($validated['subject_assignment_id'] ?? 0))
+            ->whereHas('teacherSubject', function ($query) use ($teacherId) {
+                $query->where('teacher_id', $teacherId);
+            })
+            ->first();
+
+        if (! $assignment?->section) {
+            return back()->with('error', 'You can only export SF2 for your assigned classes.');
+        }
+
+        $academicYear = $assignment->section->academicYear;
+        $monthStart = Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+
+        if (! $this->isTeacherAcademicFeatureAvailable($academicYear)) {
+            return back()->with('error', $this->resolveFeatureLockMessage($academicYear, 'SF2 export'));
+        }
+
+        if (! $this->doesMonthOverlapAcademicYear($monthStart->toDateString(), $monthEnd->toDateString(), $academicYear)) {
+            return back()->with('error', $this->resolveMonthScopeLockMessage($academicYear));
+        }
+
+        $outputPath = storage_path('app/temp/'.uniqid('sf2-', true).'.xls');
+        if (! is_dir(dirname($outputPath))) {
+            mkdir(dirname($outputPath), 0777, true);
+        }
+
+        $adapter->exportRows(
+            base_path('templates/SF2_2025.xls'),
+            $outputPath,
+            $builder->buildMetadata($assignment, $selectedMonth),
+            $builder->buildRows($assignment, $selectedMonth),
+        );
+
+        $downloadName = sprintf(
+            'sf2-%s-%s.xls',
+            $selectedMonth,
+            strtolower((string) $assignment->section->name)
+        );
+
+        return response()->download($outputPath, $downloadName)->deleteFileAfterSend(true);
+    }
+
     public function index(IndexAttendanceRequest $request): Response
     {
         $validated = $request->validated();

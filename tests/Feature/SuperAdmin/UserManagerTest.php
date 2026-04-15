@@ -2,6 +2,7 @@
 
 use App\Enums\UserRole;
 use App\Models\AuditLog;
+use App\Models\Student;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -123,4 +124,31 @@ test('user manager search is case insensitive', function () {
                 });
             })
         );
+});
+
+test('super admin resets parent password using linked student default pattern', function () {
+    $student = Student::query()->create([
+        'lrn' => '123123123123',
+        'first_name' => 'Maria',
+        'last_name' => 'Santos',
+        'birthdate' => '2011-05-12',
+    ]);
+
+    $parent = User::factory()->create([
+        'first_name' => 'Parent',
+        'last_name' => 'Santos',
+        'name' => 'Parent Santos',
+        'email' => 'parent.123123123123@marriott.edu',
+        'birthday' => '1980-01-01',
+        'role' => UserRole::PARENT->value,
+        'password' => 'temporary-password',
+    ]);
+
+    $parent->students()->attach($student);
+
+    $this->post("/super-admin/user-manager/{$parent->id}/reset-password")
+        ->assertRedirect();
+
+    expect(Hash::check('maria@05122011', (string) $parent->fresh()->password))->toBeTrue();
+    expect($parent->fresh()->must_change_password)->toBeTrue();
 });

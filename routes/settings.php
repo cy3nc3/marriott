@@ -1,10 +1,9 @@
 <?php
 
+use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SessionController;
-use App\Http\Controllers\Settings\NotificationSettingsController;
-use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -13,6 +12,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::get('settings/profile/avatar', [ProfileController::class, 'showAvatar'])->name('profile.avatar.show');
 
     Route::get('settings/security', [PasswordController::class, 'edit'])->name('user-password.edit');
     Route::get('settings/password', function () {

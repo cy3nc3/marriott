@@ -45,11 +45,23 @@ class StudentDirectoryController extends Controller
         $selectedAcademicYear = $selectedAcademicYearId > 0
             ? AcademicYear::query()->find($selectedAcademicYearId)
             : null;
+        $search = trim((string) $request->input('search', ''));
+        $normalizedSearch = mb_strtolower($search);
 
         $studentBaseQuery = Student::query()
             ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
                 $query->whereHas('enrollments', function ($enrollmentQuery) use ($selectedAcademicYear) {
                     $enrollmentQuery->where('academic_year_id', $selectedAcademicYear->id);
+                });
+            })
+            ->when($normalizedSearch !== '', function ($query) use ($normalizedSearch) {
+                $searchPattern = "%{$normalizedSearch}%";
+
+                $query->where(function ($studentQuery) use ($searchPattern) {
+                    $studentQuery
+                        ->whereRaw('LOWER(lrn) LIKE ?', [$searchPattern])
+                        ->orWhereRaw('LOWER(first_name) LIKE ?', [$searchPattern])
+                        ->orWhereRaw('LOWER(last_name) LIKE ?', [$searchPattern]);
                 });
             });
 
@@ -111,6 +123,10 @@ class StudentDirectoryController extends Controller
             'summary' => $summary,
             'school_year_options' => $schoolYearOptions->all(),
             'selected_school_year_id' => $selectedAcademicYear?->id,
+            'filters' => [
+                'search' => $search,
+                'academic_year_id' => $selectedAcademicYear?->id,
+            ],
             'last_upload' => [
                 'at' => Setting::get('registrar_sf1_last_upload_at'),
                 'file_name' => Setting::get('registrar_sf1_last_upload_name'),
