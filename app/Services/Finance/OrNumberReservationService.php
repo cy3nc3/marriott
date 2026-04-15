@@ -19,10 +19,9 @@ class OrNumberReservationService
         $year = (int) $now->year;
         $seriesKey = $this->seriesKey($year);
         $prefix = $this->prefix();
-        $usedOrNumbers = $this->usedOrNumbers($prefix, $year);
 
-        return DB::transaction(function () use ($userId, $now, $seriesKey, $prefix, $year, $usedOrNumbers): OrNumberReservation {
-            $sequence = $this->lockSequence($seriesKey, $prefix, $year, $usedOrNumbers);
+        return DB::transaction(function () use ($userId, $now, $seriesKey, $prefix, $year): OrNumberReservation {
+            $sequence = $this->lockSequence($seriesKey, $prefix, $year);
 
             $activeReservation = OrNumberReservation::query()
                 ->where('series_key', $seriesKey)
@@ -38,6 +37,8 @@ class OrNumberReservationService
                 return $activeReservation;
             }
 
+            $usedOrNumbers = $this->usedOrNumbers($prefix, $year);
+
             $reusableReservation = OrNumberReservation::query()
                 ->where('series_key', $seriesKey)
                 ->whereNull('used_at')
@@ -45,13 +46,10 @@ class OrNumberReservationService
                     $query->whereNotNull('released_at')
                         ->orWhere('expires_at', '<=', $now);
                 })
-                ->when(
-                    $usedOrNumbers->isNotEmpty(),
-                    fn ($query) => $query->whereNotIn('or_number', $usedOrNumbers->all())
-                )
-                ->orderBy('or_number')
                 ->lockForUpdate()
-                ->first();
+                ->get()
+                ->sortBy(fn (OrNumberReservation $reservation): int => $this->extractNumber($reservation->or_number, $prefix, $year))
+                ->first(fn (OrNumberReservation $reservation): bool => ! $usedOrNumbers->contains($reservation->or_number));
 
             if ($reusableReservation !== null) {
                 $reusableReservation->forceFill([
@@ -66,7 +64,10 @@ class OrNumberReservationService
                 return $reusableReservation;
             }
 
-            $allocatedNumber = (int) $sequence->next_number;
+            $allocatedNumber = max(
+                (int) $sequence->next_number,
+                $this->highestUsedNumber($usedOrNumbers, $prefix, $year) + 1,
+            );
 
             $sequence->forceFill([
                 'next_number' => $allocatedNumber + 1,
@@ -83,62 +84,52 @@ class OrNumberReservationService
         });
     }
 
-    private function lockSequence(
-        string $seriesKey,
-        string $prefix,
-        int $year,
-        Collection $usedOrNumbers,
-    ): OrNumberSequence {
+    public function releaseForUser(string $token, int $userId, Carbon $now): ?OrNumberReservation
+    {
+        return DB::transaction(function () use ($token, $userId, $now): ?OrNumberReservation {
+            $reservation = OrNumberReservation::query()
+                ->where('token', $token)
+                ->where('reserved_by', $userId)
+                ->whereNull('used_at')
+                ->whereNull('released_at')
+                ->lockForUpdate()
+                ->first();
+
+            if ($reservation === null) {
+                return null;
+            }
+
+            $reservation->forceFill([
+                'released_at' => $now,
+            ])->save();
+
+            return $reservation;
+        });
+    }
+
+    private function lockSequence(string $seriesKey, string $prefix, int $year): OrNumberSequence
+    {
         $sequence = OrNumberSequence::query()
             ->where('series_key', $seriesKey)
             ->lockForUpdate()
             ->first();
 
         if ($sequence !== null) {
-            $nextAvailableNumber = max(
-                (int) $sequence->next_number,
-                $this->highestUsedNumber($usedOrNumbers, $prefix, $year) + 1,
-            );
-
-            if ($nextAvailableNumber !== (int) $sequence->next_number) {
-                $sequence->forceFill([
-                    'next_number' => $nextAvailableNumber,
-                ])->save();
-            }
-
             return $sequence;
         }
-
-        $nextNumber = max(
-            1,
-            $this->highestUsedNumber($usedOrNumbers, $prefix, $year) + 1,
-        );
 
         try {
             return OrNumberSequence::query()->create([
                 'series_key' => $seriesKey,
                 'prefix' => $prefix,
                 'year' => $year,
-                'next_number' => $nextNumber,
+                'next_number' => 1,
             ]);
         } catch (\Illuminate\Database\QueryException $exception) {
-            $sequence = OrNumberSequence::query()
+            return OrNumberSequence::query()
                 ->where('series_key', $seriesKey)
                 ->lockForUpdate()
                 ->firstOrFail();
-
-            $nextAvailableNumber = max(
-                (int) $sequence->next_number,
-                $this->highestUsedNumber($usedOrNumbers, $prefix, $year) + 1,
-            );
-
-            if ($nextAvailableNumber !== (int) $sequence->next_number) {
-                $sequence->forceFill([
-                    'next_number' => $nextAvailableNumber,
-                ])->save();
-            }
-
-            return $sequence;
         }
     }
 
@@ -166,16 +157,19 @@ class OrNumberReservationService
 
     private function highestUsedNumber(Collection $usedOrNumbers, string $prefix, int $year): int
     {
-        $pattern = sprintf('/^%s-%d-(\d{4,})$/', preg_quote($prefix, '/'), $year);
-
         return (int) $usedOrNumbers
-            ->map(function (string $orNumber) use ($pattern): int {
-                if (preg_match($pattern, $orNumber, $matches) !== 1) {
-                    return 0;
-                }
-
-                return (int) $matches[1];
-            })
+            ->map(fn (string $orNumber): int => $this->extractNumber($orNumber, $prefix, $year))
             ->max();
+    }
+
+    private function extractNumber(string $orNumber, string $prefix, int $year): int
+    {
+        $pattern = sprintf('/^%s-%d-(\d+)$/', preg_quote($prefix, '/'), $year);
+
+        if (preg_match($pattern, $orNumber, $matches) !== 1) {
+            return PHP_INT_MAX;
+        }
+
+        return (int) $matches[1];
     }
 }

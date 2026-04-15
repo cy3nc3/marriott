@@ -31,12 +31,15 @@ test('released reservation becomes reusable', function () {
 
     $reservation = $this->service->reserveForUser($firstCashier->id, $this->now);
 
-    $reservation->forceFill([
-        'released_at' => $this->now->copy()->addMinutes(5),
-    ])->save();
+    $releasedReservation = $this->service->releaseForUser(
+        $reservation->token,
+        $firstCashier->id,
+        $this->now->copy()->addMinutes(1),
+    );
 
     $reusedReservation = $this->service->reserveForUser($secondCashier->id, $this->now->copy()->addMinutes(10));
 
+    expect($releasedReservation)->not->toBeNull();
     expect($reusedReservation->id)->toBe($reservation->id);
     expect($reusedReservation->or_number)->toBe('OR-2026-0001');
     expect($reusedReservation->reserved_by)->toBe($secondCashier->id);
@@ -60,9 +63,11 @@ test('released reservation is not reused across a different year series', functi
 
     $reservation = $this->service->reserveForUser($firstCashier->id, $this->now);
 
-    $reservation->forceFill([
-        'released_at' => $this->now->copy()->addMinute(),
-    ])->save();
+    $this->service->releaseForUser(
+        $reservation->token,
+        $firstCashier->id,
+        $this->now->copy()->addMinute(),
+    );
 
     $nextYearReservation = $this->service->reserveForUser(
         $secondCashier->id,
