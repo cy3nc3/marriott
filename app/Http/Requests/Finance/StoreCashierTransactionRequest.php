@@ -16,7 +16,8 @@ class StoreCashierTransactionRequest extends FormRequest
     {
         return [
             'student_id' => ['required', 'exists:students,id'],
-            'or_number' => ['required', 'string', 'max:50', 'unique:transactions,or_number'],
+            'reservation_token' => ['nullable', 'uuid'],
+            'or_number' => ['required', 'string', 'max:50'],
             'payment_mode' => ['required', 'in:cash,gcash,bank_transfer'],
             'reference_no' => ['nullable', 'string', 'max:100'],
             'remarks' => ['nullable', 'string', 'max:1000'],

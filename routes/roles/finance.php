@@ -16,6 +16,8 @@ Route::middleware(['auth', 'verified', 'role:finance'])->prefix('finance')->name
 
     Route::get('/cashier-panel', [CashierPanelController::class, 'index'])->middleware('desktop_only')->name('cashier_panel');
     Route::get('/cashier-panel/student-suggestions', [CashierPanelController::class, 'studentSuggestions'])->middleware('desktop_only')->name('cashier_panel.student_suggestions');
+    Route::post('/cashier-panel/or-number-reservations', [CashierPanelController::class, 'reserveOrNumber'])->middleware('desktop_only')->name('cashier_panel.reserve_or_number');
+    Route::delete('/cashier-panel/or-number-reservations/{token}', [CashierPanelController::class, 'releaseOrNumber'])->middleware('desktop_only')->name('cashier_panel.release_or_number');
     Route::post('/cashier-panel/transactions', [CashierPanelController::class, 'storeTransaction'])->middleware('desktop_only')->name('cashier_panel.store_transaction');
 
     Route::get('/transaction-history', [TransactionHistoryController::class, 'index'])->middleware('desktop_only')->name('transaction_history');

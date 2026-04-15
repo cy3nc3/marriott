@@ -15,6 +15,7 @@ use App\Models\Student;
 use App\Models\StudentDiscount;
 use App\Models\Transaction;
 use App\Services\DashboardCacheService;
+use App\Services\Finance\OrNumberReservationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,8 @@ use Inertia\Response;
 
 class CashierPanelController extends Controller
 {
+    public function __construct(private OrNumberReservationService $orNumberReservationService) {}
+
     public function index(Request $request): Response
     {
         $search = trim((string) $request->input('search', ''));
@@ -201,6 +204,38 @@ class CashierPanelController extends Controller
         ]);
     }
 
+    public function reserveOrNumber(Request $request): JsonResponse
+    {
+        $reservation = $this->orNumberReservationService->reserveForUser(
+            (int) $request->user()->id,
+            now(),
+        );
+
+        return response()->json([
+            'data' => [
+                'token' => $reservation->token,
+                'or_number' => $reservation->or_number,
+                'expires_at' => $reservation->expires_at?->toIso8601String(),
+                'status' => 'reserved',
+            ],
+        ]);
+    }
+
+    public function releaseOrNumber(Request $request, string $token): JsonResponse
+    {
+        $reservation = $this->orNumberReservationService->releaseForUser(
+            $token,
+            (int) $request->user()->id,
+            now(),
+        );
+
+        return response()->json([
+            'data' => [
+                'released' => $reservation !== null,
+            ],
+        ]);
+    }
+
     public function storeTransaction(StoreCashierTransactionRequest $request): RedirectResponse
     {
         $validated = $request->validated();
@@ -226,6 +261,13 @@ class CashierPanelController extends Controller
         $totalAmount = round((float) $items->sum('amount'), 2);
 
         DB::transaction(function () use ($validated, $student, $academicYear, $items, $totalAmount) {
+            $resolvedReservation = $this->orNumberReservationService->resolveForPosting(
+                userId: (int) auth()->id(),
+                reservationToken: $validated['reservation_token'] ?? null,
+                submittedOrNumber: (string) $validated['or_number'],
+                now: now(),
+            );
+
             $allocatablePaymentAmount = round((float) $items
                 ->filter(function (array $item): bool {
                     return $item['type'] === 'assessment_fee';
@@ -239,7 +281,7 @@ class CashierPanelController extends Controller
                 ->sum('amount'), 2);
 
             $transaction = Transaction::query()->create([
-                'or_number' => $validated['or_number'],
+                'or_number' => $resolvedReservation->or_number,
                 'student_id' => $student->id,
                 'cashier_id' => auth()->id(),
                 'total_amount' => $totalAmount,
@@ -259,6 +301,12 @@ class CashierPanelController extends Controller
                         ];
                     })
                     ->all()
+            );
+
+            $this->orNumberReservationService->markAsUsed(
+                $resolvedReservation,
+                (int) $transaction->id,
+                now(),
             );
 
             $this->allocatePaymentAcrossDues($transaction, $student, $academicYear, $allocatablePaymentAmount);

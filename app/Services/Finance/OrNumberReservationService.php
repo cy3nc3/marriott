@@ -5,16 +5,17 @@ namespace App\Services\Finance;
 use App\Models\OrNumberReservation;
 use App\Models\OrNumberSequence;
 use App\Models\Transaction;
-use Illuminate\Support\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class OrNumberReservationService
 {
     private const EXPIRATION_MINUTES = 2;
 
-    public function reserveForUser(int $userId, Carbon $now): OrNumberReservation
+    public function reserveForUser(int $userId, CarbonInterface $now): OrNumberReservation
     {
         $year = (int) $now->year;
         $seriesKey = $this->seriesKey($year);
@@ -82,7 +83,7 @@ class OrNumberReservationService
         });
     }
 
-    public function releaseForUser(string $token, int $userId, Carbon $now): ?OrNumberReservation
+    public function releaseForUser(string $token, int $userId, CarbonInterface $now): ?OrNumberReservation
     {
         return DB::transaction(function () use ($token, $userId, $now): ?OrNumberReservation {
             $reservation = OrNumberReservation::query()
@@ -103,6 +104,62 @@ class OrNumberReservationService
 
             return $reservation;
         });
+    }
+
+    public function resolveForPosting(
+        int $userId,
+        ?string $reservationToken,
+        string $submittedOrNumber,
+        CarbonInterface $now,
+    ): OrNumberReservation {
+        $trimmedOrNumber = trim($submittedOrNumber);
+        $activeReservation = null;
+
+        if ($reservationToken !== null && trim($reservationToken) !== '') {
+            $activeReservation = OrNumberReservation::query()
+                ->where('token', $reservationToken)
+                ->where('reserved_by', $userId)
+                ->whereNull('used_at')
+                ->whereNull('released_at')
+                ->where('expires_at', '>', $now)
+                ->lockForUpdate()
+                ->first();
+
+            if ($activeReservation === null) {
+                throw ValidationException::withMessages([
+                    'or_number' => 'The reserved OR number is no longer available. Please reserve a new one.',
+                ]);
+            }
+
+            if ($activeReservation->or_number === $trimmedOrNumber) {
+                return $activeReservation;
+            }
+        }
+
+        $this->assertOrNumberAvailable($trimmedOrNumber, $userId, $now);
+
+        if ($activeReservation !== null) {
+            $activeReservation->forceFill([
+                'released_at' => $now,
+            ])->save();
+        }
+
+        return OrNumberReservation::query()->create([
+            'token' => (string) Str::uuid(),
+            'series_key' => $this->seriesKeyForOrNumber($trimmedOrNumber, $now),
+            'or_number' => $trimmedOrNumber,
+            'reserved_by' => $userId,
+            'reserved_at' => $now,
+            'expires_at' => $now->copy()->addMinutes(self::EXPIRATION_MINUTES),
+        ]);
+    }
+
+    public function markAsUsed(OrNumberReservation $reservation, int $transactionId, CarbonInterface $now): void
+    {
+        $reservation->forceFill([
+            'used_at' => $now,
+            'transaction_id' => $transactionId,
+        ])->save();
     }
 
     private function lockSequence(string $seriesKey, string $prefix, int $year): OrNumberSequence
@@ -180,5 +237,38 @@ class OrNumberReservationService
         }
 
         return (int) $matches[1];
+    }
+
+    private function assertOrNumberAvailable(string $orNumber, int $userId, CarbonInterface $now): void
+    {
+        if (Transaction::query()->where('or_number', $orNumber)->exists()) {
+            throw ValidationException::withMessages([
+                'or_number' => 'This OR number is already used.',
+            ]);
+        }
+
+        $reservedByAnotherCashier = OrNumberReservation::query()
+            ->where('or_number', $orNumber)
+            ->whereNull('used_at')
+            ->whereNull('released_at')
+            ->where('expires_at', '>', $now)
+            ->where('reserved_by', '!=', $userId)
+            ->lockForUpdate()
+            ->exists();
+
+        if ($reservedByAnotherCashier) {
+            throw ValidationException::withMessages([
+                'or_number' => 'This OR number is currently reserved by another cashier.',
+            ]);
+        }
+    }
+
+    private function seriesKeyForOrNumber(string $orNumber, CarbonInterface $now): string
+    {
+        if (preg_match('/^OR-(\d{4})-\d+$/', $orNumber, $matches) === 1) {
+            return $this->seriesKey((int) $matches[1]);
+        }
+
+        return $this->seriesKey((int) $now->year);
     }
 }
