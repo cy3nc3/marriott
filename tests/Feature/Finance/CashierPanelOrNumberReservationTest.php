@@ -2,6 +2,8 @@
 
 use App\Models\OrNumberReservation;
 use App\Models\OrNumberSequence;
+use App\Models\Student;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Services\Finance\OrNumberReservationService;
 use Illuminate\Support\Carbon;
@@ -70,4 +72,41 @@ test('released reservation is not reused across a different year series', functi
     expect($nextYearReservation->id)->not->toBe($reservation->id);
     expect($nextYearReservation->or_number)->toBe('OR-2027-0001');
     expect(OrNumberSequence::query()->where('series_key', 'finance-or-2027')->where('year', 2027)->value('next_number'))->toBe(2);
+});
+
+test('expired reservation becomes reusable', function () {
+    $firstCashier = User::factory()->finance()->create();
+    $secondCashier = User::factory()->finance()->create();
+
+    $reservation = $this->service->reserveForUser($firstCashier->id, $this->now);
+
+    $reusedReservation = $this->service->reserveForUser(
+        $secondCashier->id,
+        $this->now->copy()->addMinutes(3),
+    );
+
+    expect($reusedReservation->id)->toBe($reservation->id);
+    expect($reusedReservation->or_number)->toBe('OR-2026-0001');
+});
+
+test('reservation skips OR numbers that are already used by transactions', function () {
+    $cashier = User::factory()->finance()->create();
+    $student = Student::query()->create([
+        'lrn' => '900000000001',
+        'first_name' => 'Used',
+        'last_name' => 'Receipt',
+    ]);
+
+    Transaction::query()->create([
+        'or_number' => 'OR-2026-0001',
+        'student_id' => $student->id,
+        'cashier_id' => $cashier->id,
+        'total_amount' => 1000,
+        'payment_mode' => 'cash',
+    ]);
+
+    $reservation = $this->service->reserveForUser($cashier->id, $this->now);
+
+    expect($reservation->or_number)->toBe('OR-2026-0002');
+    expect(OrNumberSequence::query()->where('series_key', 'finance-or-2026')->where('year', 2026)->value('next_number'))->toBe(3);
 });
