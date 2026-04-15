@@ -52,16 +52,14 @@ class OrNumberReservationService
                 ->first(fn (OrNumberReservation $reservation): bool => ! $usedOrNumbers->contains($reservation->or_number));
 
             if ($reusableReservation !== null) {
-                $reusableReservation->forceFill([
+                return OrNumberReservation::query()->create([
                     'token' => (string) Str::uuid(),
+                    'series_key' => $seriesKey,
+                    'or_number' => $reusableReservation->or_number,
                     'reserved_by' => $userId,
                     'reserved_at' => $now,
                     'expires_at' => $now->copy()->addMinutes(self::EXPIRATION_MINUTES),
-                    'released_at' => null,
-                    'used_at' => null,
-                ])->save();
-
-                return $reusableReservation;
+                ]);
             }
 
             $allocatedNumber = max(
@@ -158,7 +156,7 @@ class OrNumberReservationService
     private function highestUsedNumber(Collection $usedOrNumbers, string $prefix, int $year): int
     {
         return (int) $usedOrNumbers
-            ->map(fn (string $orNumber): int => $this->extractNumber($orNumber, $prefix, $year))
+            ->map(fn (string $orNumber): int => $this->extractHighestUsedNumber($orNumber, $prefix, $year))
             ->max();
     }
 
@@ -168,6 +166,17 @@ class OrNumberReservationService
 
         if (preg_match($pattern, $orNumber, $matches) !== 1) {
             return PHP_INT_MAX;
+        }
+
+        return (int) $matches[1];
+    }
+
+    private function extractHighestUsedNumber(string $orNumber, string $prefix, int $year): int
+    {
+        $pattern = sprintf('/^%s-%d-(\d+)$/', preg_quote($prefix, '/'), $year);
+
+        if (preg_match($pattern, $orNumber, $matches) !== 1) {
+            return 0;
         }
 
         return (int) $matches[1];

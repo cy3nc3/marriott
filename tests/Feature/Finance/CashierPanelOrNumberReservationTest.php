@@ -40,9 +40,10 @@ test('released reservation becomes reusable', function () {
     $reusedReservation = $this->service->reserveForUser($secondCashier->id, $this->now->copy()->addMinutes(10));
 
     expect($releasedReservation)->not->toBeNull();
-    expect($reusedReservation->id)->toBe($reservation->id);
+    expect($reusedReservation->id)->not->toBe($reservation->id);
     expect($reusedReservation->or_number)->toBe('OR-2026-0001');
     expect($reusedReservation->reserved_by)->toBe($secondCashier->id);
+    expect(OrNumberReservation::query()->where('or_number', 'OR-2026-0001')->count())->toBe(2);
     expect(OrNumberSequence::query()->where('series_key', 'finance-or-2026')->where('year', 2026)->value('next_number'))->toBe(2);
 });
 
@@ -90,8 +91,19 @@ test('expired reservation becomes reusable', function () {
         $this->now->copy()->addMinutes(3),
     );
 
-    expect($reusedReservation->id)->toBe($reservation->id);
+    expect($reusedReservation->id)->not->toBe($reservation->id);
     expect($reusedReservation->or_number)->toBe('OR-2026-0001');
+});
+
+test('different cashiers receive distinct OR reservations', function () {
+    $firstCashier = User::factory()->finance()->create();
+    $secondCashier = User::factory()->finance()->create();
+
+    $firstReservation = $this->service->reserveForUser($firstCashier->id, $this->now);
+    $secondReservation = $this->service->reserveForUser($secondCashier->id, $this->now);
+
+    expect($firstReservation->or_number)->toBe('OR-2026-0001');
+    expect($secondReservation->or_number)->toBe('OR-2026-0002');
 });
 
 test('reservation skips OR numbers that are already used by transactions', function () {
@@ -114,4 +126,26 @@ test('reservation skips OR numbers that are already used by transactions', funct
 
     expect($reservation->or_number)->toBe('OR-2026-0002');
     expect(OrNumberSequence::query()->where('series_key', 'finance-or-2026')->where('year', 2026)->value('next_number'))->toBe(3);
+});
+
+test('reservation ignores malformed existing OR numbers when advancing the sequence', function () {
+    $cashier = User::factory()->finance()->create();
+    $student = Student::query()->create([
+        'lrn' => '900000000002',
+        'first_name' => 'Malformed',
+        'last_name' => 'Receipt',
+    ]);
+
+    Transaction::query()->create([
+        'or_number' => 'OR-2026-ABC',
+        'student_id' => $student->id,
+        'cashier_id' => $cashier->id,
+        'total_amount' => 1000,
+        'payment_mode' => 'cash',
+    ]);
+
+    $reservation = $this->service->reserveForUser($cashier->id, $this->now);
+
+    expect($reservation->or_number)->toBe('OR-2026-0001');
+    expect(OrNumberSequence::query()->where('series_key', 'finance-or-2026')->where('year', 2026)->value('next_number'))->toBe(2);
 });
