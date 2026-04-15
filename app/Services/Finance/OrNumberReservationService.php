@@ -10,15 +10,17 @@ use Illuminate\Support\Str;
 
 class OrNumberReservationService
 {
-    private const EXPIRATION_MINUTES = 15;
+    private const EXPIRATION_MINUTES = 2;
 
     public function reserveForUser(int $userId, Carbon $now): OrNumberReservation
     {
-        $seriesKey = $this->seriesKey();
-        $prefix = $this->prefix();
         $year = (int) $now->year;
+        $seriesKey = $this->seriesKey($year);
+        $prefix = $this->prefix();
 
         return DB::transaction(function () use ($userId, $now, $seriesKey, $prefix, $year): OrNumberReservation {
+            $sequence = $this->lockSequence($seriesKey, $prefix, $year);
+
             $activeReservation = OrNumberReservation::query()
                 ->where('series_key', $seriesKey)
                 ->where('reserved_by', $userId)
@@ -26,6 +28,7 @@ class OrNumberReservationService
                 ->whereNull('released_at')
                 ->where('expires_at', '>', $now)
                 ->latest('id')
+                ->lockForUpdate()
                 ->first();
 
             if ($activeReservation !== null) {
@@ -56,28 +59,11 @@ class OrNumberReservationService
                 return $reusableReservation;
             }
 
-            $sequence = OrNumberSequence::query()
-                ->where('series_key', $seriesKey)
-                ->where('year', $year)
-                ->lockForUpdate()
-                ->first();
+            $allocatedNumber = (int) $sequence->next_number;
 
-            if ($sequence === null) {
-                $allocatedNumber = 1;
-
-                OrNumberSequence::query()->create([
-                    'series_key' => $seriesKey,
-                    'prefix' => $prefix,
-                    'year' => $year,
-                    'next_number' => 2,
-                ]);
-            } else {
-                $allocatedNumber = (int) $sequence->next_number;
-
-                $sequence->forceFill([
-                    'next_number' => $allocatedNumber + 1,
-                ])->save();
-            }
+            $sequence->forceFill([
+                'next_number' => $allocatedNumber + 1,
+            ])->save();
 
             return OrNumberReservation::query()->create([
                 'token' => (string) Str::uuid(),
@@ -90,9 +76,35 @@ class OrNumberReservationService
         });
     }
 
-    private function seriesKey(): string
+    private function lockSequence(string $seriesKey, string $prefix, int $year): OrNumberSequence
     {
-        return 'finance-or';
+        $sequence = OrNumberSequence::query()
+            ->where('series_key', $seriesKey)
+            ->lockForUpdate()
+            ->first();
+
+        if ($sequence !== null) {
+            return $sequence;
+        }
+
+        try {
+            return OrNumberSequence::query()->create([
+                'series_key' => $seriesKey,
+                'prefix' => $prefix,
+                'year' => $year,
+                'next_number' => 1,
+            ]);
+        } catch (\Illuminate\Database\QueryException $exception) {
+            return OrNumberSequence::query()
+                ->where('series_key', $seriesKey)
+                ->lockForUpdate()
+                ->firstOrFail();
+        }
+    }
+
+    private function seriesKey(int $year): string
+    {
+        return sprintf('finance-or-%d', $year);
     }
 
     private function prefix(): string
