@@ -1,6 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Plus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -29,9 +29,9 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
 import { cashier_panel, student_ledgers } from '@/routes/finance';
 import { store_transaction } from '@/routes/finance/cashier_panel';
-import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -103,6 +103,13 @@ type PendingRemedialCase = {
 
 type StudentSuggestionsResponse = {
     students: StudentOption[];
+};
+
+type OrNumberReservationResponse = {
+    data: {
+        token: string;
+        or_number: string;
+    };
 };
 
 type CurrentTransactionItem = {
@@ -186,6 +193,13 @@ export default function CashierPanel({
     >([]);
     const [isAddItemOpen, setIsAddItemOpen] = useState(false);
     const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
+    const [isReservingOrNumber, setIsReservingOrNumber] = useState(false);
+    const [orNumberReservationError, setOrNumberReservationError] = useState<
+        string | null
+    >(null);
+    const [orNumberReservationToken, setOrNumberReservationToken] = useState<
+        string | null
+    >(null);
     const [isIntakesDialogOpen, setIsIntakesDialogOpen] = useState(false);
     const [isRemedialDialogOpen, setIsRemedialDialogOpen] = useState(false);
     const [intakeSearchQuery, setIntakeSearchQuery] = useState('');
@@ -208,9 +222,11 @@ export default function CashierPanel({
     );
     const [itemDescription, setItemDescription] = useState('');
     const [itemAmount, setItemAmount] = useState('');
+    const reserveOrNumberControllerRef = useRef<AbortController | null>(null);
 
     const transactionForm = useForm({
         student_id: '',
+        reservation_token: '',
         or_number: '',
         payment_mode: 'cash',
         reference_no: '',
@@ -522,6 +538,95 @@ export default function CashierPanel({
         );
     };
 
+    const releaseOrNumberReservation = async (
+        reservationToken: string,
+    ): Promise<void> => {
+        try {
+            await fetch(
+                `${cashier_panel.url()}/or-number-reservations/${reservationToken}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                },
+            );
+        } catch {
+            // ignore release failures and let timeout-based expiration handle cleanup
+        }
+    };
+
+    const reserveOrNumberReservation = async (): Promise<void> => {
+        if (isReservingOrNumber) {
+            return;
+        }
+
+        reserveOrNumberControllerRef.current?.abort();
+        const controller = new AbortController();
+        reserveOrNumberControllerRef.current = controller;
+
+        setIsReservingOrNumber(true);
+        setOrNumberReservationError(null);
+
+        try {
+            const response = await fetch(
+                `${cashier_panel.url()}/or-number-reservations`,
+                {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    signal: controller.signal,
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error('Reservation request failed');
+            }
+
+            const payload =
+                (await response.json()) as OrNumberReservationResponse;
+
+            setOrNumberReservationToken(payload.data.token);
+            transactionForm.setData('reservation_token', payload.data.token);
+            transactionForm.setData('or_number', payload.data.or_number);
+        } catch (error) {
+            if (
+                error instanceof DOMException &&
+                error.name === 'AbortError'
+            ) {
+                return;
+            }
+
+            setOrNumberReservationError(
+                'Unable to reserve an OR number right now. You can still enter one manually.',
+            );
+        } finally {
+            if (reserveOrNumberControllerRef.current === controller) {
+                reserveOrNumberControllerRef.current = null;
+            }
+
+            setIsReservingOrNumber(false);
+        }
+    };
+
+    const closeProcessDialog = (): void => {
+        reserveOrNumberControllerRef.current?.abort();
+        reserveOrNumberControllerRef.current = null;
+
+        const tokenToRelease = orNumberReservationToken;
+        setOrNumberReservationToken(null);
+        setOrNumberReservationError(null);
+        transactionForm.setData('reservation_token', '');
+        setIsProcessDialogOpen(false);
+
+        if (tokenToRelease) {
+            void releaseOrNumberReservation(tokenToRelease);
+        }
+    };
+
     const openProcessDialog = () => {
         if (!selected_student || transactionItems.length === 0) {
             return;
@@ -530,6 +635,7 @@ export default function CashierPanel({
         transactionForm.clearErrors();
         transactionForm.setData({
             student_id: String(selected_student.id),
+            reservation_token: '',
             or_number: '',
             payment_mode: 'cash',
             reference_no: '',
@@ -537,7 +643,10 @@ export default function CashierPanel({
             tendered_amount: String(Number(totalAmount.toFixed(2))),
             items: [],
         });
+        setOrNumberReservationToken(null);
+        setOrNumberReservationError(null);
         setIsProcessDialogOpen(true);
+        void reserveOrNumberReservation();
     };
 
     const postTransaction = () => {
@@ -565,6 +674,12 @@ export default function CashierPanel({
         transactionForm.submit(store_transaction(), {
             preserveScroll: true,
             onSuccess: () => {
+                reserveOrNumberControllerRef.current?.abort();
+                reserveOrNumberControllerRef.current = null;
+
+                setOrNumberReservationToken(null);
+                transactionForm.setData('reservation_token', '');
+                setOrNumberReservationError(null);
                 setIsProcessDialogOpen(false);
                 setTransactionItems([]);
                 transactionForm.reset();
@@ -1265,7 +1380,11 @@ export default function CashierPanel({
 
             <Dialog
                 open={isProcessDialogOpen}
-                onOpenChange={setIsProcessDialogOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        closeProcessDialog();
+                    }
+                }}
             >
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
@@ -1360,7 +1479,41 @@ export default function CashierPanel({
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="or-number">OR Number</Label>
+                                <div className="flex items-center justify-between gap-2">
+                                    <Label htmlFor="or-number">OR Number</Label>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={
+                                            transactionForm.processing ||
+                                            isReservingOrNumber
+                                        }
+                                        onClick={() => {
+                                            const tokenToRelease =
+                                                orNumberReservationToken;
+
+                                            setOrNumberReservationToken(null);
+                                            transactionForm.setData(
+                                                'reservation_token',
+                                                '',
+                                            );
+                                            setOrNumberReservationError(null);
+
+                                            if (tokenToRelease) {
+                                                void releaseOrNumberReservation(
+                                                    tokenToRelease,
+                                                );
+                                            }
+
+                                            void reserveOrNumberReservation();
+                                        }}
+                                    >
+                                        {isReservingOrNumber
+                                            ? 'Generating...'
+                                            : 'Regenerate'}
+                                    </Button>
+                                </div>
                                 <Input
                                     id="or-number"
                                     value={transactionForm.data.or_number}
@@ -1375,6 +1528,11 @@ export default function CashierPanel({
                                 {transactionForm.errors.or_number && (
                                     <p className="text-sm text-destructive">
                                         {transactionForm.errors.or_number}
+                                    </p>
+                                )}
+                                {orNumberReservationError && (
+                                    <p className="text-sm text-muted-foreground">
+                                        {orNumberReservationError}
                                     </p>
                                 )}
                             </div>
@@ -1431,13 +1589,15 @@ export default function CashierPanel({
                     <DialogFooter>
                         <Button
                             variant="outline"
-                            onClick={() => setIsProcessDialogOpen(false)}
+                            onClick={closeProcessDialog}
                         >
                             Cancel
                         </Button>
                         <Button
                             onClick={postTransaction}
-                            disabled={transactionForm.processing}
+                            disabled={
+                                transactionForm.processing || isReservingOrNumber
+                            }
                         >
                             Confirm and Post
                         </Button>

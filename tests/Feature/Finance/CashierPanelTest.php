@@ -11,12 +11,17 @@ use App\Models\RemedialCase;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
+uses(Tests\TestCase::class, RefreshDatabase::class);
+
 beforeEach(function () {
+    $this->seed(Database\Seeders\PermissionSeeder::class);
     $this->finance = User::factory()->finance()->create();
     $this->actingAs($this->finance);
+    $this->withHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)');
 });
 
 test('cashier panel renders selected student profile and payment options', function () {

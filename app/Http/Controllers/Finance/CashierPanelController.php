@@ -12,9 +12,10 @@ use App\Models\InventoryItem;
 use App\Models\LedgerEntry;
 use App\Models\RemedialCase;
 use App\Models\Student;
+use App\Models\StudentDiscount;
 use App\Models\Transaction;
 use App\Services\DashboardCacheService;
-use App\Services\Finance\DiscountBucketCalculator;
+use App\Services\Finance\OrNumberReservationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,7 +26,7 @@ use Inertia\Response;
 
 class CashierPanelController extends Controller
 {
-    public function __construct(private DiscountBucketCalculator $discountBucketCalculator) {}
+    public function __construct(private OrNumberReservationService $orNumberReservationService) {}
 
     public function index(Request $request): Response
     {
@@ -203,6 +204,38 @@ class CashierPanelController extends Controller
         ]);
     }
 
+    public function reserveOrNumber(Request $request): JsonResponse
+    {
+        $reservation = $this->orNumberReservationService->reserveForUser(
+            (int) $request->user()->id,
+            now(),
+        );
+
+        return response()->json([
+            'data' => [
+                'token' => $reservation->token,
+                'or_number' => $reservation->or_number,
+                'expires_at' => $reservation->expires_at?->toIso8601String(),
+                'status' => 'reserved',
+            ],
+        ]);
+    }
+
+    public function releaseOrNumber(Request $request, string $token): JsonResponse
+    {
+        $reservation = $this->orNumberReservationService->releaseForUser(
+            $token,
+            (int) $request->user()->id,
+            now(),
+        );
+
+        return response()->json([
+            'data' => [
+                'released' => $reservation !== null,
+            ],
+        ]);
+    }
+
     public function storeTransaction(StoreCashierTransactionRequest $request): RedirectResponse
     {
         $validated = $request->validated();
@@ -228,6 +261,13 @@ class CashierPanelController extends Controller
         $totalAmount = round((float) $items->sum('amount'), 2);
 
         DB::transaction(function () use ($validated, $student, $academicYear, $items, $totalAmount) {
+            $resolvedReservation = $this->orNumberReservationService->resolveForPosting(
+                userId: (int) auth()->id(),
+                reservationToken: $validated['reservation_token'] ?? null,
+                submittedOrNumber: (string) $validated['or_number'],
+                now: now(),
+            );
+
             $allocatablePaymentAmount = round((float) $items
                 ->filter(function (array $item): bool {
                     return $item['type'] === 'assessment_fee';
@@ -241,7 +281,7 @@ class CashierPanelController extends Controller
                 ->sum('amount'), 2);
 
             $transaction = Transaction::query()->create([
-                'or_number' => $validated['or_number'],
+                'or_number' => $resolvedReservation->or_number,
                 'student_id' => $student->id,
                 'cashier_id' => auth()->id(),
                 'total_amount' => $totalAmount,
@@ -261,6 +301,12 @@ class CashierPanelController extends Controller
                         ];
                     })
                     ->all()
+            );
+
+            $this->orNumberReservationService->markAsUsed(
+                $resolvedReservation,
+                (int) $transaction->id,
+                now(),
             );
 
             $this->allocatePaymentAcrossDues($transaction, $student, $academicYear, $allocatablePaymentAmount);
@@ -583,8 +629,40 @@ class CashierPanelController extends Controller
 
     private function resolveDiscountAmount(int $studentId, int $academicYearId, float $assessmentFeeTotal): float
     {
-        return $this->discountBucketCalculator
-            ->summarizeForStudent($studentId, $academicYearId, $assessmentFeeTotal)['total_discount_amount'];
+        if ($assessmentFeeTotal <= 0 || $studentId <= 0 || $academicYearId <= 0) {
+            return 0.0;
+        }
+
+        $studentDiscounts = StudentDiscount::query()
+            ->with('discount:id,type,value')
+            ->where('student_id', $studentId)
+            ->where('academic_year_id', $academicYearId)
+            ->get();
+
+        if ($studentDiscounts->isEmpty()) {
+            return 0.0;
+        }
+
+        $totalDiscountAmount = $studentDiscounts->reduce(
+            function (float $carry, StudentDiscount $studentDiscount) use ($assessmentFeeTotal): float {
+                $discount = $studentDiscount->discount;
+
+                if (! $discount) {
+                    return $carry;
+                }
+
+                $discountAmount = match ($discount->type) {
+                    'percentage' => round($assessmentFeeTotal * ((float) $discount->value / 100), 2),
+                    'fixed' => round((float) $discount->value, 2),
+                    default => 0.0,
+                };
+
+                return $carry + max($discountAmount, 0);
+            },
+            0.0
+        );
+
+        return round(min($assessmentFeeTotal, $totalDiscountAmount), 2);
     }
 
     private function applyPaymentToRemedialCase(

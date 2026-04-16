@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('token')->unique();
             $table->string('series_key');
-            $table->string('or_number')->unique();
+            $table->string('or_number');
             $table->foreignId('reserved_by')->constrained('users')->cascadeOnDelete();
             $table->timestamp('reserved_at');
             $table->timestamp('expires_at');
