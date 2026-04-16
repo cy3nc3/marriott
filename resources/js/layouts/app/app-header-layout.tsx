@@ -3,6 +3,7 @@ import { AppContent } from '@/components/app-content';
 import { AppHeader } from '@/components/app-header';
 import { AppShell } from '@/components/app-shell';
 import { MobileQuickNav } from '@/components/mobile-quick-nav';
+import { SavedAccountLoginSync } from '@/components/saved-account-login-sync';
 import { cn } from '@/lib/utils';
 import type { AppLayoutProps } from '@/types';
 import type { SharedData } from '@/types';
@@ -26,6 +27,7 @@ export default function AppHeaderLayout({
                 {children}
                 <MobileQuickNav />
             </AppContent>
+            <SavedAccountLoginSync />
         </AppShell>
     );
 }

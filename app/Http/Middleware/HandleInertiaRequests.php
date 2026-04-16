@@ -55,6 +55,7 @@ class HandleInertiaRequests extends Middleware
             'active_academic_year' => fn () => $this->resolveActiveAcademicYear(),
             'flash' => [
                 'login_welcome_toast' => fn () => $request->session()->get('login_welcome_toast'),
+                'saved_account_login' => fn () => $request->session()->get('saved_account_login'),
             ],
             'notifications' => $user instanceof User
                 ? $this->announcementNotificationService->buildPayload($user)

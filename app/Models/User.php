@@ -153,4 +153,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(GradeSubmission::class, 'returned_by');
     }
+
+    public function savedAccountLogins(): HasMany
+    {
+        return $this->hasMany(SavedAccountLogin::class);
+    }
 }

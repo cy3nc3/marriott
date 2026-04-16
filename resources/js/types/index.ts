@@ -30,6 +30,27 @@ export type NotificationPayload = {
     unread_count: number;
 };
 
+export type SavedAccountLoginFlashPayload =
+    | {
+          action: 'store';
+          account: {
+              email: string;
+              remember: boolean;
+              last_used_at: string;
+              device_login: {
+                  device_id: string;
+                  selector: string;
+                  token: string;
+                  expires_at: string;
+              };
+          };
+      }
+    | {
+          action: 'forget';
+          email: string;
+          device_id: string;
+      };
+
 export type SharedData = {
     name: string;
     auth: Auth;
@@ -44,6 +65,7 @@ export type SharedData = {
             title: string;
             description: string;
         } | null;
+        saved_account_login: SavedAccountLoginFlashPayload | null;
     };
     notifications: NotificationPayload;
     ui: {

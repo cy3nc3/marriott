@@ -3,6 +3,7 @@
 use App\Enums\UserRole;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\AnnouncementNotificationController;
+use App\Http\Controllers\Auth\SavedAccountLoginController;
 use App\Http\Controllers\Finance\DashboardController as FinanceDashboardController;
 use App\Http\Controllers\ParentPortal\DashboardController as ParentDashboardController;
 use App\Http\Controllers\Registrar\DashboardController as RegistrarDashboardController;
@@ -13,7 +14,9 @@ use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardControll
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-
+Route::middleware('guest')
+    ->post('login/saved-account', [SavedAccountLoginController::class, 'store'])
+    ->name('login.saved-account.store');
 
 Route::get('/', function () {
     if (auth()->check()) {
