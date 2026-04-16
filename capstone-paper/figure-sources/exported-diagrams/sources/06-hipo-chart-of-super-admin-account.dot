@@ -1,0 +1,17 @@
+digraph G {
+  graph [rankdir=TB, splines=ortho, nodesep=0.3, ranksep=0.5, bgcolor="white", pad=0.25];
+  node [shape=box, style="filled", fillcolor="#f8fafc", color="#334155", fontname="Arial", fontsize=10, margin="0.10,0.07"];
+  edge [color="#334155", arrowsize=0.65];
+
+  root [label="Super Admin Account", fillcolor="#dbeafe"];
+  governance [label="System Governance", fillcolor="#dcfce7"];
+  communication [label="Communication", fillcolor="#dcfce7"];
+  users [label="User Manager"];
+  permissions [label="Permissions"];
+  audit [label="Audit Logs"];
+  settings [label="System Settings"];
+  announcements [label="Announcements"];
+  reports [label="Announcement Report"];
+
+  root -> governance -> users -> permissions -> audit -> settings -> communication -> announcements -> reports;
+}

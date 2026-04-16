@@ -1,0 +1,20 @@
+digraph G {
+  graph [rankdir=TB, splines=ortho, nodesep=0.3, ranksep=0.5, bgcolor="white", pad=0.25];
+  node [shape=box, style="filled", fillcolor="#f8fafc", color="#334155", fontname="Arial", fontsize=10, margin="0.10,0.07"];
+  edge [color="#334155", arrowsize=0.65];
+
+  root [label="Registrar Account", fillcolor="#dbeafe"];
+  records [label="Learner Records", fillcolor="#dcfce7"];
+  enrollment [label="Enrollment and Status", fillcolor="#dcfce7"];
+  history [label="Academic History", fillcolor="#dcfce7"];
+  directory [label="Student Directory"];
+  sf1 [label="SF1 Upload"];
+  import [label="Data Import"];
+  queue [label="Enrollment Queue"];
+  promotion [label="Batch Promotion"];
+  departure [label="Student Departure"];
+  permanent [label="Permanent Records"];
+  remedial [label="Remedial Entry"];
+
+  root -> records -> directory -> sf1 -> import -> enrollment -> queue -> promotion -> departure -> history -> permanent -> remedial;
+}

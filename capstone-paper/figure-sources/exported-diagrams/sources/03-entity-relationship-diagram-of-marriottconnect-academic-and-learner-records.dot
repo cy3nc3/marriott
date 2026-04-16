@@ -1,0 +1,80 @@
+digraph G {
+  graph [rankdir=TB, splines=ortho, nodesep=0.25, ranksep=0.45, compound=true, bgcolor="white", pad=0.25];
+  node [shape=box, style="filled", fillcolor="#f8fafc", color="#334155", fontname="Arial", fontsize=9, margin="0.08,0.05"];
+  edge [color="#334155", arrowsize=0.55, penwidth=1.0];
+
+  subgraph cluster_academic {
+    label="Academic Structure";
+    color="#93c5fd";
+    style="rounded";
+    academic_years [label="academic_years", fillcolor="#dbeafe"];
+    grade_levels [label="grade_levels"];
+    subjects [label="subjects"];
+    sections [label="sections"];
+    teacher_subjects [label="teacher_subjects"];
+    subject_assignments [label="subject_assignments"];
+    class_schedules [label="class_schedules"];
+  }
+
+  subgraph cluster_learner {
+    label="Learner Records";
+    color="#86efac";
+    style="rounded";
+    students [label="students", fillcolor="#dcfce7"];
+    enrollments [label="enrollments"];
+    attendances [label="attendances"];
+    conduct_ratings [label="conduct_ratings"];
+    permanent_records [label="permanent_records"];
+    student_departures [label="student_departures"];
+  }
+
+  subgraph cluster_grading {
+    label="Grading Records";
+    color="#86efac";
+    style="rounded";
+    grading_rubrics [label="grading_rubrics"];
+    graded_activities [label="graded_activities"];
+    student_scores [label="student_scores"];
+    final_grades [label="final_grades"];
+    grade_submissions [label="grade_submissions"];
+  }
+
+  subgraph cluster_remedial {
+    label="Remedial Records";
+    color="#86efac";
+    style="rounded";
+    remedial_cases [label="remedial_cases"];
+    remedial_records [label="remedial_records"];
+    remedial_subject_fees [label="remedial_subject_fees"];
+  }
+
+  academic_years -> sections;
+  grade_levels -> sections;
+  grade_levels -> subjects;
+  subjects -> teacher_subjects;
+  sections -> subject_assignments;
+  teacher_subjects -> subject_assignments;
+  subject_assignments -> class_schedules;
+
+  students -> enrollments;
+  academic_years -> enrollments;
+  grade_levels -> enrollments;
+  sections -> enrollments;
+  enrollments -> attendances;
+  subject_assignments -> attendances;
+  enrollments -> conduct_ratings;
+  students -> permanent_records;
+  students -> student_departures;
+
+  subject_assignments -> graded_activities;
+  graded_activities -> student_scores;
+  students -> student_scores;
+  enrollments -> final_grades;
+  subject_assignments -> final_grades;
+  subject_assignments -> grade_submissions;
+
+  students -> remedial_cases;
+  students -> remedial_records;
+  subjects -> remedial_records;
+  subjects -> remedial_subject_fees;
+}

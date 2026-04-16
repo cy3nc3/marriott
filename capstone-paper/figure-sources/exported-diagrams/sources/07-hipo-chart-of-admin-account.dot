@@ -1,0 +1,17 @@
+digraph G {
+  graph [rankdir=TB, splines=ortho, nodesep=0.3, ranksep=0.5, bgcolor="white", pad=0.25];
+  node [shape=box, style="filled", fillcolor="#f8fafc", color="#334155", fontname="Arial", fontsize=10, margin="0.10,0.07"];
+  edge [color="#334155", arrowsize=0.65];
+
+  root [label="Admin Account", fillcolor="#dbeafe"];
+  setup [label="Academic Setup", fillcolor="#dcfce7"];
+  operations [label="Academic Operations", fillcolor="#dcfce7"];
+  controls [label="Academic Controls"];
+  curriculum [label="Curriculum Manager"];
+  sections [label="Section Manager"];
+  schedules [label="Schedule Builder"];
+  class_lists [label="Class Lists"];
+  verification [label="Grade Verification"];
+
+  root -> setup -> controls -> curriculum -> sections -> operations -> schedules -> class_lists -> verification;
+}

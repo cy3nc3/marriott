@@ -1,0 +1,16 @@
+digraph G {
+  graph [rankdir=TB, splines=ortho, nodesep=0.3, ranksep=0.5, bgcolor="white", pad=0.25];
+  node [shape=box, style="filled", fillcolor="#f8fafc", color="#334155", fontname="Arial", fontsize=10, margin="0.10,0.07"];
+  edge [color="#334155", arrowsize=0.65];
+
+  root [label="Teacher Account", fillcolor="#dbeafe"];
+  class_work [label="Class Work", fillcolor="#dcfce7"];
+  grading [label="Grading and Advisory", fillcolor="#dcfce7"];
+  schedule [label="Schedule"];
+  attendance [label="Attendance"];
+  sf2 [label="SF2 Export"];
+  sheet [label="Grading Sheet"];
+  advisory [label="Advisory Board"];
+
+  root -> class_work -> schedule -> attendance -> sf2 -> grading -> sheet -> advisory;
+}

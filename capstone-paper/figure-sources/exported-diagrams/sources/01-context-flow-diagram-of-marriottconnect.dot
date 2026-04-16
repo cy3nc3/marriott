@@ -1,0 +1,34 @@
+digraph G {
+  graph [rankdir=TB, splines=ortho, nodesep=0.35, ranksep=0.55, bgcolor="white", pad=0.25];
+  node [shape=box, style="filled", fillcolor="#f8fafc", color="#334155", fontname="Arial", fontsize=11, margin="0.12,0.08"];
+  edge [color="#334155", arrowsize=0.7, fontname="Arial", fontsize=9];
+
+  personnel [label="School Personnel", fillcolor="#dbeafe"];
+  super_admin [label="Super Admin"];
+  admin [label="Admin"];
+  registrar [label="Registrar"];
+  finance [label="Finance Staff"];
+  teacher [label="Teacher"];
+
+  system [label="MarriottConnect\nSchool Management System", fillcolor="#dcfce7", fontsize=13];
+
+  portal [label="Portal Users", fillcolor="#fef3c7"];
+  student [label="Student"];
+  parent [label="Parent"];
+
+  personnel -> super_admin;
+  personnel -> admin;
+  personnel -> registrar;
+  personnel -> finance;
+  personnel -> teacher;
+
+  super_admin -> system [label="accounts, permissions, settings"];
+  admin -> system [label="academic setup, grade verification"];
+  registrar -> system [label="student records, enrollment"];
+  finance -> system [label="fees, payments, ledgers"];
+  teacher -> system [label="attendance, grades"];
+
+  system -> portal [label="dashboards and record access"];
+  portal -> student;
+  portal -> parent;
+}
