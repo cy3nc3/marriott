@@ -695,7 +695,6 @@ test('admin section manager actions work', function () {
     $teacher = User::factory()->teacher()->create();
 
     $this->post('/admin/section-manager', [
-        'academic_year_id' => $academicYear->id,
         'grade_level_id' => $gradeLevel->id,
         'name' => 'Section A',
         'adviser_id' => $teacher->id,
@@ -704,6 +703,7 @@ test('admin section manager actions work', function () {
     $section = Section::query()->where('name', 'Section A')->first();
 
     expect($section)->not->toBeNull();
+    expect($section->academic_year_id)->toBe($academicYear->id);
     expect($section->adviser_id)->toBe($teacher->id);
 
     $this->patch("/admin/section-manager/{$section->id}", [

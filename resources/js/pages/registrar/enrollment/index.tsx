@@ -1,7 +1,7 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Download, Pencil, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Download, Pencil, Printer, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,8 +34,8 @@ import {
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import registrar from '@/routes/registrar';
-import { destroy, store, update } from '@/routes/registrar/enrollment';
-import type { BreadcrumbItem } from '@/types';
+import { assessment, destroy, store, update } from '@/routes/registrar/enrollment';
+import type { BreadcrumbItem, SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -111,6 +111,7 @@ export default function Enrollment({
     summary,
     filters,
 }: Props) {
+    const { flash } = usePage<SharedData>().props;
     const [editingItem, setEditingItem] = useState<EnrollmentRow | null>(null);
     const [createStep, setCreateStep] = useState<1 | 2 | 3 | 4>(1);
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
@@ -119,6 +120,7 @@ export default function Enrollment({
     );
     const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
     const [itemToRemove, setItemToRemove] = useState<EnrollmentRow | null>(null);
+    const openedAssessmentUrlRef = useRef<string | null>(null);
 
     const createForm = useForm({
         academic_year_id: selected_school_year_id
@@ -262,6 +264,25 @@ export default function Enrollment({
             onSuccess: () => setItemToRemove(null),
         });
     };
+
+    useEffect(() => {
+        const assessmentPrintUrl =
+            typeof flash.assessment_print_url === 'string' &&
+            flash.assessment_print_url.length > 0
+                ? flash.assessment_print_url
+                : null;
+
+        if (!assessmentPrintUrl) {
+            return;
+        }
+
+        if (openedAssessmentUrlRef.current === assessmentPrintUrl) {
+            return;
+        }
+
+        openedAssessmentUrlRef.current = assessmentPrintUrl;
+        window.open(assessmentPrintUrl, '_blank', 'noopener,noreferrer');
+    }, [flash.assessment_print_url]);
 
     const formatPaymentTerm = (term: string) => {
         if (term === 'semi-annual') return 'Semi-Annual';
@@ -1207,6 +1228,22 @@ export default function Enrollment({
                                             </TableCell>
                                             <TableCell className="pr-6">
                                                 <div className="flex justify-end gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="size-8"
+                                                        onClick={() =>
+                                                            window.open(
+                                                                assessment(
+                                                                    item.id,
+                                                                ).url,
+                                                                '_blank',
+                                                                'noopener,noreferrer',
+                                                            )
+                                                        }
+                                                    >
+                                                        <Printer className="size-4" />
+                                                    </Button>
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"

@@ -6,6 +6,7 @@ import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateRangePicker } from '@/components/ui/date-picker';
 import {
     Dialog,
     DialogContent,
@@ -13,7 +14,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { DateRangePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
@@ -63,6 +63,8 @@ type TransactionRow = {
     reissued_at: string | null;
     reissue_reason: string | null;
     reissued_transaction_or_number: string | null;
+    correction_reason: string | null;
+    corrected_by_name: string | null;
     can_void: boolean;
     can_refund: boolean;
     can_reissue: boolean;
@@ -577,8 +579,8 @@ export default function TransactionHistory({
                                                             'voided' ||
                                                         transaction.status ===
                                                             'refunded'
-                                                            ? 'bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800'
-                                                            : 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                                            ? 'border-red-200 bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:border-red-800 dark:text-red-400'
+                                                            : 'border-emerald-200 bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:border-emerald-800 dark:text-emerald-400'
                                                     }
                                                 >
                                                     {transaction.status_label}
@@ -639,11 +641,29 @@ export default function TransactionHistory({
                                                         </Button>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {correctionLabel(
-                                                            transaction,
+                                                    <div className="max-w-xs text-left">
+                                                        <span className="block text-xs text-muted-foreground">
+                                                            {correctionLabel(
+                                                                transaction,
+                                                            )}
+                                                        </span>
+                                                        {transaction.corrected_by_name && (
+                                                            <span className="mt-1 block text-xs text-muted-foreground">
+                                                                By{' '}
+                                                                {
+                                                                    transaction.corrected_by_name
+                                                                }
+                                                            </span>
                                                         )}
-                                                    </span>
+                                                        {transaction.correction_reason && (
+                                                            <p className="mt-1 text-xs leading-snug text-foreground/80">
+                                                                Reason:{' '}
+                                                                {
+                                                                    transaction.correction_reason
+                                                                }
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </TableCell>
                                         </TableRow>

@@ -44,6 +44,7 @@ class BillingInformationController extends Controller
             'cash' => [],
         ];
         $recentPayments = collect();
+        $assessmentFeeTotal = 0.0;
         $outstandingBalance = 0.0;
 
         if ($student) {
@@ -52,16 +53,22 @@ class BillingInformationController extends Controller
                 ->when($academicYear, function ($query) use ($academicYear) {
                     $query->where('academic_year_id', $academicYear->id);
                 });
-
-            $totalCharges = (float) (clone $ledgerQuery)->sum('debit');
-            $totalCredits = (float) (clone $ledgerQuery)->sum('credit');
-            $outstandingBalance = round($totalCharges - $totalCredits, 2);
-
-            $dues = BillingSchedule::query()
+            $billingScheduleQuery = BillingSchedule::query()
                 ->where('student_id', $student->id)
                 ->when($academicYear, function ($query) use ($academicYear) {
                     $query->where('academic_year_id', $academicYear->id);
-                })
+                });
+
+            $totalCharges = (float) (clone $ledgerQuery)->sum('debit');
+            $totalCredits = (float) (clone $ledgerQuery)->sum('credit');
+            $ledgerOutstandingBalance = round(max($totalCharges - $totalCredits, 0), 2);
+            $assessmentFeeTotal = round((float) (clone $billingScheduleQuery)->sum('amount_due'), 2);
+            $duesOutstandingBalance = round((float) ((clone $billingScheduleQuery)
+                ->selectRaw('COALESCE(SUM(CASE WHEN amount_due > amount_paid THEN amount_due - amount_paid ELSE 0 END), 0) as outstanding_total')
+                ->value('outstanding_total')), 2);
+            $outstandingBalance = round(max($ledgerOutstandingBalance, $duesOutstandingBalance), 2);
+
+            $dues = (clone $billingScheduleQuery)
                 ->where(function ($query): void {
                     $query
                         ->whereColumn('amount_paid', '<', 'amount_due')
@@ -122,6 +129,7 @@ class BillingInformationController extends Controller
                 'lrn' => $student?->lrn ?: '-',
                 'payment_plan' => $defaultPlan,
                 'payment_plan_label' => $this->formatPlanLabel($defaultPlan),
+                'assessment_fee_total' => $this->formatCurrency($assessmentFeeTotal),
                 'outstanding_balance' => $this->formatCurrency($outstandingBalance),
             ],
             'dues_by_plan' => $duesByPlan,

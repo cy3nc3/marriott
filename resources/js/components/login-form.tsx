@@ -1,5 +1,5 @@
 import { router, useForm } from '@inertiajs/react';
-import { Mail, UserRound } from 'lucide-react';
+import { Mail, UserRound, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -131,6 +131,35 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
         });
     };
 
+    const handleRemoveStoredAccount = (email: string): void => {
+        if (processing || isRememberAccountLoading) {
+            return;
+        }
+
+        const nextAccounts = storedAccounts.filter(
+            (account) => account.email !== email,
+        );
+
+        if (nextAccounts.length === storedAccounts.length) {
+            return;
+        }
+
+        updateStoredAccounts(nextAccounts);
+
+        if (selectedAccountEmail === email) {
+            setSelectedAccountEmail(null);
+            setIsRememberAccountLoading(false);
+            setDidRememberAutoLoginFail(false);
+            setData('email', '');
+            setData('password', '');
+            setData('remember', false);
+        }
+
+        if (nextAccounts.length === 0) {
+            setIsUsingAnotherAccount(true);
+        }
+    };
+
     const handleChooseStoredAccount = (account: StoredLoginAccount): void => {
         if (processing) {
             return;
@@ -234,25 +263,39 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                     <p className="text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase">
                         Saved Accounts
                     </p>
-                    <div className="space-y-2">
+                    <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
                         {storedAccounts.map((account) => (
-                            <button
-                                key={account.email}
-                                type="button"
-                                onClick={() =>
-                                    handleChooseStoredAccount(account)
-                                }
-                                className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300"
-                            >
-                                <div className="flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                                    <UserRound className="size-4" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-slate-800">
-                                        {account.email}
-                                    </p>
-                                </div>
-                            </button>
+                            <div key={account.email} className="group relative">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        handleChooseStoredAccount(account)
+                                    }
+                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-left transition hover:border-slate-300"
+                                >
+                                    <div className="flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                                        <UserRound className="size-4" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-medium text-slate-800">
+                                            {account.email}
+                                        </p>
+                                    </div>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        handleRemoveStoredAccount(account.email)
+                                    }
+                                    aria-label={`Remove ${account.email}`}
+                                    className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full p-1 text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:opacity-100 group-hover:opacity-100"
+                                    disabled={
+                                        processing || isRememberAccountLoading
+                                    }
+                                >
+                                    <X className="size-3.5" />
+                                </button>
+                            </div>
                         ))}
                     </div>
                 </div>

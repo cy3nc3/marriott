@@ -62,17 +62,30 @@ class DailyReportsController extends Controller
                 $query->where('payment_mode', $paymentMode);
             })
             ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
-                $query->where(function ($yearQuery) use ($selectedAcademicYear) {
-                    $yearQuery
-                        ->whereBetween('created_at', [
-                            "{$selectedAcademicYear->start_date} 00:00:00",
-                            "{$selectedAcademicYear->end_date} 23:59:59",
-                        ])
-                        ->orWhereHas('ledgerEntries', function ($ledgerQuery) use ($selectedAcademicYear) {
-                            $ledgerQuery
-                                ->where('academic_year_id', $selectedAcademicYear->id)
-                                ->whereNotNull('credit');
-                        });
+                $hasDateBounds = filled($selectedAcademicYear->start_date)
+                    && filled($selectedAcademicYear->end_date);
+
+                $query->where(function ($yearQuery) use ($selectedAcademicYear, $hasDateBounds) {
+                    if ($hasDateBounds) {
+                        $yearQuery
+                            ->whereBetween('created_at', [
+                                "{$selectedAcademicYear->start_date} 00:00:00",
+                                "{$selectedAcademicYear->end_date} 23:59:59",
+                            ])
+                            ->orWhereHas('ledgerEntries', function ($ledgerQuery) use ($selectedAcademicYear) {
+                                $ledgerQuery
+                                    ->where('academic_year_id', $selectedAcademicYear->id)
+                                    ->whereNotNull('credit');
+                            });
+
+                        return;
+                    }
+
+                    $yearQuery->whereHas('ledgerEntries', function ($ledgerQuery) use ($selectedAcademicYear) {
+                        $ledgerQuery
+                            ->where('academic_year_id', $selectedAcademicYear->id)
+                            ->whereNotNull('credit');
+                    });
                 });
             })
             ->when($dateFrom, function ($query, $dateFrom) {

@@ -1,8 +1,10 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\AccountActivationCode;
 use App\Models\SavedAccountLogin;
 use App\Models\User;
+use App\Services\Auth\AccountActivationCodeManager;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -19,6 +21,30 @@ test('login screen can be rendered', function () {
             ->where('canResetPassword', true)
             ->where('status', null)
         );
+});
+
+test('login screen keeps the right panel fixed while saved account items can scroll', function () {
+    $loginPageSource = file_get_contents(resource_path('js/pages/auth/login.tsx'));
+    $loginFormSource = file_get_contents(resource_path('js/components/login-form.tsx'));
+
+    expect($loginPageSource)
+        ->toBeString()
+        ->toContain('items-start justify-center overflow-hidden')
+        ->not->toContain('items-start justify-center overflow-y-auto');
+
+    expect($loginFormSource)
+        ->toBeString()
+        ->toContain('max-h-64 space-y-2 overflow-y-auto pr-1');
+});
+
+test('login screen saved account items include a hover remove action', function () {
+    $loginFormSource = file_get_contents(resource_path('js/components/login-form.tsx'));
+
+    expect($loginFormSource)
+        ->toBeString()
+        ->toContain('handleRemoveStoredAccount(account.email)')
+        ->toContain('aria-label={`Remove ${account.email}`}')
+        ->toContain('group-hover:opacity-100');
 });
 
 test('users can authenticate using the login screen', function () {
@@ -289,4 +315,37 @@ test('users are rate limited', function () {
     ]);
 
     $response->assertTooManyRequests();
+});
+
+test('users can authenticate once with a valid activation code when password change is required', function () {
+    $user = User::factory()->create([
+        'must_change_password' => true,
+    ]);
+
+    $activationCode = app(AccountActivationCodeManager::class)->issueForUser($user);
+    $persistedActivationCode = AccountActivationCode::query()
+        ->where('user_id', $user->id)
+        ->first();
+
+    expect($persistedActivationCode)->not->toBeNull();
+    expect($persistedActivationCode?->used_at)->toBeNull();
+
+    $firstLoginResponse = $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => $activationCode,
+    ]);
+
+    $firstLoginResponse->assertRedirect(route('dashboard', absolute: false));
+    $this->assertAuthenticatedAs($user);
+
+    $this->post(route('logout'))->assertRedirect(route('home'));
+    $this->assertGuest();
+
+    $secondLoginResponse = $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => $activationCode,
+    ]);
+
+    $secondLoginResponse->assertSessionHasErrors('email');
+    $this->assertGuest();
 });

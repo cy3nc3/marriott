@@ -56,6 +56,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'login_welcome_toast' => fn () => $request->session()->get('login_welcome_toast'),
                 'saved_account_login' => fn () => $request->session()->get('saved_account_login'),
+                'assessment_print_url' => fn () => $request->session()->get('assessment_print_url'),
             ],
             'notifications' => $user instanceof User
                 ? $this->announcementNotificationService->buildPayload($user)

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\AcademicYear;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreSectionRequest extends FormRequest
@@ -9,6 +10,29 @@ class StoreSectionRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('academic_year_id')) {
+            return;
+        }
+
+        $activeAcademicYearId = AcademicYear::query()
+            ->where('status', 'ongoing')
+            ->value('id');
+
+        if ($activeAcademicYearId === null) {
+            $activeAcademicYearId = AcademicYear::query()
+                ->where('status', '!=', 'completed')
+                ->value('id');
+        }
+
+        if ($activeAcademicYearId !== null) {
+            $this->merge([
+                'academic_year_id' => $activeAcademicYearId,
+            ]);
+        }
     }
 
     public function rules(): array

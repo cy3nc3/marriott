@@ -95,12 +95,126 @@ test('finance student ledgers page renders selected student profile dues and ent
             ->where('selected_student.name', 'Juan Dela Cruz')
             ->where('selected_student.lrn', '923456789012')
             ->where('selected_student.payment_plan_label', 'Monthly')
+            ->where('selected_student.assessment_fee_total', 5000)
             ->has('dues_schedule', 1)
             ->where('dues_schedule.0.description', 'August Installment')
             ->has('ledger_entries', 2)
+            ->where('summary.assessment_fee_total', 5000)
             ->where('summary.total_charges', 20000)
             ->where('summary.total_payments', 3000)
             ->where('summary.outstanding_balance', 17000)
+        );
+});
+
+test('finance student ledgers falls back to dues totals when ledger entries are missing', function () {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2027-2028',
+        'start_date' => '2027-06-01',
+        'end_date' => '2028-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 10',
+        'level_order' => 10,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '512345678901',
+        'first_name' => 'Luca',
+        'last_name' => 'Navarro',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    BillingSchedule::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'description' => 'August Installment',
+        'due_date' => '2027-08-15',
+        'amount_due' => 1800,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    BillingSchedule::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'description' => 'September Installment',
+        'due_date' => '2027-09-15',
+        'amount_due' => 2200,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    $this->get("/finance/student-ledgers?student_id={$student->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/student-ledgers/index')
+            ->where('selected_student.assessment_fee_total', 4000)
+            ->where('selected_student.outstanding_balance', 4000)
+            ->where('summary.assessment_fee_total', 4000)
+            ->where('summary.outstanding_balance', 4000)
+        );
+});
+
+test('finance student ledgers does not return negative outstanding balance', function () {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2028-2029',
+        'start_date' => '2028-06-01',
+        'end_date' => '2029-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 11',
+        'level_order' => 11,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '412345678901',
+        'first_name' => 'Mila',
+        'last_name' => 'Reyes',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    LedgerEntry::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'date' => '2028-06-10',
+        'description' => 'Advance Payment',
+        'debit' => 0,
+        'credit' => 1500,
+        'running_balance' => -1500,
+        'reference_id' => null,
+    ]);
+
+    $this->get("/finance/student-ledgers?student_id={$student->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/student-ledgers/index')
+            ->where('selected_student.outstanding_balance', 0)
+            ->where('summary.assessment_fee_total', 0)
+            ->where('summary.outstanding_balance', 0)
         );
 });
 

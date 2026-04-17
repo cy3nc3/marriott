@@ -46,6 +46,24 @@ test('users can update password and clear must change password flag', function (
     expect(Hash::check('new-password', (string) $user->password))->toBeTrue();
 });
 
+test('users in forced password change flow can update password without current password', function () {
+    $user = User::factory()->create([
+        'must_change_password' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('user-password.update'), [
+            'password' => 'fresh-password',
+            'password_confirmation' => 'fresh-password',
+        ])
+        ->assertRedirect(route('dashboard'));
+
+    $user->refresh();
+
+    expect($user->must_change_password)->toBeFalse();
+    expect(Hash::check('fresh-password', (string) $user->password))->toBeTrue();
+});
+
 test('users with must change password can still logout', function () {
     $user = User::factory()->create([
         'must_change_password' => true,

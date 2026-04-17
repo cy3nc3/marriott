@@ -37,10 +37,29 @@ class BatchPromotionController extends Controller
 
         $targetYear = null;
         if ($sourceYear) {
-            $targetYear = AcademicYear::query()
-                ->where('start_date', '>', $sourceYear->start_date)
-                ->orderBy('start_date')
-                ->first();
+            $targetYearQuery = AcademicYear::query()
+                ->where('id', '!=', $sourceYear->id);
+
+            if ($sourceYear->start_date) {
+                $targetYearQuery
+                    ->whereNotNull('start_date')
+                    ->where('start_date', '>', $sourceYear->start_date)
+                    ->orderBy('start_date');
+            } else {
+                $targetYearQuery
+                    ->whereNotNull('start_date')
+                    ->orderBy('start_date')
+                    ->orderBy('id');
+            }
+
+            $targetYear = $targetYearQuery->first();
+
+            if (! $targetYear) {
+                $targetYear = AcademicYear::query()
+                    ->where('id', '!=', $sourceYear->id)
+                    ->orderBy('id')
+                    ->first();
+            }
         }
 
         $conditionalQueue = collect();

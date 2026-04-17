@@ -10,16 +10,20 @@ use App\Models\GradeLevel;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\Auth\AccountActivationCodeManager;
 use App\Services\DashboardCacheService;
 use App\Services\Finance\BillingScheduleService;
+use App\Services\Registrar\RegistrationAssessmentBuilder;
 use App\Services\SchoolForms\EnrollmentExportBuilder;
 use App\Services\SchoolForms\EnrollmentTemplateAdapter;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -28,7 +32,12 @@ class EnrollmentController extends Controller
 {
     private const DEFAULT_PARENT_BIRTHDAY = '1980-01-01';
 
-    public function __construct(private BillingScheduleService $billingScheduleService) {}
+    private const ASSESSMENT_CREDENTIAL_CACHE_TTL_MINUTES = 15;
+
+    public function __construct(
+        private BillingScheduleService $billingScheduleService,
+        private AccountActivationCodeManager $accountActivationCodeManager,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -187,6 +196,23 @@ class EnrollmentController extends Controller
             ->deleteFileAfterSend(true);
     }
 
+    public function printAssessment(
+        Request $request,
+        Enrollment $enrollment,
+        RegistrationAssessmentBuilder $builder,
+    ): View {
+        $credentialToken = trim((string) $request->query('credential_token', ''));
+        $credentialSnapshot = $this->pullAssessmentCredentialSnapshot(
+            (int) $enrollment->id,
+            $credentialToken !== '' ? $credentialToken : null
+        );
+
+        return view('registrar.enrollment-assessment', [
+            'assessment' => $builder->build($enrollment, $credentialSnapshot),
+            'autoprint' => $request->boolean('autoprint'),
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -234,8 +260,11 @@ class EnrollmentController extends Controller
             return back()->with('error', 'No grade levels found. Please set up grade levels first.');
         }
 
+        $storedEnrollmentId = null;
+        $assessmentCredentialToken = null;
+
         try {
-            DB::transaction(function () use ($validated, $guardianContactNumber, $activeAcademicYear, $gradeLevelId) {
+            $storeResult = DB::transaction(function () use ($validated, $guardianContactNumber, $activeAcademicYear, $gradeLevelId): array {
                 $selectedSection = $this->resolveSectionForIntake(
                     isset($validated['section_id']) ? (int) $validated['section_id'] : null,
                     (int) $activeAcademicYear->id
@@ -259,7 +288,7 @@ class EnrollmentController extends Controller
 
                 $student->save();
 
-                $this->ensureAccounts($student);
+                $accountCredentials = $this->ensureAccounts($student, true);
 
                 $existingEnrollment = Enrollment::query()
                     ->where('student_id', $student->id)
@@ -289,7 +318,10 @@ class EnrollmentController extends Controller
 
                     $this->billingScheduleService->syncForEnrollment($existingEnrollment);
 
-                    return;
+                    return [
+                        'enrollment_id' => (int) $existingEnrollment->id,
+                        'credentials' => $accountCredentials,
+                    ];
                 }
 
                 $enrollment = Enrollment::query()->create([
@@ -303,7 +335,20 @@ class EnrollmentController extends Controller
                 ]);
 
                 $this->billingScheduleService->syncForEnrollment($enrollment);
+
+                return [
+                    'enrollment_id' => (int) $enrollment->id,
+                    'credentials' => $accountCredentials,
+                ];
             });
+
+            $storedEnrollmentId = (int) ($storeResult['enrollment_id'] ?? 0);
+            $assessmentCredentialToken = $this->storeAssessmentCredentialSnapshot(
+                $storedEnrollmentId,
+                is_array($storeResult['credentials'] ?? null)
+                    ? $storeResult['credentials']
+                    : []
+            );
         } catch (\RuntimeException $exception) {
             return back()->with('error', $exception->getMessage());
         } catch (QueryException $exception) {
@@ -316,7 +361,23 @@ class EnrollmentController extends Controller
 
         DashboardCacheService::bust();
 
-        return back()->with('success', 'Enrollment intake saved.');
+        $assessmentPrintParameters = [
+            'enrollment' => $storedEnrollmentId,
+            'autoprint' => 1,
+        ];
+
+        if ($assessmentCredentialToken) {
+            $assessmentPrintParameters['credential_token'] = $assessmentCredentialToken;
+        }
+
+        return back()
+            ->with('success', 'Enrollment intake saved.')
+            ->with(
+                'assessment_print_url',
+                $storedEnrollmentId > 0
+                    ? route('registrar.enrollment.assessment', $assessmentPrintParameters)
+                    : null
+            );
     }
 
     public function update(Request $request, Enrollment $enrollment): RedirectResponse
@@ -437,11 +498,17 @@ class EnrollmentController extends Controller
         return $lastEnrollmentGradeLevelId ?: $fallbackGradeLevelId;
     }
 
-    private function ensureAccounts(Student $student): void
+    /**
+     * @return array{
+     *     student_activation_code: string|null,
+     *     parent_activation_code: string|null
+     * }
+     */
+    private function ensureAccounts(Student $student, bool $issueActivationCodes = false): array
     {
         $studentEmail = $this->buildStudentEmail($student);
-        $studentDefaultPassword = $this->buildStudentDefaultPassword($student);
         $studentUser = $student->user;
+        $studentWasCreated = false;
 
         if (! $studentUser) {
             $studentUser = User::query()->firstOrCreate(
@@ -453,10 +520,11 @@ class EnrollmentController extends Controller
                     'birthday' => $student->birthdate,
                     'role' => UserRole::STUDENT->value,
                     'is_active' => true,
-                    'password' => Hash::make($studentDefaultPassword),
+                    'password' => Hash::make(Str::random(40)),
                     'must_change_password' => true,
                 ]
             );
+            $studentWasCreated = $studentUser->wasRecentlyCreated;
         }
 
         if ($studentUser->email !== $studentEmail) {
@@ -493,10 +561,11 @@ class EnrollmentController extends Controller
                 'birthday' => self::DEFAULT_PARENT_BIRTHDAY,
                 'role' => UserRole::PARENT->value,
                 'is_active' => true,
-                'password' => Hash::make($this->buildStudentDefaultPassword($student)),
+                'password' => Hash::make(Str::random(40)),
                 'must_change_password' => true,
             ]
         );
+        $parentWasCreated = $parentUser->wasRecentlyCreated;
 
         $parentUser->update([
             'first_name' => 'Parent',
@@ -517,7 +586,15 @@ class EnrollmentController extends Controller
                 'updated_at' => now(),
             ]);
 
-            return;
+            $issuedCodes = $this->issueActivationCodesForAssessment(
+                $studentUser,
+                $parentUser,
+                $issueActivationCodes,
+                $studentWasCreated,
+                $parentWasCreated
+            );
+
+            return $issuedCodes;
         }
 
         DB::table('parent_student')->insert([
@@ -526,6 +603,14 @@ class EnrollmentController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        return $this->issueActivationCodesForAssessment(
+            $studentUser,
+            $parentUser,
+            $issueActivationCodes,
+            $studentWasCreated,
+            $parentWasCreated
+        );
     }
 
     private function buildStudentEmail(Student $student): string
@@ -546,33 +631,94 @@ class EnrollmentController extends Controller
         return $normalizedSurname;
     }
 
-    private function buildStudentDefaultPassword(Student $student): string
-    {
-        $birthdateSegment = $student->birthdate?->format('mdY');
-        if (! $birthdateSegment) {
-            throw new \RuntimeException('Student birthdate is required to generate default password.');
+    /**
+     * @return array{
+     *     student_activation_code: string|null,
+     *     parent_activation_code: string|null
+     * }
+     */
+    private function issueActivationCodesForAssessment(
+        User $studentUser,
+        User $parentUser,
+        bool $issueActivationCodes,
+        bool $studentWasCreated,
+        bool $parentWasCreated,
+    ): array {
+        if (! $issueActivationCodes) {
+            return [
+                'student_activation_code' => null,
+                'parent_activation_code' => null,
+            ];
         }
 
-        return $this->buildDefaultPassword((string) $student->first_name, (string) $student->birthdate);
+        $issueStudentCode = $studentWasCreated || (bool) $studentUser->must_change_password;
+        $issueParentCode = $parentWasCreated || (bool) $parentUser->must_change_password;
+
+        if ($issueStudentCode && ! $studentUser->must_change_password) {
+            $studentUser->forceFill(['must_change_password' => true])->save();
+        }
+
+        if ($issueParentCode && ! $parentUser->must_change_password) {
+            $parentUser->forceFill(['must_change_password' => true])->save();
+        }
+
+        return [
+            'student_activation_code' => $issueStudentCode
+                ? $this->accountActivationCodeManager->issueForUser($studentUser)
+                : null,
+            'parent_activation_code' => $issueParentCode
+                ? $this->accountActivationCodeManager->issueForUser($parentUser)
+                : null,
+        ];
     }
 
-    private function buildDefaultPassword(string $rawFirstName, string $birthday): string
+    /**
+     * @param  array{
+     *     student_activation_code?: string|null,
+     *     parent_activation_code?: string|null
+     * }  $credentials
+     */
+    private function storeAssessmentCredentialSnapshot(int $enrollmentId, array $credentials): ?string
     {
-        $firstToken = Str::of($rawFirstName)
-            ->trim()
-            ->explode(' ')
-            ->map(fn (string $value): string => trim($value))
-            ->filter(fn (string $value): bool => $value !== '')
-            ->first() ?? 'user';
-
-        $normalizedToken = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $firstToken));
-        if ($normalizedToken === '') {
-            $normalizedToken = 'user';
+        if (
+            $enrollmentId <= 0
+            || empty($credentials['student_activation_code'])
+            && empty($credentials['parent_activation_code'])
+        ) {
+            return null;
         }
 
-        $birthdaySegment = date('mdY', strtotime($birthday));
+        $token = (string) Str::uuid();
+        $cacheKey = $this->assessmentCredentialCacheKey($enrollmentId, $token);
 
-        return "{$normalizedToken}@{$birthdaySegment}";
+        Cache::put($cacheKey, [
+            'student_activation_code' => $credentials['student_activation_code'] ?? null,
+            'parent_activation_code' => $credentials['parent_activation_code'] ?? null,
+        ], now()->addMinutes(self::ASSESSMENT_CREDENTIAL_CACHE_TTL_MINUTES));
+
+        return $token;
+    }
+
+    /**
+     * @return array{
+     *     student_activation_code?: string|null,
+     *     parent_activation_code?: string|null
+     * }
+     */
+    private function pullAssessmentCredentialSnapshot(int $enrollmentId, ?string $token): array
+    {
+        if ($enrollmentId <= 0 || ! $token) {
+            return [];
+        }
+
+        $cachedPayload = Cache::pull($this->assessmentCredentialCacheKey($enrollmentId, $token));
+
+        return is_array($cachedPayload) ? $cachedPayload : [];
+    }
+
+    private function assessmentCredentialCacheKey(int $enrollmentId, string $token): string
+    {
+        return "registration-assessment:{$enrollmentId}:{$token}";
     }
 
     private function resolveSectionForIntake(?int $sectionId, int $academicYearId): ?Section

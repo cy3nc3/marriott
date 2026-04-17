@@ -88,6 +88,7 @@ class StudentLedgersController extends Controller
         $duesSchedule = collect();
         $ledgerEntries = collect();
         $summary = [
+            'assessment_fee_total' => 0.0,
             'total_charges' => 0.0,
             'total_payments' => 0.0,
             'outstanding_balance' => 0.0,
@@ -120,10 +121,20 @@ class StudentLedgersController extends Controller
                     ->when($activeAcademicYear, function ($query) use ($activeAcademicYear) {
                         $query->where('academic_year_id', $activeAcademicYear->id);
                     });
+                $billingScheduleQuery = BillingSchedule::query()
+                    ->where('student_id', $selectedStudent->id)
+                    ->when($activeAcademicYear, function ($query) use ($activeAcademicYear) {
+                        $query->where('academic_year_id', $activeAcademicYear->id);
+                    });
 
                 $overallCharges = round((float) (clone $overallLedgerQuery)->sum('debit'), 2);
                 $overallPayments = round((float) (clone $overallLedgerQuery)->sum('credit'), 2);
-                $outstandingBalance = round($overallCharges - $overallPayments, 2);
+                $ledgerOutstandingBalance = round(max($overallCharges - $overallPayments, 0), 2);
+                $assessmentFeeTotal = round((float) (clone $billingScheduleQuery)->sum('amount_due'), 2);
+                $duesOutstandingBalance = round((float) ((clone $billingScheduleQuery)
+                    ->selectRaw('COALESCE(SUM(CASE WHEN amount_due > amount_paid THEN amount_due - amount_paid ELSE 0 END), 0) as outstanding_total')
+                    ->value('outstanding_total')), 2);
+                $outstandingBalance = round(max($ledgerOutstandingBalance, $duesOutstandingBalance), 2);
 
                 $gradeAndSection = 'Unassigned';
                 if ($selectedEnrollment?->gradeLevel?->name && $selectedEnrollment?->section?->name) {
@@ -140,14 +151,11 @@ class StudentLedgersController extends Controller
                     'guardian_name' => $selectedStudent->guardian_name,
                     'payment_plan' => $selectedEnrollment?->payment_term,
                     'payment_plan_label' => $this->formatPaymentPlan($selectedEnrollment?->payment_term),
+                    'assessment_fee_total' => $assessmentFeeTotal,
                     'outstanding_balance' => $outstandingBalance,
                 ];
 
-                $duesSchedule = BillingSchedule::query()
-                    ->where('student_id', $selectedStudent->id)
-                    ->when($activeAcademicYear, function ($query) use ($activeAcademicYear) {
-                        $query->where('academic_year_id', $activeAcademicYear->id);
-                    })
+                $duesSchedule = (clone $billingScheduleQuery)
                     ->when(! $showPaidDues, function ($query) {
                         $query->where('status', '!=', 'paid');
                     })
@@ -209,6 +217,7 @@ class StudentLedgersController extends Controller
                 $ledgerEntries = $ledgerEntriesCollection->values();
 
                 $summary = [
+                    'assessment_fee_total' => $assessmentFeeTotal,
                     'total_charges' => round((float) $ledgerEntries->sum('charge'), 2),
                     'total_payments' => round((float) $ledgerEntries->sum('payment'), 2),
                     'outstanding_balance' => $outstandingBalance,

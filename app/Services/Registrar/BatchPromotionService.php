@@ -248,7 +248,15 @@ class BatchPromotionService
             ->where('status', 'conditional')
             ->whereNull('conditional_resolved_at')
             ->whereHas('academicYear', function ($query) use ($referenceAcademicYear) {
-                $query->where('start_date', '<', $referenceAcademicYear->start_date);
+                if ($referenceAcademicYear->start_date) {
+                    $query
+                        ->whereNotNull('start_date')
+                        ->where('start_date', '<', $referenceAcademicYear->start_date);
+
+                    return;
+                }
+
+                $query->where('id', '<', $referenceAcademicYear->id);
             })
             ->orderBy('academic_year_id')
             ->orderBy('id')

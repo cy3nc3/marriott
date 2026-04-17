@@ -56,6 +56,7 @@ type SelectedStudent = {
     guardian_name: string | null;
     payment_plan: string | null;
     payment_plan_label: string;
+    assessment_fee_total: number;
     outstanding_balance: number;
 };
 
@@ -83,6 +84,7 @@ type LedgerEntryRow = {
 };
 
 type Summary = {
+    assessment_fee_total: number;
     total_charges: number;
     total_payments: number;
     outstanding_balance: number;
@@ -488,6 +490,16 @@ export default function StudentLedgers({
                                         </div>
                                         <div className="space-y-1">
                                             <p className="text-sm text-muted-foreground">
+                                                Assessment Fee Total
+                                            </p>
+                                            <p className="text-sm font-medium">
+                                                {formatCurrency(
+                                                    selected_student.assessment_fee_total,
+                                                )}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">
                                                 Outstanding Balance
                                             </p>
                                             <p className="text-sm font-semibold">
@@ -835,7 +847,15 @@ export default function StudentLedgers({
                             </Table>
                         )}
                     </CardContent>
-                    <div className="grid gap-2 border-t p-4 text-sm sm:grid-cols-3">
+                    <div className="grid gap-2 border-t p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="space-y-1">
+                            <p className="text-muted-foreground">
+                                Assessment Fee Total
+                            </p>
+                            <p className="font-medium">
+                                {formatCurrency(summary.assessment_fee_total)}
+                            </p>
+                        </div>
                         <div className="space-y-1">
                             <p className="text-muted-foreground">
                                 Total Charges

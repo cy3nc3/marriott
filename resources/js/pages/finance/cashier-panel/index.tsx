@@ -29,9 +29,9 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
 import { cashier_panel, student_ledgers } from '@/routes/finance';
 import { store_transaction } from '@/routes/finance/cashier_panel';
+import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -193,6 +193,9 @@ export default function CashierPanel({
     >([]);
     const [isAddItemOpen, setIsAddItemOpen] = useState(false);
     const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
+    const [processStep, setProcessStep] = useState<'details' | 'review'>(
+        'details',
+    );
     const [isReservingOrNumber, setIsReservingOrNumber] = useState(false);
     const [orNumberReservationError, setOrNumberReservationError] = useState<
         string | null
@@ -244,6 +247,10 @@ export default function CashierPanel({
     const totalAmount = useMemo(() => {
         return transactionItems.reduce((sum, item) => sum + item.amount, 0);
     }, [transactionItems]);
+    const tenderedAmount = Number(transactionForm.data.tendered_amount || 0);
+    const changeAmount = Number.isFinite(tenderedAmount)
+        ? Math.max(tenderedAmount - totalAmount, 0)
+        : 0;
     const intakePageSize = 8;
 
     const filteredPendingIntakes = useMemo(() => {
@@ -379,11 +386,7 @@ export default function CashierPanel({
         setTransactionItems([
             buildDownpaymentTransactionItem(statedDownpayment),
         ]);
-    }, [
-        selected_student?.id,
-        selected_student?.enrollment_status,
-        selected_student?.stated_downpayment,
-    ]);
+    }, [selected_student]);
 
     useEffect(() => {
         const normalizedQuery = searchQuery.trim();
@@ -593,10 +596,7 @@ export default function CashierPanel({
             transactionForm.setData('reservation_token', payload.data.token);
             transactionForm.setData('or_number', payload.data.or_number);
         } catch (error) {
-            if (
-                error instanceof DOMException &&
-                error.name === 'AbortError'
-            ) {
+            if (error instanceof DOMException && error.name === 'AbortError') {
                 return;
             }
 
@@ -620,6 +620,7 @@ export default function CashierPanel({
         setOrNumberReservationToken(null);
         setOrNumberReservationError(null);
         transactionForm.setData('reservation_token', '');
+        setProcessStep('details');
         setIsProcessDialogOpen(false);
 
         if (tokenToRelease) {
@@ -645,8 +646,42 @@ export default function CashierPanel({
         });
         setOrNumberReservationToken(null);
         setOrNumberReservationError(null);
+        setProcessStep('details');
         setIsProcessDialogOpen(true);
         void reserveOrNumberReservation();
+    };
+
+    const moveToReviewStep = () => {
+        if (!selected_student || transactionItems.length === 0) {
+            return;
+        }
+
+        const normalizedOrNumber = transactionForm.data.or_number.trim();
+        const normalizedTenderedAmount = Number(
+            transactionForm.data.tendered_amount || 0,
+        );
+
+        transactionForm.clearErrors();
+
+        if (normalizedOrNumber === '') {
+            transactionForm.setError('or_number', 'OR number is required.');
+
+            return;
+        }
+
+        if (
+            !Number.isFinite(normalizedTenderedAmount) ||
+            normalizedTenderedAmount < totalAmount
+        ) {
+            transactionForm.setError(
+                'tendered_amount',
+                'Tendered amount must be at least the transaction total.',
+            );
+
+            return;
+        }
+
+        setProcessStep('review');
     };
 
     const postTransaction = () => {
@@ -680,6 +715,7 @@ export default function CashierPanel({
                 setOrNumberReservationToken(null);
                 transactionForm.setData('reservation_token', '');
                 setOrNumberReservationError(null);
+                setProcessStep('details');
                 setIsProcessDialogOpen(false);
                 setTransactionItems([]);
                 transactionForm.reset();
@@ -1388,220 +1424,414 @@ export default function CashierPanel({
             >
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
-                        <DialogTitle>Process Transaction</DialogTitle>
+                        <DialogTitle>
+                            {processStep === 'details'
+                                ? 'Process Transaction'
+                                : 'Review and Confirm Transaction'}
+                        </DialogTitle>
                     </DialogHeader>
 
-                    <div className="space-y-4">
-                        <div className="rounded-md border p-4">
-                            <p className="text-sm font-medium">
-                                Transaction Summary
-                            </p>
-                            <div className="mt-3 space-y-2">
-                                {transactionItems.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className="flex items-center justify-between text-sm"
-                                    >
-                                        <span className="text-muted-foreground">
-                                            {item.description}
-                                        </span>
-                                        <span>
-                                            {formatCurrency(item.amount)}
-                                        </span>
+                    {processStep === 'details' ? (
+                        <>
+                            <div className="space-y-4">
+                                <div className="rounded-md border p-4">
+                                    <p className="text-sm font-medium">
+                                        Transaction Summary
+                                    </p>
+                                    <div className="mt-3 space-y-2">
+                                        {transactionItems.map((item) => (
+                                            <div
+                                                key={item.id}
+                                                className="flex items-center justify-between text-sm"
+                                            >
+                                                <span className="text-muted-foreground">
+                                                    {item.description}
+                                                </span>
+                                                <span>
+                                                    {formatCurrency(
+                                                        item.amount,
+                                                    )}
+                                                </span>
+                                            </div>
+                                        ))}
+                                        <div className="flex items-center justify-between border-t pt-2 text-sm font-medium">
+                                            <span>Total</span>
+                                            <span>
+                                                {formatCurrency(totalAmount)}
+                                            </span>
+                                        </div>
                                     </div>
-                                ))}
-                                <div className="flex items-center justify-between border-t pt-2 text-sm font-medium">
-                                    <span>Total</span>
-                                    <span>{formatCurrency(totalAmount)}</span>
+                                </div>
+
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="tendered-amount">
+                                            Tendered Amount
+                                        </Label>
+                                        <Input
+                                            id="tendered-amount"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={
+                                                transactionForm.data
+                                                    .tendered_amount
+                                            }
+                                            onChange={(event) =>
+                                                transactionForm.setData(
+                                                    'tendered_amount',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            placeholder="0.00"
+                                        />
+                                        {transactionForm.errors
+                                            .tendered_amount && (
+                                            <p className="text-sm text-destructive">
+                                                {
+                                                    transactionForm.errors
+                                                        .tendered_amount
+                                                }
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="payment-method">
+                                            Payment Method
+                                        </Label>
+                                        <Select
+                                            value={
+                                                transactionForm.data
+                                                    .payment_mode
+                                            }
+                                            onValueChange={(value) =>
+                                                transactionForm.setData(
+                                                    'payment_mode',
+                                                    value,
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger id="payment-method">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="cash">
+                                                    Cash
+                                                </SelectItem>
+                                                <SelectItem value="gcash">
+                                                    GCash
+                                                </SelectItem>
+                                                <SelectItem value="bank_transfer">
+                                                    Bank Transfer
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        {transactionForm.errors
+                                            .payment_mode && (
+                                            <p className="text-sm text-destructive">
+                                                {
+                                                    transactionForm.errors
+                                                        .payment_mode
+                                                }
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <Label htmlFor="or-number">
+                                                OR Number
+                                            </Label>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                disabled={
+                                                    transactionForm.processing ||
+                                                    isReservingOrNumber
+                                                }
+                                                onClick={() => {
+                                                    const tokenToRelease =
+                                                        orNumberReservationToken;
+
+                                                    setOrNumberReservationToken(
+                                                        null,
+                                                    );
+                                                    transactionForm.setData(
+                                                        'reservation_token',
+                                                        '',
+                                                    );
+                                                    setOrNumberReservationError(
+                                                        null,
+                                                    );
+
+                                                    if (tokenToRelease) {
+                                                        void releaseOrNumberReservation(
+                                                            tokenToRelease,
+                                                        );
+                                                    }
+
+                                                    void reserveOrNumberReservation();
+                                                }}
+                                            >
+                                                {isReservingOrNumber
+                                                    ? 'Generating...'
+                                                    : 'Regenerate'}
+                                            </Button>
+                                        </div>
+                                        <Input
+                                            id="or-number"
+                                            value={
+                                                transactionForm.data.or_number
+                                            }
+                                            onChange={(event) =>
+                                                transactionForm.setData(
+                                                    'or_number',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            placeholder="OR-2026-0001"
+                                        />
+                                        {transactionForm.errors.or_number && (
+                                            <p className="text-sm text-destructive">
+                                                {
+                                                    transactionForm.errors
+                                                        .or_number
+                                                }
+                                            </p>
+                                        )}
+                                        {orNumberReservationError && (
+                                            <p className="text-sm text-muted-foreground">
+                                                {orNumberReservationError}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="reference-no">
+                                            Reference Number
+                                        </Label>
+                                        <Input
+                                            id="reference-no"
+                                            value={
+                                                transactionForm.data
+                                                    .reference_no
+                                            }
+                                            onChange={(event) =>
+                                                transactionForm.setData(
+                                                    'reference_no',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            placeholder="Optional"
+                                        />
+                                        {transactionForm.errors
+                                            .reference_no && (
+                                            <p className="text-sm text-destructive">
+                                                {
+                                                    transactionForm.errors
+                                                        .reference_no
+                                                }
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="remarks">Remarks</Label>
+                                    <Input
+                                        id="remarks"
+                                        value={transactionForm.data.remarks}
+                                        onChange={(event) =>
+                                            transactionForm.setData(
+                                                'remarks',
+                                                event.target.value,
+                                            )
+                                        }
+                                        placeholder="Optional note"
+                                    />
+                                    {transactionForm.errors.remarks && (
+                                        <p className="text-sm text-destructive">
+                                            {transactionForm.errors.remarks}
+                                        </p>
+                                    )}
+                                    {transactionForm.errors.items && (
+                                        <p className="text-sm text-destructive">
+                                            {transactionForm.errors.items}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
-                                <Label htmlFor="tendered-amount">
-                                    Tendered Amount
-                                </Label>
-                                <Input
-                                    id="tendered-amount"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={transactionForm.data.tendered_amount}
-                                    onChange={(event) =>
-                                        transactionForm.setData(
-                                            'tendered_amount',
-                                            event.target.value,
-                                        )
-                                    }
-                                    placeholder="0.00"
-                                />
-                                {transactionForm.errors.tendered_amount && (
-                                    <p className="text-sm text-destructive">
-                                        {transactionForm.errors.tendered_amount}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="payment-method">
-                                    Payment Method
-                                </Label>
-                                <Select
-                                    value={transactionForm.data.payment_mode}
-                                    onValueChange={(value) =>
-                                        transactionForm.setData(
-                                            'payment_mode',
-                                            value,
-                                        )
+                            <DialogFooter>
+                                <Button
+                                    variant="outline"
+                                    onClick={closeProcessDialog}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={moveToReviewStep}
+                                    disabled={
+                                        transactionForm.processing ||
+                                        isReservingOrNumber
                                     }
                                 >
-                                    <SelectTrigger id="payment-method">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="cash">
-                                            Cash
-                                        </SelectItem>
-                                        <SelectItem value="gcash">
-                                            GCash
-                                        </SelectItem>
-                                        <SelectItem value="bank_transfer">
-                                            Bank Transfer
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {transactionForm.errors.payment_mode && (
-                                    <p className="text-sm text-destructive">
-                                        {transactionForm.errors.payment_mode}
+                                    Review Summary
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    ) : (
+                        <>
+                            <div className="space-y-4">
+                                <div className="rounded-md border p-4">
+                                    <p className="text-sm font-medium">
+                                        Final Posting Summary
                                     </p>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between gap-2">
-                                    <Label htmlFor="or-number">OR Number</Label>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        disabled={
-                                            transactionForm.processing ||
-                                            isReservingOrNumber
-                                        }
-                                        onClick={() => {
-                                            const tokenToRelease =
-                                                orNumberReservationToken;
-
-                                            setOrNumberReservationToken(null);
-                                            transactionForm.setData(
-                                                'reservation_token',
-                                                '',
-                                            );
-                                            setOrNumberReservationError(null);
-
-                                            if (tokenToRelease) {
-                                                void releaseOrNumberReservation(
-                                                    tokenToRelease,
-                                                );
-                                            }
-
-                                            void reserveOrNumberReservation();
-                                        }}
-                                    >
-                                        {isReservingOrNumber
-                                            ? 'Generating...'
-                                            : 'Regenerate'}
-                                    </Button>
+                                    <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                                        <div>
+                                            <dt className="text-muted-foreground">
+                                                Student
+                                            </dt>
+                                            <dd className="font-medium">
+                                                {selected_student?.name ?? '-'}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="text-muted-foreground">
+                                                LRN
+                                            </dt>
+                                            <dd className="font-medium">
+                                                {selected_student?.lrn ?? '-'}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="text-muted-foreground">
+                                                OR Number
+                                            </dt>
+                                            <dd className="font-medium">
+                                                {transactionForm.data
+                                                    .or_number || '-'}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="text-muted-foreground">
+                                                Payment Method
+                                            </dt>
+                                            <dd className="font-medium">
+                                                {transactionForm.data
+                                                    .payment_mode === 'cash'
+                                                    ? 'Cash'
+                                                    : transactionForm.data
+                                                            .payment_mode ===
+                                                        'gcash'
+                                                      ? 'GCash'
+                                                      : 'Bank Transfer'}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="text-muted-foreground">
+                                                Reference Number
+                                            </dt>
+                                            <dd className="font-medium">
+                                                {transactionForm.data
+                                                    .reference_no || '-'}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="text-muted-foreground">
+                                                Tendered Amount
+                                            </dt>
+                                            <dd className="font-medium">
+                                                {formatCurrency(tenderedAmount)}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="text-muted-foreground">
+                                                Transaction Total
+                                            </dt>
+                                            <dd className="font-medium">
+                                                {formatCurrency(totalAmount)}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="text-muted-foreground">
+                                                Change
+                                            </dt>
+                                            <dd className="font-medium">
+                                                {formatCurrency(changeAmount)}
+                                            </dd>
+                                        </div>
+                                    </dl>
                                 </div>
-                                <Input
-                                    id="or-number"
-                                    value={transactionForm.data.or_number}
-                                    onChange={(event) =>
-                                        transactionForm.setData(
-                                            'or_number',
-                                            event.target.value,
-                                        )
-                                    }
-                                    placeholder="OR-2026-0001"
-                                />
-                                {transactionForm.errors.or_number && (
-                                    <p className="text-sm text-destructive">
-                                        {transactionForm.errors.or_number}
+
+                                <div className="rounded-md border p-4">
+                                    <p className="text-sm font-medium">
+                                        Items to Post
                                     </p>
+                                    <div className="mt-3 space-y-2">
+                                        {transactionItems.map((item) => (
+                                            <div
+                                                key={item.id}
+                                                className="flex items-center justify-between text-sm"
+                                            >
+                                                <span className="text-muted-foreground">
+                                                    {item.description}
+                                                </span>
+                                                <span>
+                                                    {formatCurrency(
+                                                        item.amount,
+                                                    )}
+                                                </span>
+                                            </div>
+                                        ))}
+                                        <div className="flex items-center justify-between border-t pt-2 text-sm font-medium">
+                                            <span>Total</span>
+                                            <span>
+                                                {formatCurrency(totalAmount)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {transactionForm.data.remarks && (
+                                    <div className="rounded-md border p-4">
+                                        <p className="text-sm font-medium">
+                                            Remarks
+                                        </p>
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            {transactionForm.data.remarks}
+                                        </p>
+                                    </div>
                                 )}
-                                {orNumberReservationError && (
-                                    <p className="text-sm text-muted-foreground">
-                                        {orNumberReservationError}
-                                    </p>
-                                )}
+
+                                <p className="text-xs text-muted-foreground">
+                                    Review all details before posting. After
+                                    posting, corrections should go through
+                                    void/refund/reissue workflows.
+                                </p>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="reference-no">
-                                    Reference Number
-                                </Label>
-                                <Input
-                                    id="reference-no"
-                                    value={transactionForm.data.reference_no}
-                                    onChange={(event) =>
-                                        transactionForm.setData(
-                                            'reference_no',
-                                            event.target.value,
-                                        )
+                            <DialogFooter>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setProcessStep('details')}
+                                >
+                                    Back to Edit
+                                </Button>
+                                <Button
+                                    onClick={postTransaction}
+                                    disabled={
+                                        transactionForm.processing ||
+                                        isReservingOrNumber
                                     }
-                                    placeholder="Optional"
-                                />
-                                {transactionForm.errors.reference_no && (
-                                    <p className="text-sm text-destructive">
-                                        {transactionForm.errors.reference_no}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="remarks">Remarks</Label>
-                            <Input
-                                id="remarks"
-                                value={transactionForm.data.remarks}
-                                onChange={(event) =>
-                                    transactionForm.setData(
-                                        'remarks',
-                                        event.target.value,
-                                    )
-                                }
-                                placeholder="Optional note"
-                            />
-                            {transactionForm.errors.remarks && (
-                                <p className="text-sm text-destructive">
-                                    {transactionForm.errors.remarks}
-                                </p>
-                            )}
-                            {transactionForm.errors.items && (
-                                <p className="text-sm text-destructive">
-                                    {transactionForm.errors.items}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={closeProcessDialog}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={postTransaction}
-                            disabled={
-                                transactionForm.processing || isReservingOrNumber
-                            }
-                        >
-                            Confirm and Post
-                        </Button>
-                    </DialogFooter>
+                                >
+                                    Confirm and Post
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
                 </DialogContent>
             </Dialog>
         </AppLayout>

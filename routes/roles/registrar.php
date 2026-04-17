@@ -15,6 +15,7 @@ Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->
 
     Route::get('/enrollment', [EnrollmentController::class, 'index'])->middleware('desktop_only')->name('enrollment');
     Route::get('/enrollment/export', [EnrollmentController::class, 'export'])->middleware('desktop_only')->name('enrollment.export');
+    Route::get('/enrollment/{enrollment}/assessment', [EnrollmentController::class, 'printAssessment'])->middleware('desktop_only')->name('enrollment.assessment');
     Route::post('/enrollment', [EnrollmentController::class, 'store'])->middleware('desktop_only')->name('enrollment.store');
     Route::patch('/enrollment/{enrollment}', [EnrollmentController::class, 'update'])->middleware('desktop_only')->name('enrollment.update');
     Route::delete('/enrollment/{enrollment}', [EnrollmentController::class, 'destroy'])->middleware('desktop_only')->name('enrollment.destroy');

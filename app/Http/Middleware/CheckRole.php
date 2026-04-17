@@ -2,13 +2,12 @@
 
 namespace App\Http\Middleware;
 
-use Closure;
-use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
-
 use App\Enums\UserRole;
 use App\Models\Permission;
+use Closure;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 
 class CheckRole
 {
@@ -74,7 +73,7 @@ class CheckRole
             'admin.grade_verification*' => 'Grade Verification',
             'admin.deped_reports*' => 'DepEd Reports',
             'admin.sf9_generator*' => 'SF9 Generator',
-            
+
             'registrar.student_directory*' => 'Student Directory',
             'registrar.enrollment*' => 'Enrollment',
             'admin.class_lists*' => 'Class Lists',
@@ -83,7 +82,7 @@ class CheckRole
             'registrar.batch_promotion*' => 'Batch Promotion',
             'registrar.remedial_entry*' => 'Remedial Entry',
             'registrar.student_departure*' => 'Student Departure',
-            
+
             'finance.student_ledgers*' => 'Student Ledgers',
             'finance.cashier_panel*' => 'Cashier Panel',
             'finance.fee_structure*' => 'Fee Structure',
@@ -93,7 +92,9 @@ class CheckRole
             'finance.daily_reports*' => 'Daily Reports',
             'finance.due_reminder_settings*' => 'Due Reminder Settings',
             'finance.data_import*' => 'Data Import',
-            
+
+            'announcements*' => 'Announcements',
+
             'super_admin.user_manager*' => 'User Manager',
             'super_admin.system_settings*' => 'System Configuration',
             'super_admin.audit_logs*' => 'Audit Logs',

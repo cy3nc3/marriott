@@ -20,8 +20,8 @@ export default function Login({ status, canResetPassword }: Props) {
                     />
                 </div>
 
-                <div className="flex items-center justify-center p-6 md:p-10">
-                    <div className="w-full max-w-md rounded-[2rem] border border-slate-200/80 bg-white px-8 py-10 shadow-2xl shadow-slate-900/8">
+                <div className="flex items-start justify-center overflow-hidden p-6 md:p-10">
+                    <div className="w-full max-w-md rounded-[2rem] border border-slate-200/80 bg-white px-8 py-10 shadow-2xl shadow-slate-900/8 lg:my-auto">
                         <div className="mb-10 flex items-center justify-center gap-3">
                             <img
                                 src="/images/branding/marriott-school-seal.svg"

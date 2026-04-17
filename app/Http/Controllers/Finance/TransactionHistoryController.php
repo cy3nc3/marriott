@@ -14,6 +14,7 @@ use App\Models\LedgerEntry;
 use App\Models\RemedialCase;
 use App\Models\Transaction;
 use App\Models\TransactionDueAllocation;
+use App\Models\User;
 use App\Services\DashboardCacheService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
@@ -63,6 +64,9 @@ class TransactionHistoryController extends Controller
                 'cashier:id,first_name,last_name,name',
                 'items:id,transaction_id,description',
                 'reissuedTransaction:id,or_number',
+                'voidedBy:id,first_name,last_name,name',
+                'refundedBy:id,first_name,last_name,name',
+                'reissuedBy:id,first_name,last_name,name',
             ])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($searchQuery) use ($search) {
@@ -80,17 +84,30 @@ class TransactionHistoryController extends Controller
                 $query->where('payment_mode', $paymentMode);
             })
             ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
-                $query->where(function ($yearQuery) use ($selectedAcademicYear) {
-                    $yearQuery
-                        ->whereBetween('created_at', [
-                            "{$selectedAcademicYear->start_date} 00:00:00",
-                            "{$selectedAcademicYear->end_date} 23:59:59",
-                        ])
-                        ->orWhereHas('ledgerEntries', function ($ledgerQuery) use ($selectedAcademicYear) {
-                            $ledgerQuery
-                                ->where('academic_year_id', $selectedAcademicYear->id)
-                                ->whereNotNull('credit');
-                        });
+                $hasDateBounds = filled($selectedAcademicYear->start_date)
+                    && filled($selectedAcademicYear->end_date);
+
+                $query->where(function ($yearQuery) use ($selectedAcademicYear, $hasDateBounds) {
+                    if ($hasDateBounds) {
+                        $yearQuery
+                            ->whereBetween('created_at', [
+                                "{$selectedAcademicYear->start_date} 00:00:00",
+                                "{$selectedAcademicYear->end_date} 23:59:59",
+                            ])
+                            ->orWhereHas('ledgerEntries', function ($ledgerQuery) use ($selectedAcademicYear) {
+                                $ledgerQuery
+                                    ->where('academic_year_id', $selectedAcademicYear->id)
+                                    ->whereNotNull('credit');
+                            });
+
+                        return;
+                    }
+
+                    $yearQuery->whereHas('ledgerEntries', function ($ledgerQuery) use ($selectedAcademicYear) {
+                        $ledgerQuery
+                            ->where('academic_year_id', $selectedAcademicYear->id)
+                            ->whereNotNull('credit');
+                    });
                 });
             })
             ->when($dateFrom, function ($query, $dateFrom) {
@@ -119,6 +136,19 @@ class TransactionHistoryController extends Controller
                 $studentName = trim("{$transaction->student?->first_name} {$transaction->student?->last_name}");
                 $cashierName = trim("{$transaction->cashier?->first_name} {$transaction->cashier?->last_name}");
                 $status = $transaction->status ?: 'posted';
+                $correctionReason = null;
+                $correctedByName = null;
+
+                if ($status === 'voided') {
+                    $correctionReason = $transaction->void_reason;
+                    $correctedByName = $this->resolveUserDisplayName($transaction->voidedBy);
+                } elseif ($status === 'refunded') {
+                    $correctionReason = $transaction->refund_reason;
+                    $correctedByName = $this->resolveUserDisplayName($transaction->refundedBy);
+                } elseif ($status === 'reissued') {
+                    $correctionReason = $transaction->reissue_reason;
+                    $correctedByName = $this->resolveUserDisplayName($transaction->reissuedBy);
+                }
 
                 return [
                     'id' => $transaction->id,
@@ -140,6 +170,8 @@ class TransactionHistoryController extends Controller
                     'reissued_at' => $transaction->reissued_at?->toIso8601String(),
                     'reissue_reason' => $transaction->reissue_reason,
                     'reissued_transaction_or_number' => $transaction->reissuedTransaction?->or_number,
+                    'correction_reason' => $correctionReason,
+                    'corrected_by_name' => $correctedByName,
                     'can_void' => $status === 'posted',
                     'can_refund' => $status === 'posted',
                     'can_reissue' => $status === 'posted',
@@ -401,6 +433,21 @@ class TransactionHistoryController extends Controller
         $remaining = $descriptions->count() - 1;
 
         return "{$descriptions->first()} + {$remaining} more";
+    }
+
+    private function resolveUserDisplayName(?User $user): ?string
+    {
+        if (! $user) {
+            return null;
+        }
+
+        $name = trim("{$user->first_name} {$user->last_name}");
+
+        if ($name !== '') {
+            return $name;
+        }
+
+        return $user->name ?: null;
     }
 
     private function rollbackPaymentImpact(Transaction $transaction, ?int $academicYearId): void

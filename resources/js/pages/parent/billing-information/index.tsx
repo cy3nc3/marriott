@@ -54,6 +54,7 @@ interface Props {
         lrn: string;
         payment_plan: PaymentPlan;
         payment_plan_label: string;
+        assessment_fee_total: string;
         outstanding_balance: string;
     };
     dues_by_plan: Record<PaymentPlan, DueItem[]>;
@@ -158,7 +159,7 @@ export default function BillingInformation({
                         </div>
                     </CardHeader>
                     <CardContent className="pt-6">
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                             <div className="space-y-1">
                                 <p className="text-sm text-muted-foreground">
                                     Student
@@ -181,6 +182,14 @@ export default function BillingInformation({
                                 </p>
                                 <p className="text-sm font-medium">
                                     {account_summary.payment_plan_label}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm text-muted-foreground">
+                                    Assessment Fee Total
+                                </p>
+                                <p className="text-sm font-medium">
+                                    {account_summary.assessment_fee_total}
                                 </p>
                             </div>
                             <div className="space-y-1">

@@ -7,6 +7,7 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\FortifyLoginResponse;
 use App\Http\Responses\FortifyTwoFactorLoginResponse;
 use App\Models\User;
+use App\Services\Auth\AccountActivationCodeManager;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -86,7 +87,34 @@ class FortifyServiceProvider extends ServiceProvider
                 ->where('email', $request->email)
                 ->first();
 
-            if (! $user || ! Hash::check((string) $request->password, $user->password)) {
+            if (! $user) {
+                return null;
+            }
+
+            $providedSecret = (string) $request->password;
+            $matchesPassword = Hash::check($providedSecret, $user->password);
+            $matchesActivationCode = false;
+            $activationCodeRequestCacheKey = "activation_code_authenticated_user_{$user->id}";
+
+            if (! $matchesPassword && $user->must_change_password) {
+                $cachedActivationCodeAuth = (bool) $request->attributes->get(
+                    $activationCodeRequestCacheKey,
+                    false
+                );
+
+                if ($cachedActivationCodeAuth) {
+                    $matchesActivationCode = true;
+                } else {
+                    $matchesActivationCode = app(AccountActivationCodeManager::class)
+                        ->consumeIfValid($user, $providedSecret);
+
+                    if ($matchesActivationCode) {
+                        $request->attributes->set($activationCodeRequestCacheKey, true);
+                    }
+                }
+            }
+
+            if (! $matchesPassword && ! $matchesActivationCode) {
                 return null;
             }
 

@@ -185,7 +185,10 @@ export default function Security({
                                         if (errors.password) {
                                             passwordInput.current?.focus();
                                         }
-                                        if (errors.current_password) {
+                                        if (
+                                            !requiresPasswordChange &&
+                                            errors.current_password
+                                        ) {
                                             currentPasswordInput.current?.focus();
                                         }
                                     }}
@@ -193,20 +196,22 @@ export default function Security({
                                 >
                                     {({ errors, processing, recentlySuccessful }) => (
                                         <>
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="current_password">
-                                                    Current password
-                                                </Label>
-                                                <PasswordInput
-                                                    id="current_password"
-                                                    ref={currentPasswordInput}
-                                                    name="current_password"
-                                                    className="block w-full"
-                                                    autoComplete="current-password"
-                                                    placeholder="Current password"
-                                                />
-                                                <InputError message={errors.current_password} />
-                                            </div>
+                                            {!requiresPasswordChange && (
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="current_password">
+                                                        Current password
+                                                    </Label>
+                                                    <PasswordInput
+                                                        id="current_password"
+                                                        ref={currentPasswordInput}
+                                                        name="current_password"
+                                                        className="block w-full"
+                                                        autoComplete="current-password"
+                                                        placeholder="Current password"
+                                                    />
+                                                    <InputError message={errors.current_password} />
+                                                </div>
+                                            )}
 
                                             <div className="grid gap-2">
                                                 <Label htmlFor="password">

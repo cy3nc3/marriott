@@ -504,12 +504,122 @@ test('parent billing information page renders dues and recent payments', functio
             ->component('parent/billing-information/index')
             ->where('account_summary.student_name', 'Juan Dela Cruz')
             ->where('account_summary.payment_plan', 'monthly')
+            ->where('account_summary.assessment_fee_total', 'PHP 5,000.00')
             ->where('account_summary.outstanding_balance', 'PHP 7,000.00')
             ->has('dues_by_plan.monthly', 1)
             ->where('dues_by_plan.monthly.0.status', 'Unpaid')
             ->where('dues_by_plan.monthly.0.outstanding_amount', 'PHP 2,500.00')
             ->has('recent_payments', 1)
             ->where('recent_payments.0.or_number', 'OR-1001')
+        );
+});
+
+test('parent billing information uses dues totals when ledger entries are not yet posted', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 8',
+        'level_order' => 8,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Mabini',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    BillingSchedule::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $schoolYear->id,
+        'description' => 'August Installment',
+        'due_date' => '2026-08-15',
+        'amount_due' => 1800,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    BillingSchedule::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $schoolYear->id,
+        'description' => 'September Installment',
+        'due_date' => '2026-09-15',
+        'amount_due' => 2200,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    $this->get('/parent/billing-information')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('parent/billing-information/index')
+            ->where('account_summary.assessment_fee_total', 'PHP 4,000.00')
+            ->where('account_summary.outstanding_balance', 'PHP 4,000.00')
+            ->has('dues_by_plan.monthly', 2)
+        );
+});
+
+test('parent billing information does not return negative outstanding balances', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2027-2028',
+        'start_date' => '2027-06-01',
+        'end_date' => '2028-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 9',
+        'level_order' => 9,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Bonifacio',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    LedgerEntry::query()->create([
+        'student_id' => $this->student->id,
+        'academic_year_id' => $schoolYear->id,
+        'date' => '2027-06-05',
+        'description' => 'Advance Payment',
+        'debit' => 0,
+        'credit' => 1500,
+        'running_balance' => -1500,
+    ]);
+
+    $this->get('/parent/billing-information')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('parent/billing-information/index')
+            ->where('account_summary.assessment_fee_total', 'PHP 0.00')
+            ->where('account_summary.outstanding_balance', 'PHP 0.00')
         );
 });
 

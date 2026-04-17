@@ -309,6 +309,55 @@ test('finance transaction history school year filter includes transaction mapped
         );
 });
 
+test('finance transaction history handles school year filters without date bounds', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => null,
+        'end_date' => null,
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '844455556666',
+        'first_name' => 'Null',
+        'last_name' => 'Bounds',
+    ]);
+
+    $transaction = Transaction::query()->create([
+        'or_number' => 'OR-SY-NULL-1001',
+        'student_id' => $student->id,
+        'cashier_id' => $this->finance->id,
+        'total_amount' => 1200,
+        'payment_mode' => 'cash',
+    ]);
+
+    $transaction->items()->create([
+        'description' => 'Assessment Fee',
+        'amount' => 1200,
+    ]);
+
+    LedgerEntry::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'date' => '2026-08-12',
+        'description' => 'Payment (OR-SY-NULL-1001)',
+        'debit' => null,
+        'credit' => 1200,
+        'running_balance' => -1200,
+        'reference_id' => $transaction->id,
+    ]);
+
+    $this->get("/finance/transaction-history?academic_year_id={$schoolYear->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/transaction-history/index')
+            ->where('selected_school_year_id', $schoolYear->id)
+            ->where('summary.count', 1)
+            ->where('transactions.data.0.or_number', 'OR-SY-NULL-1001')
+        );
+});
+
 test('finance can void a transaction and rollback dues and ledger entries', function () {
     $academicYear = AcademicYear::query()->create([
         'name' => '2025-2026',
@@ -425,6 +474,10 @@ test('finance can void a transaction and rollback dues and ledger entries', func
     expect((float) $voidLedger->running_balance)->toBe(10000.0);
 
     expect($enrollment->fresh()->status)->toBe('for_cashier_payment');
+    $expectedCorrectedByName = trim("{$this->finance->first_name} {$this->finance->last_name}");
+    if ($expectedCorrectedByName === '') {
+        $expectedCorrectedByName = (string) ($this->finance->name ?? '');
+    }
 
     $this->get('/finance/transaction-history')
         ->assertSuccessful()
@@ -434,6 +487,8 @@ test('finance can void a transaction and rollback dues and ledger entries', func
             ->where('summary.corrected_amount', 7000)
             ->where('summary.net_amount', 0)
             ->where('transactions.data.0.status', 'voided')
+            ->where('transactions.data.0.correction_reason', 'Duplicate posting')
+            ->where('transactions.data.0.corrected_by_name', $expectedCorrectedByName)
             ->where('transactions.data.0.can_void', false)
         );
 });

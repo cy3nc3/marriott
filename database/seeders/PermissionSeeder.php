@@ -50,7 +50,13 @@ class PermissionSeeder extends Seeder
                 'System Configuration' => [UserRole::SUPER_ADMIN],
                 'Audit Logs' => [UserRole::SUPER_ADMIN],
                 'Database Backup' => [UserRole::SUPER_ADMIN],
-                'Announcements' => [UserRole::SUPER_ADMIN],
+                'Announcements' => [
+                    UserRole::SUPER_ADMIN,
+                    UserRole::ADMIN,
+                    UserRole::REGISTRAR,
+                    UserRole::FINANCE,
+                    UserRole::TEACHER,
+                ],
             ],
         ];
 

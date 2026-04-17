@@ -158,4 +158,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(SavedAccountLogin::class);
     }
+
+    public function activationCode(): HasOne
+    {
+        return $this->hasOne(AccountActivationCode::class);
+    }
 }

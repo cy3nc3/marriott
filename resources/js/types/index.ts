@@ -66,6 +66,7 @@ export type SharedData = {
             description: string;
         } | null;
         saved_account_login: SavedAccountLoginFlashPayload | null;
+        assessment_print_url: string | null;
     };
     notifications: NotificationPayload;
     ui: {

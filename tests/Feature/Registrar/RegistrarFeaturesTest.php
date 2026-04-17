@@ -2,6 +2,7 @@
 
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
+use App\Models\AccountActivationCode;
 use App\Models\BillingSchedule;
 use App\Models\Discount;
 use App\Models\Enrollment;
@@ -696,7 +697,8 @@ test('registrar enrollment intake supports create update and delete', function (
         'section_id' => $firstSection->id,
         'payment_term' => 'monthly',
         'downpayment' => 1500,
-    ])->assertRedirect();
+    ])->assertRedirect()
+        ->assertSessionHas('assessment_print_url');
 
     $student = Student::query()->where('lrn', $lrn)->first();
 
@@ -737,12 +739,14 @@ test('registrar enrollment intake supports create update and delete', function (
     $studentUser = User::query()->where('email', "santos.{$lrn}@marriott.edu")->first();
     $parentUser = User::query()->where('email', "parent.{$lrn}@marriott.edu")->first();
     expect($studentUser?->role?->value)->toBe(UserRole::STUDENT->value);
-    expect(Hash::check('maria@05122011', (string) $studentUser?->password))->toBeTrue();
+    expect(Hash::check('maria@05122011', (string) $studentUser?->password))->toBeFalse();
     expect($studentUser?->must_change_password)->toBeTrue();
     expect($parentUser?->role?->value)->toBe(UserRole::PARENT->value);
     expect($parentUser?->birthday?->toDateString())->toBe('1980-01-01');
-    expect(Hash::check('maria@05122011', (string) $parentUser?->password))->toBeTrue();
+    expect(Hash::check('maria@05122011', (string) $parentUser?->password))->toBeFalse();
     expect($parentUser?->must_change_password)->toBeTrue();
+    expect(AccountActivationCode::query()->where('user_id', $studentUser?->id)->exists())->toBeTrue();
+    expect(AccountActivationCode::query()->where('user_id', $parentUser?->id)->exists())->toBeTrue();
 
     $this->patch("/registrar/enrollment/{$enrollment->id}", [
         'first_name' => 'Maria',
@@ -854,7 +858,64 @@ test('registrar enrollment intake validates lrn as exactly 12 digits', function 
     expect(Student::query()->where('first_name', 'Invalid')->exists())->toBeFalse();
 });
 
-test('registrar enrollment account password uses first name first token and birthdate', function () {
+test('registrar can open a printable registration assessment form for an intake', function () {
+    $adviser = User::factory()->teacher()->create([
+        'first_name' => 'Mina',
+        'last_name' => 'Lopez',
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Diamond',
+        'adviser_id' => $adviser->id,
+    ]);
+
+    Fee::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'type' => 'tuition',
+        'name' => 'Tuition',
+        'amount' => 8000,
+    ]);
+
+    Fee::query()->create([
+        'grade_level_id' => $this->gradeLevel->id,
+        'type' => 'miscellaneous',
+        'name' => 'Miscellaneous',
+        'amount' => 2000,
+    ]);
+
+    $this->post('/registrar/enrollment', [
+        'lrn' => '909090909090',
+        'first_name' => 'Print',
+        'last_name' => 'Ready',
+        'birthdate' => '2012-01-01',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09175551234',
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1500,
+    ])->assertRedirect();
+
+    $enrollment = Enrollment::query()
+        ->where('academic_year_id', $this->academicYear->id)
+        ->latest('id')
+        ->first();
+
+    expect($enrollment)->not->toBeNull();
+
+    $this->get("/registrar/enrollment/{$enrollment?->id}/assessment")
+        ->assertSuccessful()
+        ->assertSee('Registration Assessment Form')
+        ->assertSee('909090909090')
+        ->assertSee('Print Ready')
+        ->assertSee('Grade 7')
+        ->assertSee('Diamond')
+        ->assertSee('Mina Lopez');
+});
+
+test('registrar enrollment issues activation code and does not use predictable default password', function () {
     $lrn = '111122223334';
 
     $this->post('/registrar/enrollment', [
@@ -871,8 +932,9 @@ test('registrar enrollment account password uses first name first token and birt
     $studentUser = User::query()->where('email', "cruz.{$lrn}@marriott.edu")->first();
 
     expect($studentUser)->not->toBeNull();
-    expect(Hash::check('john@06052012', (string) $studentUser?->password))->toBeTrue();
+    expect(Hash::check('john@06052012', (string) $studentUser?->password))->toBeFalse();
     expect($studentUser?->must_change_password)->toBeTrue();
+    expect(AccountActivationCode::query()->where('user_id', $studentUser?->id)->exists())->toBeTrue();
 });
 
 test('registrar enrollment intake requires birthdate', function () {
@@ -1507,6 +1569,29 @@ test('registrar batch promotion and student departure pages render server props'
             ->component('registrar/student-departure/index')
             ->has('student_lookup')
             ->has('recent_departures')
+        );
+});
+
+test('registrar batch promotion page renders even when source year start date is missing', function () {
+    $this->academicYear->update([
+        'start_date' => null,
+        'end_date' => null,
+    ]);
+
+    $nextAcademicYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $this->get('/registrar/batch-promotion')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('registrar/batch-promotion/index')
+            ->where('source_year.id', $this->academicYear->id)
+            ->where('target_year.id', $nextAcademicYear->id)
         );
 });
 

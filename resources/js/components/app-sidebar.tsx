@@ -276,6 +276,20 @@ const handheldAllowedHrefMap: Record<string, string[]> = {
     ],
 };
 
+const permissionFeatureByHref: Record<string, string> = {
+    '/announcements': 'Announcements',
+    '/super-admin/user-manager': 'User Manager',
+    '/super-admin/audit-logs': 'Audit Logs',
+    '/super-admin/system-settings': 'System Configuration',
+    '/admin/class-lists': 'Class Lists',
+    '/admin/grade-verification': 'Grade Verification',
+    '/admin/deped-reports': 'DepEd Reports',
+    '/admin/sf9-generator': 'SF9 Generator',
+    '/teacher/schedule': 'My Schedule',
+    '/student/schedule': 'My Schedule',
+    '/parent/schedule': 'My Schedule',
+};
+
 const filterNavItemsForHandheld = (
     role: string,
     items: NavItem[],
@@ -339,17 +353,31 @@ export function AppSidebar() {
 
     // Permissions Filtering Logic
     const permissions = (page.props.permissions as Record<string, number>) || {};
+
+    const resolvePermissionFeature = (item: NavItem): string | null => {
+        const itemHref = String(item.href);
+
+        if (permissionFeatureByHref[itemHref]) {
+            return permissionFeatureByHref[itemHref];
+        }
+
+        if (permissions[item.title] !== undefined) {
+            return item.title;
+        }
+
+        return null;
+    };
     
     const filterByPermissions = (items: NavItem[]): NavItem[] => {
-        // Super Admin bypasses if needed, but the seeder gives them everything
-        // However, we check the actual levels returned from the server.
+        // Only enforce visibility when a sidebar item is mapped to a permission feature.
         
         return items.reduce((acc: NavItem[], item) => {
             const hasChildren = item.items && item.items.length > 0;
-            const level = permissions[item.title];
+            const feature = resolvePermissionFeature(item);
+            const level = feature ? permissions[feature] : undefined;
 
             // If it's a leaf node (no children) and level is 0, hide it
-            if (!hasChildren && level === 0) {
+            if (!hasChildren && feature && level === 0) {
                 return acc;
             }
 
