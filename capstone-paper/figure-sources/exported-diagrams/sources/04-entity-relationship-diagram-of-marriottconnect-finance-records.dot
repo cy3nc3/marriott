@@ -1,0 +1,45 @@
+digraph G {
+  graph [rankdir=TB, splines=ortho, nodesep=0.25, ranksep=0.45, compound=true, bgcolor="white", pad=0.25];
+  node [shape=box, style="filled", fillcolor="#f8fafc", color="#334155", fontname="Arial", fontsize=9, margin="0.08,0.05"];
+  edge [color="#334155", arrowsize=0.55, penwidth=1.0];
+
+  students [label="students", fillcolor="#dcfce7"];
+  grade_levels [label="grade_levels", fillcolor="#dbeafe"];
+  users [label="users", fillcolor="#dbeafe"];
+
+  subgraph cluster_finance {
+    label="Finance Records";
+    color="#facc15";
+    style="rounded";
+    fees [label="fees", fillcolor="#fef3c7"];
+    discounts [label="discounts"];
+    student_discounts [label="student_discounts"];
+    billing_schedules [label="billing_schedules"];
+    transactions [label="transactions"];
+    transaction_items [label="transaction_items"];
+    ledger_entries [label="ledger_entries"];
+    inventory_items [label="inventory_items"];
+    transaction_due_allocations [label="transaction_due_allocations"];
+    or_number_sequences [label="or_number_sequences"];
+    or_number_reservations [label="or_number_reservations"];
+    finance_due_reminder_rules [label="finance_due_reminder_rules"];
+    finance_due_reminder_dispatches [label="finance_due_reminder_dispatches"];
+  }
+
+  grade_levels -> fees;
+  students -> student_discounts;
+  discounts -> student_discounts;
+  students -> billing_schedules;
+  students -> transactions;
+  users -> transactions;
+  transactions -> transaction_items;
+  fees -> transaction_items;
+  inventory_items -> transaction_items;
+  students -> ledger_entries;
+  transactions -> transaction_due_allocations;
+  billing_schedules -> transaction_due_allocations;
+  transactions -> or_number_reservations;
+  users -> or_number_reservations;
+  finance_due_reminder_rules -> finance_due_reminder_dispatches;
+  billing_schedules -> finance_due_reminder_dispatches;
+}

@@ -1,0 +1,16 @@
+digraph G {
+  graph [rankdir=TB, splines=ortho, nodesep=0.3, ranksep=0.5, bgcolor="white", pad=0.25];
+  node [shape=box, style="filled", fillcolor="#f8fafc", color="#334155", fontname="Arial", fontsize=10, margin="0.10,0.07"];
+  edge [color="#334155", arrowsize=0.65];
+
+  root [label="Parent Account", fillcolor="#dbeafe"];
+  portal [label="Parent Portal", fillcolor="#dcfce7"];
+  access [label="Access Control", fillcolor="#dcfce7"];
+  dashboard [label="Dashboard"];
+  schedule [label="Schedule"];
+  grades [label="Grades"];
+  billing [label="Billing Information"];
+  disabled [label="Portal Disabled Page"];
+
+  root -> portal -> dashboard -> schedule -> grades -> billing -> access -> disabled;
+}

@@ -1,0 +1,19 @@
+digraph G {
+  graph [rankdir=TB, splines=ortho, nodesep=0.25, ranksep=0.35, bgcolor="white", pad=0.25];
+  node [shape=box, style="filled", fillcolor="#f8fafc", color="#334155", fontname="Arial", fontsize=10, margin="0.10,0.07"];
+  edge [color="#334155", arrowsize=0.7, fontname="Arial", fontsize=9];
+
+  access [label="1. User Access Control", fillcolor="#dbeafe"];
+  academic [label="2. Academic Setup", fillcolor="#dbeafe"];
+  records [label="3. Student and Class Records", fillcolor="#dcfce7"];
+  grading [label="4. Grade and Permanent Records", fillcolor="#dcfce7"];
+  finance [label="5. Finance and Communication", fillcolor="#fef3c7"];
+  output [label="6. Portal and Governance Output", fillcolor="#ede9fe"];
+
+  access -> academic [label="authorized setup"];
+  academic -> records [label="school year, subjects, sections, schedules"];
+  records -> grading [label="enrollment, attendance, class lists"];
+  grading -> finance [label="verified academic status"];
+  finance -> output [label="billing, notices, reminders"];
+  grading -> output [label="grades and permanent records"];
+}

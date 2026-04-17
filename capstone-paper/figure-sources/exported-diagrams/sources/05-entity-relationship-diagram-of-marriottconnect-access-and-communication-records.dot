@@ -1,0 +1,43 @@
+digraph G {
+  graph [rankdir=TB, splines=ortho, nodesep=0.25, ranksep=0.45, compound=true, bgcolor="white", pad=0.25];
+  node [shape=box, style="filled", fillcolor="#f8fafc", color="#334155", fontname="Arial", fontsize=9, margin="0.08,0.05"];
+  edge [color="#334155", arrowsize=0.55, penwidth=1.0];
+
+  subgraph cluster_access {
+    label="User Access and Governance";
+    color="#93c5fd";
+    style="rounded";
+    users [label="users", fillcolor="#dbeafe"];
+    permissions [label="permissions"];
+    parent_student [label="parent_student"];
+    saved_account_logins [label="saved_account_logins"];
+    audit_logs [label="audit_logs"];
+    settings [label="settings"];
+  }
+
+  subgraph cluster_communication {
+    label="Announcements and Notifications";
+    color="#c4b5fd";
+    style="rounded";
+    announcements [label="announcements", fillcolor="#ede9fe"];
+    announcement_attachments [label="announcement_attachments"];
+    announcement_reads [label="announcement_reads"];
+    announcement_recipients [label="announcement_recipients"];
+    announcement_event_responses [label="announcement_event_responses"];
+    announcement_reminder_dispatches [label="announcement_reminder_dispatches"];
+  }
+
+  finance_due_reminder_dispatches [label="finance_due_reminder_dispatches", fillcolor="#fef3c7"];
+
+  users -> permissions;
+  users -> parent_student;
+  users -> saved_account_logins;
+  users -> audit_logs;
+  users -> announcements;
+  announcements -> announcement_attachments;
+  announcements -> announcement_reads;
+  announcements -> announcement_recipients;
+  announcements -> announcement_event_responses;
+  announcements -> announcement_reminder_dispatches;
+  announcements -> finance_due_reminder_dispatches;
+}

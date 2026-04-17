@@ -1,0 +1,21 @@
+digraph G {
+  graph [rankdir=TB, splines=ortho, nodesep=0.3, ranksep=0.5, bgcolor="white", pad=0.25];
+  node [shape=box, style="filled", fillcolor="#f8fafc", color="#334155", fontname="Arial", fontsize=10, margin="0.10,0.07"];
+  edge [color="#334155", arrowsize=0.65];
+
+  root [label="Finance Account", fillcolor="#dbeafe"];
+  collection [label="Collection Management", fillcolor="#dcfce7"];
+  setup [label="Billing Setup", fillcolor="#dcfce7"];
+  reminder [label="Reminder Management", fillcolor="#dcfce7"];
+  cashier [label="Cashier Panel"];
+  ledgers [label="Student Ledgers"];
+  transactions [label="Transaction History"];
+  reports [label="Daily Reports"];
+  fees [label="Fee Structure"];
+  discounts [label="Discount Manager"];
+  inventory [label="Product Inventory"];
+  import [label="Data Import"];
+  due_settings [label="Due Reminder Settings"];
+
+  root -> collection -> cashier -> ledgers -> transactions -> reports -> setup -> fees -> discounts -> inventory -> import -> reminder -> due_settings;
+}
