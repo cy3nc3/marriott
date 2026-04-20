@@ -14,9 +14,8 @@ use App\Services\Auth\AccountActivationCodeManager;
 use App\Services\DashboardCacheService;
 use App\Services\Finance\BillingScheduleService;
 use App\Services\Registrar\RegistrationAssessmentBuilder;
-use App\Services\SchoolForms\EnrollmentExportBuilder;
-use App\Services\SchoolForms\EnrollmentTemplateAdapter;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -162,10 +161,63 @@ class EnrollmentController extends Controller
         ]);
     }
 
+    public function lookup(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'lrn' => ['required', 'string', 'digits:12'],
+        ], [
+            'lrn.digits' => 'LRN must be exactly 12 digits.',
+        ]);
+
+        $activeAcademicYear = AcademicYear::query()
+            ->where('status', 'ongoing')
+            ->first();
+
+        if (! $activeAcademicYear) {
+            return response()->json([
+                'matched' => false,
+                'academic_year_id' => null,
+                'student' => null,
+                'error' => 'No ongoing school year found.',
+            ], 422);
+        }
+
+        $student = Student::query()
+            ->where('lrn', $validated['lrn'])
+            ->first();
+
+        if (! $student) {
+            return response()->json([
+                'matched' => false,
+                'academic_year_id' => (int) $activeAcademicYear->id,
+                'student' => null,
+            ]);
+        }
+
+        $fallbackGradeLevelId = (int) (GradeLevel::query()->orderBy('level_order')->value('id') ?? 0);
+        $recommendedGradeLevelId = $fallbackGradeLevelId > 0
+            ? $this->resolvePromotedGradeLevelId($student, $fallbackGradeLevelId)
+            : null;
+
+        return response()->json([
+            'matched' => true,
+            'academic_year_id' => (int) $activeAcademicYear->id,
+            'student' => [
+                'lrn' => $student->lrn,
+                'first_name' => $student->first_name,
+                'middle_name' => $student->middle_name,
+                'last_name' => $student->last_name,
+                'gender' => $student->gender,
+                'birthdate' => $student->birthdate?->toDateString(),
+                'guardian_name' => $student->guardian_name,
+                'guardian_contact_number' => $student->contact_number,
+                'recommended_grade_level_id' => $recommendedGradeLevelId,
+            ],
+        ]);
+    }
+
     public function export(
         Request $request,
-        EnrollmentExportBuilder $builder,
-        EnrollmentTemplateAdapter $adapter,
     ): BinaryFileResponse|RedirectResponse {
         $selectedAcademicYearId = $request->integer('academic_year_id');
 
@@ -174,25 +226,71 @@ class EnrollmentController extends Controller
             : AcademicYear::query()->where('status', 'ongoing')->first();
 
         if (! $academicYear) {
-            return back()->with('error', 'No academic year found for enrollment export.');
+            return back()->with('error', 'No academic year found for SF1 reference export.');
         }
 
-        $outputPath = storage_path('app/temp/'.uniqid('enrollment-', true).'.xlsx');
+        $outputPath = storage_path('app/temp/'.uniqid('sf1-reference-', true).'.csv');
         if (! is_dir(dirname($outputPath))) {
             mkdir(dirname($outputPath), 0777, true);
         }
 
-        $adapter->exportRows(
-            base_path('templates/_SY 26-27 Enrolment.xlsx'),
-            $outputPath,
-            $builder->buildMetadata($academicYear),
-            $builder->buildRows($academicYear),
-        );
+        $rows = Enrollment::query()
+            ->with([
+                'student:id,lrn,first_name,middle_name,last_name,gender,birthdate,address,guardian_name,contact_number',
+                'gradeLevel:id,name',
+                'section:id,name',
+            ])
+            ->where('academic_year_id', $academicYear->id)
+            ->whereIn('status', ['for_cashier_payment', 'enrolled'])
+            ->get()
+            ->sortBy(function (Enrollment $enrollment): string {
+                return strtolower(trim("{$enrollment->student?->last_name} {$enrollment->student?->first_name}"));
+            })
+            ->values();
+
+        $handle = fopen($outputPath, 'w');
+        if ($handle === false) {
+            return back()->with('error', 'Unable to generate SF1 reference export.');
+        }
+
+        fputcsv($handle, [
+            'LRN',
+            'First Name',
+            'Middle Name',
+            'Last Name',
+            'Gender',
+            'Birthdate',
+            'Address',
+            'Guardian Name',
+            'Guardian Contact Number',
+            'Grade Level',
+            'Section',
+            'Enrollment Status',
+        ]);
+
+        foreach ($rows as $enrollment) {
+            fputcsv($handle, [
+                (string) ($enrollment->student?->lrn ?? ''),
+                (string) ($enrollment->student?->first_name ?? ''),
+                (string) ($enrollment->student?->middle_name ?? ''),
+                (string) ($enrollment->student?->last_name ?? ''),
+                (string) ($enrollment->student?->gender ?? ''),
+                (string) ($enrollment->student?->birthdate?->toDateString() ?? ''),
+                (string) ($enrollment->student?->address ?? ''),
+                (string) ($enrollment->student?->guardian_name ?? ''),
+                (string) ($enrollment->student?->contact_number ?? ''),
+                (string) ($enrollment->gradeLevel?->name ?? ''),
+                (string) ($enrollment->section?->name ?? ''),
+                (string) $enrollment->status,
+            ]);
+        }
+
+        fclose($handle);
 
         $sanitizedYear = strtolower((string) preg_replace('/[^A-Za-z0-9]+/', '-', $academicYear->name));
 
         return response()
-            ->download($outputPath, "enrollment-{$sanitizedYear}.xlsx")
+            ->download($outputPath, "sf1-reference-{$sanitizedYear}.csv")
             ->deleteFileAfterSend(true);
     }
 
@@ -211,6 +309,32 @@ class EnrollmentController extends Controller
             'assessment' => $builder->build($enrollment, $credentialSnapshot),
             'autoprint' => $request->boolean('autoprint'),
         ]);
+    }
+
+    public function regenerateAssessmentCredentials(Enrollment $enrollment): RedirectResponse
+    {
+        $student = $enrollment->student;
+        if (! $student instanceof Student) {
+            return back()->with('error', 'Unable to regenerate activation codes for this enrollment.');
+        }
+
+        $assessmentCredentialToken = $this->storeAssessmentCredentialSnapshot(
+            (int) $enrollment->id,
+            $this->ensureAccounts($student, true)
+        );
+
+        $assessmentPrintParameters = [
+            'enrollment' => (int) $enrollment->id,
+            'autoprint' => 1,
+        ];
+
+        if ($assessmentCredentialToken) {
+            $assessmentPrintParameters['credential_token'] = $assessmentCredentialToken;
+        }
+
+        return back()
+            ->with('success', 'Activation codes regenerated.')
+            ->with('assessment_print_url', route('registrar.enrollment.assessment', $assessmentPrintParameters));
     }
 
     public function store(Request $request): RedirectResponse
@@ -304,7 +428,7 @@ class EnrollmentController extends Controller
                 $resolvedGradeLevelId = $this->resolveEnrollmentGradeLevelId(
                     $selectedSection,
                     $selectedGradeLevelId,
-                    $this->resolveGradeLevelId($student, $gradeLevelId)
+                    $this->resolvePromotedGradeLevelId($student, $gradeLevelId)
                 );
 
                 if ($existingEnrollment) {
@@ -487,7 +611,7 @@ class EnrollmentController extends Controller
         return round((float) ($downpayment ?? 0), 2);
     }
 
-    private function resolveGradeLevelId(Student $student, int $fallbackGradeLevelId): int
+    private function resolvePromotedGradeLevelId(Student $student, int $fallbackGradeLevelId): int
     {
         $lastEnrollmentGradeLevelId = Enrollment::query()
             ->where('student_id', $student->id)
@@ -495,7 +619,24 @@ class EnrollmentController extends Controller
             ->latest('id')
             ->value('grade_level_id');
 
-        return $lastEnrollmentGradeLevelId ?: $fallbackGradeLevelId;
+        if (! $lastEnrollmentGradeLevelId) {
+            return $fallbackGradeLevelId;
+        }
+
+        $currentGradeLevelOrder = GradeLevel::query()
+            ->whereKey($lastEnrollmentGradeLevelId)
+            ->value('level_order');
+
+        if (! $currentGradeLevelOrder) {
+            return (int) $lastEnrollmentGradeLevelId;
+        }
+
+        $nextGradeLevelId = GradeLevel::query()
+            ->where('level_order', '>', $currentGradeLevelOrder)
+            ->orderBy('level_order')
+            ->value('id');
+
+        return (int) ($nextGradeLevelId ?: $lastEnrollmentGradeLevelId);
     }
 
     /**

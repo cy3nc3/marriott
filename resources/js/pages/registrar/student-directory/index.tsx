@@ -1,10 +1,16 @@
-import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { CheckCircle2, Clock3, TriangleAlert, UploadCloud } from 'lucide-react';
-import type { ChangeEvent } from 'react';
-import { useEffect, useState } from 'react';
+import { Head, router, usePage } from '@inertiajs/react';
+import {
+    CheckCircle2,
+    Clock3,
+    Printer,
+    RefreshCw,
+    TriangleAlert,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
     SelectContent,
@@ -12,7 +18,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Table,
     TableBody,
@@ -28,7 +33,10 @@ import {
 } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import registrar from '@/routes/registrar';
-import { sf1_upload } from '@/routes/registrar/student_directory';
+import {
+    assessment,
+    regenerate_activation_codes,
+} from '@/routes/registrar/enrollment';
 import type { BreadcrumbItem, SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -40,6 +48,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 interface StudentRow {
     id: number;
+    enrollment_id: number | null;
     lrn: string;
     student_name: string;
     grade_section: string;
@@ -86,21 +95,11 @@ export default function StudentDirectory({
     selected_school_year_id,
     filters,
     summary,
-    last_upload,
 }: Props) {
-    const { ui } = usePage<SharedData>().props;
+    const { ui, flash } = usePage<SharedData>().props;
     const isHandheld = Boolean(ui?.is_handheld);
+    const openedAssessmentUrlRef = useRef<string | null>(null);
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
-    const uploadForm = useForm<{
-        sf1_file: File | null;
-        academic_year_id: string;
-    }>({
-        sf1_file: null,
-        academic_year_id: selected_school_year_id
-            ? String(selected_school_year_id)
-            : '',
-    });
-    const canUploadSf1 = uploadForm.data.academic_year_id !== '' && !isHandheld;
 
     const searchSuggestions = students.data.map((student) => ({
         id: student.id,
@@ -111,11 +110,23 @@ export default function StudentDirectory({
     }));
 
     useEffect(() => {
-        uploadForm.setData(
-            'academic_year_id',
-            selected_school_year_id ? String(selected_school_year_id) : '',
-        );
-    }, [selected_school_year_id]);
+        const assessmentPrintUrl =
+            typeof flash.assessment_print_url === 'string' &&
+            flash.assessment_print_url.length > 0
+                ? flash.assessment_print_url
+                : null;
+
+        if (!assessmentPrintUrl) {
+            return;
+        }
+
+        if (openedAssessmentUrlRef.current === assessmentPrintUrl) {
+            return;
+        }
+
+        openedAssessmentUrlRef.current = assessmentPrintUrl;
+        window.open(assessmentPrintUrl, '_blank', 'noopener,noreferrer');
+    }, [flash.assessment_print_url]);
 
     const applyFilters = (academicYearId?: string, search?: string) => {
         router.get(
@@ -135,36 +146,31 @@ export default function StudentDirectory({
         );
     };
 
-    const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
+    const openAssessmentForm = (enrollmentId: number | null) => {
+        if (!enrollmentId) {
+            return;
+        }
 
-        uploadForm.transform((data) => ({
-            ...data,
-            sf1_file: file,
-        }));
-        uploadForm.post(sf1_upload().url, {
-            forceFormData: true,
-            preserveScroll: true,
-            onFinish: () => {
-                uploadForm.transform((data) => data);
-                uploadForm.reset('sf1_file');
-                event.target.value = '';
-            },
-        });
+        window.open(
+            assessment(enrollmentId).url,
+            '_blank',
+            'noopener,noreferrer',
+        );
     };
 
-    const lastUploadLabel = () => {
-        if (!last_upload.at) {
-            return 'No SF1 upload yet.';
+    const regenerateActivationCodes = (enrollmentId: number | null) => {
+        if (!enrollmentId) {
+            return;
         }
 
-        const formattedDate = new Date(last_upload.at).toLocaleString();
-        if (last_upload.file_name) {
-            return `Last SF1 upload: ${formattedDate} (${last_upload.file_name})`;
-        }
-
-        return `Last SF1 upload: ${formattedDate}`;
+        router.post(
+            regenerate_activation_codes(enrollmentId).url,
+            {},
+            {
+                preserveScroll: true,
+                preserveState: true,
+            },
+        );
     };
 
     const statusBadge = (student: StudentRow) => {
@@ -274,48 +280,9 @@ export default function StudentDirectory({
                         </div>
 
                         <div className="flex flex-col items-end gap-2 text-right">
-                            <div className="flex items-center gap-2">
-                                <input
-                                    id="sf1-upload-file"
-                                    type="file"
-                                    accept=".csv,.txt"
-                                    className="hidden"
-                                    onChange={handleFileChange}
-                                    disabled={!canUploadSf1}
-                                />
-                                <Button asChild>
-                                    <label
-                                        htmlFor="sf1-upload-file"
-                                        className={
-                                            canUploadSf1
-                                                ? 'cursor-pointer'
-                                                : 'pointer-events-none cursor-not-allowed opacity-50'
-                                        }
-                                    >
-                                        <UploadCloud className="size-4" />
-                                        {uploadForm.processing
-                                            ? 'Uploading...'
-                                            : 'Upload SF1'}
-                                    </label>
-                                </Button>
-                            </div>
-                            {isHandheld ? (
-                                <p className="text-xs text-muted-foreground">
-                                    SF1 upload is available on desktop only.
-                                </p>
-                            ) : null}
-                            {uploadForm.errors.academic_year_id ? (
-                                <p className="text-xs text-destructive">
-                                    {uploadForm.errors.academic_year_id}
-                                </p>
-                            ) : null}
-                            {uploadForm.errors.sf1_file ? (
-                                <p className="text-xs text-destructive">
-                                    {uploadForm.errors.sf1_file}
-                                </p>
-                            ) : null}
-                            <p className="text-xs text-muted-foreground">
-                                {lastUploadLabel()}
+                            <p className="max-w-xs text-xs text-muted-foreground">
+                                Inbound SF1 sync is disabled. Export SF1
+                                reference from Enrollment for LIS posting.
                             </p>
                         </div>
                     </CardHeader>
@@ -343,6 +310,40 @@ export default function StudentDirectory({
                                                 {student.grade_section}
                                             </p>
                                             <div>{statusBadge(student)}</div>
+                                            <div className="flex items-center gap-2 pt-1">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled={
+                                                        !student.enrollment_id
+                                                    }
+                                                    onClick={() =>
+                                                        openAssessmentForm(
+                                                            student.enrollment_id,
+                                                        )
+                                                    }
+                                                >
+                                                    <Printer className="size-4" />
+                                                    Print
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    disabled={
+                                                        !student.enrollment_id
+                                                    }
+                                                    onClick={() =>
+                                                        regenerateActivationCodes(
+                                                            student.enrollment_id,
+                                                        )
+                                                    }
+                                                >
+                                                    <RefreshCw className="size-4" />
+                                                    Regenerate
+                                                </Button>
+                                            </div>
                                         </div>
                                     ))
                                 )}
@@ -363,13 +364,16 @@ export default function StudentDirectory({
                                         <TableHead className="border-l pr-6">
                                             LIS Status
                                         </TableHead>
+                                        <TableHead className="border-l pr-6 text-right">
+                                            Actions
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {students.data.length === 0 ? (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={4}
+                                                colSpan={5}
                                                 className="h-24 text-center text-sm text-muted-foreground"
                                             >
                                                 No students found.
@@ -389,6 +393,56 @@ export default function StudentDirectory({
                                                 </TableCell>
                                                 <TableCell className="border-l pr-6">
                                                     {statusBadge(student)}
+                                                </TableCell>
+                                                <TableCell className="border-l pr-6">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-8"
+                                                                    disabled={
+                                                                        !student.enrollment_id
+                                                                    }
+                                                                    onClick={() =>
+                                                                        openAssessmentForm(
+                                                                            student.enrollment_id,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Printer className="size-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                Print assessment form
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-8"
+                                                                    disabled={
+                                                                        !student.enrollment_id
+                                                                    }
+                                                                    onClick={() =>
+                                                                        regenerateActivationCodes(
+                                                                            student.enrollment_id,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <RefreshCw className="size-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                Regenerate activation codes
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))

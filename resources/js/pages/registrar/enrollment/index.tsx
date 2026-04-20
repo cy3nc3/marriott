@@ -34,7 +34,13 @@ import {
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import registrar from '@/routes/registrar';
-import { assessment, destroy, store, update } from '@/routes/registrar/enrollment';
+import {
+    assessment,
+    destroy,
+    lookup,
+    store,
+    update,
+} from '@/routes/registrar/enrollment';
 import type { BreadcrumbItem, SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -101,6 +107,22 @@ interface Props {
     };
 }
 
+interface EnrollmentLookupResponse {
+    matched: boolean;
+    academic_year_id: number | null;
+    student: {
+        lrn: string;
+        first_name: string;
+        middle_name: string | null;
+        last_name: string;
+        gender: string | null;
+        birthdate: string | null;
+        guardian_name: string | null;
+        guardian_contact_number: string | null;
+        recommended_grade_level_id: number | null;
+    } | null;
+}
+
 export default function Enrollment({
     enrollments,
     grade_level_options,
@@ -118,9 +140,18 @@ export default function Enrollment({
     const [selectedSchoolYearId, setSelectedSchoolYearId] = useState(
         selected_school_year_id ? String(selected_school_year_id) : '',
     );
+    const [isStepOneExpanded, setIsStepOneExpanded] = useState(false);
+    const [isLookupLoading, setIsLookupLoading] = useState(false);
+    const [lookupStatus, setLookupStatus] = useState<
+        'idle' | 'matched' | 'not_found' | 'error'
+    >('idle');
+    const [lookupMessage, setLookupMessage] = useState(
+        'Type 12 digits to continue.',
+    );
     const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
     const [itemToRemove, setItemToRemove] = useState<EnrollmentRow | null>(null);
     const openedAssessmentUrlRef = useRef<string | null>(null);
+    const latestLookupLrnRef = useRef<string | null>(null);
 
     const createForm = useForm({
         academic_year_id: selected_school_year_id
@@ -201,6 +232,139 @@ export default function Enrollment({
         );
     };
 
+    const applyLookupResult = (payload: EnrollmentLookupResponse) => {
+        if (typeof payload.academic_year_id === 'number') {
+            const ongoingYearId = String(payload.academic_year_id);
+            createForm.setData('academic_year_id', ongoingYearId);
+            setSelectedSchoolYearId(ongoingYearId);
+        }
+
+        if (!payload.student) {
+            createForm.setData('first_name', '');
+            createForm.setData('middle_name', '');
+            createForm.setData('last_name', '');
+            createForm.setData('gender', '');
+            createForm.setData('birthdate', '');
+            createForm.setData('guardian_name', '');
+            createForm.setData('guardian_contact_number', '');
+            createForm.setData('grade_level_id', '');
+            createForm.setData('section_id', '');
+
+            return;
+        }
+
+        createForm.setData('first_name', payload.student.first_name ?? '');
+        createForm.setData('middle_name', payload.student.middle_name ?? '');
+        createForm.setData('last_name', payload.student.last_name ?? '');
+        createForm.setData('gender', payload.student.gender ?? '');
+        createForm.setData('birthdate', payload.student.birthdate ?? '');
+        createForm.setData('guardian_name', payload.student.guardian_name ?? '');
+        createForm.setData(
+            'guardian_contact_number',
+            payload.student.guardian_contact_number ?? '',
+        );
+        createForm.setData(
+            'grade_level_id',
+            payload.student.recommended_grade_level_id
+                ? String(payload.student.recommended_grade_level_id)
+                : '',
+        );
+        createForm.setData('section_id', '');
+    };
+
+    const runLrnLookup = async (lrnValue: string) => {
+        const normalizedLrn = lrnValue.replace(/\D/g, '').slice(0, 12);
+
+        if (normalizedLrn.length !== 12) {
+            setLookupStatus('idle');
+            setLookupMessage('Type 12 digits to continue.');
+
+            return;
+        }
+
+        if (isLookupLoading || latestLookupLrnRef.current === normalizedLrn) {
+            return;
+        }
+
+        setIsLookupLoading(true);
+        setLookupStatus('idle');
+        setLookupMessage('Checking learner records...');
+
+        try {
+            const response = await fetch(
+                lookup.url({
+                    query: {
+                        lrn: normalizedLrn,
+                    },
+                }),
+                {
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                },
+            );
+            const payload =
+                (await response.json()) as EnrollmentLookupResponse & {
+                    errors?: {
+                        lrn?: string[];
+                    };
+                };
+
+            if (!response.ok) {
+                if (response.status === 422 && payload.errors?.lrn?.length) {
+                    createForm.setError('lrn', payload.errors.lrn[0]);
+                    setLookupStatus('error');
+                    setLookupMessage(payload.errors.lrn[0]);
+                } else {
+                    setLookupStatus('error');
+                    setLookupMessage(
+                        'Unable to check learner records. Please try again.',
+                    );
+                }
+
+                return;
+            }
+
+            latestLookupLrnRef.current = normalizedLrn;
+            createForm.clearErrors('lrn');
+            applyLookupResult(payload);
+            setIsStepOneExpanded(true);
+
+            if (payload.matched) {
+                setLookupStatus('matched');
+                setLookupMessage('');
+
+                return;
+            }
+
+            setLookupStatus('not_found');
+            setLookupMessage('');
+        } catch {
+            setLookupStatus('error');
+            setLookupMessage(
+                'Unable to check learner records. Please try again.',
+            );
+        } finally {
+            setIsLookupLoading(false);
+        }
+    };
+
+    const handleCreateLrnChange = (rawValue: string) => {
+        const normalizedLrn = rawValue.replace(/\D/g, '').slice(0, 12);
+
+        createForm.setData('lrn', normalizedLrn);
+        latestLookupLrnRef.current = null;
+
+        if (normalizedLrn.length < 12) {
+            setLookupStatus('idle');
+            setLookupMessage('Type 12 digits to continue.');
+        }
+
+        if (normalizedLrn.length === 12) {
+            void runLrnLookup(normalizedLrn);
+        }
+    };
+
     const submitCreate = () => {
         createForm.post(store().url, {
             preserveScroll: true,
@@ -211,6 +375,10 @@ export default function Enrollment({
                 createForm.setData('payment_term', 'monthly');
                 createForm.setData('grade_level_id', '');
                 createForm.setData('section_id', '');
+                latestLookupLrnRef.current = null;
+                setIsStepOneExpanded(false);
+                setLookupStatus('idle');
+                setLookupMessage('Type 12 digits to continue.');
                 setCreateStep(1);
                 setIsSaveConfirmOpen(false);
             },
@@ -283,6 +451,29 @@ export default function Enrollment({
         openedAssessmentUrlRef.current = assessmentPrintUrl;
         window.open(assessmentPrintUrl, '_blank', 'noopener,noreferrer');
     }, [flash.assessment_print_url]);
+
+    useEffect(() => {
+        const shouldExpandStepOne =
+            createStep === 1 &&
+            (
+                createForm.data.first_name.trim() !== '' ||
+                createForm.data.last_name.trim() !== '' ||
+                !!createForm.errors.first_name ||
+                !!createForm.errors.last_name ||
+                !!createForm.errors.birthdate
+            );
+
+        if (shouldExpandStepOne) {
+            setIsStepOneExpanded(true);
+        }
+    }, [
+        createStep,
+        createForm.data.first_name,
+        createForm.data.last_name,
+        createForm.errors.birthdate,
+        createForm.errors.first_name,
+        createForm.errors.last_name,
+    ]);
 
     const formatPaymentTerm = (term: string) => {
         if (term === 'semi-annual') return 'Semi-Annual';
@@ -426,6 +617,10 @@ export default function Enrollment({
         setSelectedSchoolYearId(value);
         setCreateStep(1);
         createForm.setData('academic_year_id', value);
+        latestLookupLrnRef.current = null;
+        setIsStepOneExpanded(false);
+        setLookupStatus('idle');
+        setLookupMessage('Type 12 digits to continue.');
         router.get(
             registrar.enrollment.url({
                 query: {
@@ -461,7 +656,7 @@ export default function Enrollment({
         );
     };
 
-    const exportEnrollmentWorkbook = () => {
+    const exportSf1Reference = () => {
         const params = new URLSearchParams();
 
         if (selectedSchoolYearId) {
@@ -545,7 +740,7 @@ export default function Enrollment({
                         <CardHeader className="border-b">
                             <CardTitle>New Enrollment Intake</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4 overflow-y-auto pt-6">
+                        <CardContent className="flex h-full flex-col gap-4 overflow-y-auto pt-6">
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                                     <span>Step {createStep} of 4</span>
@@ -565,146 +760,255 @@ export default function Enrollment({
 
                             {createStep === 1 && (
                                 <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="lrn">LRN</Label>
-                                        <Input
-                                            id="lrn"
-                                            placeholder="eg. 123456789012"
-                                            inputMode="numeric"
-                                            pattern="[0-9]*"
-                                            maxLength={12}
-                                            value={createForm.data.lrn}
-                                            onChange={(event) =>
-                                                createForm.setData(
-                                                    'lrn',
-                                                    event.target.value
-                                                        .replace(/\D/g, '')
-                                                        .slice(0, 12),
-                                                )
-                                            }
-                                        />
-                                        {createForm.errors.lrn && (
-                                            <p className="text-sm text-destructive">
-                                                {createForm.errors.lrn}
+                                    <div className="relative min-h-[16rem] rounded-lg border bg-card p-4">
+                                        <div
+                                            className={`absolute left-4 right-4 text-center transition-opacity duration-200 ${
+                                                isStepOneExpanded
+                                                    ? 'pointer-events-none opacity-0'
+                                                    : 'top-[34%] -translate-y-1/2 opacity-100'
+                                            }`}
+                                        >
+                                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                Student Lookup
                                             </p>
-                                        )}
-                                    </div>
+                                            <p className="mt-2 text-base font-medium text-foreground">
+                                                Enter LRN to start enrollment
+                                            </p>
+                                        </div>
 
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="first-name">
-                                                First Name
-                                            </Label>
-                                            <Input
-                                                id="first-name"
-                                                placeholder="eg. Juan"
-                                                value={
-                                                    createForm.data.first_name
-                                                }
-                                                onChange={(event) =>
-                                                    createForm.setData(
-                                                        'first_name',
-                                                        event.target.value,
-                                                    )
-                                                }
-                                            />
+                                        <div
+                                            className={`absolute z-20 transition-all duration-300 ease-out ${
+                                                isStepOneExpanded
+                                                    ? 'left-4 right-4 top-4 translate-x-0 translate-y-0'
+                                                    : 'left-1/2 top-[60%] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2'
+                                            }`}
+                                        >
+                                            <div className="space-y-2">
+                                                {isStepOneExpanded && (
+                                                    <div className="flex items-center justify-between">
+                                                        <Label htmlFor="lrn">
+                                                            LRN
+                                                        </Label>
+                                                        {lookupStatus ===
+                                                            'matched' && (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="border-emerald-200 bg-emerald-500/15 text-emerald-700 dark:border-emerald-800 dark:text-emerald-400"
+                                                            >
+                                                                Returning
+                                                                Student
+                                                            </Badge>
+                                                        )}
+                                                        {lookupStatus ===
+                                                            'not_found' && (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="border-blue-200 bg-blue-500/15 text-blue-700 dark:border-blue-800 dark:text-blue-400"
+                                                            >
+                                                                New Student
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                <Input
+                                                    id="lrn"
+                                                    placeholder={
+                                                        isStepOneExpanded
+                                                            ? 'eg. 123456789012'
+                                                            : '123456789012'
+                                                    }
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
+                                                    maxLength={12}
+                                                    value={createForm.data.lrn}
+                                                    className={
+                                                        isStepOneExpanded
+                                                            ? 'h-10 text-base'
+                                                            : 'h-11 text-center text-lg tracking-wide'
+                                                    }
+                                                    onChange={(event) =>
+                                                        handleCreateLrnChange(
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    onBlur={() =>
+                                                        void runLrnLookup(
+                                                            createForm.data.lrn,
+                                                        )
+                                                    }
+                                                    onKeyDown={(event) => {
+                                                        if (
+                                                            event.key === 'Enter'
+                                                        ) {
+                                                            event.preventDefault();
+                                                            void runLrnLookup(
+                                                                createForm.data
+                                                                    .lrn,
+                                                            );
+                                                        }
+                                                    }}
+                                                />
+                                                {(isLookupLoading ||
+                                                    lookupMessage !== '') && (
+                                                    <p
+                                                        className={`text-xs text-muted-foreground ${
+                                                            isStepOneExpanded
+                                                                ? ''
+                                                                : 'text-center'
+                                                        }`}
+                                                    >
+                                                        {isLookupLoading
+                                                            ? 'Checking learner records...'
+                                                            : lookupMessage}
+                                                    </p>
+                                                )}
+                                                {createForm.errors.lrn && (
+                                                    <p className="text-sm text-destructive">
+                                                        {
+                                                            createForm.errors
+                                                                .lrn
+                                                        }
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="middle-name">
-                                                Middle Name
-                                            </Label>
-                                            <Input
-                                                id="middle-name"
-                                                placeholder="eg. Santos"
-                                                value={
-                                                    createForm.data.middle_name
-                                                }
-                                                onChange={(event) =>
-                                                    createForm.setData(
-                                                        'middle_name',
-                                                        event.target.value,
-                                                    )
-                                                }
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="last-name">
-                                                Surname
-                                            </Label>
-                                            <Input
-                                                id="last-name"
-                                                placeholder="eg. Dela Cruz"
-                                                value={
-                                                    createForm.data.last_name
-                                                }
-                                                onChange={(event) =>
-                                                    createForm.setData(
-                                                        'last_name',
-                                                        event.target.value,
-                                                    )
-                                                }
-                                            />
-                                        </div>
-                                    </div>
 
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                        <div className="space-y-2">
-                                            <Label>Gender</Label>
-                                            <Select
-                                                value={
-                                                    createForm.data.gender ||
-                                                    'none'
-                                                }
-                                                onValueChange={(value) =>
-                                                    createForm.setData(
-                                                        'gender',
-                                                        value === 'none'
-                                                            ? ''
-                                                            : value,
-                                                    )
-                                                }
-                                            >
-                                            <SelectTrigger className="w-full min-w-0">
-                                                <SelectValue placeholder="Select gender" />
-                                            </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="none">
-                                                        Select gender
-                                                    </SelectItem>
-                                                    <SelectItem value="Male">
-                                                        Male
-                                                    </SelectItem>
-                                                    <SelectItem value="Female">
-                                                        Female
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Birthday</Label>
-                                            <DateOfBirthPicker
-                                                date={
-                                                    createForm.data.birthdate
-                                                        ? new Date(
-                                                              createForm.data
-                                                                  .birthdate,
-                                                          )
-                                                        : undefined
-                                                }
-                                                setDate={(date) =>
-                                                    createForm.setData(
-                                                        'birthdate',
-                                                        date
-                                                            ? format(
-                                                                  date,
-                                                                  'yyyy-MM-dd',
-                                                              )
-                                                            : '',
-                                                    )
-                                                }
-                                                className="w-full min-w-0"
-                                                placeholder="Select date"
-                                            />
+                                        <div
+                                            className={`space-y-4 transition-all duration-200 ${
+                                                isStepOneExpanded
+                                                    ? 'mt-24 translate-y-0 opacity-100'
+                                                    : 'pointer-events-none absolute left-4 right-4 top-[4.5rem] translate-y-4 opacity-0'
+                                            }`}
+                                        >
+                                            <div className="space-y-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="first-name">
+                                                        First Name
+                                                    </Label>
+                                                    <Input
+                                                        id="first-name"
+                                                        placeholder="eg. Juan"
+                                                        value={
+                                                            createForm.data
+                                                                .first_name
+                                                        }
+                                                        onChange={(event) =>
+                                                            createForm.setData(
+                                                                'first_name',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="middle-name">
+                                                        Middle Name
+                                                    </Label>
+                                                    <Input
+                                                        id="middle-name"
+                                                        placeholder="eg. Santos"
+                                                        value={
+                                                            createForm.data
+                                                                .middle_name
+                                                        }
+                                                        onChange={(event) =>
+                                                            createForm.setData(
+                                                                'middle_name',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="last-name">
+                                                        Surname
+                                                    </Label>
+                                                    <Input
+                                                        id="last-name"
+                                                        placeholder="eg. Dela Cruz"
+                                                        value={
+                                                            createForm.data
+                                                                .last_name
+                                                        }
+                                                        onChange={(event) =>
+                                                            createForm.setData(
+                                                                'last_name',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <Label>Gender</Label>
+                                                    <Select
+                                                        value={
+                                                            createForm.data
+                                                                .gender ||
+                                                            'none'
+                                                        }
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
+                                                            createForm.setData(
+                                                                'gender',
+                                                                value ===
+                                                                    'none'
+                                                                    ? ''
+                                                                    : value,
+                                                            )
+                                                        }
+                                                    >
+                                                        <SelectTrigger className="w-full min-w-0">
+                                                            <SelectValue placeholder="Select gender" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="none">
+                                                                Select gender
+                                                            </SelectItem>
+                                                            <SelectItem value="Male">
+                                                                Male
+                                                            </SelectItem>
+                                                            <SelectItem value="Female">
+                                                                Female
+                                                            </SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Birthday</Label>
+                                                    <DateOfBirthPicker
+                                                        date={
+                                                            createForm.data
+                                                                .birthdate
+                                                                ? new Date(
+                                                                      createForm
+                                                                          .data
+                                                                          .birthdate,
+                                                                  )
+                                                                : undefined
+                                                        }
+                                                        setDate={(date) =>
+                                                            createForm.setData(
+                                                                'birthdate',
+                                                                date
+                                                                    ? format(
+                                                                          date,
+                                                                          'yyyy-MM-dd',
+                                                                      )
+                                                                    : '',
+                                                            )
+                                                        }
+                                                        className="w-full min-w-0"
+                                                        placeholder="Select date"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1039,7 +1343,7 @@ export default function Enrollment({
                                 </div>
                             )}
 
-                            <div className="sticky bottom-0 z-10 flex flex-col gap-2 border-t bg-card pt-4">
+                            <div className="sticky bottom-0 z-20 -mx-6 mt-auto flex flex-col gap-2 border-t bg-card px-6 pb-4 pt-4">
                                 {createStep > 1 && (
                                     <Button
                                         variant="outline"
@@ -1064,6 +1368,7 @@ export default function Enrollment({
                                         onClick={() => setCreateStep(2)}
                                         disabled={
                                             intakeCreationDisabled ||
+                                            isLookupLoading ||
                                             !hasStepOneRequiredFields
                                         }
                                     >
@@ -1166,11 +1471,11 @@ export default function Enrollment({
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        onClick={exportEnrollmentWorkbook}
+                                        onClick={exportSf1Reference}
                                         disabled={!selectedSchoolYearId}
                                     >
                                         <Download className="size-4" />
-                                        Export Workbook
+                                        Export SF1 Reference
                                     </Button>
                                 </div>
                             </div>

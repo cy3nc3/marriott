@@ -24,6 +24,7 @@ use App\Models\SubjectAssignment;
 use App\Models\TeacherSubject;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\Auth\AccountActivationCodeManager;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -46,7 +47,7 @@ beforeEach(function () {
     ]);
 });
 
-test('registrar sf1 upload reconciles student directory by lrn', function () {
+test('registrar sf1 upload endpoint is disabled for inbound lis sync', function () {
     $section = Section::query()->create([
         'academic_year_id' => $this->academicYear->id,
         'grade_level_id' => $this->gradeLevel->id,
@@ -80,25 +81,21 @@ test('registrar sf1 upload reconciles student directory by lrn', function () {
     $this->post('/registrar/student-directory/sf1-upload', [
         'sf1_file' => $file,
         'academic_year_id' => $this->academicYear->id,
-    ])->assertRedirect();
+    ])
+        ->assertRedirect()
+        ->assertSessionHas(
+            'error',
+            'Inbound SF1 sync is disabled. Use Enrollment > Export SF1 Reference for LIS enrollment.'
+        );
 
     $student->refresh();
 
-    expect($student->is_lis_synced)->toBeTrue();
-    expect($student->first_name)->toBe('Juanito');
-    expect(Setting::get('registrar_sf1_last_upload_name'))->toBe('sf1.csv');
-
-    $this->get('/registrar/student-directory')
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('registrar/student-directory/index')
-            ->where('summary.matched', 1)
-            ->where('summary.pending', 0)
-            ->where('summary.discrepancy', 0)
-        );
+    expect($student->is_lis_synced)->toBeFalse();
+    expect($student->first_name)->toBe('Juan');
+    expect(Setting::get('registrar_sf1_last_upload_name'))->toBeNull();
 });
 
-test('registrar sf1 upload updates section assignment based on sf1 section value', function () {
+test('registrar enrollment export downloads sf1 reference csv', function () {
     $firstSection = Section::query()->create([
         'academic_year_id' => $this->academicYear->id,
         'grade_level_id' => $this->gradeLevel->id,
@@ -129,28 +126,40 @@ test('registrar sf1 upload updates section assignment based on sf1 section value
         'status' => 'for_cashier_payment',
     ]);
 
-    $csvContent = "LRN,First Name,Last Name,Section,Grade Level\n".
-        "111122223334,Maria,Santos,Bonifacio,Grade 7\n";
+    $response = $this->get("/registrar/enrollment/export?academic_year_id={$this->academicYear->id}");
 
-    $file = UploadedFile::fake()->createWithContent('sf1-section.csv', $csvContent);
+    $response->assertOk();
+    $response->assertDownload('sf1-reference-2025-2026.csv');
 
-    $this->post('/registrar/student-directory/sf1-upload', [
-        'sf1_file' => $file,
-        'academic_year_id' => $this->academicYear->id,
-    ])
-        ->assertRedirect()
-        ->assertSessionHas(
-            'success',
-            'SF1 processed. Matched 1 of 1 rows, updated 1 section assignments, with 0 discrepancies.'
-        );
+    $downloadedCsv = file_get_contents($response->baseResponse->getFile()->getPathname());
+    $csvRows = array_values(array_filter(
+        array_map(
+            static fn (string $line): array => str_getcsv($line),
+            preg_split('/\r\n|\n|\r/', (string) $downloadedCsv) ?: []
+        ),
+        static fn (array $row): bool => count($row) > 0 && ! (count($row) === 1 && trim((string) $row[0]) === '')
+    ));
 
-    $enrollment = Enrollment::query()
-        ->where('student_id', $student->id)
-        ->where('academic_year_id', $this->academicYear->id)
-        ->first();
-
-    expect($enrollment)->not->toBeNull();
-    expect($enrollment?->section_id)->toBe($secondSection->id);
+    expect($csvRows[0] ?? [])->toBe([
+        'LRN',
+        'First Name',
+        'Middle Name',
+        'Last Name',
+        'Gender',
+        'Birthdate',
+        'Address',
+        'Guardian Name',
+        'Guardian Contact Number',
+        'Grade Level',
+        'Section',
+        'Enrollment Status',
+    ]);
+    expect($csvRows[1][0] ?? null)->toBe('111122223334');
+    expect($csvRows[1][1] ?? null)->toBe('Maria');
+    expect($csvRows[1][3] ?? null)->toBe('Santos');
+    expect($csvRows[1][9] ?? null)->toBe('Grade 7');
+    expect($csvRows[1][10] ?? null)->toBe('Rizal');
+    expect($csvRows[1][11] ?? null)->toBe('for_cashier_payment');
 });
 
 test('registrar student directory exposes discrepancy reason in lis status payload', function () {
@@ -165,7 +174,8 @@ test('registrar student directory exposes discrepancy reason in lis status paylo
         'first_name' => 'Lian',
         'last_name' => 'Vergara',
         'is_lis_synced' => false,
-        'sync_error_flag' => false,
+        'sync_error_flag' => true,
+        'sync_error_notes' => 'Unable to resolve section assignment from SF1 row.',
     ]);
 
     Enrollment::query()->create([
@@ -177,20 +187,6 @@ test('registrar student directory exposes discrepancy reason in lis status paylo
         'downpayment' => 0,
         'status' => 'for_cashier_payment',
     ]);
-
-    $csvContent = "LRN,First Name,Last Name,Section,Grade Level\n".
-        "222233334444,Lian,Vergara,Unknown Section,Grade 7\n";
-    $file = UploadedFile::fake()->createWithContent('sf1-discrepancy.csv', $csvContent);
-
-    $this->post('/registrar/student-directory/sf1-upload', [
-        'sf1_file' => $file,
-        'academic_year_id' => $this->academicYear->id,
-    ])->assertRedirect();
-
-    $student->refresh();
-
-    expect($student->sync_error_flag)->toBeTrue();
-    expect($student->sync_error_notes)->toBe('Unable to resolve section assignment from SF1 row.');
 
     $this->get('/registrar/student-directory')
         ->assertSuccessful()
@@ -360,6 +356,7 @@ test('registrar student directory filters students by selected school year', fun
             ->where('selected_school_year_id', $completedYear->id)
             ->has('students.data', 1)
             ->where('students.data.0.lrn', '999900001111')
+            ->where('students.data.0.enrollment_id', fn ($value) => is_int($value) && $value > 0)
             ->where('students.per_page', 15)
             ->where('summary.matched', 0)
             ->where('summary.pending', 1)
@@ -935,6 +932,82 @@ test('registrar enrollment issues activation code and does not use predictable d
     expect(Hash::check('john@06052012', (string) $studentUser?->password))->toBeFalse();
     expect($studentUser?->must_change_password)->toBeTrue();
     expect(AccountActivationCode::query()->where('user_id', $studentUser?->id)->exists())->toBeTrue();
+});
+
+test('registrar can regenerate activation codes and print assessment from student directory enrollment action', function () {
+    $section = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Jade',
+    ]);
+
+    $this->post('/registrar/enrollment', [
+        'lrn' => '222211110000',
+        'first_name' => 'Aira',
+        'last_name' => 'Mendoza',
+        'birthdate' => '2011-10-10',
+        'guardian_name' => 'Guardian Name',
+        'guardian_contact_number' => '09175550000',
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'monthly',
+        'downpayment' => 1200,
+    ])->assertRedirect();
+
+    $enrollment = Enrollment::query()
+        ->where('academic_year_id', $this->academicYear->id)
+        ->latest('id')
+        ->first();
+
+    expect($enrollment)->not->toBeNull();
+
+    $student = $enrollment?->student;
+    $studentUser = $student?->user;
+    $parentUser = User::query()
+        ->where('role', UserRole::PARENT->value)
+        ->whereHas('students', function ($query) use ($student): void {
+            $query->where('students.id', $student?->id);
+        })
+        ->first();
+
+    expect($studentUser)->not->toBeNull();
+    expect($parentUser)->not->toBeNull();
+
+    app(AccountActivationCodeManager::class)->issueForUser($studentUser);
+    app(AccountActivationCodeManager::class)->issueForUser($parentUser);
+
+    $originalStudentHash = (string) AccountActivationCode::query()
+        ->where('user_id', $studentUser?->id)
+        ->value('code_hash');
+    $originalParentHash = (string) AccountActivationCode::query()
+        ->where('user_id', $parentUser?->id)
+        ->value('code_hash');
+
+    $this->post("/registrar/enrollment/{$enrollment?->id}/regenerate-activation-codes")
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Activation codes regenerated.')
+        ->assertSessionHas('assessment_print_url', function ($value) use ($enrollment) {
+            if (! is_string($value)) {
+                return false;
+            }
+
+            return str_contains($value, "/registrar/enrollment/{$enrollment?->id}/assessment")
+                && str_contains($value, 'credential_token=');
+        });
+
+    $studentActivationCode = AccountActivationCode::query()
+        ->where('user_id', $studentUser?->id)
+        ->first();
+    $parentActivationCode = AccountActivationCode::query()
+        ->where('user_id', $parentUser?->id)
+        ->first();
+
+    expect($studentActivationCode)->not->toBeNull();
+    expect($parentActivationCode)->not->toBeNull();
+    expect((string) $studentActivationCode?->code_hash)->not->toBe($originalStudentHash);
+    expect((string) $parentActivationCode?->code_hash)->not->toBe($originalParentHash);
+    expect($studentActivationCode?->used_at)->toBeNull();
+    expect($parentActivationCode?->used_at)->toBeNull();
 });
 
 test('registrar enrollment intake requires birthdate', function () {

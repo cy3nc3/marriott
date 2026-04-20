@@ -13,7 +13,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Writer\Xls;
 
-test('registrar can import official sf1 workbook for historical student directory reconciliation', function () {
+test('registrar sf1 upload rejects inbound sync requests', function () {
     $registrar = User::factory()->superAdmin()->create();
     $this->actingAs($registrar);
 
@@ -87,22 +87,22 @@ test('registrar can import official sf1 workbook for historical student director
         ])
         ->assertRedirect()
         ->assertSessionHas(
-            'success',
-            'SF1 processed. Matched 1 of 1 rows, updated 0 section assignments, with 0 discrepancies.'
+            'error',
+            'Inbound SF1 sync is disabled. Use Enrollment > Export SF1 Reference for LIS enrollment.'
         );
 
     $student->refresh();
 
-    expect($student->is_lis_synced)->toBeTrue();
+    expect($student->is_lis_synced)->toBeFalse();
     expect($student->sync_error_flag)->toBeFalse();
     expect($student->first_name)->toBe('Juan');
     expect($student->last_name)->toBe('Dela Cruz');
-    expect($student->gender)->toBe('Male');
-    expect($student->birthdate?->toDateString())->toBe('2010-01-15');
-    expect($student->address)->toBe('123 Sample Street, Bagumbayan, Quezon City, Metro Manila');
-    expect($student->guardian_name)->toBe('Maria Dela Cruz');
-    expect($student->contact_number)->toBe('09171234567');
-    expect(Setting::get('registrar_sf1_last_upload_name'))->toBe('sf1-official-import.xls');
+    expect($student->gender)->toBeNull();
+    expect($student->birthdate)->toBeNull();
+    expect($student->address)->toBeNull();
+    expect($student->guardian_name)->toBeNull();
+    expect($student->contact_number)->toBeNull();
+    expect(Setting::get('registrar_sf1_last_upload_name'))->toBeNull();
 });
 
 test('sf1 adapter exports normalized rows into the official workbook layout', function () {

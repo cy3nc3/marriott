@@ -4,12 +4,9 @@ namespace App\Http\Controllers\Registrar;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
-use App\Models\Enrollment;
 use App\Models\Section;
 use App\Models\Setting;
 use App\Models\Student;
-use App\Services\DashboardCacheService;
-use App\Services\SchoolForms\Sf1TemplateAdapter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -92,6 +89,7 @@ class StudentDirectoryController extends Controller
 
                 return [
                     'id' => $student->id,
+                    'enrollment_id' => $enrollment?->id,
                     'lrn' => $student->lrn,
                     'student_name' => trim("{$student->first_name} {$student->last_name}"),
                     'grade_section' => $gradeSection,
@@ -134,168 +132,11 @@ class StudentDirectoryController extends Controller
         ]);
     }
 
-    public function uploadSf1(Request $request, Sf1TemplateAdapter $sf1TemplateAdapter): RedirectResponse
+    public function uploadSf1(Request $request): RedirectResponse
     {
-        $academicYearId = $request->integer('academic_year_id');
-
-        $validated = $request->validate([
-            'sf1_file' => 'required|file|mimes:csv,txt,xls,xlsx|max:10240',
-            'academic_year_id' => ['required', 'integer', 'exists:academic_years,id'],
-        ]);
-
-        $file = $validated['sf1_file'];
-        $academicYearId = (int) $validated['academic_year_id'];
-
-        $extension = strtolower((string) $file->getClientOriginalExtension());
-        if (in_array($extension, ['xls', 'xlsx'], true)) {
-            $parsedRows = $sf1TemplateAdapter->parseRows((string) $file->getRealPath());
-            $processedRows = count($parsedRows);
-            $lrns = array_values(array_filter(array_map(
-                fn (array $parsedRow): string => (string) $parsedRow['lrn'],
-                $parsedRows
-            )));
-        } else {
-            $handle = fopen($file->getRealPath(), 'r');
-
-            if ($handle === false) {
-                return back()->with('error', 'Unable to read SF1 file.');
-            }
-
-            $headerRow = fgetcsv($handle);
-            if ($headerRow === false) {
-                fclose($handle);
-
-                return back()->with('error', 'SF1 file is empty.');
-            }
-
-            $headers = array_map(function ($header) {
-                $value = strtolower(trim((string) $header));
-                $value = str_replace([' ', '-'], '_', $value);
-
-                return preg_replace('/[^a-z0-9_]/', '', $value) ?: '';
-            }, $headerRow);
-
-            $processedRows = 0;
-            $parsedRows = [];
-            $lrns = [];
-
-            while (($row = fgetcsv($handle)) !== false) {
-                if (count(array_filter($row, fn ($value) => trim((string) $value) !== '')) === 0) {
-                    continue;
-                }
-
-                $processedRows++;
-
-                $rowData = [];
-                foreach ($headers as $index => $header) {
-                    $rowData[$header] = trim((string) ($row[$index] ?? ''));
-                }
-
-                $lrn = preg_replace('/\D/', '', (string) $this->firstAvailable($rowData, [
-                    'lrn',
-                    'learner_reference_number',
-                ]));
-
-                $parsedRows[] = [
-                    'row_data' => $rowData,
-                    'lrn' => $lrn,
-                ];
-
-                if ($lrn !== '') {
-                    $lrns[] = $lrn;
-                }
-            }
-
-            fclose($handle);
-        }
-
-        $matched = 0;
-        $discrepancy = 0;
-        $reassigned = 0;
-
-        $studentsByLrn = Student::query()
-            ->whereIn('lrn', array_values(array_unique($lrns)))
-            ->get()
-            ->keyBy('lrn');
-        $enrollmentsByStudentId = Enrollment::query()
-            ->where('academic_year_id', $academicYearId)
-            ->whereIn('student_id', $studentsByLrn->pluck('id')->all())
-            ->get()
-            ->keyBy('student_id');
-        $sectionsByName = Section::query()
-            ->where('academic_year_id', $academicYearId)
-            ->with('gradeLevel:id,name')
-            ->get()
-            ->groupBy(function (Section $section) {
-                return $this->normalizeForLookup($section->name);
-            });
-
-        foreach ($parsedRows as $parsedRow) {
-            $lrn = (string) $parsedRow['lrn'];
-            $rowData = (array) $parsedRow['row_data'];
-
-            if ($lrn === '') {
-                $discrepancy++;
-
-                continue;
-            }
-
-            $student = $studentsByLrn->get($lrn);
-            if (! $student instanceof Student) {
-                $discrepancy++;
-
-                continue;
-            }
-
-            $enrollment = $enrollmentsByStudentId->get($student->id);
-            if (! $enrollment instanceof Enrollment) {
-                $this->syncStudentFromSf1Row(
-                    $student,
-                    $rowData,
-                    false,
-                    'No enrollment record found for selected school year.'
-                );
-                $discrepancy++;
-
-                continue;
-            }
-
-            $targetSection = $this->resolveSectionFromSf1Row($rowData, $sectionsByName);
-            if (! $targetSection instanceof Section) {
-                $this->syncStudentFromSf1Row(
-                    $student,
-                    $rowData,
-                    false,
-                    'Unable to resolve section assignment from SF1 row.'
-                );
-                $discrepancy++;
-
-                continue;
-            }
-
-            if (
-                (int) $enrollment->section_id !== (int) $targetSection->id
-                || (int) $enrollment->grade_level_id !== (int) $targetSection->grade_level_id
-            ) {
-                $enrollment->update([
-                    'section_id' => $targetSection->id,
-                    'grade_level_id' => $targetSection->grade_level_id,
-                ]);
-                $reassigned++;
-            }
-
-            $this->syncStudentFromSf1Row($student, $rowData, true, null);
-
-            $matched++;
-        }
-
-        Setting::set('registrar_sf1_last_upload_at', now()->toDateTimeString(), 'registrar');
-        Setting::set('registrar_sf1_last_upload_name', $file->getClientOriginalName(), 'registrar');
-        DashboardCacheService::bust();
-
         return back()->with(
-            'success',
-            "SF1 processed. Matched {$matched} of {$processedRows} rows, updated {$reassigned} section assignments, with {$discrepancy} discrepancies."
+            'error',
+            'Inbound SF1 sync is disabled. Use Enrollment > Export SF1 Reference for LIS enrollment.'
         );
     }
 
