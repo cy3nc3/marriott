@@ -1,15 +1,15 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import {
-    CheckCircle2,
-    Clock3,
-    Printer,
-    RefreshCw,
-    TriangleAlert,
-} from 'lucide-react';
+import { Download, Printer, RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
@@ -26,11 +26,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import registrar from '@/routes/registrar';
 import {
@@ -52,8 +48,11 @@ interface StudentRow {
     lrn: string;
     student_name: string;
     grade_section: string;
-    lis_status: 'matched' | 'pending' | 'discrepancy';
-    lis_status_reason: string | null;
+}
+
+interface SectionOption {
+    id: number;
+    label: string;
 }
 
 interface Props {
@@ -73,33 +72,29 @@ interface Props {
         name: string;
         status: string;
     }[];
+    section_options: SectionOption[];
     selected_school_year_id: number | null;
     filters: {
         search?: string;
         academic_year_id?: number;
-    };
-    summary: {
-        matched: number;
-        pending: number;
-        discrepancy: number;
-    };
-    last_upload: {
-        at: string | null;
-        file_name: string | null;
     };
 }
 
 export default function StudentDirectory({
     students,
     school_year_options,
+    section_options,
     selected_school_year_id,
     filters,
-    summary,
 }: Props) {
-    const { ui, flash } = usePage<SharedData>().props;
-    const isHandheld = Boolean(ui?.is_handheld);
+    const { flash } = usePage<SharedData>().props;
     const openedAssessmentUrlRef = useRef<string | null>(null);
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const [selectedSectionIds, setSelectedSectionIds] = useState<number[]>(
+        section_options.map((section) => section.id),
+    );
+    const [exportSelectionError, setExportSelectionError] = useState('');
 
     const searchSuggestions = students.data.map((student) => ({
         id: student.id,
@@ -108,6 +103,45 @@ export default function StudentDirectory({
         description: `LRN: ${student.lrn}`,
         keywords: student.lrn,
     }));
+
+    const toggleSection = (sectionId: number) => {
+        setSelectedSectionIds((current) =>
+            current.includes(sectionId)
+                ? current.filter((id) => id !== sectionId)
+                : [...current, sectionId],
+        );
+        setExportSelectionError('');
+    };
+
+    const toggleAllSections = () => {
+        if (selectedSectionIds.length === section_options.length) {
+            setSelectedSectionIds([]);
+        } else {
+            setSelectedSectionIds(section_options.map((section) => section.id));
+        }
+        setExportSelectionError('');
+    };
+
+    const exportSf1 = () => {
+        if (!selected_school_year_id) {
+            return;
+        }
+
+        if (selectedSectionIds.length === 0) {
+            setExportSelectionError('Select at least one section to export.');
+
+            return;
+        }
+
+        const params = new URLSearchParams();
+        params.set('academic_year_id', String(selected_school_year_id));
+        selectedSectionIds.forEach((sectionId) => {
+            params.append('section_ids[]', String(sectionId));
+        });
+
+        setIsExportDialogOpen(false);
+        window.location.assign(`/registrar/enrollment/export?${params.toString()}`);
+    };
 
     useEffect(() => {
         const assessmentPrintUrl =
@@ -173,42 +207,6 @@ export default function StudentDirectory({
         );
     };
 
-    const statusBadge = (student: StudentRow) => {
-        const { lis_status: status, lis_status_reason: reason } = student;
-
-        if (status === 'matched') {
-            return (
-                <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">
-                    <CheckCircle2 className="size-3" />
-                    Matched
-                </Badge>
-            );
-        }
-
-        if (status === 'discrepancy') {
-            return (
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span className="inline-flex">
-                            <Badge variant="outline" className="bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800">
-                                <TriangleAlert className="size-3" />
-                                Discrepancy
-                            </Badge>
-                        </span>
-                    </TooltipTrigger>
-                    <TooltipContent>{reason ?? 'Needs review'}</TooltipContent>
-                </Tooltip>
-            );
-        }
-
-        return (
-            <Badge variant="outline" className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800">
-                <Clock3 className="size-3" />
-                Pending
-            </Badge>
-        );
-    };
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Student Directory" />
@@ -266,24 +264,18 @@ export default function StudentDirectory({
                                     showSuggestions={false}
                                 />
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 text-xs">
-                                <Badge variant="secondary">
-                                    Matched: {summary.matched}
-                                </Badge>
-                                <Badge variant="outline">
-                                    Pending Match: {summary.pending}
-                                </Badge>
-                                <Badge variant="destructive">
-                                    Discrepancy: {summary.discrepancy}
-                                </Badge>
-                            </div>
                         </div>
 
-                        <div className="flex flex-col items-end gap-2 text-right">
-                            <p className="max-w-xs text-xs text-muted-foreground">
-                                Inbound SF1 sync is disabled. Export SF1
-                                reference from Enrollment for LIS posting.
-                            </p>
+                        <div className="flex items-start">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsExportDialogOpen(true)}
+                                disabled={!selected_school_year_id || section_options.length === 0}
+                            >
+                                <Download className="size-4" />
+                                Export SF1
+                            </Button>
                         </div>
                     </CardHeader>
 
@@ -309,7 +301,6 @@ export default function StudentDirectory({
                                             <p className="text-xs text-muted-foreground">
                                                 {student.grade_section}
                                             </p>
-                                            <div>{statusBadge(student)}</div>
                                             <div className="flex items-center gap-2 pt-1">
                                                 <Button
                                                     type="button"
@@ -361,9 +352,6 @@ export default function StudentDirectory({
                                         <TableHead className="border-l">
                                             Grade and Section
                                         </TableHead>
-                                        <TableHead className="border-l pr-6">
-                                            LIS Status
-                                        </TableHead>
                                         <TableHead className="border-l pr-6 text-right">
                                             Actions
                                         </TableHead>
@@ -373,7 +361,7 @@ export default function StudentDirectory({
                                     {students.data.length === 0 ? (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={5}
+                                                colSpan={4}
                                                 className="h-24 text-center text-sm text-muted-foreground"
                                             >
                                                 No students found.
@@ -390,9 +378,6 @@ export default function StudentDirectory({
                                                 </TableCell>
                                                 <TableCell className="border-l">
                                                     {student.grade_section}
-                                                </TableCell>
-                                                <TableCell className="border-l pr-6">
-                                                    {statusBadge(student)}
                                                 </TableCell>
                                                 <TableCell className="border-l pr-6">
                                                     <div className="flex justify-end gap-2">
@@ -498,6 +483,63 @@ export default function StudentDirectory({
                     </div>
                 </Card>
             </div>
+
+            <Dialog
+                open={isExportDialogOpen}
+                onOpenChange={(open) => {
+                    setIsExportDialogOpen(open);
+                    if (!open) {
+                        setExportSelectionError('');
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-[520px]">
+                    <DialogHeader>
+                        <DialogTitle>Select Sections for SF1 Export</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm text-muted-foreground">
+                                Choose one or more sections to include.
+                            </p>
+                            <Button type="button" variant="ghost" size="sm" onClick={toggleAllSections}>
+                                {selectedSectionIds.length === section_options.length ? 'Clear All' : 'Select All'}
+                            </Button>
+                        </div>
+                        <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-3">
+                            {section_options.map((section) => (
+                                <label
+                                    key={section.id}
+                                    className="flex cursor-pointer items-center gap-2 text-sm"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        className="size-4"
+                                        checked={selectedSectionIds.includes(section.id)}
+                                        onChange={() => toggleSection(section.id)}
+                                    />
+                                    <span>{section.label}</span>
+                                </label>
+                            ))}
+                        </div>
+                        {exportSelectionError !== '' ? (
+                            <p className="text-sm text-destructive">{exportSelectionError}</p>
+                        ) : null}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsExportDialogOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={exportSf1}>
+                            Export
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

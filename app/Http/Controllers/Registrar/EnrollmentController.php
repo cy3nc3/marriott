@@ -219,7 +219,18 @@ class EnrollmentController extends Controller
     public function export(
         Request $request,
     ): BinaryFileResponse|RedirectResponse {
+        $validated = $request->validate([
+            'academic_year_id' => ['nullable', 'integer', 'exists:academic_years,id'],
+            'section_ids' => ['nullable', 'array'],
+            'section_ids.*' => ['integer', 'exists:sections,id'],
+        ]);
+
         $selectedAcademicYearId = $request->integer('academic_year_id');
+        $selectedSectionIds = collect($validated['section_ids'] ?? [])
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values();
 
         $academicYear = $selectedAcademicYearId > 0
             ? AcademicYear::query()->find($selectedAcademicYearId)
@@ -241,6 +252,10 @@ class EnrollmentController extends Controller
                 'section:id,name',
             ])
             ->where('academic_year_id', $academicYear->id)
+            ->when(
+                $selectedSectionIds->isNotEmpty(),
+                fn ($query) => $query->whereIn('section_id', $selectedSectionIds->all())
+            )
             ->whereIn('status', ['for_cashier_payment', 'enrolled'])
             ->get()
             ->sortBy(function (Enrollment $enrollment): string {

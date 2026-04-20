@@ -126,7 +126,25 @@ test('registrar enrollment export downloads sf1 reference csv', function () {
         'status' => 'for_cashier_payment',
     ]);
 
-    $response = $this->get("/registrar/enrollment/export?academic_year_id={$this->academicYear->id}");
+    $otherStudent = Student::query()->create([
+        'lrn' => '222233334445',
+        'first_name' => 'Luna',
+        'last_name' => 'Reyes',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $otherStudent->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $secondSection->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    $response = $this->get(
+        "/registrar/enrollment/export?academic_year_id={$this->academicYear->id}&section_ids[]={$firstSection->id}"
+    );
 
     $response->assertOk();
     $response->assertDownload('sf1-reference-2025-2026.csv');
@@ -160,9 +178,10 @@ test('registrar enrollment export downloads sf1 reference csv', function () {
     expect($csvRows[1][9] ?? null)->toBe('Grade 7');
     expect($csvRows[1][10] ?? null)->toBe('Rizal');
     expect($csvRows[1][11] ?? null)->toBe('for_cashier_payment');
+    expect(collect($csvRows)->flatten()->contains('Bonifacio'))->toBeFalse();
 });
 
-test('registrar student directory exposes discrepancy reason in lis status payload', function () {
+test('registrar student directory omits lis status fields from payload', function () {
     $section = Section::query()->create([
         'academic_year_id' => $this->academicYear->id,
         'grade_level_id' => $this->gradeLevel->id,
@@ -193,8 +212,8 @@ test('registrar student directory exposes discrepancy reason in lis status paylo
         ->assertInertia(fn (Assert $page) => $page
             ->component('registrar/student-directory/index')
             ->where('students.data.0.lrn', '222233334444')
-            ->where('students.data.0.lis_status', 'discrepancy')
-            ->where('students.data.0.lis_status_reason', 'Unable to resolve section assignment from SF1 row.')
+            ->missing('students.data.0.lis_status')
+            ->missing('students.data.0.lis_status_reason')
         );
 });
 
