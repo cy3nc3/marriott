@@ -14,5 +14,8 @@ Schedule::command('grading:send-deadline-reminders')
 Schedule::command('finance:send-due-reminders')
     ->everyMinute();
 
+Schedule::command('notifications:dispatch-scheduled')
+    ->everyMinute();
+
 Schedule::command('announcements:send-event-reminders')
     ->dailyAt('08:00');
