@@ -74,6 +74,103 @@ test('scheduled notification planner creates missing jobs and supersedes stale p
     Carbon::setTestNow();
 });
 
+test('scheduled notification planner is idempotent when reconciled twice with the same desired set', function () {
+    Carbon::setTestNow('2026-04-20 08:00:00');
+
+    $desiredJobs = [
+        [
+            'dedupe_key' => 'finance-due:keep',
+            'run_at' => Carbon::parse('2026-04-20 08:30:00'),
+            'subject_type' => User::class,
+            'subject_id' => 1,
+            'payload' => ['channel' => 'database'],
+        ],
+        [
+            'dedupe_key' => 'finance-due:new',
+            'run_at' => Carbon::parse('2026-04-20 09:00:00'),
+            'subject_type' => User::class,
+            'subject_id' => 3,
+            'payload' => ['channel' => 'database'],
+        ],
+    ];
+
+    $planner = app(ScheduledNotificationPlanner::class);
+
+    $planner->reconcile(
+        ScheduledNotificationJobType::FinanceDueReminder,
+        'finance-due:2026-04-20',
+        $desiredJobs
+    );
+
+    Carbon::setTestNow('2026-04-20 08:05:00');
+
+    $planner->reconcile(
+        ScheduledNotificationJobType::FinanceDueReminder,
+        'finance-due:2026-04-20',
+        $desiredJobs
+    );
+
+    $jobs = ScheduledNotificationJob::query()
+        ->where('type', ScheduledNotificationJobType::FinanceDueReminder)
+        ->where('group_key', 'finance-due:2026-04-20')
+        ->orderBy('dedupe_key')
+        ->get();
+
+    expect($jobs)->toHaveCount(2)
+        ->and($jobs->pluck('dedupe_key')->all())->toBe([
+            'finance-due:keep',
+            'finance-due:new',
+        ])
+        ->and($jobs->every(fn (ScheduledNotificationJob $job) => $job->status === ScheduledNotificationJobStatus::Pending))->toBeTrue()
+        ->and($jobs->every(fn (ScheduledNotificationJob $job) => $job->canceled_at === null))->toBeTrue();
+
+    Carbon::setTestNow();
+});
+
+test('scheduled notification planner can reintroduce a dedupe key after the prior row was superseded', function () {
+    Carbon::setTestNow('2026-04-20 08:00:00');
+
+    $job = ScheduledNotificationJob::query()->create([
+        'type' => ScheduledNotificationJobType::FinanceDueReminder,
+        'status' => ScheduledNotificationJobStatus::Superseded,
+        'run_at' => '2026-04-20 07:30:00',
+        'dedupe_key' => 'finance-due:reintroduced',
+        'group_key' => 'finance-due:2026-04-20',
+        'subject_type' => User::class,
+        'subject_id' => 1,
+        'payload' => ['channel' => 'database', 'attempt' => 1],
+        'canceled_at' => '2026-04-20 07:00:00',
+    ]);
+
+    app(ScheduledNotificationPlanner::class)->reconcile(
+        ScheduledNotificationJobType::FinanceDueReminder,
+        'finance-due:2026-04-20',
+        [
+            [
+                'dedupe_key' => 'finance-due:reintroduced',
+                'run_at' => Carbon::parse('2026-04-20 09:30:00'),
+                'subject_type' => User::class,
+                'subject_id' => 2,
+                'payload' => ['channel' => 'database', 'attempt' => 2],
+            ],
+        ]
+    );
+
+    $job->refresh();
+
+    expect(ScheduledNotificationJob::query()->where('dedupe_key', 'finance-due:reintroduced')->count())->toBe(1)
+        ->and($job->status)->toBe(ScheduledNotificationJobStatus::Pending)
+        ->and($job->run_at?->toDateTimeString())->toBe('2026-04-20 09:30:00')
+        ->and($job->subject_id)->toBe(2)
+        ->and($job->payload)->toBe(['channel' => 'database', 'attempt' => 2])
+        ->and($job->canceled_at)->toBeNull()
+        ->and($job->dispatched_at)->toBeNull()
+        ->and($job->skip_reason)->toBeNull()
+        ->and($job->failure_reason)->toBeNull();
+
+    Carbon::setTestNow();
+});
+
 test('scheduled notification dispatcher command skips due jobs whose subject is missing', function () {
     Carbon::setTestNow('2026-04-20 08:00:00');
 
