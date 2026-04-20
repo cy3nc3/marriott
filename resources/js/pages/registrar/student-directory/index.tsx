@@ -87,7 +87,8 @@ export default function StudentDirectory({
     selected_school_year_id,
     filters,
 }: Props) {
-    const { flash } = usePage<SharedData>().props;
+    const { ui, flash } = usePage<SharedData>().props;
+    const isHandheld = Boolean(ui?.is_handheld);
     const openedAssessmentUrlRef = useRef<string | null>(null);
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
