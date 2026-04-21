@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Scheduling\AnnouncementEventReminderPlanner;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +24,18 @@ class AnnouncementEventResponse extends Model
         return [
             'responded_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saved(function (AnnouncementEventResponse $response): void {
+            $response->loadMissing('announcement');
+
+            if ($response->announcement) {
+                app(AnnouncementEventReminderPlanner::class)
+                    ->cancelRecipient($response->announcement, (int) $response->user_id, 'recipient_responded');
+            }
+        });
     }
 
     public function announcement(): BelongsTo

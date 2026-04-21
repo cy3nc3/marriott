@@ -8,6 +8,7 @@ use App\Http\Requests\Finance\UpdateDueReminderAutomationSettingsRequest;
 use App\Http\Requests\Finance\UpdateDueReminderRuleRequest;
 use App\Models\FinanceDueReminderRule;
 use App\Models\Setting;
+use App\Services\Scheduling\FinanceDueReminderPlanner;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -47,12 +48,14 @@ class DueReminderSettingsController extends Controller
     {
         $validated = $request->validated();
 
-        FinanceDueReminderRule::query()->create([
+        $rule = FinanceDueReminderRule::query()->create([
             'days_before_due' => $validated['days_before_due'],
             'is_active' => (bool) ($validated['is_active'] ?? true),
             'created_by' => auth()->id(),
             'updated_by' => auth()->id(),
         ]);
+
+        app(FinanceDueReminderPlanner::class)->reconcileRule($rule);
 
         return back()->with('success', 'Due reminder rule created.');
     }
@@ -69,11 +72,15 @@ class DueReminderSettingsController extends Controller
             'updated_by' => auth()->id(),
         ]);
 
+        app(FinanceDueReminderPlanner::class)->reconcileRule($financeDueReminderRule);
+
         return back()->with('success', 'Due reminder rule updated.');
     }
 
     public function destroy(FinanceDueReminderRule $financeDueReminderRule): RedirectResponse
     {
+        app(FinanceDueReminderPlanner::class)->cancelRule($financeDueReminderRule);
+
         $financeDueReminderRule->delete();
 
         return back()->with('success', 'Due reminder rule deleted.');
@@ -99,6 +106,8 @@ class DueReminderSettingsController extends Controller
             $validated['max_announcements_per_run'] ?? null,
             'finance_due_reminders'
         );
+
+        app(FinanceDueReminderPlanner::class)->reconcileAllRules();
 
         return back()->with('success', 'Reminder automation settings updated.');
     }

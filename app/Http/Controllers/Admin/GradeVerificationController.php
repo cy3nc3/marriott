@@ -17,6 +17,7 @@ use App\Models\SubjectAssignment;
 use App\Models\User;
 use App\Services\DashboardCacheService;
 use App\Services\GradeDeadlineAnnouncementService;
+use App\Services\Scheduling\GradeDeadlineReminderPlanner;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
@@ -313,7 +314,8 @@ class GradeVerificationController extends Controller
 
     public function updateDeadline(
         UpdateGradeSubmissionDeadlineRequest $request,
-        GradeDeadlineAnnouncementService $deadlineAnnouncementService
+        GradeDeadlineAnnouncementService $deadlineAnnouncementService,
+        GradeDeadlineReminderPlanner $deadlineReminderPlanner
     ): RedirectResponse {
         $validated = $request->validated();
         $activeYear = $this->resolveActiveAcademicYear();
@@ -349,6 +351,7 @@ class GradeVerificationController extends Controller
             json_encode(array_values(array_unique(array_map('intval', $validated['reminder_days'])))),
             'grading'
         );
+        $deadlineReminderPlanner->reconcileAcademicYearQuarter($activeYear, $currentQuarter);
 
         $announcementPosted = false;
         $hasMeaningfulChange = ! $previousDeadline || ! $previousDeadline->equalTo($newDeadline);
@@ -383,7 +386,8 @@ class GradeVerificationController extends Controller
     }
 
     public function updateReminderAutomation(
-        UpdateGradeReminderAutomationRequest $request
+        UpdateGradeReminderAutomationRequest $request,
+        GradeDeadlineReminderPlanner $deadlineReminderPlanner
     ): RedirectResponse {
         $validated = $request->validated();
 
@@ -404,6 +408,8 @@ class GradeVerificationController extends Controller
                 'grading'
             );
         }
+
+        $deadlineReminderPlanner->reconcileActiveAcademicYear();
 
         return back()->with('success', 'Grade reminder automation settings updated.');
     }

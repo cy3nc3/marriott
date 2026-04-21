@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Scheduling\AnnouncementEventReminderPlanner;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -48,6 +49,33 @@ class Announcement extends Model
         'expires_at' => 'datetime',
         'is_active' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (Announcement $announcement): void {
+            if (
+                ! $announcement->wasRecentlyCreated
+                && ! $announcement->wasChanged([
+                    'type',
+                    'response_mode',
+                    'event_starts_at',
+                    'response_deadline_at',
+                    'cancelled_at',
+                    'is_active',
+                    'expires_at',
+                    'publish_at',
+                ])
+            ) {
+                return;
+            }
+
+            app(AnnouncementEventReminderPlanner::class)->reconcileAnnouncement($announcement);
+        });
+
+        static::deleted(function (Announcement $announcement): void {
+            app(AnnouncementEventReminderPlanner::class)->cancelGroup($announcement, 'announcement_deleted');
+        });
+    }
 
     public function user(): BelongsTo
     {

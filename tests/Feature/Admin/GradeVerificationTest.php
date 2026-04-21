@@ -1,11 +1,13 @@
 <?php
 
+use App\Enums\ScheduledNotificationJobStatus;
 use App\Models\AcademicYear;
 use App\Models\Announcement;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
 use App\Models\GradeLevel;
 use App\Models\GradeSubmission;
+use App\Models\ScheduledNotificationJob;
 use App\Models\Section;
 use App\Models\Setting;
 use App\Models\Student;
@@ -254,6 +256,7 @@ test('setting deadline creates teacher announcement only for pending teachers', 
     expect($announcement?->target_roles)->toBe(['teacher']);
     expect($announcement?->target_user_ids)->toContain($pendingFixture['teacher']->id);
     expect($announcement?->target_user_ids)->not->toContain($finalizedFixture['teacher']->id);
+    expect(ScheduledNotificationJob::query()->where('status', ScheduledNotificationJobStatus::Pending)->count())->toBe(2);
 });
 
 test('editing deadline posts updated announcement', function () {
@@ -279,9 +282,21 @@ test('editing deadline posts updated announcement', function () {
 
     expect($latestAnnouncement)->not->toBeNull();
     expect($latestAnnouncement?->title)->toContain('Deadline Updated');
+    expect(ScheduledNotificationJob::query()->where('status', ScheduledNotificationJobStatus::Superseded)->count())->toBe(2);
+    expect(ScheduledNotificationJob::query()->where('status', ScheduledNotificationJobStatus::Pending)->count())->toBe(2);
 });
 
 test('admin can update grade reminder automation settings', function () {
+    $fixture = createGradeSubmissionFixture(status: GradeSubmission::STATUS_DRAFT);
+    Setting::set(
+        "grade_submission_deadline_{$fixture['academicYear']->id}_q1",
+        '2026-05-25 17:00:00',
+        'grading'
+    );
+    Setting::set('grade_deadline_reminder_auto_send_enabled', true, 'grading');
+    app(\App\Services\Scheduling\GradeDeadlineReminderPlanner::class)
+        ->reconcileAcademicYearQuarter($fixture['academicYear'], '1');
+
     $this->actingAs($this->admin)
         ->patch('/admin/grade-verification/reminder-automation', [
             'send_time' => '09:15',
@@ -290,6 +305,8 @@ test('admin can update grade reminder automation settings', function () {
 
     expect(Setting::enabled('grade_deadline_reminder_auto_send_enabled', false))->toBeTrue();
     expect(Setting::get('grade_deadline_reminder_send_time'))->toBe('09:15');
+    expect(ScheduledNotificationJob::query()->where('status', ScheduledNotificationJobStatus::Canceled)->count())->toBe(2);
+    expect(ScheduledNotificationJob::query()->first()?->skip_reason)->toBe('automation_disabled');
 });
 
 test('deadline reminder command posts 3/2/1 day reminders without duplicates', function () {

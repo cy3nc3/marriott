@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Scheduling\GradeDeadlineReminderPlanner;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class GradeSubmission extends Model
 {
     use Auditable;
+
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_SUBMITTED = 'submitted';
@@ -38,6 +40,34 @@ class GradeSubmission extends Model
             'verified_at' => 'datetime',
             'returned_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saved(function (GradeSubmission $submission): void {
+            if (
+                ! $submission->wasRecentlyCreated
+                && ! $submission->wasChanged(['academic_year_id', 'quarter', 'status'])
+            ) {
+                return;
+            }
+
+            $submission->loadMissing('academicYear');
+
+            if ($submission->academicYear) {
+                app(GradeDeadlineReminderPlanner::class)
+                    ->reconcileAcademicYearQuarter($submission->academicYear, (string) $submission->quarter);
+            }
+        });
+
+        static::deleted(function (GradeSubmission $submission): void {
+            $submission->loadMissing('academicYear');
+
+            if ($submission->academicYear) {
+                app(GradeDeadlineReminderPlanner::class)
+                    ->reconcileAcademicYearQuarter($submission->academicYear, (string) $submission->quarter);
+            }
+        });
     }
 
     public function academicYear(): BelongsTo

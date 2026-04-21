@@ -8,11 +8,5 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('grading:send-deadline-reminders')
+Schedule::command('notifications:dispatch-scheduled')
     ->everyMinute();
-
-Schedule::command('finance:send-due-reminders')
-    ->everyMinute();
-
-Schedule::command('announcements:send-event-reminders')
-    ->dailyAt('08:00');
