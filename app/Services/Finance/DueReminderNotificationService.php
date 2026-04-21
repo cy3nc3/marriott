@@ -161,7 +161,10 @@ class DueReminderNotificationService
             return;
         }
 
-        if ($scheduledJob->status !== ScheduledNotificationJobStatus::Pending) {
+        if (! in_array($scheduledJob->status, [
+            ScheduledNotificationJobStatus::Pending,
+            ScheduledNotificationJobStatus::Processing,
+        ], true)) {
             return;
         }
 

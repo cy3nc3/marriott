@@ -2,12 +2,14 @@
 
 use App\Enums\ScheduledNotificationJobStatus;
 use App\Enums\ScheduledNotificationJobType;
+use App\Jobs\DispatchScheduledNotificationJob;
 use App\Models\ScheduledNotificationJob;
 use App\Models\User;
 use App\Services\Scheduling\ScheduledNotificationPlanner;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
@@ -239,6 +241,7 @@ test('scheduled notification dispatcher command skips due jobs whose subject is 
 
 test('scheduled notification dispatcher command dispatches a valid due job only once', function () {
     Carbon::setTestNow('2026-04-20 08:00:00');
+    Queue::fake();
 
     $user = User::factory()->create();
 
@@ -257,11 +260,11 @@ test('scheduled notification dispatcher command dispatches a valid due job only 
 
     $job->refresh();
 
-    expect($job->status)->toBe(ScheduledNotificationJobStatus::Dispatched)
-        ->and($job->dispatched_at?->toDateTimeString())->toBe('2026-04-20 08:00:00')
-        ->and($job->skip_reason)->toBeNull();
+    Queue::assertPushed(DispatchScheduledNotificationJob::class, 1);
 
-    $dispatchedAt = $job->dispatched_at;
+    expect($job->status)->toBe(ScheduledNotificationJobStatus::Processing)
+        ->and($job->dispatched_at)->toBeNull()
+        ->and($job->skip_reason)->toBeNull();
 
     Carbon::setTestNow('2026-04-20 08:01:00');
 
@@ -269,8 +272,10 @@ test('scheduled notification dispatcher command dispatches a valid due job only 
 
     $job->refresh();
 
-    expect($job->status)->toBe(ScheduledNotificationJobStatus::Dispatched)
-        ->and($job->dispatched_at?->toDateTimeString())->toBe($dispatchedAt?->toDateTimeString());
+    Queue::assertPushed(DispatchScheduledNotificationJob::class, 1);
+
+    expect($job->status)->toBe(ScheduledNotificationJobStatus::Processing)
+        ->and($job->dispatched_at)->toBeNull();
 
     Carbon::setTestNow();
 });

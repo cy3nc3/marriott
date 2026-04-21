@@ -3,6 +3,7 @@
 namespace App\Services\Scheduling;
 
 use App\Enums\ScheduledNotificationJobStatus;
+use App\Jobs\DispatchScheduledNotificationJob;
 use App\Models\ScheduledNotificationJob;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -45,9 +46,10 @@ class ScheduledNotificationDispatcher
             }
 
             $job->forceFill([
-                'status' => ScheduledNotificationJobStatus::Dispatched,
-                'dispatched_at' => now(),
+                'status' => ScheduledNotificationJobStatus::Processing,
             ])->save();
+
+            DispatchScheduledNotificationJob::dispatch($job->id);
 
             return 1;
         });

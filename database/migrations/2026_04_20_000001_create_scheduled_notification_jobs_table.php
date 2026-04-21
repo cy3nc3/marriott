@@ -21,6 +21,7 @@ return new class extends Migration
      */
     private array $statuses = [
         'pending',
+        'processing',
         'canceled',
         'superseded',
         'dispatched',
