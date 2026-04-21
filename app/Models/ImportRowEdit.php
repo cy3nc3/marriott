@@ -9,25 +9,26 @@ class ImportRowEdit extends Model
 {
     protected $fillable = [
         'import_batch_row_id',
-        'field_name',
-        'original_values',
-        'edited_values',
-        'metadata',
-        'edited_at',
+        'edited_by',
+        'before_payload',
+        'after_payload',
     ];
 
     protected function casts(): array
     {
         return [
-            'original_values' => 'array',
-            'edited_values' => 'array',
-            'metadata' => 'array',
-            'edited_at' => 'datetime',
+            'before_payload' => 'array',
+            'after_payload' => 'array',
         ];
     }
 
     public function row(): BelongsTo
     {
         return $this->belongsTo(ImportBatchRow::class, 'import_batch_row_id');
+    }
+
+    public function editedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'edited_by');
     }
 }

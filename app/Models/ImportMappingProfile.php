@@ -8,22 +8,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ImportMappingProfile extends Model
 {
     protected $fillable = [
-        'name',
-        'source_type',
+        'module',
         'created_by',
-        'column_mapping',
-        'transform_rules',
-        'metadata',
-        'last_used_at',
+        'profile_name',
+        'header_map',
+        'parsing_rules',
     ];
 
     protected function casts(): array
     {
         return [
-            'column_mapping' => 'array',
-            'transform_rules' => 'array',
-            'metadata' => 'array',
-            'last_used_at' => 'datetime',
+            'header_map' => 'array',
+            'parsing_rules' => 'array',
         ];
     }
 

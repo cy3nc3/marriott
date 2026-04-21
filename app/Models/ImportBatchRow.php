@@ -10,23 +10,24 @@ class ImportBatchRow extends Model
 {
     protected $fillable = [
         'import_batch_id',
-        'row_number',
-        'status',
-        'raw_values',
-        'normalized_values',
+        'row_index',
+        'raw_payload',
+        'normalized_payload',
         'validation_errors',
-        'validation_warnings',
-        'processed_at',
+        'duplicate_flags',
+        'classification',
+        'action',
+        'is_unresolved',
     ];
 
     protected function casts(): array
     {
         return [
-            'raw_values' => 'array',
-            'normalized_values' => 'array',
+            'raw_payload' => 'array',
+            'normalized_payload' => 'array',
             'validation_errors' => 'array',
-            'validation_warnings' => 'array',
-            'processed_at' => 'datetime',
+            'duplicate_flags' => 'array',
+            'is_unresolved' => 'boolean',
         ];
     }
 
