@@ -19,6 +19,8 @@ test('header normalizer resolves common student and finance aliases to canonical
     expect($normalizer->canonicalize('Description'))->toBe('description');
     expect($normalizer->canonicalize('Entry Description'))->toBe('description');
     expect($normalizer->canonicalize('Payment Description'))->toBe('description');
+    expect($normalizer->canonicalize('Billing Description'))->toBe('due_description');
+    expect($normalizer->canonicalize('Installment Description'))->toBe('due_description');
     expect($normalizer->canonicalize('Unexpected Header'))->toBe('unexpected_header');
 });
 
@@ -31,6 +33,8 @@ test('value parser normalizes strings and parses safe decimal and date values', 
     expect($parser->parseDecimal('1.234,50'))->toBeNull();
     expect($parser->parseDate('March 14, 2024'))->toBe('2024-03-14');
     expect($parser->parseDate('03/14/2024'))->toBe('2024-03-14');
+    expect($parser->parseDate('2024-06-02 13:45:00'))->toBe('2024-06-02');
+    expect($parser->parseDate('2024-06-02T13:45:00+08:00'))->toBe('2024-06-02');
     expect($parser->parseDate('14/03/2024'))->toBeNull();
 });
 
@@ -100,5 +104,15 @@ test('mapping resolver reports collisions when multiple source headers resolve t
     expect($result['collisions'])->toMatchArray([
         'payment_date' => ['Date', 'Payment Date'],
         'description' => ['Entry Description', 'Payment Description'],
+    ]);
+
+    $duplicateResult = $resolver->resolve([
+        'Date',
+        'Date',
+        'Amount',
+    ]);
+
+    expect($duplicateResult['collisions'])->toMatchArray([
+        'payment_date' => ['Date', 'Date'],
     ]);
 });

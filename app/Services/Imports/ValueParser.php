@@ -58,10 +58,22 @@ class ValueParser
             return null;
         }
 
+        if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\+\d{2}:\d{2}|Z)?$/', $normalized) === 1) {
+            $dateTime = DateTimeImmutable::createFromFormat('!Y-m-d H:i:sP', str_replace('T', ' ', $normalized));
+            if ($dateTime !== false) {
+                $errors = DateTimeImmutable::getLastErrors();
+                if ($errors === false || (($errors['warning_count'] ?? 0) === 0 && ($errors['error_count'] ?? 0) === 0)) {
+                    return $dateTime->format('Y-m-d');
+                }
+            }
+        }
+
         $formats = [
             '!Y-m-d',
             '!Y/m/d',
             '!Y.m.d',
+            '!Y-m-d H:i:s',
+            '!Y-m-d\TH:i:sP',
             '!m/d/Y',
             '!n/j/Y',
             '!m/d/y',

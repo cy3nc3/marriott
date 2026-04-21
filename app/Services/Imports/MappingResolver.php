@@ -36,9 +36,7 @@ class MappingResolver
                 $collisions[$canonicalField] = [$mapping[$canonicalField]];
             }
 
-            if (! in_array($trimmedHeader, $collisions[$canonicalField], true)) {
-                $collisions[$canonicalField][] = $trimmedHeader;
-            }
+            $collisions[$canonicalField][] = $trimmedHeader;
         }
 
         return [

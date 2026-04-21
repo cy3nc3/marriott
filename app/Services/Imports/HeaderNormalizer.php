@@ -89,8 +89,8 @@ class HeaderNormalizer
         'transaction_description' => 'description',
         'payment_details' => 'description',
         'desc' => 'description',
-        'billing_description' => 'description',
-        'installment_description' => 'description',
+        'billing_description' => 'due_description',
+        'installment_description' => 'due_description',
     ];
 
     public function normalize(string $header): string
