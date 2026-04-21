@@ -8,14 +8,15 @@ class MappingResolver
 
     /**
      * @param  array<int, string>  $sourceHeaders
-     * @return array{mapping: array<string, string>, collisions: array<string, array<int, string>>}
+     * @return array{mapping: array<string, string>, collisions: array<string, array<int, array{index: int, header: string}>>}
      */
     public function resolve(array $sourceHeaders): array
     {
         $mapping = [];
+        $mappingSources = [];
         $collisions = [];
 
-        foreach ($sourceHeaders as $sourceHeader) {
+        foreach ($sourceHeaders as $index => $sourceHeader) {
             $trimmedHeader = trim($sourceHeader);
             if ($trimmedHeader === '') {
                 continue;
@@ -28,15 +29,22 @@ class MappingResolver
 
             if (! array_key_exists($canonicalField, $mapping)) {
                 $mapping[$canonicalField] = $trimmedHeader;
+                $mappingSources[$canonicalField] = [
+                    'index' => $index,
+                    'header' => $trimmedHeader,
+                ];
 
                 continue;
             }
 
             if (! array_key_exists($canonicalField, $collisions)) {
-                $collisions[$canonicalField] = [$mapping[$canonicalField]];
+                $collisions[$canonicalField] = [$mappingSources[$canonicalField]];
             }
 
-            $collisions[$canonicalField][] = $trimmedHeader;
+            $collisions[$canonicalField][] = [
+                'index' => $index,
+                'header' => $trimmedHeader,
+            ];
         }
 
         return [

@@ -3,6 +3,7 @@
 use App\Services\Imports\HeaderNormalizer;
 use App\Services\Imports\MappingResolver;
 use App\Services\Imports\ValueParser;
+use Carbon\CarbonImmutable;
 
 uses(Tests\TestCase::class);
 
@@ -31,10 +32,22 @@ test('value parser normalizes strings and parses safe decimal and date values', 
     expect($parser->normalizeString('   '))->toBeNull();
     expect($parser->parseDecimal(' ?1,234.50 '))->toBe(1234.5);
     expect($parser->parseDecimal('1.234,50'))->toBeNull();
-    expect($parser->parseDate('March 14, 2024'))->toBe('2024-03-14');
-    expect($parser->parseDate('03/14/2024'))->toBe('2024-03-14');
-    expect($parser->parseDate('2024-06-02 13:45:00'))->toBe('2024-06-02');
-    expect($parser->parseDate('2024-06-02T13:45:00+08:00'))->toBe('2024-06-02');
+
+    foreach ([
+        'March 14, 2024' => '2024-03-14',
+        '03/14/2024' => '2024-03-14',
+        '2024-06-02T13:45:00' => '2024-06-02',
+        '2024-06-02 13:45' => '2024-06-02',
+        '2024-06-02 13:45:00' => '2024-06-02',
+        '2024-06-02T13:45:00+08:00' => '2024-06-02',
+    ] as $input => $expectedDate) {
+        $parsedDate = $parser->parseDate($input);
+
+        expect($parsedDate)->toBeInstanceOf(CarbonImmutable::class);
+        expect($parsedDate?->toDateString())->toBe($expectedDate);
+        expect($parsedDate?->toTimeString())->toBe('00:00:00');
+    }
+
     expect($parser->parseDate('14/03/2024'))->toBeNull();
 });
 
@@ -102,8 +115,14 @@ test('mapping resolver reports collisions when multiple source headers resolve t
     ]);
 
     expect($result['collisions'])->toMatchArray([
-        'payment_date' => ['Date', 'Payment Date'],
-        'description' => ['Entry Description', 'Payment Description'],
+        'payment_date' => [
+            ['index' => 0, 'header' => 'Date'],
+            ['index' => 1, 'header' => 'Payment Date'],
+        ],
+        'description' => [
+            ['index' => 2, 'header' => 'Entry Description'],
+            ['index' => 3, 'header' => 'Payment Description'],
+        ],
     ]);
 
     $duplicateResult = $resolver->resolve([
@@ -113,6 +132,9 @@ test('mapping resolver reports collisions when multiple source headers resolve t
     ]);
 
     expect($duplicateResult['collisions'])->toMatchArray([
-        'payment_date' => ['Date', 'Date'],
+        'payment_date' => [
+            ['index' => 0, 'header' => 'Date'],
+            ['index' => 1, 'header' => 'Date'],
+        ],
     ]);
 });

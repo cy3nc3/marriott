@@ -2,7 +2,7 @@
 
 namespace App\Services\Imports;
 
-use DateTimeImmutable;
+use Carbon\CarbonImmutable;
 use DateTimeInterface;
 
 class ValueParser
@@ -47,10 +47,10 @@ class ValueParser
         return $decimal >= 0 ? round($decimal, 2) : null;
     }
 
-    public function parseDate(mixed $value): ?string
+    public function parseDate(mixed $value): ?CarbonImmutable
     {
         if ($value instanceof DateTimeInterface) {
-            return $value->format('Y-m-d');
+            return CarbonImmutable::instance($value)->startOfDay();
         }
 
         $normalized = $this->normalizeString($value);
@@ -58,49 +58,10 @@ class ValueParser
             return null;
         }
 
-        if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\+\d{2}:\d{2}|Z)?$/', $normalized) === 1) {
-            $dateTime = DateTimeImmutable::createFromFormat('!Y-m-d H:i:sP', str_replace('T', ' ', $normalized));
-            if ($dateTime !== false) {
-                $errors = DateTimeImmutable::getLastErrors();
-                if ($errors === false || (($errors['warning_count'] ?? 0) === 0 && ($errors['error_count'] ?? 0) === 0)) {
-                    return $dateTime->format('Y-m-d');
-                }
-            }
+        try {
+            return CarbonImmutable::parse($normalized)->startOfDay();
+        } catch (\Throwable) {
+            return null;
         }
-
-        $formats = [
-            '!Y-m-d',
-            '!Y/m/d',
-            '!Y.m.d',
-            '!Y-m-d H:i:s',
-            '!Y-m-d\TH:i:sP',
-            '!m/d/Y',
-            '!n/j/Y',
-            '!m/d/y',
-            '!n/j/y',
-            '!F j, Y',
-            '!M j, Y',
-        ];
-
-        foreach ($formats as $format) {
-            $date = DateTimeImmutable::createFromFormat($format, $normalized);
-            if ($date === false) {
-                continue;
-            }
-
-            $errors = DateTimeImmutable::getLastErrors();
-            if ($errors !== false && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0)) {
-                continue;
-            }
-
-            $expectedFormat = str_starts_with($format, '!') ? substr($format, 1) : $format;
-            if ($date->format($expectedFormat) !== $normalized) {
-                continue;
-            }
-
-            return $date->format('Y-m-d');
-        }
-
-        return null;
     }
 }
