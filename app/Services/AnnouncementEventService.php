@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Announcement;
 use App\Models\AnnouncementRead;
 use App\Models\User;
+use App\Services\Scheduling\AnnouncementEventReminderPlanner;
 use Illuminate\Support\Collection;
 
 class AnnouncementEventService
@@ -105,6 +106,8 @@ class AnnouncementEventService
         if ($markUnread) {
             $this->markRecipientsUnread($announcement, $recipientUserIds);
         }
+
+        $this->syncReminderSchedule($announcement);
     }
 
     public function cancelEvent(Announcement $announcement, User $actor, ?string $cancelReason = null): void
@@ -119,6 +122,8 @@ class AnnouncementEventService
             'cancel_reason' => $cancelReason !== null && trim($cancelReason) !== '' ? trim($cancelReason) : null,
         ]);
 
+        $this->syncReminderSchedule($announcement->fresh());
+
         $recipientUserIds = $announcement->recipients()
             ->pluck('user_id')
             ->map(fn (int|string $id): int => (int) $id)
@@ -127,6 +132,13 @@ class AnnouncementEventService
         if ($recipientUserIds->isNotEmpty()) {
             $this->markRecipientsUnread($announcement, $recipientUserIds);
         }
+    }
+
+    public function syncReminderSchedule(Announcement $announcement): void
+    {
+        $announcement->loadMissing(['recipients', 'eventResponses']);
+
+        app(AnnouncementEventReminderPlanner::class)->reconcileAnnouncement($announcement);
     }
 
     /**
@@ -146,6 +158,8 @@ class AnnouncementEventService
 
     private function clearEventWorkflowState(Announcement $announcement): void
     {
+        app(AnnouncementEventReminderPlanner::class)->cancelGroup($announcement, 'announcement_invalid');
+
         $announcement->recipients()->delete();
         $announcement->eventResponses()->delete();
         $announcement->reminderDispatches()->delete();
