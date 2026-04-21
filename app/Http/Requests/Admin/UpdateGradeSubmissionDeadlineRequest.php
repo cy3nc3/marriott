@@ -15,6 +15,9 @@ class UpdateGradeSubmissionDeadlineRequest extends FormRequest
     {
         return [
             'submission_deadline' => ['required', 'date'],
+            'send_time' => ['required', 'date_format:H:i'],
+            'reminder_days' => ['required', 'array', 'min:1'],
+            'reminder_days.*' => ['integer', 'between:1,14', 'distinct'],
         ];
     }
 }

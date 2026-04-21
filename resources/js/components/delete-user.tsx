@@ -1,12 +1,12 @@
 import { useForm } from '@inertiajs/react';
 import { useRef, useState } from 'react';
+import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
-import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 
 export default function DeleteUser() {
     const passwordInput = useRef<HTMLInputElement>(null);

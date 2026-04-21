@@ -1,5 +1,4 @@
 import { Link, usePage } from '@inertiajs/react';
-import type { ComponentType } from 'react';
 import {
     Bell,
     BookOpenCheck,
@@ -10,6 +9,7 @@ import {
     ReceiptText,
     UserRound,
 } from 'lucide-react';
+import type { ComponentType } from 'react';
 import { cn } from '@/lib/utils';
 import type { SharedData } from '@/types';
 

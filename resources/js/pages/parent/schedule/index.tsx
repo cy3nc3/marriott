@@ -24,7 +24,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const START_HOUR = 7;
 const END_HOUR = 17;
-const HOUR_HEIGHT = 56;
+const HOUR_HEIGHT = 96;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 type ScheduleItem = {

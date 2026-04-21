@@ -2,20 +2,15 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     Banknote,
     BarChart3,
-    BookOpen,
     Calendar,
     CheckSquare,
     ClipboardList,
     CreditCard,
-    Download,
-    FileSpreadsheet,
-    FileText,
     Folder,
     GraduationCap,
     HelpCircle,
     History,
     LayoutGrid,
-    Layers,
     Megaphone,
     Package,
     Receipt,
@@ -29,7 +24,6 @@ import {
     Users,
     Wallet,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -118,16 +112,6 @@ const roleNavItems: Record<string, NavItem[]> = {
             icon: CheckSquare,
         },
         { title: 'Class Lists', href: '/admin/class-lists', icon: Users },
-        {
-            title: 'DepEd Reports',
-            href: '/admin/deped-reports',
-            icon: FileText,
-        },
-        {
-            title: 'SF9 Generator',
-            href: '/admin/sf9-generator',
-            icon: FileSpreadsheet,
-        },
     ],
     registrar: [
         {
@@ -283,8 +267,6 @@ const permissionFeatureByHref: Record<string, string> = {
     '/super-admin/system-settings': 'System Configuration',
     '/admin/class-lists': 'Class Lists',
     '/admin/grade-verification': 'Grade Verification',
-    '/admin/deped-reports': 'DepEd Reports',
-    '/admin/sf9-generator': 'SF9 Generator',
     '/teacher/schedule': 'My Schedule',
     '/student/schedule': 'My Schedule',
     '/parent/schedule': 'My Schedule',

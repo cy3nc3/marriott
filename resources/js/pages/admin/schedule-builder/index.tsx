@@ -1,5 +1,4 @@
 import { Head, useForm, router } from '@inertiajs/react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import {
     Calendar,
     Clock,
@@ -11,7 +10,9 @@ import {
     Plus,
     BookOpen,
 } from 'lucide-react';
-import { useState, useMemo, useEffect } from 'react';
+import { useMemo, useState } from 'react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,7 +25,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -33,11 +33,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
-import type { BreadcrumbItem } from '@/types';
 import { store, update, destroy } from '@/routes/admin/schedule_builder';
+import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -133,16 +133,19 @@ export default function ScheduleBuilder({
     const [selectedItem, setSelectedItem] = useState<ScheduleItem | null>(null);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
-    useEffect(() => {
+    const handleGradeChange = (gradeId: string): void => {
+        setSelectedGradeId(gradeId);
+
         const grade = gradeLevels.find(
-            (g) => g.id.toString() === selectedGradeId,
+            (g) => g.id.toString() === gradeId,
         );
+
         if (grade && grade.sections.length > 0) {
             setSelectedSectionId(grade.sections[0].id.toString());
         } else {
             setSelectedSectionId('');
         }
-    }, [selectedGradeId, gradeLevels]);
+    };
 
     const addForm = useForm({
         section_id: 0,
@@ -359,13 +362,6 @@ export default function ScheduleBuilder({
         );
     }
 
-    const currentAddSubject = subjects.find(
-        (s) => s.id === addForm.data.subject_id,
-    );
-    const currentAddTeacher = teachers.find(
-        (t) => t.id === addForm.data.teacher_id,
-    );
-
     return (
         <>
             <AppLayout breadcrumbs={breadcrumbs}>
@@ -412,7 +408,7 @@ export default function ScheduleBuilder({
                                     </Label>
                                     <Select
                                         value={selectedGradeId}
-                                        onValueChange={setSelectedGradeId}
+                                        onValueChange={handleGradeChange}
                                     >
                                         <SelectTrigger className="h-9 w-full">
                                             <SelectValue />

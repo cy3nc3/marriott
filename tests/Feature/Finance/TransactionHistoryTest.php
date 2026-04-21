@@ -10,6 +10,8 @@ use App\Models\Transaction;
 use App\Models\TransactionDueAllocation;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 beforeEach(function () {
     $this->finance = User::factory()->finance()->create();
@@ -88,9 +90,15 @@ test('finance transaction history page renders transaction rows and summary tota
             ->where('transactions.total', 2)
             ->where('transactions.data.0.or_number', 'OR-1002')
             ->where('transactions.data.0.entry_label', 'Tuition Partial + 1 more')
+            ->where('transactions.data.0.transaction_items.0.description', 'Tuition Partial')
+            ->where('transactions.data.0.transaction_items.0.amount', 1000)
+            ->where('transactions.data.0.transaction_items.1.description', 'School Uniform')
+            ->where('transactions.data.0.transaction_items.1.amount', 400)
             ->where('transactions.data.0.payment_mode_label', 'GCash')
             ->where('transactions.data.1.or_number', 'OR-1001')
             ->where('transactions.data.1.entry_label', 'Enrollment Downpayment')
+            ->where('transactions.data.1.transaction_items.0.description', 'Enrollment Downpayment')
+            ->where('transactions.data.1.transaction_items.0.amount', 3000)
             ->where('summary.count', 2)
             ->where('summary.posted_amount', 4400)
             ->where('summary.voided_amount', 0)
@@ -356,6 +364,172 @@ test('finance transaction history handles school year filters without date bound
             ->where('summary.count', 1)
             ->where('transactions.data.0.or_number', 'OR-SY-NULL-1001')
         );
+});
+
+test('finance can export transaction history workbook using preset date range with monthly segmented sheets', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '4',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '955566667777',
+        'first_name' => 'Mila',
+        'last_name' => 'Santos',
+    ]);
+
+    $marchTransaction = Transaction::query()->create([
+        'or_number' => 'OR-EXP-MAR-1',
+        'student_id' => $student->id,
+        'cashier_id' => $this->finance->id,
+        'total_amount' => 1200,
+        'payment_mode' => 'cash',
+        'status' => 'posted',
+    ]);
+    $marchTransaction->items()->create([
+        'description' => 'Assessment Fee',
+        'amount' => 1200,
+    ]);
+
+    $aprilTransaction = Transaction::query()->create([
+        'or_number' => 'OR-EXP-APR-1',
+        'student_id' => $student->id,
+        'cashier_id' => $this->finance->id,
+        'total_amount' => 800,
+        'payment_mode' => 'gcash',
+        'status' => 'posted',
+    ]);
+    $aprilTransaction->items()->create([
+        'description' => 'Books Payment',
+        'amount' => 800,
+    ]);
+
+    Transaction::query()->whereKey($marchTransaction->id)->update([
+        'created_at' => '2026-03-20 10:00:00',
+        'updated_at' => '2026-03-20 10:00:00',
+    ]);
+    Transaction::query()->whereKey($aprilTransaction->id)->update([
+        'created_at' => '2026-04-04 10:00:00',
+        'updated_at' => '2026-04-04 10:00:00',
+    ]);
+
+    $this->travelTo('2026-04-09 12:00:00');
+
+    $response = $this->get('/finance/transaction-history/export?export_range=all_time');
+
+    $response->assertSuccessful();
+    expect((string) $response->headers->get('content-disposition'))->toContain('transaction-history-');
+    expect((string) $response->headers->get('content-disposition'))->toContain('.xlsx');
+
+    $fileResponse = $response->baseResponse;
+    expect($fileResponse)->toBeInstanceOf(BinaryFileResponse::class);
+
+    $spreadsheet = IOFactory::load($fileResponse->getFile()->getPathname());
+
+    $summarySheet = $spreadsheet->getSheetByName('Summary');
+    $monthlyOverviewSheet = $spreadsheet->getSheetByName('Monthly Overview');
+    $marchDetailSheet = $spreadsheet->getSheetByName('March 20-31, 2026');
+    $aprilDetailSheet = $spreadsheet->getSheetByName('April 1-4, 2026');
+
+    expect($summarySheet instanceof \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet)->toBeTrue();
+    expect($monthlyOverviewSheet instanceof \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet)->toBeTrue();
+    expect($marchDetailSheet instanceof \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet)->toBeTrue();
+    expect($aprilDetailSheet instanceof \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet)->toBeTrue();
+
+    expect((string) $summarySheet?->getCell('A1')->getCalculatedValue())->toBe('Transaction History Export');
+    expect((string) $summarySheet?->getCell('B4')->getCalculatedValue())->toBe('All Time');
+    expect((string) $summarySheet?->getCell('B5')->getCalculatedValue())->toBe('2026-03-20');
+    expect((string) $summarySheet?->getCell('B6')->getCalculatedValue())->toBe('2026-04-04');
+    expect((float) $summarySheet?->getCell('B9')->getCalculatedValue())->toBe(2.0);
+    expect((float) $summarySheet?->getCell('B10')->getCalculatedValue())->toBe(2000.0);
+
+    expect((string) $monthlyOverviewSheet?->getCell('A4')->getCalculatedValue())->toBe('March 20-31, 2026');
+    expect((float) $monthlyOverviewSheet?->getCell('B4')->getCalculatedValue())->toBe(1.0);
+    expect((float) $monthlyOverviewSheet?->getCell('C4')->getCalculatedValue())->toBe(1200.0);
+    expect((string) $monthlyOverviewSheet?->getCell('A5')->getCalculatedValue())->toBe('April 1-4, 2026');
+    expect((float) $monthlyOverviewSheet?->getCell('C5')->getCalculatedValue())->toBe(800.0);
+
+    expect((string) $marchDetailSheet?->getCell('A4')->getCalculatedValue())->toBe('OR-EXP-MAR-1');
+    expect((string) $aprilDetailSheet?->getCell('A4')->getCalculatedValue())->toBe('OR-EXP-APR-1');
+
+    $this->travelBack();
+});
+
+test('finance export uses explicitly selected date range over preset', function () {
+    AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '4',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '955566667779',
+        'first_name' => 'Luna',
+        'last_name' => 'Dela Paz',
+    ]);
+
+    $marchTransaction = Transaction::query()->create([
+        'or_number' => 'OR-EXP-MAR-2',
+        'student_id' => $student->id,
+        'cashier_id' => $this->finance->id,
+        'total_amount' => 600,
+        'payment_mode' => 'cash',
+        'status' => 'posted',
+    ]);
+    $marchTransaction->items()->create([
+        'description' => 'Assessment Fee',
+        'amount' => 600,
+    ]);
+
+    $aprilTransaction = Transaction::query()->create([
+        'or_number' => 'OR-EXP-APR-2',
+        'student_id' => $student->id,
+        'cashier_id' => $this->finance->id,
+        'total_amount' => 900,
+        'payment_mode' => 'gcash',
+        'status' => 'posted',
+    ]);
+    $aprilTransaction->items()->create([
+        'description' => 'Books Payment',
+        'amount' => 900,
+    ]);
+
+    Transaction::query()->whereKey($marchTransaction->id)->update([
+        'created_at' => '2026-03-22 10:00:00',
+        'updated_at' => '2026-03-22 10:00:00',
+    ]);
+    Transaction::query()->whereKey($aprilTransaction->id)->update([
+        'created_at' => '2026-04-05 10:00:00',
+        'updated_at' => '2026-04-05 10:00:00',
+    ]);
+
+    $this->travelTo('2026-04-09 12:00:00');
+
+    $response = $this->get('/finance/transaction-history/export?export_range=all_time&date_from=2026-03-22&date_to=2026-03-22');
+
+    $response->assertSuccessful();
+    $fileResponse = $response->baseResponse;
+    expect($fileResponse)->toBeInstanceOf(BinaryFileResponse::class);
+
+    $spreadsheet = IOFactory::load($fileResponse->getFile()->getPathname());
+
+    $summarySheet = $spreadsheet->getSheetByName('Summary');
+    $marchDetailSheet = $spreadsheet->getSheetByName('March 22-22, 2026');
+    $aprilDetailSheet = $spreadsheet->getSheetByName('April 1-5, 2026');
+
+    expect($summarySheet instanceof \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet)->toBeTrue();
+    expect($marchDetailSheet instanceof \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet)->toBeTrue();
+    expect($aprilDetailSheet)->toBeNull();
+    expect((string) $summarySheet?->getCell('B5')->getCalculatedValue())->toBe('2026-03-22');
+    expect((string) $summarySheet?->getCell('B6')->getCalculatedValue())->toBe('2026-03-22');
+    expect((float) $summarySheet?->getCell('B9')->getCalculatedValue())->toBe(1.0);
+
+    $this->travelBack();
 });
 
 test('finance can void a transaction and rollback dues and ledger entries', function () {

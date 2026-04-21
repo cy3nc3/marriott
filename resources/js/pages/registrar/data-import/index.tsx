@@ -1,7 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
-import { type FormEvent, useState } from 'react';
 import { Upload } from 'lucide-react';
+import { type FormEvent, useState } from 'react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {

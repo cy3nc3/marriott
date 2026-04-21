@@ -9,6 +9,8 @@ use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 beforeEach(function () {
     $this->finance = User::factory()->finance()->create();
@@ -431,4 +433,171 @@ test('finance daily reports handles school year filters without date bounds', fu
             ->where('summary.gross_collection', 2750)
             ->where('transaction_rows.data.0.or_number', 'OR-DAILY-NULL-1')
         );
+});
+
+test('finance daily reports can export xlsx workbook with structured summary and transaction sheets', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '3',
+    ]);
+
+    $cashier = User::factory()->finance()->create([
+        'first_name' => 'Aira',
+        'last_name' => 'Santos',
+    ]);
+    $cashierTwo = User::factory()->finance()->create([
+        'first_name' => 'Noel',
+        'last_name' => 'Garcia',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $tuitionFee = Fee::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'academic_year_id' => $schoolYear->id,
+        'type' => 'tuition',
+        'name' => 'Tuition Fee',
+        'amount' => 5500,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '801234567890',
+        'first_name' => 'Mina',
+        'last_name' => 'Lopez',
+    ]);
+
+    $transaction = Transaction::query()->create([
+        'or_number' => 'OR-EXP-0001',
+        'student_id' => $student->id,
+        'cashier_id' => $cashier->id,
+        'total_amount' => 5500,
+        'payment_mode' => 'cash',
+    ]);
+
+    $transaction->items()->create([
+        'fee_id' => $tuitionFee->id,
+        'description' => 'Tuition Payment',
+        'amount' => 5500,
+    ]);
+
+    $transactionTwo = Transaction::query()->create([
+        'or_number' => 'OR-EXP-0002',
+        'student_id' => $student->id,
+        'cashier_id' => $cashierTwo->id,
+        'total_amount' => 3500,
+        'payment_mode' => 'gcash',
+    ]);
+
+    $transactionTwo->items()->create([
+        'fee_id' => null,
+        'description' => 'Enrollment Downpayment',
+        'amount' => 3000,
+    ]);
+    $transactionTwo->items()->create([
+        'fee_id' => null,
+        'description' => 'Miscellaneous Payment',
+        'amount' => 500,
+    ]);
+
+    $transactionThree = Transaction::query()->create([
+        'or_number' => 'OR-EXP-0003',
+        'student_id' => $student->id,
+        'cashier_id' => $cashierTwo->id,
+        'total_amount' => 1200,
+        'payment_mode' => 'cash',
+        'status' => 'voided',
+    ]);
+
+    $transactionThree->items()->create([
+        'fee_id' => null,
+        'description' => 'Miscellaneous Payment',
+        'amount' => 1200,
+    ]);
+
+    Transaction::query()->whereKey($transaction->id)->update([
+        'created_at' => '2025-07-15 10:30:00',
+        'updated_at' => '2025-07-15 10:30:00',
+    ]);
+    Transaction::query()->whereKey($transactionTwo->id)->update([
+        'created_at' => '2025-07-15 11:30:00',
+        'updated_at' => '2025-07-15 11:30:00',
+    ]);
+    Transaction::query()->whereKey($transactionThree->id)->update([
+        'created_at' => '2025-07-15 12:30:00',
+        'updated_at' => '2025-07-15 12:30:00',
+    ]);
+
+    $response = $this->get("/finance/daily-reports/export?academic_year_id={$schoolYear->id}&date_from=2025-07-15&date_to=2025-07-15");
+
+    $response->assertSuccessful();
+    expect((string) $response->headers->get('content-disposition'))->toContain('daily-reports-');
+    expect((string) $response->headers->get('content-disposition'))->toContain('.xlsx');
+
+    $fileResponse = $response->baseResponse;
+    expect($fileResponse)->toBeInstanceOf(BinaryFileResponse::class);
+
+    $spreadsheet = IOFactory::load($fileResponse->getFile()->getPathname());
+    $summarySheet = $spreadsheet->getSheetByName('Summary');
+    $transactionsSheet = $spreadsheet->getSheetByName('Transactions');
+
+    expect($summarySheet instanceof \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet)->toBeTrue();
+    expect($transactionsSheet instanceof \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet)->toBeTrue();
+
+    expect((string) $summarySheet?->getCell('A1')->getCalculatedValue())->toBe('Daily Collection Report');
+    expect((string) $summarySheet?->getCell('B4')->getCalculatedValue())->toBe('2025-2026');
+    expect((string) $summarySheet?->getCell('B5')->getCalculatedValue())->toBe('All Cashiers');
+    expect((string) $summarySheet?->getCell('B6')->getCalculatedValue())->toBe('All Payment Modes');
+    expect((string) $summarySheet?->getCell('B7')->getCalculatedValue())->toBe('2025-07-15');
+    expect((string) $summarySheet?->getCell('B8')->getCalculatedValue())->toBe('2025-07-15');
+    expect((float) $summarySheet?->getCell('B11')->getCalculatedValue())->toBe(3.0);
+    expect((float) $summarySheet?->getCell('B12')->getCalculatedValue())->toBe(9000.0);
+    expect((float) $summarySheet?->getCell('B13')->getCalculatedValue())->toBe(5500.0);
+    expect((float) $summarySheet?->getCell('B14')->getCalculatedValue())->toBe(3500.0);
+    expect((float) $summarySheet?->getCell('B15')->getCalculatedValue())->toBe(1200.0);
+    expect((string) $summarySheet?->getCell('A20')->getCalculatedValue())->toBe('Tuition Fees');
+    expect((float) $summarySheet?->getCell('C20')->getCalculatedValue())->toBe(5500.0);
+    expect((string) $summarySheet?->getCell('A24')->getCalculatedValue())->toBe('Cashier Breakdown');
+    expect((string) $summarySheet?->getCell('A25')->getCalculatedValue())->toBe('Cashier');
+    expect((string) $summarySheet?->getCell('A26')->getCalculatedValue())->toBe('Aira Santos');
+    expect((float) $summarySheet?->getCell('B26')->getCalculatedValue())->toBe(1.0);
+    expect((float) $summarySheet?->getCell('C26')->getCalculatedValue())->toBe(5500.0);
+    expect((float) $summarySheet?->getCell('D26')->getCalculatedValue())->toBe(5500.0);
+    expect((float) $summarySheet?->getCell('E26')->getCalculatedValue())->toBe(0.0);
+    expect((float) $summarySheet?->getCell('F26')->getCalculatedValue())->toBe(0.0);
+    expect((float) $summarySheet?->getCell('G26')->getCalculatedValue())->toBe(5500.0);
+    expect((string) $summarySheet?->getCell('A27')->getCalculatedValue())->toBe('Noel Garcia');
+    expect((float) $summarySheet?->getCell('B27')->getCalculatedValue())->toBe(2.0);
+    expect((float) $summarySheet?->getCell('C27')->getCalculatedValue())->toBe(3500.0);
+    expect((float) $summarySheet?->getCell('D27')->getCalculatedValue())->toBe(0.0);
+    expect((float) $summarySheet?->getCell('E27')->getCalculatedValue())->toBe(3500.0);
+    expect((float) $summarySheet?->getCell('F27')->getCalculatedValue())->toBe(1200.0);
+    expect((float) $summarySheet?->getCell('G27')->getCalculatedValue())->toBe(2300.0);
+
+    expect((string) $transactionsSheet?->getCell('A1')->getCalculatedValue())->toBe('Transaction Details');
+    expect((string) $transactionsSheet?->getCell('A3')->getCalculatedValue())->toBe('OR Number');
+    expect((string) $transactionsSheet?->getCell('A4')->getCalculatedValue())->toBe('OR-EXP-0003');
+    expect((string) $transactionsSheet?->getCell('B4')->getCalculatedValue())->toBe('Mina Lopez');
+    expect((string) $transactionsSheet?->getCell('A5')->getCalculatedValue())->toBe('OR-EXP-0002');
+    expect((string) $transactionsSheet?->getCell('C5')->getCalculatedValue())->toBe('Enrollment Downpayment');
+    expect((float) $transactionsSheet?->getCell('F5')->getCalculatedValue())->toBe(3000.0);
+    expect((string) $transactionsSheet?->getCell('A6')->getCalculatedValue())->toBe('OR-EXP-0002');
+    expect((string) $transactionsSheet?->getCell('C6')->getCalculatedValue())->toBe('Miscellaneous Payment');
+    expect((float) $transactionsSheet?->getCell('F6')->getCalculatedValue())->toBe(500.0);
+    expect((float) $transactionsSheet?->getCell('F4')->getCalculatedValue())->toBe(1200.0);
+
+    $airaSheet = $spreadsheet->getSheetByName('Aira Santos');
+    $noelSheet = $spreadsheet->getSheetByName('Noel Garcia');
+
+    expect($airaSheet instanceof \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet)->toBeTrue();
+    expect($noelSheet instanceof \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet)->toBeTrue();
+    expect((string) $airaSheet?->getCell('A4')->getCalculatedValue())->toBe('OR-EXP-0001');
+    expect((string) $noelSheet?->getCell('A4')->getCalculatedValue())->toBe('OR-EXP-0003');
+    expect((string) $noelSheet?->getCell('A5')->getCalculatedValue())->toBe('OR-EXP-0002');
+    expect((string) $noelSheet?->getCell('A6')->getCalculatedValue())->toBe('OR-EXP-0002');
 });

@@ -16,11 +16,15 @@ use App\Models\Transaction;
 use App\Models\TransactionDueAllocation;
 use App\Models\User;
 use App\Services\DashboardCacheService;
+use App\Services\Finance\TransactionHistoryWorkbookExporter;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class TransactionHistoryController extends Controller
 {
@@ -58,66 +62,13 @@ class TransactionHistoryController extends Controller
         $dateFrom = $validated['date_from'] ?? null;
         $dateTo = $validated['date_to'] ?? null;
 
-        $transactionQuery = Transaction::query()
-            ->with([
-                'student:id,first_name,last_name,lrn',
-                'cashier:id,first_name,last_name,name',
-                'items:id,transaction_id,description',
-                'reissuedTransaction:id,or_number',
-                'voidedBy:id,first_name,last_name,name',
-                'refundedBy:id,first_name,last_name,name',
-                'reissuedBy:id,first_name,last_name,name',
-            ])
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($searchQuery) use ($search) {
-                    $searchQuery
-                        ->where('or_number', 'like', "%{$search}%")
-                        ->orWhereHas('student', function ($studentQuery) use ($search) {
-                            $studentQuery
-                                ->where('lrn', 'like', "%{$search}%")
-                                ->orWhere('first_name', 'like', "%{$search}%")
-                                ->orWhere('last_name', 'like', "%{$search}%");
-                        });
-                });
-            })
-            ->when($paymentMode, function ($query, $paymentMode) {
-                $query->where('payment_mode', $paymentMode);
-            })
-            ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
-                $hasDateBounds = filled($selectedAcademicYear->start_date)
-                    && filled($selectedAcademicYear->end_date);
-
-                $query->where(function ($yearQuery) use ($selectedAcademicYear, $hasDateBounds) {
-                    if ($hasDateBounds) {
-                        $yearQuery
-                            ->whereBetween('created_at', [
-                                "{$selectedAcademicYear->start_date} 00:00:00",
-                                "{$selectedAcademicYear->end_date} 23:59:59",
-                            ])
-                            ->orWhereHas('ledgerEntries', function ($ledgerQuery) use ($selectedAcademicYear) {
-                                $ledgerQuery
-                                    ->where('academic_year_id', $selectedAcademicYear->id)
-                                    ->whereNotNull('credit');
-                            });
-
-                        return;
-                    }
-
-                    $yearQuery->whereHas('ledgerEntries', function ($ledgerQuery) use ($selectedAcademicYear) {
-                        $ledgerQuery
-                            ->where('academic_year_id', $selectedAcademicYear->id)
-                            ->whereNotNull('credit');
-                    });
-                });
-            })
-            ->when($dateFrom, function ($query, $dateFrom) {
-                $query->whereDate('created_at', '>=', $dateFrom);
-            })
-            ->when($dateTo, function ($query, $dateTo) {
-                $query->whereDate('created_at', '<=', $dateTo);
-            })
-            ->latest('created_at')
-            ->latest('id');
+        $transactionQuery = $this->buildTransactionHistoryQuery(
+            $selectedAcademicYear,
+            $search,
+            $paymentMode,
+            $dateFrom,
+            $dateTo,
+        );
 
         $correctedStatuses = ['voided', 'refunded', 'reissued'];
         $summaryQuery = clone $transactionQuery;
@@ -162,6 +113,18 @@ class TransactionHistoryController extends Controller
                     'status_label' => $this->formatStatusLabel($status),
                     'cashier_name' => $cashierName !== '' ? $cashierName : ($transaction->cashier?->name ?? '-'),
                     'amount' => (float) $transaction->total_amount,
+                    'transaction_items' => $transaction->items
+                        ->sortBy('id')
+                        ->values()
+                        ->map(function ($item): array {
+                            return [
+                                'description' => (string) $item->description,
+                                'amount' => (float) $item->amount,
+                                'fee_id' => $item->fee_id ? (int) $item->fee_id : null,
+                                'inventory_item_id' => $item->inventory_item_id ? (int) $item->inventory_item_id : null,
+                            ];
+                        })
+                        ->all(),
                     'posted_at' => $transaction->created_at?->toIso8601String(),
                     'voided_at' => $transaction->voided_at?->toIso8601String(),
                     'void_reason' => $transaction->void_reason,
@@ -197,6 +160,147 @@ class TransactionHistoryController extends Controller
                 'date_to' => $dateTo,
             ],
         ]);
+    }
+
+    public function export(
+        IndexTransactionHistoryRequest $request,
+        TransactionHistoryWorkbookExporter $exporter,
+    ): BinaryFileResponse {
+        $validated = $request->validated();
+
+        $selectedAcademicYearId = isset($validated['academic_year_id'])
+            ? (int) $validated['academic_year_id']
+            : null;
+
+        $selectedAcademicYear = $selectedAcademicYearId
+            ? AcademicYear::query()->find($selectedAcademicYearId)
+            : null;
+
+        $search = trim((string) ($validated['search'] ?? ''));
+        $paymentMode = $validated['payment_mode'] ?? null;
+        $exportRange = (string) ($validated['export_range'] ?? 'this_month');
+        $requestedDateFrom = $validated['date_from'] ?? null;
+        $requestedDateTo = $validated['date_to'] ?? null;
+
+        if ($requestedDateFrom || $requestedDateTo) {
+            $dateFrom = $requestedDateFrom ?? $requestedDateTo;
+            $dateTo = $requestedDateTo ?? $requestedDateFrom;
+        } else {
+            [$dateFrom, $dateTo] = $this->resolveExportRangeDates(
+                $this->buildTransactionHistoryQuery($selectedAcademicYear, $search, $paymentMode, null, null),
+                $exportRange
+            );
+        }
+
+        $transactionQuery = $this->buildTransactionHistoryQuery(
+            $selectedAcademicYear,
+            $search,
+            $paymentMode,
+            $dateFrom,
+            $dateTo,
+        );
+
+        $correctedStatuses = ['voided', 'refunded', 'reissued'];
+        $summaryQuery = clone $transactionQuery;
+        $postedAmount = round((float) (clone $summaryQuery)->sum('total_amount'), 2);
+        $correctedAmount = round((float) (clone $summaryQuery)
+            ->whereIn('status', $correctedStatuses)
+            ->sum('total_amount'), 2);
+        $totalCount = (int) (clone $summaryQuery)->count();
+        $netAmount = round($postedAmount - $correctedAmount, 2);
+
+        $transactions = (clone $transactionQuery)->get();
+        $segments = $this->buildMonthlySegments($dateFrom, $dateTo);
+        $monthlyOverviewRows = [];
+        $monthlyDetails = [];
+
+        foreach ($segments as $segment) {
+            $segmentRows = $transactions
+                ->filter(function (Transaction $transaction) use ($segment): bool {
+                    $createdAt = $transaction->created_at?->toDateString();
+
+                    return $createdAt !== null
+                        && $createdAt >= $segment['start']
+                        && $createdAt <= $segment['end'];
+                })
+                ->values();
+
+            $segmentPosted = round((float) $segmentRows->sum('total_amount'), 2);
+            $segmentCorrected = round((float) $segmentRows
+                ->whereIn('status', $correctedStatuses)
+                ->sum('total_amount'), 2);
+
+            $monthlyOverviewRows[] = [
+                'label' => $segment['label'],
+                'count' => (int) $segmentRows->count(),
+                'posted_amount' => $segmentPosted,
+                'corrected_amount' => $segmentCorrected,
+                'net_amount' => round($segmentPosted - $segmentCorrected, 2),
+            ];
+
+            $monthlyDetails[$segment['label']] = $segmentRows
+                ->map(function (Transaction $transaction): array {
+                    $status = $transaction->status ?: 'posted';
+                    $studentName = trim("{$transaction->student?->first_name} {$transaction->student?->last_name}");
+                    $cashierName = trim("{$transaction->cashier?->first_name} {$transaction->cashier?->last_name}");
+                    $correctionReason = null;
+                    $correctedByName = null;
+
+                    if ($status === 'voided') {
+                        $correctionReason = $transaction->void_reason;
+                        $correctedByName = $this->resolveUserDisplayName($transaction->voidedBy);
+                    } elseif ($status === 'refunded') {
+                        $correctionReason = $transaction->refund_reason;
+                        $correctedByName = $this->resolveUserDisplayName($transaction->refundedBy);
+                    } elseif ($status === 'reissued') {
+                        $correctionReason = $transaction->reissue_reason;
+                        $correctedByName = $this->resolveUserDisplayName($transaction->reissuedBy);
+                    }
+
+                    return [
+                        'or_number' => (string) $transaction->or_number,
+                        'student_name' => $studentName !== '' ? $studentName : '-',
+                        'payment_mode_label' => $this->formatPaymentMode((string) $transaction->payment_mode),
+                        'status_label' => $this->formatStatusLabel((string) $status),
+                        'posted_at' => $transaction->created_at?->format('Y-m-d h:i A') ?? '-',
+                        'cashier_name' => $cashierName !== '' ? $cashierName : ($transaction->cashier?->name ?? '-'),
+                        'amount' => (float) $transaction->total_amount,
+                        'correction_reason' => $correctionReason ? (string) $correctionReason : '',
+                        'corrected_by_name' => $correctedByName ? (string) $correctedByName : '',
+                    ];
+                })
+                ->all();
+        }
+
+        $outputPath = storage_path('app/temp/'.uniqid('transaction-history-', true).'.xlsx');
+        if (! is_dir(dirname($outputPath))) {
+            mkdir(dirname($outputPath), 0777, true);
+        }
+
+        $exporter->export(
+            $outputPath,
+            [
+                'generated_at' => now()->format('F j, Y h:i A'),
+                'range_preset' => $this->resolveRangePresetLabel($exportRange),
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'school_year' => $selectedAcademicYear?->name ?? 'All School Years',
+                'payment_mode' => $paymentMode ? $this->formatPaymentMode((string) $paymentMode) : 'All Modes',
+                'search' => $search !== '' ? $search : 'All',
+            ],
+            [
+                'count' => $totalCount,
+                'posted_amount' => $postedAmount,
+                'corrected_amount' => $correctedAmount,
+                'net_amount' => $netAmount,
+            ],
+            $monthlyOverviewRows,
+            $monthlyDetails,
+        );
+
+        return response()
+            ->download($outputPath, 'transaction-history-'.now()->format('Ymd-His').'.xlsx')
+            ->deleteFileAfterSend(true);
     }
 
     public function void(VoidTransactionRequest $request, Transaction $transaction): RedirectResponse
@@ -358,7 +462,6 @@ class TransactionHistoryController extends Controller
             if ($academicYearId) {
                 $this->applyPaymentAcrossDues(
                     $replacementTransaction,
-                    $academicYearId,
                     $this->resolveAssessmentFeeAmount($replacementTransaction)
                 );
                 $this->applyRemedialPayment(
@@ -433,6 +536,162 @@ class TransactionHistoryController extends Controller
         $remaining = $descriptions->count() - 1;
 
         return "{$descriptions->first()} + {$remaining} more";
+    }
+
+    private function buildTransactionHistoryQuery(
+        ?AcademicYear $selectedAcademicYear,
+        string $search,
+        ?string $paymentMode,
+        ?string $dateFrom,
+        ?string $dateTo,
+    ): Builder {
+        return Transaction::query()
+            ->with([
+                'student:id,first_name,last_name,lrn',
+                'cashier:id,first_name,last_name,name',
+                'items:id,transaction_id,fee_id,inventory_item_id,description,amount',
+                'reissuedTransaction:id,or_number',
+                'voidedBy:id,first_name,last_name,name',
+                'refundedBy:id,first_name,last_name,name',
+                'reissuedBy:id,first_name,last_name,name',
+            ])
+            ->when($search !== '', function (Builder $query) use ($search) {
+                $query->where(function (Builder $searchQuery) use ($search) {
+                    $searchQuery
+                        ->where('or_number', 'like', "%{$search}%")
+                        ->orWhereHas('student', function (Builder $studentQuery) use ($search) {
+                            $studentQuery
+                                ->where('lrn', 'like', "%{$search}%")
+                                ->orWhere('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->when($paymentMode, function (Builder $query, string $paymentMode) {
+                $query->where('payment_mode', $paymentMode);
+            })
+            ->when($selectedAcademicYear, function (Builder $query) use ($selectedAcademicYear) {
+                $hasDateBounds = filled($selectedAcademicYear->start_date)
+                    && filled($selectedAcademicYear->end_date);
+
+                $query->where(function (Builder $yearQuery) use ($selectedAcademicYear, $hasDateBounds) {
+                    if ($hasDateBounds) {
+                        $yearQuery
+                            ->whereBetween('created_at', [
+                                "{$selectedAcademicYear->start_date} 00:00:00",
+                                "{$selectedAcademicYear->end_date} 23:59:59",
+                            ])
+                            ->orWhereHas('ledgerEntries', function (Builder $ledgerQuery) use ($selectedAcademicYear) {
+                                $ledgerQuery
+                                    ->where('academic_year_id', $selectedAcademicYear->id)
+                                    ->whereNotNull('credit');
+                            });
+
+                        return;
+                    }
+
+                    $yearQuery->whereHas('ledgerEntries', function (Builder $ledgerQuery) use ($selectedAcademicYear) {
+                        $ledgerQuery
+                            ->where('academic_year_id', $selectedAcademicYear->id)
+                            ->whereNotNull('credit');
+                    });
+                });
+            })
+            ->when($dateFrom, function (Builder $query, string $dateFrom) {
+                $query->whereDate('created_at', '>=', $dateFrom);
+            })
+            ->when($dateTo, function (Builder $query, string $dateTo) {
+                $query->whereDate('created_at', '<=', $dateTo);
+            })
+            ->latest('created_at')
+            ->latest('id');
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function resolveExportRangeDates(Builder $baseQuery, string $exportRange): array
+    {
+        if ($exportRange === 'this_week') {
+            return [
+                now()->copy()->startOfWeek()->toDateString(),
+                now()->copy()->endOfDay()->toDateString(),
+            ];
+        }
+
+        if ($exportRange === 'all_time') {
+            $rangeQuery = (clone $baseQuery)->reorder();
+            $earliest = (clone $rangeQuery)->toBase()->min('created_at');
+            $latest = (clone $rangeQuery)->toBase()->max('created_at');
+
+            if (! $earliest || ! $latest) {
+                $today = now()->toDateString();
+
+                return [$today, $today];
+            }
+
+            return [
+                Carbon::parse((string) $earliest)->toDateString(),
+                Carbon::parse((string) $latest)->toDateString(),
+            ];
+        }
+
+        return [
+            now()->copy()->startOfMonth()->toDateString(),
+            now()->copy()->endOfDay()->toDateString(),
+        ];
+    }
+
+    private function resolveRangePresetLabel(string $exportRange): string
+    {
+        return match ($exportRange) {
+            'this_week' => 'This Week',
+            'all_time' => 'All Time',
+            default => 'This Month',
+        };
+    }
+
+    /**
+     * @return array<int, array{start: string, end: string, label: string}>
+     */
+    private function buildMonthlySegments(string $dateFrom, string $dateTo): array
+    {
+        $segments = [];
+        $cursor = Carbon::parse($dateFrom)->startOfDay();
+        $end = Carbon::parse($dateTo)->endOfDay();
+
+        while ($cursor->lte($end)) {
+            $segmentStart = $cursor->copy();
+            $segmentEnd = $cursor->copy()->endOfMonth();
+            if ($segmentEnd->gt($end)) {
+                $segmentEnd = $end->copy();
+            }
+
+            $segments[] = [
+                'start' => $segmentStart->toDateString(),
+                'end' => $segmentEnd->toDateString(),
+                'label' => sprintf(
+                    '%s %d-%d, %d',
+                    $segmentStart->format('F'),
+                    $segmentStart->day,
+                    $segmentEnd->day,
+                    $segmentEnd->year
+                ),
+            ];
+
+            $cursor = $segmentEnd->copy()->addDay()->startOfDay();
+        }
+
+        if (count($segments) === 0) {
+            $today = now();
+            $segments[] = [
+                'start' => $today->toDateString(),
+                'end' => $today->toDateString(),
+                'label' => sprintf('%s %d-%d, %d', $today->format('F'), $today->day, $today->day, $today->year),
+            ];
+        }
+
+        return $segments;
     }
 
     private function resolveUserDisplayName(?User $user): ?string
@@ -536,7 +795,7 @@ class TransactionHistoryController extends Controller
         ]);
     }
 
-    private function applyPaymentAcrossDues(Transaction $transaction, int $academicYearId, float $paymentAmount): void
+    private function applyPaymentAcrossDues(Transaction $transaction, float $paymentAmount): void
     {
         $remainingPaymentCents = (int) round(max($paymentAmount, 0) * 100);
 
@@ -546,7 +805,6 @@ class TransactionHistoryController extends Controller
 
         $billingSchedules = BillingSchedule::query()
             ->where('student_id', $transaction->student_id)
-            ->where('academic_year_id', $academicYearId)
             ->whereIn('status', ['unpaid', 'partially_paid'])
             ->orderBy('due_date')
             ->orderBy('id')

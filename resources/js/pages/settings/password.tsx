@@ -1,11 +1,12 @@
 import { Form, Head, usePage, router } from '@inertiajs/react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { formatDistanceToNow } from 'date-fns';
 import { 
     ShieldBan, ShieldCheck, Monitor, Smartphone, LogOut, Loader2, 
     AlertTriangle, ShieldAlert, KeyRound, History, Lock 
 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import PasswordController from '@/actions/App/Http/Controllers/Settings/PasswordController';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
@@ -27,10 +28,9 @@ import { Separator } from '@/components/ui/separator';
 import { useTwoFactorAuth } from '@/hooks/use-two-factor-auth';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
-import type { BreadcrumbItem, SharedData } from '@/types';
-import PasswordController from '@/actions/App/Http/Controllers/Settings/PasswordController';
-import { edit } from '@/routes/user-password';
 import { disable, enable } from '@/routes/two-factor';
+import { edit } from '@/routes/user-password';
+import type { BreadcrumbItem, SharedData } from '@/types';
 
 interface Session {
     id: string;
@@ -194,7 +194,7 @@ export default function Security({
                                     }}
                                     className="space-y-4 py-4"
                                 >
-                                    {({ errors, processing, recentlySuccessful }) => (
+                                    {({ errors, processing }) => (
                                         <>
                                             {!requiresPasswordChange && (
                                                 <div className="grid gap-2">

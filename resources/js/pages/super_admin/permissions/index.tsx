@@ -1,8 +1,16 @@
 import { Head, useForm } from '@inertiajs/react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { ShieldCheck, Check, X, Lock, Shield, Save, Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -11,14 +19,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { update } from '@/routes/super_admin/permissions';

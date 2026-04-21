@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { format } from 'date-fns';
-import { RefreshCcw, Undo2 } from 'lucide-react';
+import { endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns';
+import { Download, Eye, MoreVertical, RefreshCcw, RotateCcw, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
@@ -55,6 +61,12 @@ type TransactionRow = {
     status_label: string;
     cashier_name: string;
     amount: number;
+    transaction_items: {
+        description: string;
+        amount: number;
+        fee_id: number | null;
+        inventory_item_id: number | null;
+    }[];
     posted_at: string | null;
     voided_at: string | null;
     void_reason: string | null;
@@ -91,6 +103,8 @@ type Filters = {
     date_from: string | null;
     date_to: string | null;
 };
+
+type ExportRangePreset = 'this_week' | 'this_month' | 'all_time';
 
 interface Props {
     school_year_options: SchoolYearOption[];
@@ -177,6 +191,14 @@ export default function TransactionHistory({
         useState<TransactionRow | null>(null);
     const [reissuingTransaction, setReissuingTransaction] =
         useState<TransactionRow | null>(null);
+    const [detailTransaction, setDetailTransaction] =
+        useState<TransactionRow | null>(null);
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const [exportRangePreset, setExportRangePreset] =
+        useState<ExportRangePreset>('this_month');
+    const [exportDateRange, setExportDateRange] = useState<
+        DateRange | undefined
+    >(initialDateRange);
     const voidForm = useForm({
         reason: '',
     });
@@ -296,6 +318,10 @@ export default function TransactionHistory({
         setReissuingTransaction(transaction);
     };
 
+    const openDetailsDialog = (transaction: TransactionRow) => {
+        setDetailTransaction(transaction);
+    };
+
     const submitReissue = () => {
         if (!reissuingTransaction) {
             return;
@@ -337,6 +363,71 @@ export default function TransactionHistory({
         }
 
         return '';
+    };
+
+    const triggerExport = () => {
+        const queryParams = new URLSearchParams();
+        queryParams.set('export_range', exportRangePreset);
+
+        if (searchQuery.trim() !== '') {
+            queryParams.set('search', searchQuery.trim());
+        }
+
+        if (selectedSchoolYearId) {
+            queryParams.set('academic_year_id', selectedSchoolYearId);
+        }
+
+        if (paymentModeFilter !== 'all-modes') {
+            queryParams.set('payment_mode', paymentModeFilter);
+        }
+
+        if (exportDateRange?.from) {
+            queryParams.set(
+                'date_from',
+                format(exportDateRange.from, 'yyyy-MM-dd'),
+            );
+        }
+
+        if (exportDateRange?.to) {
+            queryParams.set('date_to', format(exportDateRange.to, 'yyyy-MM-dd'));
+        }
+
+        window.location.assign(
+            `/finance/transaction-history/export?${queryParams.toString()}`,
+        );
+        setIsExportDialogOpen(false);
+    };
+
+    const applyExportPreset = (preset: ExportRangePreset) => {
+        setExportRangePreset(preset);
+
+        const now = new Date();
+        if (preset === 'this_week') {
+            setExportDateRange({
+                from: startOfWeek(now),
+                to: endOfWeek(now),
+            });
+
+            return;
+        }
+
+        if (preset === 'this_month') {
+            setExportDateRange({
+                from: startOfMonth(now),
+                to: endOfMonth(now),
+            });
+
+            return;
+        }
+
+        if (preset === 'all_time') {
+            setExportDateRange(undefined);
+        }
+    };
+
+    const openExportDialog = () => {
+        setIsExportDialogOpen(true);
+        setExportDateRange(dateRange);
     };
 
     const searchSuggestions = transactions.data.map((transaction) => ({
@@ -512,6 +603,13 @@ export default function TransactionHistory({
                                 >
                                     Reset
                                 </Button>
+                                <Button
+                                    type="button"
+                                    onClick={openExportDialog}
+                                >
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Export
+                                </Button>
                             </div>
                         </div>
                     </CardContent>
@@ -527,9 +625,6 @@ export default function TransactionHistory({
                                         Student
                                     </TableHead>
                                     <TableHead className="border-l">
-                                        Entry
-                                    </TableHead>
-                                    <TableHead className="border-l">
                                         Mode
                                     </TableHead>
                                     <TableHead className="border-l">
@@ -541,7 +636,7 @@ export default function TransactionHistory({
                                     <TableHead className="border-l pr-6 text-right">
                                         Amount
                                     </TableHead>
-                                    <TableHead className="border-l pr-6 text-right">
+                                    <TableHead className="w-1 whitespace-nowrap border-l pr-6 text-right">
                                         Actions
                                     </TableHead>
                                 </TableRow>
@@ -550,7 +645,7 @@ export default function TransactionHistory({
                                 {transactions.data.length === 0 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={8}
+                                            colSpan={7}
                                             className="h-24 text-center text-sm text-muted-foreground"
                                         >
                                             No transactions found.
@@ -564,9 +659,6 @@ export default function TransactionHistory({
                                             </TableCell>
                                             <TableCell className="border-l">
                                                 {transaction.student_name}
-                                            </TableCell>
-                                            <TableCell className="border-l">
-                                                {transaction.entry_label}
                                             </TableCell>
                                             <TableCell className="border-l">
                                                 {transaction.payment_mode_label}
@@ -596,75 +688,82 @@ export default function TransactionHistory({
                                                     transaction.amount,
                                                 )}
                                             </TableCell>
-                                            <TableCell className="border-l pr-6 text-right">
-                                                {transaction.can_void ||
-                                                transaction.can_refund ||
-                                                transaction.can_reissue ? (
-                                                    <div className="flex justify-end gap-2">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                openVoidDialog(
-                                                                    transaction,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Undo2 className="mr-2 size-4" />
-                                                            Void
-                                                        </Button>
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                openRefundDialog(
-                                                                    transaction,
-                                                                )
-                                                            }
-                                                        >
-                                                            Refund
-                                                        </Button>
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                openReissueDialog(
-                                                                    transaction,
-                                                                )
-                                                            }
-                                                        >
-                                                            <RefreshCcw className="mr-2 size-4" />
-                                                            Reissue
-                                                        </Button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="max-w-xs text-left">
-                                                        <span className="block text-xs text-muted-foreground">
-                                                            {correctionLabel(
+                                            <TableCell className="w-1 whitespace-nowrap border-l pr-6 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            openDetailsDialog(
                                                                 transaction,
-                                                            )}
-                                                        </span>
-                                                        {transaction.corrected_by_name && (
-                                                            <span className="mt-1 block text-xs text-muted-foreground">
-                                                                By{' '}
-                                                                {
-                                                                    transaction.corrected_by_name
-                                                                }
-                                                            </span>
-                                                        )}
-                                                        {transaction.correction_reason && (
-                                                            <p className="mt-1 text-xs leading-snug text-foreground/80">
-                                                                Reason:{' '}
-                                                                {
-                                                                    transaction.correction_reason
-                                                                }
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                            )
+                                                        }
+                                                    >
+                                                        <Eye className="mr-2 size-4" />
+                                                        View Details
+                                                    </Button>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger
+                                                            asChild
+                                                        >
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="px-2"
+                                                                aria-label="More actions"
+                                                            >
+                                                                <MoreVertical className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            {transaction.can_void ? (
+                                                                <DropdownMenuItem
+                                                                    onClick={() =>
+                                                                        openVoidDialog(
+                                                                            transaction,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Undo2 className="size-4" />
+                                                                    Void
+                                                                </DropdownMenuItem>
+                                                            ) : null}
+                                                            {transaction.can_refund ? (
+                                                                <DropdownMenuItem
+                                                                    onClick={() =>
+                                                                        openRefundDialog(
+                                                                            transaction,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <RotateCcw className="size-4" />
+                                                                    Refund
+                                                                </DropdownMenuItem>
+                                                            ) : null}
+                                                            {transaction.can_reissue ? (
+                                                                <DropdownMenuItem
+                                                                    onClick={() =>
+                                                                        openReissueDialog(
+                                                                            transaction,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <RefreshCcw className="size-4" />
+                                                                    Reissue
+                                                                </DropdownMenuItem>
+                                                            ) : null}
+                                                            {!transaction.can_void &&
+                                                            !transaction.can_refund &&
+                                                            !transaction.can_reissue ? (
+                                                                <DropdownMenuItem disabled>
+                                                                    No actions available
+                                                                </DropdownMenuItem>
+                                                            ) : null}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -754,6 +853,80 @@ export default function TransactionHistory({
             </div>
 
             <Dialog
+                open={isExportDialogOpen}
+                onOpenChange={setIsExportDialogOpen}
+            >
+                <DialogContent className="sm:max-w-[420px]">
+                    <DialogHeader>
+                        <DialogTitle>Export Transaction History</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium">Date Range</p>
+                            <DateRangePicker
+                                dateRange={exportDateRange}
+                                setDateRange={setExportDateRange}
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium">
+                                Quick Range Presets
+                            </p>
+                        </div>
+                        <Button
+                            type="button"
+                            variant={
+                                exportRangePreset === 'this_week'
+                                    ? 'default'
+                                    : 'outline'
+                            }
+                            className="w-full justify-start"
+                            onClick={() => applyExportPreset('this_week')}
+                        >
+                            This Week
+                        </Button>
+                        <Button
+                            type="button"
+                            variant={
+                                exportRangePreset === 'this_month'
+                                    ? 'default'
+                                    : 'outline'
+                            }
+                            className="w-full justify-start"
+                            onClick={() => applyExportPreset('this_month')}
+                        >
+                            This Month
+                        </Button>
+                        <Button
+                            type="button"
+                            variant={
+                                exportRangePreset === 'all_time'
+                                    ? 'default'
+                                    : 'outline'
+                            }
+                            className="w-full justify-start"
+                            onClick={() => applyExportPreset('all_time')}
+                        >
+                            All Time
+                        </Button>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            type="button"
+                            onClick={() => setIsExportDialogOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={triggerExport}>
+                            Export XLSX
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
                 open={!!voidingTransaction}
                 onOpenChange={(open) => {
                     if (!open) {
@@ -814,6 +987,169 @@ export default function TransactionHistory({
                             disabled={voidForm.processing}
                         >
                             Confirm Void
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={!!detailTransaction}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setDetailTransaction(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-[720px]">
+                    <DialogHeader>
+                        <DialogTitle>Transaction Details</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="grid gap-3 rounded-md border p-3 text-sm sm:grid-cols-2">
+                            <div>
+                                <p className="text-xs text-muted-foreground">
+                                    OR Number
+                                </p>
+                                <p className="font-medium">
+                                    {detailTransaction?.or_number}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">
+                                    Student
+                                </p>
+                                <p className="font-medium">
+                                    {detailTransaction?.student_name}
+                                </p>
+                                {detailTransaction?.student_lrn ? (
+                                    <p className="text-xs text-muted-foreground">
+                                        LRN: {detailTransaction.student_lrn}
+                                    </p>
+                                ) : null}
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">
+                                    Cashier
+                                </p>
+                                <p className="font-medium">
+                                    {detailTransaction?.cashier_name}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">
+                                    Payment Mode
+                                </p>
+                                <p className="font-medium">
+                                    {detailTransaction?.payment_mode_label}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">
+                                    Status
+                                </p>
+                                <p className="font-medium">
+                                    {detailTransaction?.status_label}
+                                </p>
+                                {detailTransaction ? (
+                                    <p className="text-xs text-muted-foreground">
+                                        {correctionLabel(detailTransaction)}
+                                    </p>
+                                ) : null}
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">
+                                    Posted On
+                                </p>
+                                <p className="font-medium">
+                                    {formatPostedAt(
+                                        detailTransaction?.posted_at ?? null,
+                                    )}
+                                </p>
+                            </div>
+                            <div className="sm:col-span-2">
+                                <p className="text-xs text-muted-foreground">
+                                    Transaction Total
+                                </p>
+                                <p className="font-semibold">
+                                    {formatCurrency(
+                                        detailTransaction?.amount ?? 0,
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+
+                        {(detailTransaction?.correction_reason ||
+                            detailTransaction?.corrected_by_name) && (
+                            <div className="rounded-md border p-3 text-sm">
+                                <p className="font-medium">
+                                    Correction Information
+                                </p>
+                                {detailTransaction?.corrected_by_name ? (
+                                    <p className="text-muted-foreground">
+                                        By {detailTransaction.corrected_by_name}
+                                    </p>
+                                ) : null}
+                                {detailTransaction?.correction_reason ? (
+                                    <p className="mt-1 text-foreground/80">
+                                        Reason:{' '}
+                                        {detailTransaction.correction_reason}
+                                    </p>
+                                ) : null}
+                            </div>
+                        )}
+
+                        <div className="rounded-md border">
+                            <div className="border-b px-3 py-2 text-sm font-medium">
+                                Itemized Entries
+                            </div>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Description</TableHead>
+                                        <TableHead className="text-right">
+                                            Amount
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {detailTransaction?.transaction_items
+                                        ?.length ? (
+                                        detailTransaction.transaction_items.map(
+                                            (item, index) => (
+                                                <TableRow
+                                                    key={`${detailTransaction.id}-${index}`}
+                                                >
+                                                    <TableCell>
+                                                        {item.description}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {formatCurrency(
+                                                            item.amount,
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ),
+                                        )
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={2}
+                                                className="h-20 text-center text-sm text-muted-foreground"
+                                            >
+                                                No item details found.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setDetailTransaction(null)}
+                        >
+                            Close
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -1,8 +1,8 @@
-import { useAppearance } from "@/hooks/use-appearance"
 import {
   Toaster as Sonner,
   type ToasterProps as SonnerToasterProps,
 } from "sonner"
+import { useAppearance } from "@/hooks/use-appearance"
 
 type ToasterProps = SonnerToasterProps
 

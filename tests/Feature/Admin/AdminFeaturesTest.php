@@ -59,17 +59,8 @@ test('admin pages render successfully', function () {
             ->component('admin/grade-verification/index')
         );
 
-    $this->get('/admin/deped-reports')
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('admin/deped-reports/index')
-        );
-
-    $this->get('/admin/sf9-generator')
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('admin/sf9-generator/index')
-        );
+    $this->get('/admin/deped-reports')->assertNotFound();
+    $this->get('/admin/sf9-generator')->assertNotFound();
 });
 
 test('admin dashboard shows enrollment yoy growth and enrollment forecast trend', function () {
@@ -718,6 +709,62 @@ test('admin section manager actions work', function () {
         ->assertRedirect();
 
     expect(Section::query()->whereKey($section->id)->exists())->toBeFalse();
+});
+
+test('admin section manager prioritizes ongoing school year context', function () {
+    $upcomingYear = AcademicYear::query()->create([
+        'name' => '2027-2028',
+        'start_date' => '2027-06-01',
+        'end_date' => '2028-03-31',
+        'status' => 'upcoming',
+        'current_quarter' => '1',
+    ]);
+
+    $ongoingYear = AcademicYear::query()->create([
+        'name' => '2026-2027',
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '2',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 8',
+        'level_order' => 8,
+    ]);
+
+    Section::query()->create([
+        'academic_year_id' => $upcomingYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Upcoming Section',
+    ]);
+
+    Section::query()->create([
+        'academic_year_id' => $ongoingYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'St. Paul',
+    ]);
+
+    $this->post('/admin/section-manager', [
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'St. Anthony',
+        'adviser_id' => null,
+    ])->assertRedirect();
+
+    $this->get('/admin/section-manager')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/section-manager/index')
+            ->where('activeYear.id', $ongoingYear->id)
+            ->has('gradeLevels.0.sections', 2)
+            ->where('gradeLevels.0.sections.0.name', 'St. Paul')
+            ->where('gradeLevels.0.sections.1.name', 'St. Anthony')
+        );
+
+    expect(Section::query()
+        ->where('academic_year_id', $ongoingYear->id)
+        ->where('name', 'St. Anthony')
+        ->exists())->toBeTrue();
 });
 
 test('admin schedule builder actions work', function () {

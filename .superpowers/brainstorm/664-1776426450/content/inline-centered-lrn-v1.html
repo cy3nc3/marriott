@@ -1,0 +1,65 @@
+﻿<h2>Approach A Variant: Centered LRN Then Slide Up</h2>
+<p class="subtitle">Yes, this interaction is feasible. Previewing the exact motion pattern you described.</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">State 1: Focused Entry</div>
+    <div class="mockup-body" style="min-height:360px;display:flex;align-items:center;justify-content:center;">
+      <div style="width:78%;max-width:480px;text-align:center;">
+        <div class="label">New Enrollment Intake</div>
+        <h3 style="margin-top:8px;">Enter Learner Reference Number</h3>
+        <p class="subtitle" style="margin-bottom:14px;">Type 12 digits to continue</p>
+        <input class="mock-input" value="123456789012" style="font-size:22px;text-align:center;letter-spacing:1px;height:52px;" />
+        <div style="margin-top:12px;font-size:12px;opacity:.75;">On complete LRN: validate match -> animate to expanded form</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">State 2: Expanded Step 1 (After Slide Up)</div>
+    <div class="mockup-body" style="min-height:360px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div class="label">Step 1 of 4</div>
+        <div class="label">Returning Student</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <input class="mock-input" value="LRN: 123456789012" />
+        <input class="mock-input" value="First Name: Maria" />
+        <input class="mock-input" value="Middle Name: Dela" />
+        <input class="mock-input" value="Last Name: Cruz" />
+        <input class="mock-input" value="Birthdate: 2010-03-02" />
+        <input class="mock-input" value="Gender: Female" />
+      </div>
+      <div style="margin-top:12px;padding:10px;border:1px dashed rgba(16,185,129,.45);border-radius:8px;font-size:12px;">
+        Auto rules: Ongoing school year only. Grade preselected to previous +1 (editable if needed).
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>Motion Spec (proposed)</h3>
+  <ul>
+    <li>Trigger: LRN reaches 12 digits and passes lookup.</li>
+    <li>Animation: input container translateY from center to top block (260-320ms, ease-out).</li>
+    <li>During animation: show subtle loading shimmer on incoming fields.</li>
+    <li>If no match: same slide-up behavior, but fields remain blank and labeled "New Student".</li>
+  </ul>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approved" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Approve This Interaction</h3>
+      <p>Centered LRN -> slide-up -> editable prefilled fields.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tweak" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Need Tweaks</h3>
+      <p>Keep approach, but adjust motion, states, or labels.</p>
+    </div>
+  </div>
+</div>

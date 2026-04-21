@@ -126,8 +126,60 @@ test('admin can open grade verification page', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/grade-verification/index')
             ->where('summary.submitted_count', 1)
+            ->where('coverage.submitted_count', 1)
+            ->where('coverage.not_submitted_count', 0)
             ->where('context.current_quarter', '1')
+            ->where('context.reminder_automation.reminder_days.0', 3)
+            ->where('context.reminder_automation.reminder_days.1', 2)
+            ->where('context.reminder_automation.reminder_days.2', 1)
             ->where('submissions.0.status', 'submitted')
+            ->where('submissions.0.student_grades.0.student_name', 'Maria Santos')
+            ->where('submissions.0.student_grades.0.grade', 85)
+            ->where('submissions.0.student_grades.0.is_locked', true)
+        );
+});
+
+test('grade verification coverage includes classes without grade submission records', function () {
+    $fixture = createGradeSubmissionFixture();
+    $year = $fixture['academicYear'];
+    $gradeLevel = GradeLevel::query()->firstOrFail();
+
+    $extraTeacher = User::factory()->teacher()->create([
+        'first_name' => 'Nina',
+        'last_name' => 'Pending',
+    ]);
+
+    $extraSection = Section::query()->create([
+        'academic_year_id' => $year->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Bonifacio',
+        'adviser_id' => null,
+    ]);
+
+    $extraSubject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'SCI7',
+        'subject_name' => 'Science 7',
+    ]);
+
+    $extraTeacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $extraTeacher->id,
+        'subject_id' => $extraSubject->id,
+    ]);
+
+    SubjectAssignment::query()->create([
+        'section_id' => $extraSection->id,
+        'teacher_subject_id' => $extraTeacherSubject->id,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get('/admin/grade-verification')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('coverage.submitted_count', 1)
+            ->where('coverage.not_submitted_count', 1)
+            ->where('coverage.not_submitted.0.subject_code', 'SCI7')
+            ->where('coverage.not_submitted.0.status', 'not_submitted')
         );
 });
 
@@ -184,12 +236,16 @@ test('setting deadline creates teacher announcement only for pending teachers', 
     $this->actingAs($this->admin)
         ->post('/admin/grade-verification/deadline', [
             'submission_deadline' => '2026-01-31 17:00:00',
+            'send_time' => '08:30',
+            'reminder_days' => [5, 3, 1],
         ])
         ->assertRedirect();
 
     expect(Setting::get("grade_submission_deadline_{$pendingFixture['academicYear']->id}_q1"))
         ->not
         ->toBeNull();
+    expect(Setting::get('grade_deadline_reminder_send_time'))->toBe('08:30');
+    expect(Setting::get('grade_deadline_reminder_days'))->toBe('[5,3,1]');
 
     $announcement = Announcement::query()->latest('id')->first();
 
@@ -206,12 +262,16 @@ test('editing deadline posts updated announcement', function () {
     $this->actingAs($this->admin)
         ->post('/admin/grade-verification/deadline', [
             'submission_deadline' => '2026-01-30 17:00:00',
+            'send_time' => '07:00',
+            'reminder_days' => [3, 2, 1],
         ])
         ->assertRedirect();
 
     $this->actingAs($this->admin)
         ->post('/admin/grade-verification/deadline', [
             'submission_deadline' => '2026-02-02 17:00:00',
+            'send_time' => '07:00',
+            'reminder_days' => [3, 2, 1],
         ])
         ->assertRedirect();
 
@@ -224,16 +284,15 @@ test('editing deadline posts updated announcement', function () {
 test('admin can update grade reminder automation settings', function () {
     $this->actingAs($this->admin)
         ->patch('/admin/grade-verification/reminder-automation', [
-            'auto_send_enabled' => false,
             'send_time' => '09:15',
         ])
         ->assertRedirect();
 
-    expect(Setting::get('grade_deadline_reminder_auto_send_enabled'))->toBe('0');
+    expect(Setting::enabled('grade_deadline_reminder_auto_send_enabled', false))->toBeTrue();
     expect(Setting::get('grade_deadline_reminder_send_time'))->toBe('09:15');
 });
 
-test('deadline reminder command posts tomorrow and today reminders without duplicates', function () {
+test('deadline reminder command posts 3/2/1 day reminders without duplicates', function () {
     $fixture = createGradeSubmissionFixture(status: GradeSubmission::STATUS_DRAFT);
 
     Setting::set(
@@ -243,26 +302,40 @@ test('deadline reminder command posts tomorrow and today reminders without dupli
     );
 
     Artisan::call('grading:send-deadline-reminders', [
-        '--date' => '2026-02-24',
+        '--date' => '2026-02-22',
     ]);
 
     expect(Announcement::query()->count())->toBe(1);
     expect(Announcement::query()->latest('id')->value('title'))
-        ->toContain('Tomorrow');
+        ->toContain('3 Days');
 
     Artisan::call('grading:send-deadline-reminders', [
-        '--date' => '2026-02-24',
+        '--date' => '2026-02-22',
     ]);
 
     expect(Announcement::query()->count())->toBe(1);
 
     Artisan::call('grading:send-deadline-reminders', [
-        '--date' => '2026-02-25',
+        '--date' => '2026-02-23',
     ]);
 
     expect(Announcement::query()->count())->toBe(2);
     expect(Announcement::query()->latest('id')->value('title'))
-        ->toContain('Today');
+        ->toContain('2 Days');
+
+    Artisan::call('grading:send-deadline-reminders', [
+        '--date' => '2026-02-24',
+    ]);
+
+    expect(Announcement::query()->count())->toBe(3);
+    expect(Announcement::query()->latest('id')->value('title'))
+        ->toContain('1 Day');
+
+    Artisan::call('grading:send-deadline-reminders', [
+        '--date' => '2026-02-24',
+    ]);
+
+    expect(Announcement::query()->count())->toBe(3);
 });
 
 test('deadline reminder command skips announcements when no teacher has pending grades', function () {

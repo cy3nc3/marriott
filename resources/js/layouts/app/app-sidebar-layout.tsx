@@ -1,12 +1,12 @@
 import { usePage } from '@inertiajs/react';
-import { MobileQuickNav } from '@/components/mobile-quick-nav';
-import { LoginWelcomeToast } from '@/components/login-welcome-toast';
-import { SavedAccountLoginSync } from '@/components/saved-account-login-sync';
 import SimpleBar from 'simplebar-react';
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import { LoginWelcomeToast } from '@/components/login-welcome-toast';
+import { MobileQuickNav } from '@/components/mobile-quick-nav';
+import { SavedAccountLoginSync } from '@/components/saved-account-login-sync';
 import { cn } from '@/lib/utils';
 import type { AppLayoutProps } from '@/types';
 import type { SharedData } from '@/types';

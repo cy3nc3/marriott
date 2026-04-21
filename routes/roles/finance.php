@@ -21,6 +21,7 @@ Route::middleware(['auth', 'verified', 'role:finance'])->prefix('finance')->name
     Route::post('/cashier-panel/transactions', [CashierPanelController::class, 'storeTransaction'])->middleware('desktop_only')->name('cashier_panel.store_transaction');
 
     Route::get('/transaction-history', [TransactionHistoryController::class, 'index'])->middleware('desktop_only')->name('transaction_history');
+    Route::get('/transaction-history/export', [TransactionHistoryController::class, 'export'])->middleware('desktop_only')->name('transaction_history.export');
     Route::post('/transaction-history/{transaction}/void', [TransactionHistoryController::class, 'void'])->middleware('desktop_only')->name('transaction_history.void');
     Route::post('/transaction-history/{transaction}/refund', [TransactionHistoryController::class, 'refund'])->middleware('desktop_only')->name('transaction_history.refund');
     Route::post('/transaction-history/{transaction}/reissue', [TransactionHistoryController::class, 'reissue'])->middleware('desktop_only')->name('transaction_history.reissue');
@@ -46,6 +47,7 @@ Route::middleware(['auth', 'verified', 'role:finance'])->prefix('finance')->name
     Route::delete('/fee-structure/{fee}', [FeeStructureController::class, 'destroy'])->middleware('desktop_only')->name('fee_structure.destroy');
 
     Route::get('/daily-reports', [DailyReportsController::class, 'index'])->name('daily_reports');
+    Route::get('/daily-reports/export', [DailyReportsController::class, 'export'])->name('daily_reports.export');
 
     Route::get('/due-reminder-settings', [DueReminderSettingsController::class, 'index'])->middleware('desktop_only')->name('due_reminder_settings');
     Route::post('/due-reminder-settings', [DueReminderSettingsController::class, 'store'])->middleware('desktop_only')->name('due_reminder_settings.store');

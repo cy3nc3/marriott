@@ -9,7 +9,9 @@ use App\Models\AcademicYear;
 use App\Models\ConductRating;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
+use App\Models\GradeSubmission;
 use App\Models\Section;
+use App\Models\SubjectAssignment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -173,10 +175,10 @@ class AdvisoryBoardController extends Controller
                     'enrollment_id' => (int) $enrollment->id,
                     'student_name' => trim("{$enrollment->student?->last_name}, {$enrollment->student?->first_name}"),
                     'ratings' => [
-                        'maka_diyos' => $conductRating?->maka_diyos ?? 'AO',
-                        'makatao' => $conductRating?->makatao ?? 'AO',
-                        'makakalikasan' => $conductRating?->makakalikasan ?? 'AO',
-                        'makabansa' => $conductRating?->makabansa ?? 'AO',
+                        'maka_diyos' => $conductRating?->maka_diyos,
+                        'makatao' => $conductRating?->makatao,
+                        'makakalikasan' => $conductRating?->makakalikasan,
+                        'makabansa' => $conductRating?->makabansa,
                     ],
                     'remarks' => $conductRating?->remarks ?? '',
                 ];
@@ -242,6 +244,44 @@ class AdvisoryBoardController extends Controller
                 return [(int) $row['enrollment_id'] => $row];
             });
 
+        if ($validated['save_mode'] === 'locked') {
+            $subjectAssignmentIds = SubjectAssignment::query()
+                ->where('section_id', $section->id)
+                ->pluck('id');
+
+            if ($subjectAssignmentIds->isEmpty()) {
+                return back()->with('error', 'Cannot finalize conduct yet. No class grade submissions were found for this advisory section.');
+            }
+
+            $verifiedAssignmentCount = GradeSubmission::query()
+                ->where('academic_year_id', $section->academic_year_id)
+                ->where('quarter', $validated['quarter'])
+                ->whereIn('subject_assignment_id', $subjectAssignmentIds)
+                ->where('status', GradeSubmission::STATUS_VERIFIED)
+                ->distinct('subject_assignment_id')
+                ->count('subject_assignment_id');
+
+            if ($verifiedAssignmentCount < $subjectAssignmentIds->count()) {
+                return back()->with('error', 'Cannot finalize conduct until all class grades for this quarter are verified.');
+            }
+
+            $hasIncompleteConduct = $enrollmentIds->contains(function (int $enrollmentId) use ($rowsByEnrollment): bool {
+                $row = $rowsByEnrollment->get((int) $enrollmentId);
+                if (! $row) {
+                    return true;
+                }
+
+                return in_array($row['maka_diyos'] ?? null, [null, ''], true)
+                    || in_array($row['makatao'] ?? null, [null, ''], true)
+                    || in_array($row['makakalikasan'] ?? null, [null, ''], true)
+                    || in_array($row['makabansa'] ?? null, [null, ''], true);
+            });
+
+            if ($hasIncompleteConduct) {
+                return back()->with('error', 'Cannot finalize conduct while some core values are still blank.');
+            }
+        }
+
         foreach ($enrollmentIds as $enrollmentId) {
             $row = $rowsByEnrollment->get((int) $enrollmentId);
             if (! $row) {
@@ -254,10 +294,10 @@ class AdvisoryBoardController extends Controller
                     'quarter' => $validated['quarter'],
                 ],
                 [
-                    'maka_diyos' => $row['maka_diyos'],
-                    'makatao' => $row['makatao'],
-                    'makakalikasan' => $row['makakalikasan'],
-                    'makabansa' => $row['makabansa'],
+                    'maka_diyos' => $row['maka_diyos'] ?? null,
+                    'makatao' => $row['makatao'] ?? null,
+                    'makakalikasan' => $row['makakalikasan'] ?? null,
+                    'makabansa' => $row['makabansa'] ?? null,
                     'remarks' => trim((string) ($row['remarks'] ?? '')) ?: null,
                     'is_locked' => $validated['save_mode'] === 'locked',
                 ]

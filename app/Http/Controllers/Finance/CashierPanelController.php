@@ -16,6 +16,7 @@ use App\Models\StudentDiscount;
 use App\Models\Transaction;
 use App\Services\DashboardCacheService;
 use App\Services\Finance\OrNumberReservationService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -270,7 +271,11 @@ class CashierPanelController extends Controller
 
             $allocatablePaymentAmount = round((float) $items
                 ->filter(function (array $item): bool {
-                    return $item['type'] === 'assessment_fee';
+                    if ($item['type'] !== 'assessment_fee') {
+                        return false;
+                    }
+
+                    return ! $this->isDownpaymentDescription((string) ($item['description'] ?? ''));
                 })
                 ->sum('amount'), 2);
 
@@ -309,7 +314,7 @@ class CashierPanelController extends Controller
                 now(),
             );
 
-            $this->allocatePaymentAcrossDues($transaction, $student, $academicYear, $allocatablePaymentAmount);
+            $this->allocatePaymentAcrossDues($transaction, $student, $allocatablePaymentAmount);
             $this->applyPaymentToRemedialCase($student, $academicYear, $remedialPaymentAmount);
 
             $previousRunningBalance = (float) (LedgerEntry::query()
@@ -358,8 +363,11 @@ class CashierPanelController extends Controller
         }
 
         $normalizedSearch = strtolower($search);
+        $fullNameSearchColumn = DB::connection()->getDriverName() === 'sqlite'
+            ? "LOWER(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')))"
+            : "LOWER(TRIM(CONCAT_WS(' ', first_name, last_name)))";
 
-        return Student::query()
+        $eligibleStudents = Student::query()
             ->where(function ($query) use ($activeAcademicYearId) {
                 $query
                     ->whereHas('enrollments', function ($enrollmentQuery) use ($activeAcademicYearId) {
@@ -371,20 +379,35 @@ class CashierPanelController extends Controller
                         $remedialCaseQuery
                             ->where('academic_year_id', $activeAcademicYearId)
                             ->whereIn('status', ['for_cashier_payment', 'partial_payment']);
+                    })
+                    ->orWhereHas('enrollments', function ($enrollmentQuery) use ($activeAcademicYearId) {
+                        $enrollmentQuery
+                            ->where('academic_year_id', $activeAcademicYearId)
+                            ->where('status', 'enrolled');
+                    })
+                    ->orWhere(function ($nonEnrolledQuery) use ($activeAcademicYearId) {
+                        $nonEnrolledQuery
+                            ->whereHas('enrollments', function ($enrollmentQuery) use ($activeAcademicYearId) {
+                                $enrollmentQuery
+                                    ->where('academic_year_id', $activeAcademicYearId)
+                                    ->where('status', '!=', 'enrolled');
+                            })
+                            ->whereHas('ledgerEntries', function ($ledgerQuery) use ($activeAcademicYearId) {
+                                $ledgerQuery
+                                    ->where('academic_year_id', $activeAcademicYearId)
+                                    ->where('running_balance', '>', 0);
+                            });
                     });
             })
-            ->when($search !== '', function ($query) use ($normalizedSearch) {
-                $query->where(function ($searchQuery) use ($normalizedSearch) {
-                    $searchQuery
-                        ->whereRaw('LOWER(lrn) LIKE ?', ["%{$normalizedSearch}%"])
-                        ->orWhereRaw('LOWER(first_name) LIKE ?', ["%{$normalizedSearch}%"])
-                        ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$normalizedSearch}%"]);
-                });
+            ->when($search !== '', function (Builder $query) use ($normalizedSearch, $fullNameSearchColumn): void {
+                $this->applyStudentSearchFilter($query, $normalizedSearch, $fullNameSearchColumn);
             })
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->limit($limit)
-            ->get(['id', 'lrn', 'first_name', 'last_name'])
+            ->get(['id', 'lrn', 'first_name', 'last_name']);
+
+        return $eligibleStudents
             ->map(function (Student $student) {
                 return [
                     'id' => $student->id,
@@ -393,6 +416,20 @@ class CashierPanelController extends Controller
                 ];
             })
             ->values();
+    }
+
+    private function applyStudentSearchFilter(
+        Builder $query,
+        string $normalizedSearch,
+        string $fullNameSearchColumn
+    ): void {
+        $query->where(function (Builder $searchQuery) use ($normalizedSearch, $fullNameSearchColumn): void {
+            $searchQuery
+                ->whereRaw('LOWER(lrn) LIKE ?', ["%{$normalizedSearch}%"])
+                ->orWhereRaw('LOWER(first_name) LIKE ?', ["%{$normalizedSearch}%"])
+                ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$normalizedSearch}%"])
+                ->orWhereRaw("{$fullNameSearchColumn} LIKE ?", ["%{$normalizedSearch}%"]);
+        });
     }
 
     private function resolvePendingCashierIntakes(?AcademicYear $academicYear): Collection
@@ -554,7 +591,6 @@ class CashierPanelController extends Controller
     private function allocatePaymentAcrossDues(
         Transaction $transaction,
         Student $student,
-        AcademicYear $academicYear,
         float $paymentAmount
     ): void {
         $remainingPaymentCents = (int) round(max($paymentAmount, 0) * 100);
@@ -567,7 +603,6 @@ class CashierPanelController extends Controller
 
         $billingSchedules = BillingSchedule::query()
             ->where('student_id', $student->id)
-            ->where('academic_year_id', $academicYear->id)
             ->whereIn('status', ['unpaid', 'partially_paid'])
             ->orderBy('due_date')
             ->orderBy('id')
@@ -602,6 +637,14 @@ class CashierPanelController extends Controller
 
             $remainingPaymentCents -= $appliedCents;
         }
+    }
+
+    private function isDownpaymentDescription(string $description): bool
+    {
+        $normalizedDescription = strtolower(trim($description));
+
+        return str_contains($normalizedDescription, 'downpayment')
+            || str_contains($normalizedDescription, 'down payment');
     }
 
     private function resolveAssessmentFeeTotal(int $gradeLevelId, int $academicYearId): float

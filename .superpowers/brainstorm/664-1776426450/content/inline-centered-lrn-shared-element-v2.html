@@ -1,0 +1,115 @@
+﻿<h2>Enrollment Intake: Shared LRN Field Motion</h2>
+<p class="subtitle">Updated per your feedback: the same LRN field moves from center to its final top position.</p>
+
+<div class="mockup" style="max-width:980px;margin:0 auto;">
+  <div class="mockup-header">New Enrollment Intake</div>
+  <div class="mockup-body" style="background:#fff;min-height:560px;padding:22px;position:relative;overflow:hidden;">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#6b7280;margin-bottom:8px;">
+      <span>Step 1 of 4</span><span>Student Details</span>
+    </div>
+    <div style="height:8px;background:#eef0f3;border-radius:999px;overflow:hidden;margin-bottom:20px;">
+      <div id="progressFill" style="height:100%;width:25%;background:#111827;transition:width .3s ease;"></div>
+    </div>
+
+    <div id="stage" style="position:relative;height:430px;border:1px solid #e5e7eb;border-radius:12px;background:linear-gradient(180deg,#fff,#fafafa);">
+      <div id="centerPrompt" style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;transition:opacity .2s ease;">
+        <p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin:0 0 12px;">Student Lookup</p>
+        <h3 style="font-size:30px;margin:0 0 10px;">Enter Learner Reference Number</h3>
+        <p style="margin:0;color:#6b7280;">Type 12 digits to continue</p>
+      </div>
+
+      <div id="targetRow" style="position:absolute;left:16px;right:16px;top:14px;height:44px;display:flex;gap:8px;align-items:center;">
+        <label style="font-size:12px;color:#6b7280;">LRN</label>
+        <div id="targetSlot" style="flex:1;height:40px;border:1px dashed #cbd5e1;border-radius:8px;"></div>
+        <span id="badge" style="opacity:0;transition:opacity .2s ease;font-size:11px;border:1px solid #86efac;color:#166534;background:#f0fdf4;padding:5px 9px;border-radius:999px;">Returning Student</span>
+      </div>
+
+      <div id="movableField" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(86%,560px);height:58px;border:2px solid #111827;border-radius:11px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;letter-spacing:.04em;box-shadow:0 10px 28px rgba(0,0,0,.08);z-index:3;transition:left .34s cubic-bezier(.2,.7,.1,1), top .34s cubic-bezier(.2,.7,.1,1), width .34s cubic-bezier(.2,.7,.1,1), height .34s cubic-bezier(.2,.7,.1,1), transform .34s cubic-bezier(.2,.7,.1,1), border-width .34s ease, font-size .34s ease, box-shadow .34s ease;">
+        123456789012
+      </div>
+
+      <div id="fields" style="position:absolute;left:16px;right:16px;top:68px;opacity:0;transform:translateY(14px);transition:opacity .22s ease, transform .24s ease;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">First Name</label><input value="Maria" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">Middle Name</label><input value="Dela" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">Last Name</label><input value="Cruz" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">Gender</label><input value="Female" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">Birthdate</label><input value="2010-03-02" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">Grade Level</label><input value="Grade 8 (Auto: Prev + 1)" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;display:flex;gap:8px;align-items:center;">
+      <button id="play" class="mock-button" style="background:#111827;color:#fff;border:none;border-radius:8px;padding:9px 13px;">Play Transition</button>
+      <button id="reset" class="mock-button" style="background:#fff;color:#111827;border:1px solid #d1d5db;border-radius:8px;padding:9px 13px;">Reset</button>
+      <span style="font-size:12px;color:#6b7280;">Shared-element move (no cross-fade on LRN field).</span>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="max-width:980px;margin:14px auto 0;">
+  <div class="option" data-choice="approve-shared" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content"><h3>Approve This Motion</h3><p>LRN field physically slides to final position.</p></div>
+  </div>
+  <div class="option" data-choice="tweak-shared" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content"><h3>Need Adjustments</h3><p>Keep shared-element idea, tweak timing/curve/spacing.</p></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const field = document.getElementById('movableField');
+  const slot = document.getElementById('targetSlot');
+  const prompt = document.getElementById('centerPrompt');
+  const fields = document.getElementById('fields');
+  const badge = document.getElementById('badge');
+  const progress = document.getElementById('progressFill');
+
+  function reset() {
+    field.style.left = '50%';
+    field.style.top = '50%';
+    field.style.width = 'min(86%,560px)';
+    field.style.height = '58px';
+    field.style.transform = 'translate(-50%,-50%)';
+    field.style.borderWidth = '2px';
+    field.style.fontSize = '30px';
+    field.style.boxShadow = '0 10px 28px rgba(0,0,0,.08)';
+    prompt.style.opacity = '1';
+    fields.style.opacity = '0';
+    fields.style.transform = 'translateY(14px)';
+    badge.style.opacity = '0';
+    progress.style.width = '25%';
+  }
+
+  function play() {
+    const slotRect = slot.getBoundingClientRect();
+    const stageRect = slot.closest('#stage').getBoundingClientRect();
+    const left = slotRect.left - stageRect.left + (slotRect.width / 2);
+    const top = slotRect.top - stageRect.top + (slotRect.height / 2);
+
+    prompt.style.opacity = '0';
+    field.style.left = left + 'px';
+    field.style.top = top + 'px';
+    field.style.width = slotRect.width + 'px';
+    field.style.height = '40px';
+    field.style.transform = 'translate(-50%,-50%)';
+    field.style.borderWidth = '1px';
+    field.style.fontSize = '18px';
+    field.style.boxShadow = 'none';
+    progress.style.width = '32%';
+
+    setTimeout(() => {
+      fields.style.opacity = '1';
+      fields.style.transform = 'translateY(0)';
+      badge.style.opacity = '1';
+    }, 320);
+  }
+
+  document.getElementById('play').addEventListener('click', play);
+  document.getElementById('reset').addEventListener('click', reset);
+  reset();
+})();
+</script>

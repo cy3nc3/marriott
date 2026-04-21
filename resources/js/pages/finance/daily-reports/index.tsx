@@ -220,6 +220,32 @@ export default function DailyReports({
         );
     };
 
+    const exportXlsx = () => {
+        const query = new URLSearchParams();
+
+        if (selectedSchoolYearId) {
+            query.set('academic_year_id', selectedSchoolYearId);
+        }
+
+        if (cashierFilter !== 'cashier-all') {
+            query.set('cashier_id', cashierFilter);
+        }
+
+        if (paymentModeFilter !== 'mode-all') {
+            query.set('payment_mode', paymentModeFilter);
+        }
+
+        if (reportDateRange?.from) {
+            query.set('date_from', format(reportDateRange.from, 'yyyy-MM-dd'));
+        }
+
+        if (reportDateRange?.to) {
+            query.set('date_to', format(reportDateRange.to, 'yyyy-MM-dd'));
+        }
+
+        window.location.assign(`/finance/daily-reports/export?${query.toString()}`);
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Daily Reports" />
@@ -238,9 +264,13 @@ export default function DailyReports({
                                     <Printer className="size-4" />
                                     Print Z-Reading
                                 </Button>
-                                <Button variant="outline" type="button">
+                                <Button
+                                    variant="outline"
+                                    type="button"
+                                    onClick={exportXlsx}
+                                >
                                     <Download className="size-4" />
-                                    Export CSV
+                                    Export XLSX
                                 </Button>
                             </div>
                         </div>

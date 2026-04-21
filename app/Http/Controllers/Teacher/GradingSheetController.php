@@ -421,6 +421,47 @@ class GradingSheetController extends Controller
 
         $validStudentIds = $enrollments->pluck('student_id');
 
+        if ($validated['save_mode'] === 'submitted') {
+            $existingScores = StudentScore::query()
+                ->whereIn('student_id', $validStudentIds)
+                ->whereIn('graded_activity_id', $quarterActivities->keys())
+                ->get(['student_id', 'graded_activity_id', 'score'])
+                ->mapWithKeys(function (StudentScore $studentScore) {
+                    return [
+                        $studentScore->student_id.':'.$studentScore->graded_activity_id => (float) $studentScore->score,
+                    ];
+                });
+
+            foreach ($validated['scores'] as $scoreRow) {
+                $studentId = (int) $scoreRow['student_id'];
+                $gradedActivityId = (int) $scoreRow['graded_activity_id'];
+
+                if (! $validStudentIds->contains($studentId) || ! $quarterActivities->has($gradedActivityId)) {
+                    continue;
+                }
+
+                $scoreKey = $studentId.':'.$gradedActivityId;
+
+                if (! array_key_exists('score', $scoreRow) || $scoreRow['score'] === null || $scoreRow['score'] === '') {
+                    $existingScores->forget($scoreKey);
+
+                    continue;
+                }
+
+                $existingScores->put($scoreKey, (float) $scoreRow['score']);
+            }
+
+            $hasMissingScores = $validStudentIds->contains(function (int $studentId) use ($quarterActivities, $existingScores) {
+                return $quarterActivities->keys()->contains(function (int $gradedActivityId) use ($studentId, $existingScores) {
+                    return ! $existingScores->has($studentId.':'.$gradedActivityId);
+                });
+            });
+
+            if ($hasMissingScores) {
+                return back()->with('error', 'Cannot submit grades while some assessment scores are still blank. Complete all student scores first.');
+            }
+        }
+
         DB::transaction(function () use (
             $validated,
             $gradeSubmission,

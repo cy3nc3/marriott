@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { AlertCircle, Printer, Users } from 'lucide-react';
-import { useState, useMemo, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -78,16 +78,19 @@ export default function ClassLists({ gradeLevels, activeYear }: Props) {
     const [genderFilter, setGenderFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
 
-    useEffect(() => {
+    const handleGradeChange = (gradeId: string): void => {
+        setSelectedGradeId(gradeId);
+
         const grade = gradeLevels.find(
-            (g) => g.id.toString() === selectedGradeId,
+            (g) => g.id.toString() === gradeId,
         );
+
         if (grade && grade.sections.length > 0) {
             setSelectedSectionId(grade.sections[0].id.toString());
         } else {
             setSelectedSectionId('');
         }
-    }, [selectedGradeId, gradeLevels]);
+    };
 
     const currentSection = useMemo(() => {
         const grade = gradeLevels.find(
@@ -177,7 +180,7 @@ export default function ClassLists({ gradeLevels, activeYear }: Props) {
                 <Card>
                     <Tabs
                         value={selectedGradeId}
-                        onValueChange={setSelectedGradeId}
+                        onValueChange={handleGradeChange}
                         className="flex w-full flex-1 flex-col gap-0"
                     >
                         <CardContent className="p-0">

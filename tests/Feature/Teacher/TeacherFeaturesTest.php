@@ -1533,6 +1533,120 @@ test('teacher grading sheet assessment mutation is blocked during pre-opening', 
     expect(GradedActivity::query()->count())->toBe(0);
 });
 
+test('teacher grading sheet blocks submit when any student assessment score is blank', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Bonifacio',
+        'adviser_id' => null,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'SCI7',
+        'subject_name' => 'Science 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '944444444401',
+        'first_name' => 'Ana',
+        'last_name' => 'Santos',
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $activityOne = GradedActivity::query()->create([
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'type' => 'WW',
+        'title' => 'Quiz 1',
+        'max_score' => 20,
+    ]);
+
+    $activityTwo = GradedActivity::query()->create([
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'type' => 'WW',
+        'title' => 'Quiz 2',
+        'max_score' => 20,
+    ]);
+
+    $this->post('/teacher/grading-sheet/scores', [
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'save_mode' => 'submitted',
+        'scores' => [
+            [
+                'student_id' => $student->id,
+                'graded_activity_id' => $activityOne->id,
+                'score' => 18,
+            ],
+            [
+                'student_id' => $student->id,
+                'graded_activity_id' => $activityTwo->id,
+                'score' => null,
+            ],
+        ],
+    ])
+        ->assertRedirect()
+        ->assertSessionHas('error', 'Cannot submit grades while some assessment scores are still blank. Complete all student scores first.');
+
+    $this->assertDatabaseMissing('student_scores', [
+        'student_id' => $student->id,
+        'graded_activity_id' => $activityOne->id,
+    ]);
+
+    $this->assertDatabaseMissing('student_scores', [
+        'student_id' => $student->id,
+        'graded_activity_id' => $activityTwo->id,
+    ]);
+
+    $this->assertDatabaseMissing('grade_submissions', [
+        'academic_year_id' => $schoolYear->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'status' => GradeSubmission::STATUS_SUBMITTED,
+    ]);
+
+    $this->assertDatabaseMissing('final_grades', [
+        'enrollment_id' => $enrollment->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'is_locked' => true,
+    ]);
+});
+
 test('teacher advisory board renders advisory class grades and conduct rows from real records', function () {
     $schoolYear = AcademicYear::query()->create([
         'name' => '2025-2026',
@@ -1666,6 +1780,22 @@ test('teacher advisory board conduct actions save draft then lock quarter', func
         'adviser_id' => $this->teacher->id,
     ]);
 
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'ENG7',
+        'subject_name' => 'English 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
     $student = Student::query()->create([
         'lrn' => '955555555555',
         'first_name' => 'Maria',
@@ -1680,6 +1810,25 @@ test('teacher advisory board conduct actions save draft then lock quarter', func
         'payment_term' => 'cash',
         'downpayment' => 0,
         'status' => 'enrolled',
+    ]);
+
+    FinalGrade::query()->create([
+        'enrollment_id' => $enrollment->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'grade' => 90,
+        'is_locked' => true,
+    ]);
+
+    GradeSubmission::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'status' => GradeSubmission::STATUS_VERIFIED,
+        'submitted_by' => $this->teacher->id,
+        'submitted_at' => now()->subHour(),
+        'verified_by' => $this->teacher->id,
+        'verified_at' => now(),
     ]);
 
     $payloadRows = [
@@ -1745,5 +1894,264 @@ test('teacher advisory board conduct actions save draft then lock quarter', func
         'quarter' => '1',
         'maka_diyos' => 'NO',
         'remarks' => 'Should not update',
+    ]);
+});
+
+test('teacher advisory board blocks final lock when class grades are not verified', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Mabini',
+        'adviser_id' => $this->teacher->id,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'ENG7',
+        'subject_name' => 'English 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '966666666661',
+        'first_name' => 'Aira',
+        'last_name' => 'Santos',
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    FinalGrade::query()->create([
+        'enrollment_id' => $enrollment->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'grade' => 88,
+        'is_locked' => true,
+    ]);
+
+    GradeSubmission::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'status' => GradeSubmission::STATUS_SUBMITTED,
+        'submitted_by' => $this->teacher->id,
+        'submitted_at' => now(),
+    ]);
+
+    $this->post('/teacher/advisory-board/conduct', [
+        'section_id' => $section->id,
+        'quarter' => '1',
+        'save_mode' => 'locked',
+        'rows' => [
+            [
+                'enrollment_id' => $enrollment->id,
+                'maka_diyos' => 'AO',
+                'makatao' => 'SO',
+                'makakalikasan' => 'RO',
+                'makabansa' => 'NO',
+                'remarks' => 'Pending verification.',
+            ],
+        ],
+    ])
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    $this->assertDatabaseMissing('conduct_ratings', [
+        'enrollment_id' => $enrollment->id,
+        'quarter' => '1',
+        'is_locked' => true,
+    ]);
+});
+
+test('teacher advisory board allows draft conduct save with null values', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Mabini',
+        'adviser_id' => $this->teacher->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '966666666662',
+        'first_name' => 'Nina',
+        'last_name' => 'Reyes',
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $this->post('/teacher/advisory-board/conduct', [
+        'section_id' => $section->id,
+        'quarter' => '1',
+        'save_mode' => 'draft',
+        'rows' => [
+            [
+                'enrollment_id' => $enrollment->id,
+                'maka_diyos' => null,
+                'makatao' => null,
+                'makakalikasan' => null,
+                'makabansa' => null,
+                'remarks' => 'Pending conduct completion.',
+            ],
+        ],
+    ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Conduct ratings saved as draft.');
+
+    $this->assertDatabaseHas('conduct_ratings', [
+        'enrollment_id' => $enrollment->id,
+        'quarter' => '1',
+        'maka_diyos' => null,
+        'makatao' => null,
+        'makakalikasan' => null,
+        'makabansa' => null,
+        'remarks' => 'Pending conduct completion.',
+        'is_locked' => false,
+    ]);
+});
+
+test('teacher advisory board blocks lock when any conduct value is null even if grades are verified', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Mabini',
+        'adviser_id' => $this->teacher->id,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'ENG7',
+        'subject_name' => 'English 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '966666666663',
+        'first_name' => 'Mina',
+        'last_name' => 'Torres',
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    FinalGrade::query()->create([
+        'enrollment_id' => $enrollment->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'grade' => 91,
+        'is_locked' => true,
+    ]);
+
+    GradeSubmission::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'status' => GradeSubmission::STATUS_VERIFIED,
+        'submitted_by' => $this->teacher->id,
+        'submitted_at' => now()->subHour(),
+        'verified_by' => $this->teacher->id,
+        'verified_at' => now(),
+    ]);
+
+    $this->post('/teacher/advisory-board/conduct', [
+        'section_id' => $section->id,
+        'quarter' => '1',
+        'save_mode' => 'locked',
+        'rows' => [
+            [
+                'enrollment_id' => $enrollment->id,
+                'maka_diyos' => 'AO',
+                'makatao' => null,
+                'makakalikasan' => 'SO',
+                'makabansa' => 'RO',
+                'remarks' => 'Incomplete conduct.',
+            ],
+        ],
+    ])
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    $this->assertDatabaseMissing('conduct_ratings', [
+        'enrollment_id' => $enrollment->id,
+        'quarter' => '1',
+        'is_locked' => true,
     ]);
 });

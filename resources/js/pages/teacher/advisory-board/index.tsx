@@ -40,6 +40,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 type RatingOption = 'AO' | 'SO' | 'RO' | 'NO';
+type RatingValue = RatingOption | null;
 
 type SectionOption = {
     id: number;
@@ -68,10 +69,10 @@ type ConductRow = {
     enrollment_id: number;
     student_name: string;
     ratings: {
-        maka_diyos: RatingOption;
-        makatao: RatingOption;
-        makakalikasan: RatingOption;
-        makabansa: RatingOption;
+        maka_diyos: RatingValue;
+        makatao: RatingValue;
+        makakalikasan: RatingValue;
+        makabansa: RatingValue;
     };
     remarks: string;
 };
@@ -149,7 +150,7 @@ export default function AdvisoryBoard({
     const updateRating = (
         enrollmentId: number,
         ratingKey: keyof ConductRow['ratings'],
-        value: RatingOption,
+        value: RatingValue,
     ) => {
         setConductRows((currentRows) =>
             currentRows.map((row) =>
@@ -620,20 +621,23 @@ function BehaviorSelect({
     onChange,
     disabled,
 }: {
-    value: RatingOption;
-    onChange: (value: RatingOption) => void;
+    value: RatingValue;
+    onChange: (value: RatingValue) => void;
     disabled: boolean;
 }) {
     return (
         <Select
-            value={value}
-            onValueChange={(newValue) => onChange(newValue as RatingOption)}
+            value={value ?? 'not-set'}
+            onValueChange={(newValue) =>
+                onChange(newValue === 'not-set' ? null : (newValue as RatingOption))
+            }
             disabled={disabled}
         >
             <SelectTrigger className="mx-auto h-8 w-20">
                 <SelectValue />
             </SelectTrigger>
             <SelectContent>
+                <SelectItem value="not-set">-</SelectItem>
                 <SelectItem value="AO">AO</SelectItem>
                 <SelectItem value="SO">SO</SelectItem>
                 <SelectItem value="RO">RO</SelectItem>

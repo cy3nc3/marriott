@@ -13,12 +13,15 @@ use App\Models\Enrollment;
 use App\Models\FinalGrade;
 use App\Models\GradeSubmission;
 use App\Models\Setting;
+use App\Models\SubjectAssignment;
 use App\Models\User;
 use App\Services\DashboardCacheService;
 use App\Services\GradeDeadlineAnnouncementService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -31,6 +34,22 @@ class GradeVerificationController extends Controller
 
         $activeYear = $this->resolveActiveAcademicYear();
         $currentQuarter = (string) ($activeYear?->current_quarter ?: '1');
+        $subjectAssignments = SubjectAssignment::query()
+            ->with([
+                'section:id,academic_year_id,grade_level_id,name',
+                'section.gradeLevel:id,name',
+                'teacherSubject:id,teacher_id,subject_id',
+                'teacherSubject.teacher:id,first_name,last_name,name',
+                'teacherSubject.subject:id,subject_code,subject_name',
+            ])
+            ->when($activeYear, function (Builder $query) use ($activeYear): void {
+                $query->whereHas('section', function (Builder $sectionQuery) use ($activeYear): void {
+                    $sectionQuery->where('academic_year_id', $activeYear->id);
+                });
+            })
+            ->orderBy('section_id')
+            ->orderBy('id')
+            ->get();
 
         $submissions = GradeSubmission::query()
             ->with([
@@ -39,7 +58,7 @@ class GradeVerificationController extends Controller
                 'subjectAssignment.section.gradeLevel:id,name',
                 'subjectAssignment.teacherSubject:id,teacher_id,subject_id',
                 'subjectAssignment.teacherSubject.teacher:id,first_name,last_name,name',
-                'subjectAssignment.teacherSubject.subject:id,subject_name',
+                'subjectAssignment.teacherSubject.subject:id,subject_code,subject_name',
                 'submittedBy:id,first_name,last_name,name',
                 'verifiedBy:id,first_name,last_name,name',
                 'returnedBy:id,first_name,last_name,name',
@@ -60,17 +79,45 @@ class GradeVerificationController extends Controller
             ->values();
 
         $enrolledCountBySection = collect();
+        $enrollmentsBySection = collect();
         if ($activeYear && $sectionIds->isNotEmpty()) {
-            $enrolledCountBySection = Enrollment::query()
+            $enrollments = Enrollment::query()
+                ->with([
+                    'student:id,first_name,last_name',
+                ])
                 ->where('academic_year_id', $activeYear->id)
                 ->whereIn('section_id', $sectionIds)
                 ->where('status', 'enrolled')
-                ->selectRaw('section_id, count(*) as total')
+                ->orderBy('section_id')
+                ->orderBy('id')
+                ->get([
+                    'id',
+                    'section_id',
+                    'student_id',
+                    'status',
+                ]);
+
+            $enrollmentsBySection = $enrollments
                 ->groupBy('section_id')
-                ->pluck('total', 'section_id');
+                ->map(function (Collection $sectionEnrollments): Collection {
+                    return $sectionEnrollments->sortBy(function (Enrollment $enrollment): string {
+                        $student = $enrollment->student;
+
+                        if (! $student) {
+                            return '';
+                        }
+
+                        return mb_strtolower(
+                            trim("{$student->last_name} {$student->first_name}")
+                        );
+                    })->values();
+                });
+
+            $enrolledCountBySection = $enrollmentsBySection->map->count();
         }
 
         $gradeStatsByKey = collect();
+        $gradeRowsByKey = collect();
         if ($activeYear && $submissions->isNotEmpty()) {
             $assignmentIds = $submissions->pluck('subject_assignment_id')->unique()->values();
 
@@ -95,18 +142,50 @@ class GradeVerificationController extends Controller
                 ->keyBy(function (object $row): string {
                     return "{$row->subject_assignment_id}-{$row->quarter}";
                 });
+
+            $gradeRowsByKey = FinalGrade::query()
+                ->with([
+                    'enrollment:id,section_id,student_id,academic_year_id,status',
+                    'enrollment.student:id,first_name,last_name',
+                ])
+                ->whereIn('subject_assignment_id', $assignmentIds)
+                ->where('quarter', $currentQuarter)
+                ->whereHas('enrollment', function (Builder $query) use ($activeYear): void {
+                    $query
+                        ->where('academic_year_id', $activeYear->id)
+                        ->where('status', 'enrolled');
+                })
+                ->orderBy('enrollment_id')
+                ->get([
+                    'id',
+                    'enrollment_id',
+                    'subject_assignment_id',
+                    'quarter',
+                    'grade',
+                    'is_locked',
+                ])
+                ->groupBy(function (FinalGrade $grade): string {
+                    return "{$grade->subject_assignment_id}-{$grade->quarter}";
+                });
         }
 
         $submissionRows = $submissions
-            ->map(function (GradeSubmission $submission) use ($enrolledCountBySection, $gradeStatsByKey): array {
+            ->map(function (GradeSubmission $submission) use (
+                $enrolledCountBySection,
+                $gradeStatsByKey,
+                $enrollmentsBySection,
+                $gradeRowsByKey
+            ): array {
                 $section = $submission->subjectAssignment?->section;
                 $gradeLevelName = $section?->gradeLevel?->name;
                 $sectionName = $section?->name;
-                $subjectName = $submission->subjectAssignment?->teacherSubject?->subject?->subject_name ?? 'Subject';
+                $subject = $submission->subjectAssignment?->teacherSubject?->subject;
+                $subjectName = $subject?->subject_name ?? 'Subject';
+                $subjectCode = $subject?->subject_code ?? '-';
 
                 $classLabel = $sectionName
-                    ? "{$gradeLevelName} - {$sectionName} ({$subjectName})"
-                    : "Unassigned ({$subjectName})";
+                    ? trim("{$gradeLevelName} - {$sectionName}")
+                    : 'Unassigned';
 
                 $teacher = $submission->subjectAssignment?->teacherSubject?->teacher;
                 $teacherName = $this->formatUserName(
@@ -121,11 +200,18 @@ class GradeVerificationController extends Controller
                 $expectedRows = (int) ($enrolledCountBySection[$submission->subjectAssignment?->section_id] ?? 0);
                 $postedRows = (int) ($stats?->posted_rows ?? 0);
                 $lockedRows = (int) ($stats?->locked_rows ?? 0);
+                $studentGradeRows = $this->buildStudentGradeRows(
+                    $submission,
+                    $enrollmentsBySection,
+                    $gradeRowsByKey
+                );
 
                 return [
                     'id' => $submission->id,
                     'academic_year_id' => (int) $submission->academic_year_id,
                     'class_label' => $classLabel,
+                    'subject_code' => $subjectCode,
+                    'subject_name' => $subjectName,
                     'teacher_name' => $teacherName,
                     'quarter' => (string) $submission->quarter,
                     'quarter_label' => $this->resolveQuarterLabel((string) $submission->quarter),
@@ -143,10 +229,63 @@ class GradeVerificationController extends Controller
                     'submitted_at' => $submission->submitted_at?->toIso8601String(),
                     'verified_at' => $submission->verified_at?->toIso8601String(),
                     'returned_at' => $submission->returned_at?->toIso8601String(),
+                    'verified_by_name' => $this->formatUserName(
+                        $submission->verifiedBy?->first_name,
+                        $submission->verifiedBy?->last_name,
+                        $submission->verifiedBy?->name
+                    ),
+                    'returned_by_name' => $this->formatUserName(
+                        $submission->returnedBy?->first_name,
+                        $submission->returnedBy?->last_name,
+                        $submission->returnedBy?->name
+                    ),
+                    'student_grades' => $studentGradeRows,
                     'can_verify' => $submission->status === GradeSubmission::STATUS_SUBMITTED,
                     'can_return' => $submission->status === GradeSubmission::STATUS_SUBMITTED,
                 ];
             })
+            ->values();
+        $submissionByAssignmentId = $submissions->keyBy('subject_assignment_id');
+        $submissionCoverageRows = $subjectAssignments
+            ->map(function (SubjectAssignment $subjectAssignment) use ($submissionByAssignmentId): array {
+                $submission = $submissionByAssignmentId->get($subjectAssignment->id);
+                $section = $subjectAssignment->section;
+                $gradeLevelName = $section?->gradeLevel?->name;
+                $sectionName = $section?->name;
+                $subject = $subjectAssignment->teacherSubject?->subject;
+                $teacher = $subjectAssignment->teacherSubject?->teacher;
+                $status = (string) ($submission?->status ?: 'not_submitted');
+                $isSubmitted = in_array($status, [
+                    GradeSubmission::STATUS_SUBMITTED,
+                    GradeSubmission::STATUS_VERIFIED,
+                ], true);
+
+                return [
+                    'subject_assignment_id' => (int) $subjectAssignment->id,
+                    'class_label' => $sectionName
+                        ? trim("{$gradeLevelName} - {$sectionName}")
+                        : 'Unassigned',
+                    'subject_code' => (string) ($subject?->subject_code ?? '-'),
+                    'subject_name' => (string) ($subject?->subject_name ?? 'Subject'),
+                    'teacher_name' => $this->formatUserName(
+                        $teacher?->first_name,
+                        $teacher?->last_name,
+                        $teacher?->name
+                    ),
+                    'status' => $status,
+                    'status_label' => $submission
+                        ? $this->resolveStatusLabel($status)
+                        : 'Not Submitted',
+                    'submitted_at' => $submission?->submitted_at?->toIso8601String(),
+                    'is_submitted' => $isSubmitted,
+                ];
+            })
+            ->values();
+        $submittedCoverageRows = $submissionCoverageRows
+            ->where('is_submitted', true)
+            ->values();
+        $notSubmittedCoverageRows = $submissionCoverageRows
+            ->where('is_submitted', false)
             ->values();
 
         return Inertia::render('admin/grade-verification/index', [
@@ -161,6 +300,12 @@ class GradeVerificationController extends Controller
                 'submitted_count' => $submissionRows->where('status', GradeSubmission::STATUS_SUBMITTED)->count(),
                 'returned_count' => $submissionRows->where('status', GradeSubmission::STATUS_RETURNED)->count(),
                 'verified_count' => $submissionRows->where('status', GradeSubmission::STATUS_VERIFIED)->count(),
+            ],
+            'coverage' => [
+                'submitted_count' => $submittedCoverageRows->count(),
+                'not_submitted_count' => $notSubmittedCoverageRows->count(),
+                'submitted' => $submittedCoverageRows,
+                'not_submitted' => $notSubmittedCoverageRows,
             ],
             'submissions' => $submissionRows,
         ]);
@@ -189,6 +334,21 @@ class GradeVerificationController extends Controller
         }
 
         Setting::set($settingKey, $newDeadline->toDateTimeString(), 'grading');
+        Setting::set(
+            'grade_deadline_reminder_auto_send_enabled',
+            true,
+            'grading'
+        );
+        Setting::set(
+            'grade_deadline_reminder_send_time',
+            $validated['send_time'],
+            'grading'
+        );
+        Setting::set(
+            'grade_deadline_reminder_days',
+            json_encode(array_values(array_unique(array_map('intval', $validated['reminder_days'])))),
+            'grading'
+        );
 
         $announcementPosted = false;
         $hasMeaningfulChange = ! $previousDeadline || ! $previousDeadline->equalTo($newDeadline);
@@ -229,7 +389,7 @@ class GradeVerificationController extends Controller
 
         Setting::set(
             'grade_deadline_reminder_auto_send_enabled',
-            (bool) $validated['auto_send_enabled'],
+            true,
             'grading'
         );
         Setting::set(
@@ -237,6 +397,13 @@ class GradeVerificationController extends Controller
             $validated['send_time'],
             'grading'
         );
+        if (array_key_exists('reminder_days', $validated)) {
+            Setting::set(
+                'grade_deadline_reminder_days',
+                json_encode(array_values(array_unique(array_map('intval', $validated['reminder_days'])))),
+                'grading'
+            );
+        }
 
         return back()->with('success', 'Grade reminder automation settings updated.');
     }
@@ -359,13 +526,29 @@ class GradeVerificationController extends Controller
     }
 
     /**
-     * @return array{auto_send_enabled: bool, send_time: string}
+     * @return array{auto_send_enabled: bool, send_time: string, reminder_days: array<int, int>}
      */
     private function resolveReminderAutomation(): array
     {
+        $configuredReminderDays = Setting::get('grade_deadline_reminder_days');
+        $decodedReminderDays = is_string($configuredReminderDays)
+            ? json_decode($configuredReminderDays, true)
+            : null;
+        $reminderDays = collect(is_array($decodedReminderDays) ? $decodedReminderDays : [3, 2, 1])
+            ->filter(function (mixed $value): bool {
+                return is_numeric($value);
+            })
+            ->map(fn (mixed $value): int => (int) $value)
+            ->filter(fn (int $value): bool => $value >= 1 && $value <= 14)
+            ->unique()
+            ->sortDesc()
+            ->values()
+            ->all();
+
         return [
-            'auto_send_enabled' => Setting::enabled('grade_deadline_reminder_auto_send_enabled', true),
+            'auto_send_enabled' => true,
             'send_time' => (string) Setting::get('grade_deadline_reminder_send_time', '07:00'),
+            'reminder_days' => $reminderDays === [] ? [3, 2, 1] : $reminderDays,
         ];
     }
 
@@ -404,5 +587,81 @@ class GradeVerificationController extends Controller
         }
 
         return $fallbackName ?: 'Unassigned';
+    }
+
+    /**
+     * @param  Collection<int, Collection<int, Enrollment>>  $enrollmentsBySection
+     * @param  Collection<int, EloquentCollection<int, FinalGrade>>  $gradeRowsByKey
+     * @return array<int, array{
+     *     enrollment_id: int|null,
+     *     student_name: string,
+     *     grade: float|null,
+     *     is_locked: bool,
+     *     is_missing: bool,
+     *     is_at_risk: bool
+     * }>
+     */
+    private function buildStudentGradeRows(
+        GradeSubmission $submission,
+        Collection $enrollmentsBySection,
+        Collection $gradeRowsByKey
+    ): array {
+        $statsKey = "{$submission->subject_assignment_id}-{$submission->quarter}";
+        $gradeRows = $gradeRowsByKey->get($statsKey, collect());
+        $gradeByEnrollmentId = $gradeRows->keyBy('enrollment_id');
+        $sectionId = $submission->subjectAssignment?->section_id;
+        $enrollments = $sectionId
+            ? $enrollmentsBySection->get($sectionId, collect())
+            : collect();
+
+        if ($enrollments->isEmpty()) {
+            return $gradeRows
+                ->map(function (FinalGrade $grade): array {
+                    $student = $grade->enrollment?->student;
+                    $gradeValue = $grade->grade !== null ? (float) $grade->grade : null;
+
+                    return [
+                        'enrollment_id' => $grade->enrollment_id ? (int) $grade->enrollment_id : null,
+                        'student_name' => $this->formatStudentName(
+                            $student?->first_name,
+                            $student?->last_name
+                        ),
+                        'grade' => $gradeValue,
+                        'is_locked' => (bool) $grade->is_locked,
+                        'is_missing' => $gradeValue === null,
+                        'is_at_risk' => $gradeValue !== null && $gradeValue < 75,
+                    ];
+                })
+                ->values()
+                ->all();
+        }
+
+        return $enrollments
+            ->map(function (Enrollment $enrollment) use ($gradeByEnrollmentId): array {
+                /** @var FinalGrade|null $finalGrade */
+                $finalGrade = $gradeByEnrollmentId->get($enrollment->id);
+                $gradeValue = $finalGrade?->grade !== null ? (float) $finalGrade->grade : null;
+
+                return [
+                    'enrollment_id' => (int) $enrollment->id,
+                    'student_name' => $this->formatStudentName(
+                        $enrollment->student?->first_name,
+                        $enrollment->student?->last_name
+                    ),
+                    'grade' => $gradeValue,
+                    'is_locked' => (bool) ($finalGrade?->is_locked ?? false),
+                    'is_missing' => $finalGrade === null || $gradeValue === null,
+                    'is_at_risk' => $gradeValue !== null && $gradeValue < 75,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function formatStudentName(?string $firstName, ?string $lastName): string
+    {
+        $trimmed = trim("{$firstName} {$lastName}");
+
+        return $trimmed !== '' ? $trimmed : 'Unknown Student';
     }
 }

@@ -1,6 +1,7 @@
 import { router, useForm } from '@inertiajs/react';
 import { Mail, UserRound, X } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import type { FormEvent} from 'react';
+import { useMemo, useState } from 'react';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -29,10 +30,13 @@ interface LoginFormProps {
 
 export function LoginForm({ status, canResetPassword }: LoginFormProps) {
     const deviceId = useMemo(() => getSavedAccountDeviceId(), []);
+    const initialStoredAccounts = useMemo(() => readStoredLoginAccounts(), []);
     const [storedAccounts, setStoredAccounts] = useState<StoredLoginAccount[]>(
-        [],
+        initialStoredAccounts,
     );
-    const [isUsingAnotherAccount, setIsUsingAnotherAccount] = useState(false);
+    const [isUsingAnotherAccount, setIsUsingAnotherAccount] = useState(
+        initialStoredAccounts.length === 0,
+    );
     const [selectedAccountEmail, setSelectedAccountEmail] = useState<
         string | null
     >(null);
@@ -47,28 +51,6 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
         remember: false,
         saved_account_device_id: deviceId,
     });
-
-    useEffect(() => {
-        setData('saved_account_device_id', deviceId);
-    }, [deviceId, setData]);
-
-    useEffect(() => {
-        const accounts = readStoredLoginAccounts();
-        setStoredAccounts(accounts);
-
-        if (accounts.length === 0) {
-            setIsUsingAnotherAccount(true);
-            return;
-        }
-
-        setSelectedAccountEmail(null);
-        setIsUsingAnotherAccount(false);
-        setIsRememberAccountLoading(false);
-        setDidRememberAutoLoginFail(false);
-        setData('email', '');
-        setData('password', '');
-        setData('remember', false);
-    }, [setData]);
 
     const selectedAccount = useMemo(() => {
         return storedAccounts.find(

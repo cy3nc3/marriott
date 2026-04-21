@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 import { applySavedAccountLoginFlash } from '@/lib/saved-login-accounts';
 import type { SharedData } from '@/types';
 

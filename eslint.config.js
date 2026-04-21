@@ -65,7 +65,21 @@ export default [
         },
     },
     {
-        ignores: ['vendor', 'node_modules', 'public', 'bootstrap/ssr', 'tailwind.config.js', 'vite.config.ts'],
+        files: ['resources/js/actions/**/*.{ts,tsx}', 'resources/js/routes/**/*.{ts,tsx}'],
+        rules: {
+            'import/order': 'off',
+        },
+    },
+    {
+        ignores: [
+            '.worktrees/**',
+            'vendor/**',
+            'node_modules/**',
+            'public/**',
+            'bootstrap/ssr/**',
+            'tailwind.config.js',
+            'vite.config.ts',
+        ],
     },
     prettier, // Turn off all rules that might conflict with Prettier
 ];

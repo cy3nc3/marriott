@@ -14,7 +14,6 @@ class IndexStudentLedgersRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'academic_year_id' => ['nullable', 'integer', 'exists:academic_years,id'],
             'search' => ['nullable', 'string', 'max:255'],
             'student_id' => ['nullable', 'integer', 'exists:students,id'],
             'entry_type' => ['nullable', 'in:all,charge,payment,discount,adjustment'],

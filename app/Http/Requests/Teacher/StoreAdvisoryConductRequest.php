@@ -19,10 +19,10 @@ class StoreAdvisoryConductRequest extends FormRequest
             'save_mode' => ['required', 'in:draft,locked'],
             'rows' => ['required', 'array', 'min:1'],
             'rows.*.enrollment_id' => ['required', 'integer', 'exists:enrollments,id'],
-            'rows.*.maka_diyos' => ['required', 'in:AO,SO,RO,NO'],
-            'rows.*.makatao' => ['required', 'in:AO,SO,RO,NO'],
-            'rows.*.makakalikasan' => ['required', 'in:AO,SO,RO,NO'],
-            'rows.*.makabansa' => ['required', 'in:AO,SO,RO,NO'],
+            'rows.*.maka_diyos' => ['nullable', 'in:AO,SO,RO,NO'],
+            'rows.*.makatao' => ['nullable', 'in:AO,SO,RO,NO'],
+            'rows.*.makakalikasan' => ['nullable', 'in:AO,SO,RO,NO'],
+            'rows.*.makabansa' => ['nullable', 'in:AO,SO,RO,NO'],
             'rows.*.remarks' => ['nullable', 'string', 'max:255'],
         ];
     }

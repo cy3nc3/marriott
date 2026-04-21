@@ -19,6 +19,7 @@ class IndexTransactionHistoryRequest extends FormRequest
             'payment_mode' => ['nullable', 'in:cash,gcash,bank_transfer'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'export_range' => ['nullable', 'in:this_week,this_month,all_time'],
         ];
     }
 }

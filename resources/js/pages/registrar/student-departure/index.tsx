@@ -117,7 +117,7 @@ export default function StudentDeparture({
             effective_date: departure_form_defaults.effective_date,
             remarks: departure_form_defaults.remarks,
         });
-    }, [selected_student, departure_form_defaults]);
+    }, [selected_student, departure_form_defaults, departureForm]);
 
     const applyLookupFilters = (next?: {
         search?: string;

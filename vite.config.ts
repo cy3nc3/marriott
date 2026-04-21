@@ -27,4 +27,22 @@ export default defineConfig({
     esbuild: {
         jsx: 'automatic',
     },
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    'vendor-react': ['react', 'react-dom', '@inertiajs/react'],
+                    'vendor-ui': [
+                        '@headlessui/react',
+                        '@radix-ui/react-dialog',
+                        '@radix-ui/react-dropdown-menu',
+                        '@radix-ui/react-select',
+                        'lucide-react',
+                    ],
+                    'vendor-charts': ['recharts'],
+                    'vendor-table': ['@tanstack/react-table'],
+                },
+            },
+        },
+    },
 });

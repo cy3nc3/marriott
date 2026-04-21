@@ -24,7 +24,15 @@ class StoreSectionRequest extends FormRequest
 
         if ($activeAcademicYearId === null) {
             $activeAcademicYearId = AcademicYear::query()
+                ->where('status', 'upcoming')
+                ->orderBy('start_date')
+                ->value('id');
+        }
+
+        if ($activeAcademicYearId === null) {
+            $activeAcademicYearId = AcademicYear::query()
                 ->where('status', '!=', 'completed')
+                ->orderBy('start_date')
                 ->value('id');
         }
 

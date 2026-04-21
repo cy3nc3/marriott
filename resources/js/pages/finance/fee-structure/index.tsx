@@ -1,7 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -173,19 +173,12 @@ export default function FeeStructure({
             )?.name ?? 'No active school year',
         [school_year_options, selectedSchoolYearId],
     );
-
-    useEffect(() => {
-        setRemedialAmounts(buildRemedialAmountMap(remedial_subject_fees));
-        setRemedialFieldErrors({});
-
-        const hasActiveRemedialTab = remedial_subject_fees.some(
-            (gradeLevel) => String(gradeLevel.id) === activeRemedialTab,
-        );
-
-        if (!hasActiveRemedialTab) {
-            setActiveRemedialTab(String(remedial_subject_fees[0]?.id ?? ''));
-        }
-    }, [remedial_subject_fees, activeRemedialTab]);
+    const hasActiveRemedialTab = remedial_subject_fees.some(
+        (gradeLevel) => String(gradeLevel.id) === activeRemedialTab,
+    );
+    const resolvedActiveRemedialTab = hasActiveRemedialTab
+        ? activeRemedialTab
+        : String(remedial_subject_fees[0]?.id ?? '');
 
     const openAddDialog = () => {
         const defaultGradeLevelId = selectedGradeLevel
@@ -554,7 +547,7 @@ export default function FeeStructure({
 
                         {remedial_subject_fees.length > 0 ? (
                             <Tabs
-                                value={activeRemedialTab}
+                                value={resolvedActiveRemedialTab}
                                 onValueChange={setActiveRemedialTab}
                                 className="w-full"
                             >

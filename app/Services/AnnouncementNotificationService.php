@@ -45,6 +45,11 @@ class AnnouncementNotificationService
                         ->where('user_id', $user->id)
                         ->select(['id', 'announcement_id', 'user_id', 'response', 'responded_at']);
                 },
+                'recipients' => function ($query) use ($user): void {
+                    $query
+                        ->where('user_id', $user->id)
+                        ->select(['id', 'announcement_id', 'user_id']);
+                },
             ])
             ->latest()
             ->limit($limit)
@@ -163,6 +168,8 @@ class AnnouncementNotificationService
             if (! $isRecipient) {
                 return false;
             }
+        } elseif ($announcement->recipients->isEmpty()) {
+            return false;
         }
 
         $status = $viewerResponseStatus ?? $this->resolveViewerResponseStatus($announcement, $user);

@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -48,11 +48,13 @@ export function MonthPicker({
         selectedMonth?.getFullYear() ?? new Date().getFullYear(),
     );
 
-    useEffect(() => {
-        if (selectedMonth) {
-            setViewYear(selectedMonth.getFullYear());
+    const handleOpenChange = (nextOpen: boolean): void => {
+        setIsOpen(nextOpen);
+
+        if (nextOpen) {
+            setViewYear(selectedMonth?.getFullYear() ?? new Date().getFullYear());
         }
-    }, [selectedMonth]);
+    };
 
     const selectMonth = (monthIndex: number) => {
         onValueChange(buildMonthValue(viewYear, monthIndex));
@@ -60,7 +62,7 @@ export function MonthPicker({
     };
 
     return (
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <Popover open={isOpen} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>
                 <Button
                     type="button"

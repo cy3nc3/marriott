@@ -1,0 +1,43 @@
+﻿<h2>Returning Student Re-enrollment: Approach Options</h2>
+<p class="subtitle">Goal: LRN-only start, editable prefill, ongoing school year only, and grade auto-promotion (+1).</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Inline Expand (Recommended)</h3>
+      <p>Step 1 starts with only LRN. After 12 digits + blur/Enter, show loader then expand Step 1 in place with student fields prefilled when matched.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Fastest for registrar; minimal cognitive switch</li><li>Keeps existing wizard structure mostly intact</li><li>Easy status: New vs Returning</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Needs careful Step 1 state handling</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Split Screen: Lookup Then Wizard</h3>
+      <p>Separate LRN lookup card before wizard. Clicking Continue opens full wizard prefilled and promotion-aware.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Clear separation of concerns</li><li>Simpler component logic</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Extra click and visual jump</li><li>Feels less instant</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Modal-Based LRN Detection</h3>
+      <p>LRN field triggers summary modal on match; registrar confirms then wizard gets prefilled.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Explicit confirmation reduces wrong-match risk</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Interruptive for high-volume use</li><li>More UI complexity</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="subtitle">Recommendation: A (Inline Expand).</p>
+  <p class="subtitle">Click your preferred option, then reply in terminal with your pick and tweaks.</p>
+</div>

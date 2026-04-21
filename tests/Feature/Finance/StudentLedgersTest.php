@@ -306,7 +306,7 @@ test('finance student ledgers filters entries and can include paid dues', functi
         );
 });
 
-test('finance student ledgers filters records by selected school year', function () {
+test('finance student ledgers includes dues and ledger entries across school years', function () {
     $schoolYearOne = AcademicYear::query()->create([
         'name' => '2024-2025',
         'start_date' => '2024-06-01',
@@ -396,16 +396,18 @@ test('finance student ledgers filters records by selected school year', function
         'reference_id' => null,
     ]);
 
-    $this->get("/finance/student-ledgers?academic_year_id={$schoolYearOne->id}&student_id={$student->id}")
+    $this->get("/finance/student-ledgers?student_id={$student->id}")
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('finance/student-ledgers/index')
-            ->where('selected_school_year_id', $schoolYearOne->id)
-            ->where('filters.academic_year_id', $schoolYearOne->id)
-            ->has('dues_schedule', 1)
+            ->has('dues_schedule', 2)
             ->where('dues_schedule.0.description', 'SY One Due')
-            ->has('ledger_entries', 1)
-            ->where('ledger_entries.0.reference', 'SY One Charge')
+            ->where('dues_schedule.1.description', 'SY Two Due')
+            ->has('ledger_entries', 2)
+            ->where('ledger_entries.0.reference', 'SY Two Charge')
+            ->where('ledger_entries.1.reference', 'SY One Charge')
+            ->where('summary.assessment_fee_total', 3000)
+            ->where('summary.outstanding_balance', 3000)
         );
 });
 
@@ -446,5 +448,69 @@ test('finance student ledgers search matches full name case insensitively', func
             ->has('students', 1)
             ->where('students.0.id', $student->id)
             ->where('students.0.name', 'Sofia Castro')
+        );
+});
+
+test('finance student ledgers search shows students across different school years', function () {
+    $schoolYearOne = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $schoolYearTwo = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 8',
+        'level_order' => 8,
+    ]);
+
+    $firstStudent = Student::query()->create([
+        'lrn' => '512345678900',
+        'first_name' => 'All',
+        'last_name' => 'Year One',
+    ]);
+
+    $secondStudent = Student::query()->create([
+        'lrn' => '612345678900',
+        'first_name' => 'All',
+        'last_name' => 'Year Two',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $firstStudent->id,
+        'academic_year_id' => $schoolYearOne->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $secondStudent->id,
+        'academic_year_id' => $schoolYearTwo->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $this->get('/finance/student-ledgers?search=all%20year')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/student-ledgers/index')
+            ->has('students', 2)
+            ->where('students.0.id', $firstStudent->id)
+            ->where('students.1.id', $secondStudent->id)
         );
 });

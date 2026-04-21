@@ -18,7 +18,7 @@ class SectionController extends Controller
 {
     public function index(): Response
     {
-        $currentYear = AcademicYear::where('status', '!=', 'completed')->first();
+        $currentYear = $this->resolveActiveYear();
 
         return Inertia::render('admin/section-manager/index', [
             'gradeLevels' => GradeLevel::with(['sections' => function ($query) use ($currentYear) {
@@ -55,5 +55,20 @@ class SectionController extends Controller
         $section->delete();
 
         return back()->with('success', 'Section removed.');
+    }
+
+    private function resolveActiveYear(): ?AcademicYear
+    {
+        return AcademicYear::query()
+            ->where('status', 'ongoing')
+            ->first()
+            ?? AcademicYear::query()
+                ->where('status', 'upcoming')
+                ->orderBy('start_date')
+                ->first()
+            ?? AcademicYear::query()
+                ->where('status', '!=', 'completed')
+                ->orderBy('start_date')
+                ->first();
     }
 }

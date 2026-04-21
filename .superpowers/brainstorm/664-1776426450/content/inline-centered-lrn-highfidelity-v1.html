@@ -1,0 +1,125 @@
+﻿<h2>Enrollment Intake: High-Fidelity Motion Mock</h2>
+<p class="subtitle">Visual parity target: current registrar enrollment card behavior + your new LRN-first flow.</p>
+
+<div class="mockup" style="max-width:980px; margin: 0 auto;">
+  <div class="mockup-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <span>New Enrollment Intake</span>
+    <span class="label">State Preview</span>
+  </div>
+  <div class="mockup-body" id="wizardRoot" style="background:#fff;min-height:560px;padding:22px;border-radius:0 0 10px 10px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#6b7280;margin-bottom:8px;">
+      <span>Step <strong id="stepNo">1</strong> of 4</span>
+      <span id="stepLabel">Student Details</span>
+    </div>
+
+    <div style="height:8px;background:#eef0f3;border-radius:999px;overflow:hidden;margin-bottom:20px;">
+      <div id="progressFill" style="height:100%;width:25%;background:#0f172a;transition:width .3s ease;"></div>
+    </div>
+
+    <div id="lrnStage" style="min-height:390px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid #e5e7eb;border-radius:12px;background:linear-gradient(180deg,#ffffff 0%,#fafafa 100%);">
+      <div id="centerBox" style="width:min(88%,560px);text-align:center;transition:transform .34s cubic-bezier(.2,.7,.1,1), opacity .26s ease;">
+        <p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin:0 0 12px;">Student Lookup</p>
+        <h3 style="font-size:31px;line-height:1.2;margin:0 0 10px;color:#111827;">Enter Learner Reference Number</h3>
+        <p style="margin:0 0 18px;color:#6b7280;">Type 12 digits to continue</p>
+        <input id="lrnInput" value="123456789012" style="width:100%;height:58px;border:2px solid #111827;border-radius:11px;font-size:31px;letter-spacing:.04em;text-align:center;outline:none;" />
+        <p id="lookupMsg" style="font-size:12px;color:#6b7280;margin-top:12px;">Press <strong>Play Transition</strong> to simulate lookup + expansion.</p>
+      </div>
+
+      <div id="topAnchor" style="position:absolute;left:16px;right:16px;top:14px;opacity:0;transform:translateY(-16px);transition:all .28s ease;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;flex:1;">
+            <label style="font-size:12px;color:#6b7280;">LRN</label>
+            <input value="123456789012" style="flex:1;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 12px;font-size:15px;" />
+          </div>
+          <span id="studentBadge" style="font-size:11px;border:1px solid #86efac;color:#166534;background:#f0fdf4;padding:5px 9px;border-radius:999px;">Returning Student</span>
+        </div>
+      </div>
+
+      <div id="expandedFields" style="position:absolute;left:16px;right:16px;top:68px;opacity:0;transform:translateY(20px);transition:all .3s ease;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">First Name</label><input value="Maria" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">Middle Name</label><input value="Dela" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">Last Name</label><input value="Cruz" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">Gender</label><input value="Female" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">Birthdate</label><input value="2010-03-02" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">Guardian Name</label><input value="Ana Cruz" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">Guardian Contact</label><input value="09171234567" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+          <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:5px;">Grade Level</label><input value="Grade 8 (Auto: Prev + 1)" style="width:100%;height:40px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;" /></div>
+        </div>
+
+        <div style="margin-top:12px;padding:10px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:8px;font-size:12px;color:#1e3a8a;">
+          School Year is locked to current ongoing year. Grade is preselected to previous +1.
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;display:flex;gap:8px;align-items:center;">
+      <button class="mock-button" id="playBtn" style="background:#111827;color:#fff;border-radius:8px;padding:9px 13px;border:none;">Play Transition</button>
+      <button class="mock-button" id="resetBtn" style="background:#fff;color:#111827;border:1px solid #d1d5db;border-radius:8px;padding:9px 13px;">Reset</button>
+      <span style="font-size:12px;color:#6b7280;">Animation timing: 320ms slide-up + 220ms field fade/slide.</span>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="max-width:980px;margin:14px auto 0;">
+  <div class="option" data-choice="approved-hi-fi" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Approve This UX Direction</h3>
+      <p>Move forward with this motion and visual hierarchy.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tweak-hi-fi" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Needs Tweaks</h3>
+      <p>Keep the concept, adjust spacing, timing, or transitions.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const root = document.getElementById('wizardRoot');
+  const centerBox = document.getElementById('centerBox');
+  const topAnchor = document.getElementById('topAnchor');
+  const expandedFields = document.getElementById('expandedFields');
+  const msg = document.getElementById('lookupMsg');
+  const playBtn = document.getElementById('playBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const progressFill = document.getElementById('progressFill');
+
+  function resetState() {
+    centerBox.style.opacity = '1';
+    centerBox.style.transform = 'translateY(0) scale(1)';
+    topAnchor.style.opacity = '0';
+    topAnchor.style.transform = 'translateY(-16px)';
+    expandedFields.style.opacity = '0';
+    expandedFields.style.transform = 'translateY(20px)';
+    msg.innerHTML = 'Press <strong>Play Transition</strong> to simulate lookup + expansion.';
+    progressFill.style.width = '25%';
+  }
+
+  function playTransition() {
+    msg.textContent = 'Validating LRN and loading student history...';
+    centerBox.style.transform = 'translateY(-118px) scale(.96)';
+    centerBox.style.opacity = '.08';
+
+    setTimeout(() => {
+      topAnchor.style.opacity = '1';
+      topAnchor.style.transform = 'translateY(0)';
+      progressFill.style.width = '32%';
+    }, 220);
+
+    setTimeout(() => {
+      expandedFields.style.opacity = '1';
+      expandedFields.style.transform = 'translateY(0)';
+      msg.textContent = 'Returning student matched. Fields are prefilled and still editable.';
+    }, 320);
+  }
+
+  playBtn.addEventListener('click', playTransition);
+  resetBtn.addEventListener('click', resetState);
+  resetState();
+})();
+</script>

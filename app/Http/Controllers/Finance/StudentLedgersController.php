@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\IndexStudentLedgersRequest;
-use App\Models\AcademicYear;
 use App\Models\BillingSchedule;
 use App\Models\Enrollment;
 use App\Models\LedgerEntry;
@@ -18,31 +17,6 @@ class StudentLedgersController extends Controller
     {
         $validated = $request->validated();
 
-        $schoolYearOptions = AcademicYear::query()
-            ->orderByDesc('start_date')
-            ->get(['id', 'name', 'status', 'start_date'])
-            ->map(function (AcademicYear $academicYear) {
-                return [
-                    'id' => (int) $academicYear->id,
-                    'name' => $academicYear->name,
-                    'status' => $academicYear->status,
-                ];
-            })
-            ->values();
-
-        $selectedAcademicYearId = (int) ($validated['academic_year_id'] ?? 0);
-        if (
-            $selectedAcademicYearId <= 0
-            || ! $schoolYearOptions->pluck('id')->contains($selectedAcademicYearId)
-        ) {
-            $selectedAcademicYearId = (int) ($schoolYearOptions->firstWhere('status', 'ongoing')['id']
-                ?? ($schoolYearOptions->first()['id'] ?? 0));
-        }
-
-        $selectedAcademicYear = $selectedAcademicYearId > 0
-            ? AcademicYear::query()->find($selectedAcademicYearId)
-            : null;
-
         $search = trim((string) ($validated['search'] ?? ''));
         $entryType = $validated['entry_type'] ?? 'all';
         $dateFrom = $validated['date_from'] ?? null;
@@ -51,11 +25,6 @@ class StudentLedgersController extends Controller
         $normalizedSearch = strtolower($search);
 
         $students = Student::query()
-            ->when($selectedAcademicYearId > 0, function ($query) use ($selectedAcademicYearId) {
-                $query->whereHas('enrollments', function ($enrollmentQuery) use ($selectedAcademicYearId) {
-                    $enrollmentQuery->where('academic_year_id', $selectedAcademicYearId);
-                });
-            })
             ->when($search !== '', function ($query) use ($normalizedSearch) {
                 $query->where(function ($searchQuery) use ($normalizedSearch) {
                     $searchQuery
@@ -108,24 +77,12 @@ class StudentLedgersController extends Controller
                 ->find($selectedStudentId);
 
             if ($selectedStudent) {
-                $selectedEnrollment = $this->resolveCurrentEnrollment(
-                    $selectedStudent,
-                    $selectedAcademicYear?->id
-                );
-                $activeAcademicYear = $selectedAcademicYear
-                    ?? $selectedEnrollment?->academicYear
-                    ?? $this->resolveActiveAcademicYear();
+                $selectedEnrollment = $this->resolveCurrentEnrollment($selectedStudent);
 
                 $overallLedgerQuery = LedgerEntry::query()
-                    ->where('student_id', $selectedStudent->id)
-                    ->when($activeAcademicYear, function ($query) use ($activeAcademicYear) {
-                        $query->where('academic_year_id', $activeAcademicYear->id);
-                    });
+                    ->where('student_id', $selectedStudent->id);
                 $billingScheduleQuery = BillingSchedule::query()
-                    ->where('student_id', $selectedStudent->id)
-                    ->when($activeAcademicYear, function ($query) use ($activeAcademicYear) {
-                        $query->where('academic_year_id', $activeAcademicYear->id);
-                    });
+                    ->where('student_id', $selectedStudent->id);
 
                 $overallCharges = round((float) (clone $overallLedgerQuery)->sum('debit'), 2);
                 $overallPayments = round((float) (clone $overallLedgerQuery)->sum('credit'), 2);
@@ -178,9 +135,6 @@ class StudentLedgersController extends Controller
 
                 $ledgerEntriesCollection = LedgerEntry::query()
                     ->where('student_id', $selectedStudent->id)
-                    ->when($activeAcademicYear, function ($query) use ($activeAcademicYear) {
-                        $query->where('academic_year_id', $activeAcademicYear->id);
-                    })
                     ->when($dateFrom, function ($query, $dateFrom) {
                         $query->whereDate('date', '>=', $dateFrom);
                     })
@@ -228,13 +182,10 @@ class StudentLedgersController extends Controller
         return Inertia::render('finance/student-ledgers/index', [
             'students' => $students,
             'selected_student' => $selectedStudentPayload,
-            'school_year_options' => $schoolYearOptions->all(),
-            'selected_school_year_id' => $selectedAcademicYear?->id,
             'dues_schedule' => $duesSchedule,
             'ledger_entries' => $ledgerEntries,
             'summary' => $summary,
             'filters' => [
-                'academic_year_id' => $selectedAcademicYear?->id,
                 'search' => $search !== '' ? $search : null,
                 'student_id' => $selectedStudentId > 0 ? $selectedStudentId : null,
                 'entry_type' => $entryType,
@@ -245,33 +196,14 @@ class StudentLedgersController extends Controller
         ]);
     }
 
-    private function resolveCurrentEnrollment(Student $student, ?int $academicYearId = null): ?Enrollment
+    private function resolveCurrentEnrollment(Student $student): ?Enrollment
     {
-        if ($academicYearId) {
-            $selectedEnrollment = $student->enrollments
-                ->first(function (Enrollment $enrollment) use ($academicYearId) {
-                    return (int) $enrollment->academic_year_id === $academicYearId;
-                });
-
-            if ($selectedEnrollment) {
-                return $selectedEnrollment;
-            }
-        }
-
         $ongoingEnrollment = $student->enrollments
             ->first(function (Enrollment $enrollment) {
                 return $enrollment->academicYear?->status === 'ongoing';
             });
 
         return $ongoingEnrollment ?: $student->enrollments->first();
-    }
-
-    private function resolveActiveAcademicYear(): ?AcademicYear
-    {
-        return AcademicYear::query()
-            ->where('status', 'ongoing')
-            ->first()
-            ?? AcademicYear::query()->orderByDesc('start_date')->first();
     }
 
     private function formatPaymentPlan(?string $paymentPlan): string

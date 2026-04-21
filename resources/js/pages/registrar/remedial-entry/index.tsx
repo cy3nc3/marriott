@@ -1,7 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Save } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,8 +24,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import { store } from '@/routes/registrar/remedial_entry';
 import registrar from '@/routes/registrar';
+import { store } from '@/routes/registrar/remedial_entry';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -182,54 +182,6 @@ export default function RemedialEntry({
         academic_year_id: Number(academicYearId || 0),
         student_id: Number(studentId || 0),
     });
-
-    useEffect(() => {
-        setAcademicYearId(
-            filters.academic_year_id
-                ? String(filters.academic_year_id)
-                : academic_years[0]
-                  ? String(academic_years[0].id)
-                  : '',
-        );
-        setGradeLevelId(
-            filters.grade_level_id ? String(filters.grade_level_id) : 'all',
-        );
-        setSearchQuery(filters.search || '');
-        setStudentId(
-            filters.student_id
-                ? String(filters.student_id)
-                : students[0]
-                  ? String(students[0].id)
-                  : '',
-        );
-
-        remedialForm.setData({
-            academic_year_id: Number(filters.academic_year_id || 0),
-            student_id: Number(filters.student_id || 0),
-            save_mode: 'draft',
-            records: remedial_rows.map((row) => ({
-                subject_id: row.subject_id,
-                final_rating:
-                    row.final_rating !== null ? String(row.final_rating) : '',
-                remedial_class_mark:
-                    row.remedial_class_mark !== null
-                        ? String(row.remedial_class_mark)
-                        : '',
-            })),
-        });
-        intakeForm.setData({
-            academic_year_id: Number(filters.academic_year_id || 0),
-            student_id: Number(filters.student_id || 0),
-        });
-    }, [
-        filters.academic_year_id,
-        filters.grade_level_id,
-        filters.search,
-        filters.student_id,
-        academic_years,
-        students,
-        remedial_rows,
-    ]);
 
     const applyFilters = (next?: {
         academicYearId?: string;

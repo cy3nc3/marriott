@@ -71,8 +71,6 @@ class CheckRole
             'admin.section_manager*' => 'Section Manager',
             'admin.schedule_builder*' => 'Schedule Builder',
             'admin.grade_verification*' => 'Grade Verification',
-            'admin.deped_reports*' => 'DepEd Reports',
-            'admin.sf9_generator*' => 'SF9 Generator',
 
             'registrar.student_directory*' => 'Student Directory',
             'registrar.enrollment*' => 'Enrollment',

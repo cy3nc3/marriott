@@ -22,8 +22,9 @@ class UpdateGradeReminderAutomationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'auto_send_enabled' => ['required', 'boolean'],
             'send_time' => ['required', 'date_format:H:i'],
+            'reminder_days' => ['sometimes', 'array', 'min:1'],
+            'reminder_days.*' => ['integer', 'between:1,14', 'distinct'],
         ];
     }
 }

@@ -7,7 +7,6 @@ use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\SchoolYearController;
 use App\Http\Controllers\Admin\SectionController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/academic-controls', [SchoolYearController::class, 'index'])->middleware('desktop_only')->name('academic_controls');
@@ -42,11 +41,4 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::post('/grade-verification/{gradeSubmission}/verify', [GradeVerificationController::class, 'verify'])->middleware('desktop_only')->name('grade_verification.verify');
     Route::post('/grade-verification/{gradeSubmission}/return', [GradeVerificationController::class, 'returnSubmission'])->middleware('desktop_only')->name('grade_verification.return');
 
-    Route::get('/deped-reports', function () {
-        return Inertia::render('admin/deped-reports/index');
-    })->middleware('desktop_only')->name('deped_reports');
-
-    Route::get('/sf9-generator', function () {
-        return Inertia::render('admin/sf9-generator/index');
-    })->middleware('desktop_only')->name('sf9_generator');
 });

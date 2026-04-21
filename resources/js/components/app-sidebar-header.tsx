@@ -1,3 +1,5 @@
+import { Link, router, usePage } from '@inertiajs/react';
+import { Bell, Check } from 'lucide-react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,8 +10,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import notificationsAnnouncements from '@/routes/notifications/announcements';
-import { Link, router, usePage } from '@inertiajs/react';
-import { Bell, Check } from 'lucide-react';
 import type { BreadcrumbItem as BreadcrumbItemType, SharedData } from '@/types';
 
 export function AppSidebarHeader({

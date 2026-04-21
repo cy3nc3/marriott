@@ -1,11 +1,10 @@
 import { Head, useForm, router } from '@inertiajs/react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Plus, Edit2, Trash2, Search, X, AlertCircle } from 'lucide-react';
 import { useState, useMemo } from 'react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useInitials } from '@/hooks/use-initials';
 import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
@@ -32,9 +31,10 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useInitials } from '@/hooks/use-initials';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
 import { store, update, destroy } from '@/routes/admin/section_manager';
+import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

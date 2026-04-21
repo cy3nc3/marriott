@@ -3,10 +3,12 @@
 namespace App\Http\Middleware;
 
 use App\Models\AcademicYear;
+use App\Models\Permission;
 use App\Models\User;
 use App\Services\AnnouncementNotificationService;
 use App\Services\HandheldDeviceDetector;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -59,12 +61,21 @@ class HandleInertiaRequests extends Middleware
                 'assessment_print_url' => fn () => $request->session()->get('assessment_print_url'),
             ],
             'notifications' => $user instanceof User
-                ? $this->announcementNotificationService->buildPayload($user)
-                : [
+                ? fn () => $this->announcementNotificationService->buildPayload($user)
+                : fn () => [
                     'announcements' => [],
                     'unread_count' => 0,
                 ],
-            'permissions' => $user instanceof User ? \App\Models\Permission::where('role', $user->role->value)->pluck('access_level', 'feature')->toArray() : [],
+            'permissions' => $user instanceof User
+                ? fn () => Cache::remember(
+                    sprintf('permissions:%s', $user->role->value),
+                    now()->addMinutes(5),
+                    fn (): array => Permission::query()
+                        ->where('role', $user->role->value)
+                        ->pluck('access_level', 'feature')
+                        ->toArray()
+                )
+                : fn () => [],
             'ui' => [
                 'is_handheld' => $this->handheldDeviceDetector->isHandheldRequest($request),
             ],

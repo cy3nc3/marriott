@@ -1,7 +1,7 @@
 import { Head, router } from '@inertiajs/react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { CheckCircle2, Plus, Settings2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -152,18 +152,6 @@ export default function GradingSheet({
         qa_weight: String(rubric_weights.qa_weight),
     });
 
-    useEffect(() => {
-        setRubricForm({
-            ww_weight: String(rubric_weights.ww_weight),
-            pt_weight: String(rubric_weights.pt_weight),
-            qa_weight: String(rubric_weights.qa_weight),
-        });
-    }, [
-        rubric_weights.ww_weight,
-        rubric_weights.pt_weight,
-        rubric_weights.qa_weight,
-    ]);
-
     const visibleAssessmentGroups = useMemo(() => {
         return grouped_assessments.filter(
             (group) => group.assessments.length > 0,
@@ -198,16 +186,8 @@ export default function GradingSheet({
         return values;
     }, [students, allAssessments]);
 
-    const initialScoreValuesSignature = useMemo(() => {
-        return JSON.stringify(initialScoreValues);
-    }, [initialScoreValues]);
-
     const [scoreValues, setScoreValues] =
         useState<Record<string, string>>(initialScoreValues);
-
-    useEffect(() => {
-        setScoreValues(initialScoreValues);
-    }, [initialScoreValuesSignature]);
 
     const selectedSectionValue = context.selected_section_id
         ? String(context.selected_section_id)
@@ -496,7 +476,14 @@ export default function GradingSheet({
                             <div className="flex flex-col gap-2 sm:flex-row">
                                 <Button
                                     variant="outline"
-                                    onClick={() => setIsRubricModalOpen(true)}
+                                    onClick={() => {
+                                        setRubricForm({
+                                            ww_weight: String(rubric_weights.ww_weight),
+                                            pt_weight: String(rubric_weights.pt_weight),
+                                            qa_weight: String(rubric_weights.qa_weight),
+                                        });
+                                        setIsRubricModalOpen(true);
+                                    }}
                                     disabled={
                                         !context.selected_subject_id ||
                                         !can_edit

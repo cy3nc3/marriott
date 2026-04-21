@@ -1,5 +1,4 @@
 import { Head, useForm, router } from '@inertiajs/react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { format } from 'date-fns';
 import {
     UserPlus,
@@ -12,6 +11,7 @@ import {
     Users,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';

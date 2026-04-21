@@ -1,5 +1,4 @@
 import { Head, useForm, router, Link } from '@inertiajs/react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import {
     ArrowRightCircle,
     Archive,
@@ -14,6 +13,7 @@ import {
     CalendarRange,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -28,8 +28,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
-import type { AcademicYear } from '@/types/academic-year';
 import {
     curriculum_manager,
     section_manager,
@@ -42,6 +40,8 @@ import {
     advance_quarter,
     reset_simulation,
 } from '@/routes/admin/academic_controls';
+import type { BreadcrumbItem } from '@/types';
+import type { AcademicYear } from '@/types/academic-year';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -65,7 +65,6 @@ export default function AcademicControls({
     currentYear,
     upcomingYear,
     nextYearName,
-    allYears,
 }: Props) {
     const [isInitNextYearOpen, setIsInitNextYearOpen] = useState(false);
     const [isEditDatesOpen, setIsEditDatesOpen] = useState(false);
@@ -88,11 +87,11 @@ export default function AcademicControls({
             start_date: operationYear?.start_date || '',
             end_date: operationYear?.end_date || '',
         });
-    }, [operationYear?.id, operationYear?.start_date, operationYear?.end_date]);
+    }, [operationYear?.id, operationYear?.start_date, operationYear?.end_date, editForm]);
 
     useEffect(() => {
         initForm.setData('name', nextYearName || '');
-    }, [nextYearName]);
+    }, [nextYearName, initForm]);
 
     const handleInitialize = () => {
         initForm.submit(initialize(), {

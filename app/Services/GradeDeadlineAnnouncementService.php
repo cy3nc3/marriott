@@ -55,6 +55,7 @@ class GradeDeadlineAnnouncementService
         User $actor
     ): int {
         $postedCount = 0;
+        $configuredReminderDays = $this->resolveReminderDays();
 
         foreach (['1', '2', '3', '4'] as $quarter) {
             $deadlineValue = Setting::get(
@@ -66,9 +67,13 @@ class GradeDeadlineAnnouncementService
             }
 
             $deadline = Carbon::parse($deadlineValue);
-            $phase = $this->resolveReminderPhase($referenceDate, $deadline);
+            $daysBefore = $this->resolveReminderDaysBefore(
+                $referenceDate,
+                $deadline,
+                $configuredReminderDays
+            );
 
-            if ($phase === null) {
+            if ($daysBefore === null) {
                 continue;
             }
 
@@ -81,7 +86,7 @@ class GradeDeadlineAnnouncementService
             $sentKey = $this->reminderSentSettingKey(
                 (int) $academicYear->id,
                 $quarter,
-                $phase,
+                "d{$daysBefore}",
                 $deadline
             );
 
@@ -92,13 +97,9 @@ class GradeDeadlineAnnouncementService
             $quarterLabel = $this->resolveQuarterLabel($quarter);
             $deadlineText = $deadline->format('m/d/Y h:i A');
 
-            $title = $phase === 'tomorrow'
-                ? "Reminder: Grade Deadline Tomorrow ({$quarterLabel})"
-                : "Reminder: Grade Deadline Today ({$quarterLabel})";
+            $title = "Reminder: {$daysBefore} Day".($daysBefore > 1 ? 's' : '')." Before Grade Deadline ({$quarterLabel})";
 
-            $content = $phase === 'tomorrow'
-                ? "This is a reminder that the {$quarterLabel} grade submission deadline for SY {$academicYear->name} is tomorrow ({$deadlineText}). Please submit any pending class grades."
-                : "The {$quarterLabel} grade submission deadline for SY {$academicYear->name} is today ({$deadlineText}). Please submit any remaining pending class grades.";
+            $content = "This is a reminder that the {$quarterLabel} grade submission deadline for SY {$academicYear->name} is in {$daysBefore} day".($daysBefore > 1 ? 's' : '')." ({$deadlineText}). Please submit any pending class grades.";
 
             $this->createTeacherAnnouncement(
                 $actor,
@@ -194,22 +195,40 @@ class GradeDeadlineAnnouncementService
         return "grade_deadline_reminder_sent_{$academicYearId}_q{$quarter}_{$phase}_{$hash}";
     }
 
-    private function resolveReminderPhase(
+    private function resolveReminderDaysBefore(
         CarbonInterface $referenceDate,
-        CarbonInterface $deadline
-    ): ?string {
+        CarbonInterface $deadline,
+        Collection $configuredReminderDays
+    ): ?int {
         $reference = $referenceDate->copy()->startOfDay();
         $deadlineDay = $deadline->copy()->startOfDay();
 
-        if ($reference->isSameDay($deadlineDay)) {
-            return 'today';
-        }
+        return $configuredReminderDays->first(function (int $daysBefore) use ($reference, $deadlineDay): bool {
+            return $reference->isSameDay($deadlineDay->copy()->subDays($daysBefore));
+        });
+    }
 
-        if ($reference->isSameDay($deadlineDay->copy()->subDay())) {
-            return 'tomorrow';
-        }
+    /**
+     * @return Collection<int, int>
+     */
+    private function resolveReminderDays(): Collection
+    {
+        $configuredValue = Setting::get('grade_deadline_reminder_days');
+        $decoded = is_string($configuredValue)
+            ? json_decode($configuredValue, true)
+            : null;
 
-        return null;
+        $resolved = collect(is_array($decoded) ? $decoded : [3, 2, 1])
+            ->filter(fn (mixed $value): bool => is_numeric($value))
+            ->map(fn (mixed $value): int => (int) $value)
+            ->filter(fn (int $value): bool => $value >= 1 && $value <= 14)
+            ->unique()
+            ->sortDesc()
+            ->values();
+
+        return $resolved->isEmpty()
+            ? collect([3, 2, 1])
+            : $resolved;
     }
 
     private function resolveQuarterLabel(string $quarter): string

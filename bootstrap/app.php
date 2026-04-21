@@ -18,8 +18,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $configuredTrustedProxies = env('TRUSTED_PROXIES');
+        $trustedProxies = ['127.0.0.1', '::1'];
+
+        if (is_string($configuredTrustedProxies)) {
+            $configuredTrustedProxies = trim($configuredTrustedProxies);
+
+            if ($configuredTrustedProxies !== '') {
+                $trustedProxies = array_values(
+                    array_filter(array_map('trim', explode(',', $configuredTrustedProxies)))
+                );
+            }
+        }
+
         $middleware->trustProxies(
-            at: '*',
+            at: $trustedProxies,
             headers: Request::HEADER_X_FORWARDED_FOR
                 | Request::HEADER_X_FORWARDED_HOST
                 | Request::HEADER_X_FORWARDED_PORT

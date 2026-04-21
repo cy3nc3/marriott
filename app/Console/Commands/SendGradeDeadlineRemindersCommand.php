@@ -14,7 +14,7 @@ class SendGradeDeadlineRemindersCommand extends Command
 {
     protected $signature = 'grading:send-deadline-reminders {--date=} {--force}';
 
-    protected $description = 'Send teacher reminder announcements for grade submission deadlines that are due tomorrow or today.';
+    protected $description = 'Send teacher reminder announcements for grade submission deadlines due in 3, 2, or 1 day.';
 
     public function handle(GradeDeadlineAnnouncementService $announcementService): int
     {

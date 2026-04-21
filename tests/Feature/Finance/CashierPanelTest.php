@@ -15,7 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
-uses(Tests\TestCase::class, RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(Database\Seeders\PermissionSeeder::class);
@@ -343,6 +343,188 @@ test('cashier panel search is case insensitive and does not auto select without 
             ->has('students', 1)
             ->where('students.0.id', $matchingStudent->id)
             ->where('selected_student', null)
+        );
+});
+
+test('cashier panel can search student by full name', function () {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $matchingStudent = Student::query()->create([
+        'lrn' => '401122334455',
+        'first_name' => 'Juan',
+        'last_name' => 'Dela Cruz',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $matchingStudent->id,
+        'academic_year_id' => $academicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 3000,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    Student::query()->create([
+        'lrn' => '112255889900',
+        'first_name' => 'Jane',
+        'last_name' => 'Santos',
+    ]);
+
+    $this->get('/finance/cashier-panel?search=juan%20dela%20cruz')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/cashier-panel/index')
+            ->has('students', 1)
+            ->where('students.0.id', $matchingStudent->id)
+            ->where('students.0.name', 'Juan Dela Cruz')
+        );
+});
+
+test('cashier panel search excludes students outside cashier eligibility rules', function () {
+    AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    Student::query()->create([
+        'lrn' => '555566667777',
+        'first_name' => 'Luna',
+        'last_name' => 'Herrera',
+    ]);
+
+    Student::query()->create([
+        'lrn' => '888899990000',
+        'first_name' => 'Mark',
+        'last_name' => 'Villanueva',
+    ]);
+
+    $this->get('/finance/cashier-panel?search=luna')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/cashier-panel/index')
+            ->has('students', 0)
+        );
+});
+
+test('cashier panel search includes currently enrolled students', function () {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 8',
+        'level_order' => 8,
+    ]);
+
+    $enrolledStudent = Student::query()->create([
+        'lrn' => '122233344455',
+        'first_name' => 'Elena',
+        'last_name' => 'Marquez',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $enrolledStudent->id,
+        'academic_year_id' => $academicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 3000,
+        'status' => 'enrolled',
+    ]);
+
+    $this->get('/finance/cashier-panel?search=elena')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/cashier-panel/index')
+            ->has('students', 1)
+            ->where('students.0.id', $enrolledStudent->id)
+            ->where('students.0.name', 'Elena Marquez')
+        );
+});
+
+test('cashier panel search includes non enrolled students with positive balance', function () {
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 9',
+        'level_order' => 9,
+    ]);
+
+    $studentWithBalance = Student::query()->create([
+        'lrn' => '211122223333',
+        'first_name' => 'Dario',
+        'last_name' => 'Lopez',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $studentWithBalance->id,
+        'academic_year_id' => $academicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 3000,
+        'status' => 'dropped_out',
+    ]);
+
+    LedgerEntry::query()->create([
+        'student_id' => $studentWithBalance->id,
+        'academic_year_id' => $academicYear->id,
+        'date' => now()->toDateString(),
+        'description' => 'Outstanding balance',
+        'debit' => 5000,
+        'credit' => null,
+        'running_balance' => 5000,
+        'reference_id' => null,
+    ]);
+
+    $studentWithoutBalance = Student::query()->create([
+        'lrn' => '344455556666',
+        'first_name' => 'Dario',
+        'last_name' => 'Santos',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $studentWithoutBalance->id,
+        'academic_year_id' => $academicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 3000,
+        'status' => 'dropped_out',
+    ]);
+
+    $this->get('/finance/cashier-panel?search=dario')
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/cashier-panel/index')
+            ->has('students', 1)
+            ->where('students.0.id', $studentWithBalance->id)
+            ->where('students.0.name', 'Dario Lopez')
         );
 });
 
@@ -764,6 +946,181 @@ test('cashier payment allocates to oldest dues first and carries partial balance
     expect($augustDue->status)->toBe('paid');
     expect((float) $septemberDue->amount_paid)->toBe(3000.0);
     expect($septemberDue->status)->toBe('partially_paid');
+});
+
+test('cashier payment allocates to oldest unpaid dues across school years', function () {
+    $previousYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $currentYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 10',
+        'level_order' => 10,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '789012345678',
+        'first_name' => 'Cross',
+        'last_name' => 'Year',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $currentYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 3000,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    $oldestDue = BillingSchedule::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $previousYear->id,
+        'description' => 'Previous Year Due',
+        'due_date' => '2025-01-15',
+        'amount_due' => 2000,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    $newerDue = BillingSchedule::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $currentYear->id,
+        'description' => 'Current Year Due',
+        'due_date' => '2025-08-15',
+        'amount_due' => 2000,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    $this->post('/finance/cashier-panel/transactions', [
+        'student_id' => $student->id,
+        'or_number' => 'OR-2026-XY-0001',
+        'payment_mode' => 'cash',
+        'reference_no' => null,
+        'remarks' => 'Cross-year allocation test',
+        'tendered_amount' => 1500,
+        'items' => [
+            [
+                'type' => 'assessment_fee',
+                'description' => 'Assessment Fee',
+                'amount' => 1500,
+            ],
+        ],
+    ])->assertRedirect();
+
+    $oldestDue->refresh();
+    $newerDue->refresh();
+
+    expect((float) $oldestDue->amount_paid)->toBe(1500.0);
+    expect($oldestDue->status)->toBe('partially_paid');
+    expect((float) $newerDue->amount_paid)->toBe(0.0);
+    expect($newerDue->status)->toBe('unpaid');
+});
+
+test('cashier enrollment downpayment does not allocate against older dues', function () {
+    $previousYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+
+    $nextYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 11',
+        'level_order' => 11,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '889012345678',
+        'first_name' => 'Down',
+        'last_name' => 'Payment',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $previousYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $nextEnrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $nextYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'payment_term' => 'monthly',
+        'downpayment' => 1000,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    $oldDue = BillingSchedule::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $previousYear->id,
+        'description' => 'Old Balance',
+        'due_date' => '2025-02-15',
+        'amount_due' => 1000,
+        'amount_paid' => 0,
+        'status' => 'unpaid',
+    ]);
+
+    $this->post('/finance/cashier-panel/transactions', [
+        'student_id' => $student->id,
+        'or_number' => 'OR-2026-DP-0001',
+        'payment_mode' => 'cash',
+        'reference_no' => null,
+        'remarks' => 'Enrollment downpayment only',
+        'tendered_amount' => 1000,
+        'items' => [
+            [
+                'type' => 'assessment_fee',
+                'description' => 'Enrollment Downpayment',
+                'amount' => 1000,
+            ],
+        ],
+    ])->assertRedirect();
+
+    $oldDue->refresh();
+    $nextEnrollment->refresh();
+
+    expect((float) $oldDue->amount_paid)->toBe(0.0);
+    expect($oldDue->status)->toBe('unpaid');
+    expect($nextEnrollment->status)->toBe('enrolled');
 });
 
 test('cashier custom line items do not settle dues schedule', function () {
