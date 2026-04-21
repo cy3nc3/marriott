@@ -311,7 +311,7 @@ test('registrar enrollment page paginates queue to 10 items per page', function 
         );
 });
 
-test('registrar student directory filters students by selected school year', function () {
+test('registrar student directory lists all students and derives status from ongoing year enrollment', function () {
     $completedYear = AcademicYear::query()->create([
         'name' => '2024-2025',
         'start_date' => '2024-06-01',
@@ -368,17 +368,35 @@ test('registrar student directory filters students by selected school year', fun
         'status' => 'enrolled',
     ]);
 
-    $this->get("/registrar/student-directory?academic_year_id={$completedYear->id}")
+    $droppedStudent = Student::query()->create([
+        'lrn' => '222200001111',
+        'first_name' => 'Dropped',
+        'last_name' => 'Directory',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $droppedStudent->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $sectionCurrent->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'dropped',
+    ]);
+
+    $this->get('/registrar/student-directory')
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('registrar/student-directory/index')
-            ->where('selected_school_year_id', $completedYear->id)
-            ->has('students.data', 1)
-            ->where('students.data.0.lrn', '999900001111')
-            ->where('students.data.0.enrollment_id', fn ($value) => is_int($value) && $value > 0)
+            ->where('ongoing_academic_year_id', $this->academicYear->id)
+            ->has('students.data', 3)
             ->where('students.per_page', 15)
-            ->where('summary.matched', 0)
-            ->where('summary.pending', 1)
+            ->where('students.data.0.lrn', '999900001111')
+            ->where('students.data.0.status', 'not_currently_enrolled')
+            ->where('students.data.1.lrn', '777788889999')
+            ->where('students.data.1.status', 'enrolled')
+            ->where('students.data.2.lrn', '222200001111')
+            ->where('students.data.2.status', 'dropped')
         );
 });
 

@@ -12,13 +12,6 @@ import {
 } from '@/components/ui/dialog';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
     Table,
     TableBody,
     TableCell,
@@ -48,6 +41,7 @@ interface StudentRow {
     lrn: string;
     student_name: string;
     grade_section: string;
+    status: 'enrolled' | 'transferred_out' | 'dropped' | 'not_currently_enrolled';
 }
 
 interface SectionOption {
@@ -67,24 +61,17 @@ interface Props {
         to: number | null;
         total: number;
     };
-    school_year_options: {
-        id: number;
-        name: string;
-        status: string;
-    }[];
     section_options: SectionOption[];
-    selected_school_year_id: number | null;
+    ongoing_academic_year_id: number | null;
     filters: {
         search?: string;
-        academic_year_id?: number;
     };
 }
 
 export default function StudentDirectory({
     students,
-    school_year_options,
     section_options,
-    selected_school_year_id,
+    ongoing_academic_year_id,
     filters,
 }: Props) {
     const { ui, flash } = usePage<SharedData>().props;
@@ -124,7 +111,7 @@ export default function StudentDirectory({
     };
 
     const exportSf1 = () => {
-        if (!selected_school_year_id) {
+        if (!ongoing_academic_year_id) {
             return;
         }
 
@@ -135,7 +122,7 @@ export default function StudentDirectory({
         }
 
         const params = new URLSearchParams();
-        params.set('academic_year_id', String(selected_school_year_id));
+        params.set('academic_year_id', String(ongoing_academic_year_id));
         selectedSectionIds.forEach((sectionId) => {
             params.append('section_ids[]', String(sectionId));
         });
@@ -163,11 +150,10 @@ export default function StudentDirectory({
         window.open(assessmentPrintUrl, '_blank', 'noopener,noreferrer');
     }, [flash.assessment_print_url]);
 
-    const applyFilters = (academicYearId?: string, search?: string) => {
+    const applyFilters = (search?: string) => {
         router.get(
             registrar.student_directory.url({
                 query: {
-                    academic_year_id: academicYearId || undefined,
                     search: search || undefined,
                     page: undefined,
                 },
@@ -208,6 +194,15 @@ export default function StudentDirectory({
         );
     };
 
+    const statusLabel = (status: StudentRow['status']): string => {
+        return ({
+            enrolled: 'Enrolled',
+            transferred_out: 'Transferred Out',
+            dropped: 'Dropped Out',
+            not_currently_enrolled: 'Not Currently Enrolled',
+        })[status];
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Student Directory" />
@@ -218,48 +213,13 @@ export default function StudentDirectory({
                             <div className="space-y-1">
                             <CardTitle>Student Directory</CardTitle>
                             <div className="flex flex-wrap items-center gap-2">
-                                <Select
-                                    value={
-                                        selected_school_year_id
-                                            ? String(selected_school_year_id)
-                                            : ''
-                                    }
-                                    onValueChange={(value) => {
-                                        applyFilters(value, searchQuery);
-                                    }}
-                                >
-                                    <SelectTrigger className="w-[13rem]">
-                                        <SelectValue placeholder="School Year" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {school_year_options.map(
-                                            (schoolYear) => (
-                                                <SelectItem
-                                                    key={schoolYear.id}
-                                                    value={String(
-                                                        schoolYear.id,
-                                                    )}
-                                                >
-                                                    {schoolYear.name}
-                                                </SelectItem>
-                                            ),
-                                        )}
-                                    </SelectContent>
-                                </Select>
                                 <SearchAutocompleteInput
                                     wrapperClassName="w-full sm:w-[18rem]"
                                     placeholder="Search by LRN or name..."
                                     value={searchQuery}
                                     onValueChange={(value) => {
                                         setSearchQuery(value);
-                                        applyFilters(
-                                            selected_school_year_id
-                                                ? String(
-                                                      selected_school_year_id,
-                                                  )
-                                                : '',
-                                            value,
-                                        );
+                                        applyFilters(value);
                                     }}
                                     suggestions={searchSuggestions}
                                     showSuggestions={false}
@@ -272,7 +232,7 @@ export default function StudentDirectory({
                                 type="button"
                                 variant="outline"
                                 onClick={() => setIsExportDialogOpen(true)}
-                                disabled={!selected_school_year_id || section_options.length === 0}
+                                disabled={!ongoing_academic_year_id || section_options.length === 0}
                             >
                                 <Download className="size-4" />
                                 Export SF1
@@ -301,6 +261,9 @@ export default function StudentDirectory({
                                             </p>
                                             <p className="text-xs text-muted-foreground">
                                                 {student.grade_section}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {statusLabel(student.status)}
                                             </p>
                                             <div className="flex items-center gap-2 pt-1">
                                                 <Button
@@ -353,6 +316,9 @@ export default function StudentDirectory({
                                         <TableHead className="border-l">
                                             Grade and Section
                                         </TableHead>
+                                        <TableHead className="border-l">
+                                            Status
+                                        </TableHead>
                                         <TableHead className="border-l pr-6 text-right">
                                             Actions
                                         </TableHead>
@@ -362,7 +328,7 @@ export default function StudentDirectory({
                                     {students.data.length === 0 ? (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={4}
+                                                colSpan={5}
                                                 className="h-24 text-center text-sm text-muted-foreground"
                                             >
                                                 No students found.
@@ -379,6 +345,9 @@ export default function StudentDirectory({
                                                 </TableCell>
                                                 <TableCell className="border-l">
                                                     {student.grade_section}
+                                                </TableCell>
+                                                <TableCell className="border-l">
+                                                    {statusLabel(student.status)}
                                                 </TableCell>
                                                 <TableCell className="border-l pr-6">
                                                     <div className="flex justify-end gap-2">
