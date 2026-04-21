@@ -15,6 +15,10 @@ test('header normalizer resolves common student and finance aliases to canonical
     expect($normalizer->canonicalize('Full Name'))->toBe('name');
     expect($normalizer->canonicalize('Payment Amount'))->toBe('amount');
     expect($normalizer->canonicalize('OR No.'))->toBe('or_number');
+    expect($normalizer->canonicalize('Date'))->toBe('payment_date');
+    expect($normalizer->canonicalize('Description'))->toBe('description');
+    expect($normalizer->canonicalize('Entry Description'))->toBe('description');
+    expect($normalizer->canonicalize('Payment Description'))->toBe('description');
     expect($normalizer->canonicalize('Unexpected Header'))->toBe('unexpected_header');
 });
 
@@ -26,13 +30,14 @@ test('value parser normalizes strings and parses safe decimal and date values', 
     expect($parser->parseDecimal(' ?1,234.50 '))->toBe(1234.5);
     expect($parser->parseDecimal('1.234,50'))->toBeNull();
     expect($parser->parseDate('March 14, 2024'))->toBe('2024-03-14');
-    expect($parser->parseDate('03/14/2024'))->toBeNull();
+    expect($parser->parseDate('03/14/2024'))->toBe('2024-03-14');
+    expect($parser->parseDate('14/03/2024'))->toBeNull();
 });
 
 test('mapping resolver maps selected headers and reports missing required fields', function (): void {
     $resolver = app(MappingResolver::class);
 
-    $mapping = $resolver->resolve([
+    $result = $resolver->resolve([
         'Student ID',
         'School Year',
         'Full Name',
@@ -44,7 +49,7 @@ test('mapping resolver maps selected headers and reports missing required fields
         'Payment Method',
     ]);
 
-    expect($mapping)->toMatchArray([
+    expect($result['mapping'])->toMatchArray([
         'lrn' => 'Student ID',
         'school_year' => 'School Year',
         'name' => 'Full Name',
@@ -56,7 +61,7 @@ test('mapping resolver maps selected headers and reports missing required fields
         'payment_mode' => 'Payment Method',
     ]);
 
-    expect($resolver->missingRequiredFields($mapping, [
+    expect($resolver->missingRequiredFields($result, [
         'lrn',
         'school_year',
         'or_number',
@@ -64,7 +69,7 @@ test('mapping resolver maps selected headers and reports missing required fields
         'amount',
     ]))->toBe([]);
 
-    expect($resolver->missingRequiredFields($mapping, [
+    expect($resolver->missingRequiredFields($result, [
         'lrn',
         'school_year',
         'or_number',
@@ -73,4 +78,27 @@ test('mapping resolver maps selected headers and reports missing required fields
         'section',
         'guardian_name',
     ]))->toBe(['guardian_name']);
+});
+
+test('mapping resolver reports collisions when multiple source headers resolve to the same target', function (): void {
+    $resolver = app(MappingResolver::class);
+
+    $result = $resolver->resolve([
+        'Date',
+        'Payment Date',
+        'Entry Description',
+        'Payment Description',
+        'Amount',
+    ]);
+
+    expect($result['mapping'])->toMatchArray([
+        'payment_date' => 'Date',
+        'description' => 'Entry Description',
+        'amount' => 'Amount',
+    ]);
+
+    expect($result['collisions'])->toMatchArray([
+        'payment_date' => ['Date', 'Payment Date'],
+        'description' => ['Entry Description', 'Payment Description'],
+    ]);
 });

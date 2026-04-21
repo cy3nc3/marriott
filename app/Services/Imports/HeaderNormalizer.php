@@ -59,6 +59,7 @@ class HeaderNormalizer
         'receipt_no' => 'or_number',
         'receipt_number' => 'or_number',
         'payment_date' => 'payment_date',
+        'date' => 'payment_date',
         'transaction_date' => 'payment_date',
         'posted_at' => 'payment_date',
         'payment_mode' => 'payment_mode',
@@ -82,8 +83,14 @@ class HeaderNormalizer
         'amount_due' => 'due_amount',
         'installment_amount' => 'due_amount',
         'due_description' => 'due_description',
-        'billing_description' => 'due_description',
-        'installment_description' => 'due_description',
+        'description' => 'description',
+        'entry_description' => 'description',
+        'payment_description' => 'description',
+        'transaction_description' => 'description',
+        'payment_details' => 'description',
+        'desc' => 'description',
+        'billing_description' => 'description',
+        'installment_description' => 'description',
     ];
 
     public function normalize(string $header): string

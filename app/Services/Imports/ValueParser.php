@@ -58,22 +58,35 @@ class ValueParser
             return null;
         }
 
-        foreach ([
+        $formats = [
             '!Y-m-d',
             '!Y/m/d',
             '!Y.m.d',
+            '!m/d/Y',
+            '!n/j/Y',
+            '!m/d/y',
+            '!n/j/y',
             '!F j, Y',
             '!M j, Y',
-        ] as $format) {
+        ];
+
+        foreach ($formats as $format) {
             $date = DateTimeImmutable::createFromFormat($format, $normalized);
             if ($date === false) {
                 continue;
             }
 
             $errors = DateTimeImmutable::getLastErrors();
-            if ($errors === false || (($errors['warning_count'] ?? 0) === 0 && ($errors['error_count'] ?? 0) === 0)) {
-                return $date->format('Y-m-d');
+            if ($errors !== false && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0)) {
+                continue;
             }
+
+            $expectedFormat = str_starts_with($format, '!') ? substr($format, 1) : $format;
+            if ($date->format($expectedFormat) !== $normalized) {
+                continue;
+            }
+
+            return $date->format('Y-m-d');
         }
 
         return null;

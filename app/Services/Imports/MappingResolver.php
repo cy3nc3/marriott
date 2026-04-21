@@ -8,11 +8,12 @@ class MappingResolver
 
     /**
      * @param  array<int, string>  $sourceHeaders
-     * @return array<string, string>
+     * @return array{mapping: array<string, string>, collisions: array<string, array<int, string>>}
      */
     public function resolve(array $sourceHeaders): array
     {
         $mapping = [];
+        $collisions = [];
 
         foreach ($sourceHeaders as $sourceHeader) {
             $trimmedHeader = trim($sourceHeader);
@@ -27,19 +28,37 @@ class MappingResolver
 
             if (! array_key_exists($canonicalField, $mapping)) {
                 $mapping[$canonicalField] = $trimmedHeader;
+
+                continue;
+            }
+
+            if (! array_key_exists($canonicalField, $collisions)) {
+                $collisions[$canonicalField] = [$mapping[$canonicalField]];
+            }
+
+            if (! in_array($trimmedHeader, $collisions[$canonicalField], true)) {
+                $collisions[$canonicalField][] = $trimmedHeader;
             }
         }
 
-        return $mapping;
+        return [
+            'mapping' => $mapping,
+            'collisions' => $collisions,
+        ];
     }
 
     /**
-     * @param  array<string, string>  $resolvedMapping
+     * @param  array<string, string>|array{mapping?: array<string, string>, collisions?: array<string, array<int, string>>}  $resolvedMapping
      * @param  array<int, string>  $requiredFields
      * @return array<int, string>
      */
     public function missingRequiredFields(array $resolvedMapping, array $requiredFields): array
     {
+        $mapping = $resolvedMapping['mapping'] ?? $resolvedMapping;
+        if (! is_array($mapping)) {
+            $mapping = [];
+        }
+
         $missing = [];
 
         foreach ($requiredFields as $requiredField) {
@@ -49,7 +68,7 @@ class MappingResolver
                 continue;
             }
 
-            if (! array_key_exists($canonicalField, $resolvedMapping)) {
+            if (! array_key_exists($canonicalField, $mapping)) {
                 $missing[] = $canonicalField;
             }
         }
