@@ -7,6 +7,19 @@ use DateTimeInterface;
 
 class ValueParser
 {
+    /**
+     * @var array<int, string>
+     */
+    private array $dateFormats = [
+        'Y-m-d',
+        'Y-m-d H:i',
+        'Y-m-d H:i:s',
+        'Y-m-d\TH:i:s',
+        'Y-m-d\TH:i:sP',
+        'm/d/Y',
+        'm/d/y',
+    ];
+
     public function normalizeString(mixed $value): ?string
     {
         if ($value === null) {
@@ -53,15 +66,55 @@ class ValueParser
             return CarbonImmutable::instance($value)->startOfDay();
         }
 
+        if (is_int($value) || is_float($value) || (is_string($value) && is_numeric(trim($value)))) {
+            return $this->parseExcelSerialDate($value);
+        }
+
         $normalized = $this->normalizeString($value);
         if ($normalized === null) {
             return null;
         }
 
-        try {
-            return CarbonImmutable::parse($normalized)->startOfDay();
-        } catch (\Throwable) {
+        foreach ($this->dateFormats as $format) {
+            try {
+                $parsedDate = CarbonImmutable::createFromFormat($format, $normalized);
+            } catch (\Throwable) {
+                continue;
+            }
+
+            if ($parsedDate === false) {
+                continue;
+            }
+
+            $errors = \DateTimeImmutable::getLastErrors();
+            if ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+                continue;
+            }
+
+            if ($parsedDate->format($format) !== $normalized) {
+                continue;
+            }
+
+            return $parsedDate->startOfDay();
+        }
+
+        return null;
+    }
+
+    private function parseExcelSerialDate(int|float|string $value): ?CarbonImmutable
+    {
+        $serial = is_string($value) ? trim($value) : $value;
+        if (! is_numeric($serial)) {
             return null;
         }
+
+        $serialNumber = (float) $serial;
+        if ($serialNumber < 0) {
+            return null;
+        }
+
+        $days = (int) floor($serialNumber);
+
+        return CarbonImmutable::create(1899, 12, 30)->addDays($days)->startOfDay();
     }
 }

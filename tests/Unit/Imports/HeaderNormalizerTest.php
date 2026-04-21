@@ -34,11 +34,10 @@ test('value parser normalizes strings and parses safe decimal and date values', 
     expect($parser->parseDecimal('1.234,50'))->toBeNull();
 
     foreach ([
-        'March 14, 2024' => '2024-03-14',
         '03/14/2024' => '2024-03-14',
-        '2024-06-02T13:45:00' => '2024-06-02',
         '2024-06-02 13:45' => '2024-06-02',
         '2024-06-02 13:45:00' => '2024-06-02',
+        '2024-06-02T13:45:00' => '2024-06-02',
         '2024-06-02T13:45:00+08:00' => '2024-06-02',
     ] as $input => $expectedDate) {
         $parsedDate = $parser->parseDate($input);
@@ -48,6 +47,16 @@ test('value parser normalizes strings and parses safe decimal and date values', 
         expect($parsedDate?->toTimeString())->toBe('00:00:00');
     }
 
+    foreach ([45292, 45292.0, '45292'] as $excelSerial) {
+        $parsedDate = $parser->parseDate($excelSerial);
+
+        expect($parsedDate)->toBeInstanceOf(CarbonImmutable::class);
+        expect($parsedDate?->toDateString())->toBe('2024-01-01');
+        expect($parsedDate?->toTimeString())->toBe('00:00:00');
+    }
+
+    expect($parser->parseDate('next friday'))->toBeNull();
+    expect($parser->parseDate('2024-02-30'))->toBeNull();
     expect($parser->parseDate('14/03/2024'))->toBeNull();
 });
 
@@ -116,12 +125,12 @@ test('mapping resolver reports collisions when multiple source headers resolve t
 
     expect($result['collisions'])->toMatchArray([
         'payment_date' => [
-            ['index' => 0, 'header' => 'Date'],
-            ['index' => 1, 'header' => 'Payment Date'],
+            ['index' => 1, 'header' => 'Date'],
+            ['index' => 2, 'header' => 'Payment Date'],
         ],
         'description' => [
-            ['index' => 2, 'header' => 'Entry Description'],
-            ['index' => 3, 'header' => 'Payment Description'],
+            ['index' => 3, 'header' => 'Entry Description'],
+            ['index' => 4, 'header' => 'Payment Description'],
         ],
     ]);
 
@@ -133,8 +142,8 @@ test('mapping resolver reports collisions when multiple source headers resolve t
 
     expect($duplicateResult['collisions'])->toMatchArray([
         'payment_date' => [
-            ['index' => 0, 'header' => 'Date'],
             ['index' => 1, 'header' => 'Date'],
+            ['index' => 2, 'header' => 'Date'],
         ],
     ]);
 });

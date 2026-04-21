@@ -27,10 +27,12 @@ class MappingResolver
                 continue;
             }
 
+            $position = $index + 1;
+
             if (! array_key_exists($canonicalField, $mapping)) {
                 $mapping[$canonicalField] = $trimmedHeader;
                 $mappingSources[$canonicalField] = [
-                    'index' => $index,
+                    'index' => $position,
                     'header' => $trimmedHeader,
                 ];
 
@@ -42,7 +44,7 @@ class MappingResolver
             }
 
             $collisions[$canonicalField][] = [
-                'index' => $index,
+                'index' => $position,
                 'header' => $trimmedHeader,
             ];
         }
