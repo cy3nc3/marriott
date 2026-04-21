@@ -47,7 +47,7 @@ test('value parser normalizes strings and parses safe decimal and date values', 
         expect($parsedDate?->toTimeString())->toBe('00:00:00');
     }
 
-    foreach ([45292, 45292.0, '45292'] as $excelSerial) {
+    foreach ([45292, 45292.0] as $excelSerial) {
         $parsedDate = $parser->parseDate($excelSerial);
 
         expect($parsedDate)->toBeInstanceOf(CarbonImmutable::class);
@@ -55,6 +55,8 @@ test('value parser normalizes strings and parses safe decimal and date values', 
         expect($parsedDate?->toTimeString())->toBe('00:00:00');
     }
 
+    expect($parser->parseDate('2024'))->toBeNull();
+    expect($parser->parseDate('20240314'))->toBeNull();
     expect($parser->parseDate('next friday'))->toBeNull();
     expect($parser->parseDate('2024-02-30'))->toBeNull();
     expect($parser->parseDate('14/03/2024'))->toBeNull();

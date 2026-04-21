@@ -66,7 +66,7 @@ class ValueParser
             return CarbonImmutable::instance($value)->startOfDay();
         }
 
-        if (is_int($value) || is_float($value) || (is_string($value) && is_numeric(trim($value)))) {
+        if (is_int($value) || is_float($value)) {
             return $this->parseExcelSerialDate($value);
         }
 
