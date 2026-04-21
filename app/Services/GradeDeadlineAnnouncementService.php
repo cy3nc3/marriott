@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\ScheduledNotificationJobStatus;
+use App\Enums\ScheduledNotificationJobType;
 use App\Models\AcademicYear;
 use App\Models\Announcement;
 use App\Models\GradeSubmission;
+use App\Models\ScheduledNotificationJob;
 use App\Models\Setting;
 use App\Models\SubjectAssignment;
 use App\Models\User;
@@ -115,6 +118,110 @@ class GradeDeadlineAnnouncementService
         return $postedCount;
     }
 
+    public function sendScheduledJob(ScheduledNotificationJob $scheduledJob): void
+    {
+        if ($scheduledJob->type !== ScheduledNotificationJobType::GradeDeadlineReminder) {
+            $this->markScheduledJobSkipped($scheduledJob, 'type_mismatch');
+
+            return;
+        }
+
+        if ($scheduledJob->status !== ScheduledNotificationJobStatus::Pending) {
+            return;
+        }
+
+        if (! Setting::enabled('grade_deadline_reminder_auto_send_enabled', true)) {
+            $this->markScheduledJobSkipped($scheduledJob, 'automation_disabled');
+
+            return;
+        }
+
+        $academicYear = AcademicYear::query()->find($scheduledJob->subject_id);
+
+        if (! $academicYear) {
+            $this->markScheduledJobSkipped($scheduledJob, 'subject_missing');
+
+            return;
+        }
+
+        $quarter = (string) ($scheduledJob->payload['quarter'] ?? '');
+        $phase = (string) ($scheduledJob->payload['phase'] ?? '');
+        $deadlineValue = (string) ($scheduledJob->payload['deadline'] ?? '');
+
+        if (! in_array($phase, ['tomorrow', 'today'], true) || ! in_array($quarter, ['1', '2', '3', '4'], true)) {
+            $this->markScheduledJobSkipped($scheduledJob, 'payload_invalid');
+
+            return;
+        }
+
+        $currentDeadlineValue = Setting::get($this->deadlineSettingKey((int) $academicYear->id, $quarter));
+
+        if (! is_string($currentDeadlineValue) || $currentDeadlineValue === '') {
+            $this->markScheduledJobSkipped($scheduledJob, 'deadline_missing');
+
+            return;
+        }
+
+        $deadline = Carbon::parse($deadlineValue);
+        $currentDeadline = Carbon::parse($currentDeadlineValue);
+
+        if (! $deadline->equalTo($currentDeadline)) {
+            $this->markScheduledJobSkipped($scheduledJob, 'deadline_changed');
+
+            return;
+        }
+
+        $pendingTeacherIds = $this->resolvePendingTeacherIds($academicYear, $quarter);
+
+        if ($pendingTeacherIds->isEmpty()) {
+            $this->markScheduledJobSkipped($scheduledJob, 'all_grades_submitted');
+
+            return;
+        }
+
+        $sentKey = $this->reminderSentSettingKey((int) $academicYear->id, $quarter, $phase, $deadline);
+
+        if (Setting::get($sentKey) === '1') {
+            $this->markScheduledJobSkipped($scheduledJob, 'duplicate_dispatch');
+
+            return;
+        }
+
+        $actor = $this->resolveActor();
+
+        if (! $actor) {
+            $this->markScheduledJobSkipped($scheduledJob, 'no_actor');
+
+            return;
+        }
+
+        $quarterLabel = $this->resolveQuarterLabel($quarter);
+        $deadlineText = $deadline->format('m/d/Y h:i A');
+
+        $title = $phase === 'tomorrow'
+            ? "Reminder: Grade Deadline Tomorrow ({$quarterLabel})"
+            : "Reminder: Grade Deadline Today ({$quarterLabel})";
+
+        $content = $phase === 'tomorrow'
+            ? "This is a reminder that the {$quarterLabel} grade submission deadline for SY {$academicYear->name} is tomorrow ({$deadlineText}). Please submit any pending class grades."
+            : "The {$quarterLabel} grade submission deadline for SY {$academicYear->name} is today ({$deadlineText}). Please submit any remaining pending class grades.";
+
+        $this->createTeacherAnnouncement(
+            $actor,
+            $title,
+            $content,
+            $pendingTeacherIds,
+            $deadline->copy()->addDay()
+        );
+
+        Setting::set($sentKey, '1', 'grading');
+
+        $scheduledJob->forceFill([
+            'status' => ScheduledNotificationJobStatus::Dispatched,
+            'dispatched_at' => now(),
+        ])->save();
+    }
+
     /**
      * @return Collection<int, int>
      */
@@ -176,6 +283,26 @@ class GradeDeadlineAnnouncementService
             'expires_at' => $expiresAt,
             'is_active' => true,
         ]);
+    }
+
+    private function resolveActor(): ?User
+    {
+        return User::query()
+            ->where('role', 'super_admin')
+            ->where('is_active', true)
+            ->first()
+            ?? User::query()
+                ->where('role', 'admin')
+                ->where('is_active', true)
+                ->first();
+    }
+
+    private function markScheduledJobSkipped(ScheduledNotificationJob $scheduledJob, string $reason): void
+    {
+        $scheduledJob->forceFill([
+            'status' => ScheduledNotificationJobStatus::Skipped,
+            'skip_reason' => $reason,
+        ])->save();
     }
 
     private function deadlineSettingKey(int $academicYearId, string $quarter): string
