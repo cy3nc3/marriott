@@ -34,6 +34,61 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
   - Reason: this Laravel app needs queue workers, scheduled commands, writable local storage, spreadsheet temp files, local backups, and attachment/avatar file handling that fit a VM better than App Platform.
   - Rejected option: App Platform is convenient, but its filesystem is ephemeral and not suitable for the app's current local-storage patterns without additional refactoring to Spaces/object storage and managed background process configuration.
 
+## DigitalOcean Stack And Cost Planning
+
+### Planned Core Architecture
+
+- `[ ]` App compute: `1x Basic Droplet` (Ubuntu LTS)
+- `[ ]` Private networking: `1x VPC` (free)
+- `[ ]` Network security: `Cloud Firewall` (free)
+- `[ ]` SSL/TLS + DNS: `Cloudflare` (free plan)
+- `[ ]` Backups: enable Droplet backups (weekly 20% or daily 30% of Droplet price)
+- `[ ]` Monitoring: DigitalOcean Monitoring + alerts (free)
+- `[ ]` Billing safety: configure billing alert threshold
+
+### Optional Services (Choose Based On Requirements)
+
+- `[?]` Managed PostgreSQL (recommended if you want DB isolation and easier backups)
+- `[?]` Spaces object storage (recommended if uploads/backups move off-server)
+- `[?]` Regional Load Balancer (only needed when running multiple app droplets)
+- `[?]` Uptime checks (optional external health checks)
+
+### Droplet Size Candidates
+
+- `[ ]` 2 GiB / 2 vCPU Basic: `$18/mo`
+- `[ ]` 4 GiB / 2 vCPU Basic: `$24/mo` (recommended default starting size)
+- `[ ]` 8 GiB / 4 vCPU Basic: `$48/mo`
+
+### Service Price Reference (For Budgeting)
+
+- Droplet backups: `20% weekly` or `30% daily` of droplet price
+- Managed PostgreSQL: starts at `~$15.15/mo` (1 GiB / 1 vCPU)
+- Spaces: `$5/mo` includes `250 GiB` storage + `1,024 GiB` outbound transfer
+- Load Balancer (regional HTTP): `$12/mo per node`
+- Volumes block storage: `$0.10/GiB/mo`
+- Snapshots: `$0.06/GiB/mo`
+- Extra outbound transfer (Droplets): `$0.01/GiB`
+- Extra outbound transfer (Spaces): `$0.01/GiB`
+- Reserved IPv4: free while attached, `$5/mo` when reserved but unattached
+- Monitoring: free
+- Cloud Firewalls: free
+- Uptime checks: `$1/check/mo` (1 free-check credit on invoice)
+
+### Monthly Budget Scenarios
+
+- `[ ]` Lean single-server:
+  - `4 GiB droplet ($24) + weekly backups ($4.80) + Spaces ($5) = ~$33.80/mo`
+- `[ ]` Balanced (managed DB):
+  - `2 GiB droplet ($18) + managed PostgreSQL ($15.15) + weekly backups ($3.60) + Spaces ($5) = ~$41.75/mo`
+- `[ ]` Entry high-availability:
+  - `2x 2 GiB droplets ($36) + load balancer ($12) + managed PostgreSQL 2 GiB ($30.45) + weekly droplet backups ($7.20) + Spaces ($5) = ~$90.65/mo`
+
+### Credit Constraints (Important)
+
+- `[ ]` Confirm your current GitHub Student credit expiration date in DO billing.
+- `[ ]` Confirm credit applicability to your selected services before provisioning.
+- `[!]` Promotional credits do **not** apply to some ineligible charges (for example support plans, Marketplace charges, and upfront prepayments).
+
 ## Server Requirements
 
 - `[/]` Provision server or hosting account.
@@ -296,6 +351,7 @@ Add dated entries here as decisions are made.
 | 2026-04-20 | Production domain set to `msqc.tech` | Domain is currently registered with `get.tech`. |
 | 2026-04-20 | Cloudflare recommended for DNS and TLS | DNS cutover to Cloudflare is recommended first; registrar transfer can happen later if desired. |
 | 2026-04-20 | DigitalOcean Droplet chosen over App Platform | Current app relies on persistent local files and Laravel-style worker/scheduler control. |
+| 2026-04-21 | Added detailed DigitalOcean stack and cost-planning section | Includes droplet size options, optional services, monthly scenarios, and credit constraints for budgeting. |
 
 ## Completion Log
 
