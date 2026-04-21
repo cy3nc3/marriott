@@ -171,6 +171,47 @@ test('scheduled notification planner can reintroduce a dedupe key after the prio
     Carbon::setTestNow();
 });
 
+test('scheduled notification planner does not requeue an already dispatched dedupe key', function () {
+    Carbon::setTestNow('2026-04-20 08:00:00');
+
+    $job = ScheduledNotificationJob::query()->create([
+        'type' => ScheduledNotificationJobType::FinanceDueReminder,
+        'status' => ScheduledNotificationJobStatus::Dispatched,
+        'run_at' => '2026-04-20 07:30:00',
+        'dedupe_key' => 'finance-due:already-dispatched',
+        'group_key' => 'finance-due:2026-04-20',
+        'subject_type' => User::class,
+        'subject_id' => 1,
+        'payload' => ['channel' => 'database'],
+        'dispatched_at' => '2026-04-20 07:30:00',
+    ]);
+
+    app(ScheduledNotificationPlanner::class)->reconcile(
+        ScheduledNotificationJobType::FinanceDueReminder,
+        'finance-due:2026-04-20',
+        [
+            [
+                'dedupe_key' => 'finance-due:already-dispatched',
+                'run_at' => Carbon::parse('2026-04-20 09:30:00'),
+                'subject_type' => User::class,
+                'subject_id' => 2,
+                'payload' => ['channel' => 'database', 'attempt' => 2],
+            ],
+        ]
+    );
+
+    $job->refresh();
+
+    expect(ScheduledNotificationJob::query()->where('dedupe_key', 'finance-due:already-dispatched')->count())->toBe(1)
+        ->and($job->status)->toBe(ScheduledNotificationJobStatus::Dispatched)
+        ->and($job->run_at?->toDateTimeString())->toBe('2026-04-20 07:30:00')
+        ->and($job->subject_id)->toBe(1)
+        ->and($job->payload)->toBe(['channel' => 'database'])
+        ->and($job->dispatched_at?->toDateTimeString())->toBe('2026-04-20 07:30:00');
+
+    Carbon::setTestNow();
+});
+
 test('scheduled notification dispatcher command skips due jobs whose subject is missing', function () {
     Carbon::setTestNow('2026-04-20 08:00:00');
 

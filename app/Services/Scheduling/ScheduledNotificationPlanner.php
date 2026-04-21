@@ -6,7 +6,6 @@ use App\Enums\ScheduledNotificationJobStatus;
 use App\Enums\ScheduledNotificationJobType;
 use App\Models\ScheduledNotificationJob;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -52,69 +51,85 @@ class ScheduledNotificationPlanner
                         'updated_at' => $timestamp,
                     ]);
 
-                $desiredRows = $desiredJobsByKey
-                    ->map(fn (array $jobAttributes): array => [
-                        'type' => $type->value,
-                        'status' => ScheduledNotificationJobStatus::Pending->value,
-                        'group_key' => $groupKey,
-                        'dedupe_key' => $jobAttributes['dedupe_key'],
-                        'run_at' => $this->normalizeRunAt($jobAttributes['run_at']),
-                        'subject_type' => $jobAttributes['subject_type'],
-                        'subject_id' => $jobAttributes['subject_id'],
-                        'recipient_type' => $jobAttributes['recipient_type'] ?? null,
-                        'recipient_id' => $jobAttributes['recipient_id'] ?? null,
-                        'payload' => $this->normalizePayload($jobAttributes['payload'] ?? null),
-                        'planned_by_type' => $jobAttributes['planned_by_type'] ?? null,
-                        'planned_by_id' => $jobAttributes['planned_by_id'] ?? null,
-                        'dispatched_at' => null,
-                        'canceled_at' => null,
-                        'skip_reason' => null,
-                        'failure_reason' => null,
-                        'created_at' => $timestamp,
-                        'updated_at' => $timestamp,
-                    ])
-                    ->values()
-                    ->all();
+                $existingDesiredJobs = $desiredJobsByKey->isEmpty()
+                    ? collect()
+                    : ScheduledNotificationJob::query()
+                        ->whereIn('dedupe_key', $desiredJobsByKey->keys()->all())
+                        ->lockForUpdate()
+                        ->get()
+                        ->keyBy('dedupe_key');
 
-                if ($desiredRows !== []) {
-                    ScheduledNotificationJob::query()->upsert(
-                        $desiredRows,
-                        ['dedupe_key'],
-                        [
-                            'type',
-                            'status',
-                            'group_key',
-                            'run_at',
-                            'subject_type',
-                            'subject_id',
-                            'recipient_type',
-                            'recipient_id',
-                            'payload',
-                            'planned_by_type',
-                            'planned_by_id',
-                            'dispatched_at',
-                            'canceled_at',
-                            'skip_reason',
-                            'failure_reason',
-                            'updated_at',
-                        ]
+                foreach ($desiredJobsByKey as $dedupeKey => $jobAttributes) {
+                    $existingJob = $existingDesiredJobs->get($dedupeKey);
+
+                    if ($existingJob && $this->isFinalStatus($existingJob->status)) {
+                        continue;
+                    }
+
+                    $attributes = $this->attributesFor(
+                        type: $type,
+                        groupKey: $groupKey,
+                        jobAttributes: $jobAttributes,
                     );
+
+                    if ($existingJob) {
+                        $existingJob->forceFill($attributes)->save();
+
+                        continue;
+                    }
+
+                    ScheduledNotificationJob::query()->create([
+                        ...$attributes,
+                        'dedupe_key' => $dedupeKey,
+                    ]);
                 }
             });
         });
     }
 
-    private function normalizePayload(?array $payload): ?string
-    {
-        if ($payload === null) {
-            return null;
-        }
-
-        return json_encode($payload, JSON_THROW_ON_ERROR);
+    /**
+     * @param  array{
+     *     dedupe_key: string,
+     *     run_at: CarbonInterface,
+     *     subject_type: class-string,
+     *     subject_id: int,
+     *     recipient_type?: class-string|null,
+     *     recipient_id?: int|null,
+     *     payload?: array<string, mixed>|null,
+     *     planned_by_type?: class-string|null,
+     *     planned_by_id?: int|null
+     * }  $jobAttributes
+     * @return array<string, mixed>
+     */
+    private function attributesFor(
+        ScheduledNotificationJobType $type,
+        string $groupKey,
+        array $jobAttributes
+    ): array {
+        return [
+            'type' => $type,
+            'status' => ScheduledNotificationJobStatus::Pending,
+            'group_key' => $groupKey,
+            'run_at' => $jobAttributes['run_at'],
+            'subject_type' => $jobAttributes['subject_type'],
+            'subject_id' => $jobAttributes['subject_id'],
+            'recipient_type' => $jobAttributes['recipient_type'] ?? null,
+            'recipient_id' => $jobAttributes['recipient_id'] ?? null,
+            'payload' => $jobAttributes['payload'] ?? null,
+            'planned_by_type' => $jobAttributes['planned_by_type'] ?? null,
+            'planned_by_id' => $jobAttributes['planned_by_id'] ?? null,
+            'dispatched_at' => null,
+            'canceled_at' => null,
+            'skip_reason' => null,
+            'failure_reason' => null,
+        ];
     }
 
-    private function normalizeRunAt(CarbonInterface $runAt): string
+    private function isFinalStatus(ScheduledNotificationJobStatus $status): bool
     {
-        return Carbon::instance($runAt)->toDateTimeString();
+        return in_array($status, [
+            ScheduledNotificationJobStatus::Dispatched,
+            ScheduledNotificationJobStatus::Failed,
+        ], true);
     }
 }
