@@ -21,9 +21,9 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
   - Current recommendation: move DNS to Cloudflare first; full registrar transfer is optional and can wait until the app is stable in production.
 - `[x]` SSL/TLS provider: Cloudflare
   - Plan: use Cloudflare for DNS, proxying, and TLS in front of DigitalOcean.
-- `[?]` Database engine: undecided
-  - Current recommendation: MySQL or PostgreSQL for production.
-  - Avoid SQLite for production unless the deployment is intentionally tiny and low-traffic.
+- `[x]` Database engine: PostgreSQL (DigitalOcean Managed PostgreSQL)
+  - Reason: easier operations (managed backups/patching), cleaner isolation from app runtime, and simpler scaling path.
+  - Initial target: smallest managed node in `sgp1`, then scale vertically based on real production metrics.
 - `[?]` Mail provider: undecided
   - Needed for password reset, account verification, reminders, and production notifications.
 - `[?]` Backup storage strategy: undecided
@@ -38,7 +38,7 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
 
 ### Planned Core Architecture
 
-- `[ ]` App compute: `1x Basic Droplet` (Ubuntu LTS)
+- `[x]` App compute: `1x Basic Droplet` (Ubuntu LTS)
 - `[ ]` Private networking: `1x VPC` (free)
 - `[ ]` Network security: `Cloud Firewall` (free)
 - `[ ]` SSL/TLS + DNS: `Cloudflare` (free plan)
@@ -48,8 +48,8 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
 
 ### Optional Services (Choose Based On Requirements)
 
-- `[?]` Managed PostgreSQL (recommended if you want DB isolation and easier backups)
-- `[?]` Spaces object storage (recommended if uploads/backups move off-server)
+- `[x]` Managed PostgreSQL (provisioned)
+- `[x]` Spaces object storage (provisioned)
 - `[?]` Regional Load Balancer (only needed when running multiple app droplets)
 - `[?]` Uptime checks (optional external health checks)
 
@@ -92,15 +92,20 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
 ## Server Requirements
 
 - `[/]` Provision server or hosting account.
-  - DigitalOcean selected; actual droplet/app/database resources still need to be created.
+  - DigitalOcean selected; droplet, managed database, and Spaces are provisioned.
+  - Remaining provisioning work: OS/app stack setup, firewall hardening, deployment pipeline, and runtime process configuration.
+  - Access milestone: SSH access to the production droplet is confirmed.
 - `[ ]` Install or confirm PHP version compatible with the app.
   - Project target from AGENTS.md: PHP 8.4.1.
   - Composer constraint currently allows PHP `^8.2`.
+  - Current server status: PHP 8.4.x installed and confirmed on droplet.
 - `[ ]` Install required PHP extensions.
   - Minimum expected Laravel extensions: BCMath, Ctype, cURL, DOM, Fileinfo, JSON, Mbstring, OpenSSL, PDO, Tokenizer, XML.
   - Also verify extensions needed by PhpSpreadsheet exports, such as Zip, XML, GD, and related spreadsheet/image support.
-- `[ ]` Install Composer on the deployment machine or build machine.
-- `[ ]` Install Node.js and npm compatible with the Vite build.
+- `[/]` Install required PHP extensions.
+  - Initial Laravel/Spreadsheet-related extension set installed on droplet; final verification pending `composer check-platform-reqs`.
+- `[x]` Install Composer on the deployment machine or build machine.
+- `[x]` Install Node.js and npm compatible with the Vite build.
 - `[ ]` Configure web server to serve only the `public/` directory.
 - `[ ]` Configure HTTPS.
 - `[ ]` Configure server timezone.
@@ -352,6 +357,8 @@ Add dated entries here as decisions are made.
 | 2026-04-20 | Cloudflare recommended for DNS and TLS | DNS cutover to Cloudflare is recommended first; registrar transfer can happen later if desired. |
 | 2026-04-20 | DigitalOcean Droplet chosen over App Platform | Current app relies on persistent local files and Laravel-style worker/scheduler control. |
 | 2026-04-21 | Added detailed DigitalOcean stack and cost-planning section | Includes droplet size options, optional services, monthly scenarios, and credit constraints for budgeting. |
+| 2026-04-22 | Database engine set to Managed PostgreSQL | Chosen for easier operations and cleaner separation from application compute. |
+| 2026-04-22 | Spaces selected for production object storage | Bucket(s) provisioned to support public/private file handling and backup offloading. |
 
 ## Completion Log
 
@@ -359,3 +366,8 @@ Add dated entries here as tasks are completed.
 
 | Date | Completed Item | Evidence |
 | --- | --- | --- |
+| 2026-04-22 | Basic Droplet provisioned | DigitalOcean compute instance created in target region. |
+| 2026-04-22 | Managed PostgreSQL provisioned | Cluster created and available for app/database wiring. |
+| 2026-04-22 | Spaces object storage provisioned | Bucket(s) created for production file storage strategy. |
+| 2026-04-22 | SSH access to production droplet confirmed | Successful key-based login from local machine to droplet. |
+| 2026-04-22 | Base runtime installed on droplet | Confirmed PHP 8.4.x, Node 22.x, npm, and Composer availability. |
