@@ -15,7 +15,7 @@ class FinanceReconciliationService
      */
     public function reconcile(array $importDues, array $importPayments, float $expectedDelta): array
     {
-        $net = round($this->sumAmounts($importDues) - $this->sumAmounts($importPayments), 2);
+        $net = round($this->sumAmounts($importDues, true) - $this->sumAmounts($importPayments, false), 2);
         $expectedDelta = round($expectedDelta, 2);
 
         return [
@@ -28,12 +28,12 @@ class FinanceReconciliationService
     /**
      * @param  array<int, array<string, mixed>|int|float>  $rows
      */
-    private function sumAmounts(array $rows): float
+    private function sumAmounts(array $rows, bool $isDueContext): float
     {
         $total = 0.0;
 
         foreach ($rows as $row) {
-            $amount = $this->resolveAmount($row);
+            $amount = $this->resolveAmount($row, $isDueContext);
             if ($amount === null) {
                 continue;
             }
@@ -44,7 +44,7 @@ class FinanceReconciliationService
         return round($total, 2);
     }
 
-    private function resolveAmount(mixed $row): ?float
+    private function resolveAmount(mixed $row, bool $isDueContext): ?float
     {
         if (is_int($row) || is_float($row)) {
             return round((float) $row, 2);
@@ -54,7 +54,11 @@ class FinanceReconciliationService
             return null;
         }
 
-        foreach (['amount', 'amount_due', 'due_amount', 'total_amount', 'payment_amount', 'installment_amount'] as $key) {
+        $aliasPriority = $isDueContext
+            ? ['amount_due', 'due_amount', 'installment_amount', 'total_amount', 'amount', 'payment_amount']
+            : ['amount', 'payment_amount', 'total_amount', 'amount_due', 'due_amount', 'installment_amount'];
+
+        foreach ($aliasPriority as $key) {
             if (! array_key_exists($key, $row)) {
                 continue;
             }

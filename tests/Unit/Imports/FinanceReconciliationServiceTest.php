@@ -49,10 +49,10 @@ test('finance reconciliation service parses formatted currency strings', functio
 
     expect($service->reconcile(
         [
-            ['amount_due' => '₱1,250.00'],
+            ['amount_due' => '$1,250.00'],
         ],
         [
-            ['amount' => '₱100.50'],
+            ['amount' => '$100.50'],
         ],
         1149.50
     ))->toBe([
@@ -62,20 +62,22 @@ test('finance reconciliation service parses formatted currency strings', functio
     ]);
 });
 
-test('finance reconciliation service resolves payment and installment amount aliases', function (): void {
+test('finance reconciliation service resolves mixed alias rows by context', function (): void {
     $service = app(FinanceReconciliationService::class);
 
     expect($service->reconcile(
         [
-            ['payment_amount' => '₱1,000.00'],
+            ['amount' => '$1,000.00', 'amount_due' => '$2,000.00', 'payment_amount' => '$900.00'],
+            ['installment_amount' => '$250.00', 'due_amount' => '$150.00'],
         ],
         [
-            ['installment_amount' => '₱250.00'],
+            ['amount_due' => '$100.00', 'payment_amount' => '$999.00', 'total_amount' => '$50.00'],
+            ['amount' => '$25.00', 'due_amount' => '$75.00', 'installment_amount' => '$40.00'],
         ],
-        750.00
+        1126.00
     ))->toBe([
-        'net' => 750.00,
-        'expected_delta' => 750.00,
+        'net' => 1126.00,
+        'expected_delta' => 1126.00,
         'valid' => true,
     ]);
 });
