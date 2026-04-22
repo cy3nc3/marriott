@@ -2,6 +2,7 @@
 
 use App\Models\ImportBatch;
 use App\Models\ImportBatchRow;
+use App\Models\ImportRowEdit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -50,6 +51,25 @@ test('finance import batch mutations are limited to the uploading owner', functi
 
     $this->postJson("/finance/import-batches/{$batch->id}/preview")
         ->assertForbidden();
+});
+
+test('finance preview is one way after the first successful preview', function () {
+    $batch = financeImportBatch();
+
+    $this->postJson("/finance/import-batches/{$batch->id}/preview")
+        ->assertOk()
+        ->assertJsonPath('batch.status', 'previewed');
+
+    $firstPreviewedAt = $batch->fresh()->previewed_at;
+
+    $this->postJson("/finance/import-batches/{$batch->id}/preview")
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['batch']);
+
+    $batch->refresh();
+
+    expect($batch->status)->toBe('previewed');
+    expect($batch->previewed_at?->toISOString())->toBe($firstPreviewedAt?->toISOString());
 });
 
 test('finance preview is blocked after apply', function () {
@@ -125,3 +145,65 @@ test('finance row updates are blocked for terminal batch states', function (stri
         ],
     ],
 ]);
+
+test('finance row edits record operational before and after audit payloads', function () {
+    $batch = financeImportBatch();
+
+    $row = ImportBatchRow::query()->create([
+        'import_batch_id' => $batch->id,
+        'row_index' => 1,
+        'raw_payload' => [
+            'or_number' => 'OR-1',
+        ],
+        'normalized_payload' => [
+            'or_number' => 'OR-1',
+            'amount' => 100,
+        ],
+        'validation_errors' => ['missing_reference'],
+        'duplicate_flags' => ['same_or_number'],
+        'classification' => 'payment',
+        'action' => 'pending',
+        'is_unresolved' => true,
+    ]);
+
+    $this->patchJson("/finance/import-batches/{$batch->id}/rows/{$row->id}", [
+        'normalized_payload' => [
+            'or_number' => 'OR-1',
+            'amount' => 150,
+        ],
+        'validation_errors' => [],
+        'duplicate_flags' => [],
+        'classification' => 'due',
+        'action' => 'update',
+        'is_unresolved' => false,
+    ])->assertOk();
+
+    $edit = ImportRowEdit::query()
+        ->where('import_batch_row_id', $row->id)
+        ->latest('id')
+        ->first();
+
+    expect($edit)->not->toBeNull();
+    expect($edit?->before_payload)->toBe([
+        'normalized_payload' => [
+            'or_number' => 'OR-1',
+            'amount' => 100,
+        ],
+        'validation_errors' => ['missing_reference'],
+        'duplicate_flags' => ['same_or_number'],
+        'classification' => 'payment',
+        'action' => 'pending',
+        'is_unresolved' => true,
+    ]);
+    expect($edit?->after_payload)->toBe([
+        'normalized_payload' => [
+            'or_number' => 'OR-1',
+            'amount' => 150,
+        ],
+        'validation_errors' => [],
+        'duplicate_flags' => [],
+        'classification' => 'due',
+        'action' => 'update',
+        'is_unresolved' => false,
+    ]);
+});

@@ -113,6 +113,25 @@ test('registrar apply requires preview before batch apply', function () {
     expect($batch->status)->toBe('uploaded');
 });
 
+test('registrar preview is one way after the first successful preview', function () {
+    $batch = registrarImportBatch();
+
+    $this->postJson("/registrar/import-batches/{$batch->id}/preview")
+        ->assertOk()
+        ->assertJsonPath('batch.status', 'previewed');
+
+    $firstPreviewedAt = $batch->fresh()->previewed_at;
+
+    $this->postJson("/registrar/import-batches/{$batch->id}/preview")
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['batch']);
+
+    $batch->refresh();
+
+    expect($batch->status)->toBe('previewed');
+    expect($batch->previewed_at?->toISOString())->toBe($firstPreviewedAt?->toISOString());
+});
+
 test('registrar import batch mutations are limited to the uploading owner', function () {
     $batch = registrarImportBatch();
 
@@ -206,3 +225,65 @@ test('registrar row updates are blocked for terminal batch states', function (st
         ],
     ],
 ]);
+
+test('registrar row edits record operational before and after audit payloads', function () {
+    $batch = registrarImportBatch();
+
+    $row = ImportBatchRow::query()->create([
+        'import_batch_id' => $batch->id,
+        'row_index' => 1,
+        'raw_payload' => [
+            'lrn' => '100000000001',
+        ],
+        'normalized_payload' => [
+            'lrn' => '100000000001',
+            'first_name' => 'Ana',
+        ],
+        'validation_errors' => ['missing_last_name'],
+        'duplicate_flags' => ['same_lrn'],
+        'classification' => 'unresolved',
+        'action' => 'blocked',
+        'is_unresolved' => true,
+    ]);
+
+    $this->patchJson("/registrar/import-batches/{$batch->id}/rows/{$row->id}", [
+        'normalized_payload' => [
+            'lrn' => '100000000001',
+            'first_name' => 'Ana Marie',
+        ],
+        'validation_errors' => [],
+        'duplicate_flags' => [],
+        'classification' => 'mixed',
+        'action' => 'update',
+        'is_unresolved' => false,
+    ])->assertOk();
+
+    $edit = ImportRowEdit::query()
+        ->where('import_batch_row_id', $row->id)
+        ->latest('id')
+        ->first();
+
+    expect($edit)->not->toBeNull();
+    expect($edit?->before_payload)->toBe([
+        'normalized_payload' => [
+            'lrn' => '100000000001',
+            'first_name' => 'Ana',
+        ],
+        'validation_errors' => ['missing_last_name'],
+        'duplicate_flags' => ['same_lrn'],
+        'classification' => 'unresolved',
+        'action' => 'blocked',
+        'is_unresolved' => true,
+    ]);
+    expect($edit?->after_payload)->toBe([
+        'normalized_payload' => [
+            'lrn' => '100000000001',
+            'first_name' => 'Ana Marie',
+        ],
+        'validation_errors' => [],
+        'duplicate_flags' => [],
+        'classification' => 'mixed',
+        'action' => 'update',
+        'is_unresolved' => false,
+    ]);
+});

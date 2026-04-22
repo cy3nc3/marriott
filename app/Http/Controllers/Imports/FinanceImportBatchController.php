@@ -53,8 +53,8 @@ class FinanceImportBatchController extends Controller
         $batch = $this->batch($request, $importBatch);
         $this->ensureBatchState(
             $batch,
-            [self::STATUS_UPLOADED, self::STATUS_PREVIEWED],
-            'Only uploaded or previewed batches can be previewed.'
+            [self::STATUS_UPLOADED],
+            'Only uploaded batches can be previewed.'
         );
         $validated = $request->validated();
 
@@ -88,16 +88,23 @@ class FinanceImportBatchController extends Controller
         abort_unless($importBatchRow->import_batch_id === $batch->id, 404);
 
         $validated = $request->validated();
-        $beforePayload = $importBatchRow->normalized_payload ?? $importBatchRow->raw_payload ?? [];
-        $afterPayload = $validated['normalized_payload'] ?? $beforePayload;
-
-        $importBatchRow->update([
-            'normalized_payload' => $afterPayload,
+        $beforePayload = $this->rowAuditPayload($importBatchRow);
+        $afterPayload = [
+            'normalized_payload' => $validated['normalized_payload'] ?? $importBatchRow->normalized_payload,
             'validation_errors' => $validated['validation_errors'] ?? $importBatchRow->validation_errors,
             'duplicate_flags' => $validated['duplicate_flags'] ?? $importBatchRow->duplicate_flags,
             'classification' => $validated['classification'] ?? $importBatchRow->classification,
             'action' => $validated['action'] ?? $importBatchRow->action,
             'is_unresolved' => $validated['is_unresolved'] ?? $importBatchRow->is_unresolved,
+        ];
+
+        $importBatchRow->update([
+            'normalized_payload' => $afterPayload['normalized_payload'],
+            'validation_errors' => $afterPayload['validation_errors'],
+            'duplicate_flags' => $afterPayload['duplicate_flags'],
+            'classification' => $afterPayload['classification'],
+            'action' => $afterPayload['action'],
+            'is_unresolved' => $afterPayload['is_unresolved'],
         ]);
 
         ImportRowEdit::query()->create([
@@ -195,6 +202,18 @@ class FinanceImportBatchController extends Controller
             'previewed_at' => $importBatch->previewed_at?->toISOString(),
             'applied_at' => $importBatch->applied_at?->toISOString(),
             'rolled_back_at' => $importBatch->rolled_back_at?->toISOString(),
+        ];
+    }
+
+    private function rowAuditPayload(ImportBatchRow $importBatchRow): array
+    {
+        return [
+            'normalized_payload' => $importBatchRow->normalized_payload,
+            'validation_errors' => $importBatchRow->validation_errors,
+            'duplicate_flags' => $importBatchRow->duplicate_flags,
+            'classification' => $importBatchRow->classification,
+            'action' => $importBatchRow->action,
+            'is_unresolved' => $importBatchRow->is_unresolved,
         ];
     }
 }
