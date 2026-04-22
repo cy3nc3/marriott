@@ -2,11 +2,10 @@
 
 namespace App\Services\Imports;
 
-use Carbon\CarbonImmutable;
-use DateTimeInterface;
-
 class DuplicateEngine
 {
+    public function __construct(private ValueParser $valueParser) {}
+
     /**
      * Build a stable duplicate key for imported payment rows.
      *
@@ -106,32 +105,13 @@ class DuplicateEngine
 
     private function normalizeAmount(mixed $value): ?string
     {
-        if ($value === null || $value === '') {
-            return null;
-        }
+        $parsedAmount = $this->valueParser->parseDecimal($value);
 
-        if (! is_numeric($value)) {
-            return null;
-        }
-
-        return number_format((float) $value, 2, '.', '');
+        return $parsedAmount === null ? null : number_format($parsedAmount, 2, '.', '');
     }
 
     private function normalizeDate(mixed $value): ?string
     {
-        if ($value instanceof DateTimeInterface) {
-            return CarbonImmutable::instance($value)->startOfDay()->toDateString();
-        }
-
-        $normalized = trim((string) $value);
-        if ($normalized === '') {
-            return null;
-        }
-
-        try {
-            return CarbonImmutable::parse($normalized)->startOfDay()->toDateString();
-        } catch (\Throwable) {
-            return null;
-        }
+        return $this->valueParser->parseDate($value)?->toDateString();
     }
 }

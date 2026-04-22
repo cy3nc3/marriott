@@ -4,6 +4,8 @@ namespace App\Services\Imports;
 
 class FinanceReconciliationService
 {
+    public function __construct(private ValueParser $valueParser) {}
+
     /**
      * Reconcile imported dues and payments against an expected delta.
      *
@@ -57,12 +59,10 @@ class FinanceReconciliationService
                 continue;
             }
 
-            $value = $row[$key];
-            if (! is_numeric($value)) {
-                continue;
+            $parsedAmount = $this->valueParser->parseDecimal($row[$key]);
+            if ($parsedAmount !== null) {
+                return round($parsedAmount, 2);
             }
-
-            return round((float) $value, 2);
         }
 
         return null;

@@ -43,3 +43,21 @@ test('finance reconciliation service reports an invalid match when the expected 
         'valid' => false,
     ]);
 });
+
+test('finance reconciliation service parses formatted currency strings', function (): void {
+    $service = app(FinanceReconciliationService::class);
+
+    expect($service->reconcile(
+        [
+            ['amount_due' => '₱1,250.00'],
+        ],
+        [
+            ['amount' => '₱100.50'],
+        ],
+        1149.50
+    ))->toBe([
+        'net' => 1149.50,
+        'expected_delta' => 1149.50,
+        'valid' => true,
+    ]);
+});
