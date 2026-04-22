@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
+import { FinanceImportBatchesPanel } from './batches';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -55,6 +56,7 @@ interface Props {
 export default function FinanceDataImport({ imports }: Props) {
     const [selectedImport, setSelectedImport] =
         useState<ImportHistoryItem | null>(null);
+    const [showBatchWorkspace, setShowBatchWorkspace] = useState(false);
     const importForm = useForm<{
         import_file: File | null;
     }>({
@@ -111,7 +113,20 @@ export default function FinanceDataImport({ imports }: Props) {
                                     </p>
                                 ) : null}
                             </div>
-                            <div className="flex items-end justify-end">
+                            <div className="flex items-end justify-end gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() =>
+                                        setShowBatchWorkspace(
+                                            (current) => !current,
+                                        )
+                                    }
+                                >
+                                    {showBatchWorkspace
+                                        ? 'Hide Batch Workspace'
+                                        : 'Open Batch Workspace'}
+                                </Button>
                                 <Button
                                     type="submit"
                                     disabled={importForm.processing}
@@ -123,6 +138,8 @@ export default function FinanceDataImport({ imports }: Props) {
                         </form>
                     </CardContent>
                 </Card>
+
+                {showBatchWorkspace ? <FinanceImportBatchesPanel /> : null}
 
                 <Card>
                     <CardHeader className="border-b">

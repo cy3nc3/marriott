@@ -4,9 +4,6 @@ use App\Models\ImportBatch;
 use App\Models\ImportBatchRow;
 use App\Models\ImportRowEdit;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
-uses(Tests\TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
     $this->finance = User::factory()->finance()->create();
@@ -43,6 +40,77 @@ test('finance apply requires preview before batch apply', function () {
     expect($batch->status)->toBe('uploaded');
 });
 
+test('editing row in preview recomputes unresolved status for finance imports', function () {
+    $batch = financeImportBatch([
+        'status' => 'previewed',
+        'previewed_at' => now(),
+    ]);
+
+    $row = ImportBatchRow::query()->create([
+        'import_batch_id' => $batch->id,
+        'row_index' => 1,
+        'raw_payload' => [
+            'or_number' => '',
+        ],
+        'normalized_payload' => [
+            'or_number' => '',
+            'amount' => 'invalid',
+        ],
+        'classification' => 'unresolved',
+        'action' => 'blocked',
+        'validation_errors' => ['missing_or_number', 'invalid_amount'],
+        'is_unresolved' => true,
+    ]);
+
+    $this->patchJson("/finance/import-batches/{$batch->id}/rows/{$row->id}", [
+        'normalized_payload' => [
+            'or_number' => 'OR-1',
+            'amount' => 150,
+        ],
+        'validation_errors' => ['client_side_only'],
+        'duplicate_flags' => ['client_side_only'],
+        'classification' => 'unresolved',
+        'action' => 'blocked',
+        'is_unresolved' => true,
+    ])->assertOk()
+        ->assertJsonPath('row.classification', 'payment')
+        ->assertJsonPath('row.action', 'create')
+        ->assertJsonPath('row.validation_errors', [])
+        ->assertJsonPath('row.is_unresolved', false);
+});
+
+test('finance apply is blocked when unresolved rows exist', function () {
+    $batch = financeImportBatch([
+        'status' => 'previewed',
+        'previewed_at' => now(),
+    ]);
+
+    ImportBatchRow::query()->create([
+        'import_batch_id' => $batch->id,
+        'row_index' => 1,
+        'raw_payload' => [
+            'or_number' => '',
+        ],
+        'normalized_payload' => [
+            'or_number' => '',
+            'amount' => null,
+        ],
+        'validation_errors' => ['missing_or_number', 'invalid_amount'],
+        'classification' => 'unresolved',
+        'action' => 'blocked',
+        'is_unresolved' => true,
+    ]);
+
+    $this->postJson("/finance/import-batches/{$batch->id}/apply")
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['batch']);
+
+    $batch->refresh();
+
+    expect($batch->status)->toBe('previewed');
+    expect($batch->applied_at)->toBeNull();
+});
+
 test('finance import batch mutations are limited to the uploading owner', function () {
     $batch = financeImportBatch();
 
@@ -70,6 +138,50 @@ test('finance preview is one way after the first successful preview', function (
 
     expect($batch->status)->toBe('previewed');
     expect($batch->previewed_at?->toISOString())->toBe($firstPreviewedAt?->toISOString());
+});
+
+test('finance preview response includes before and after totals and duplicate buckets', function () {
+    $batch = financeImportBatch();
+
+    ImportBatchRow::query()->create([
+        'import_batch_id' => $batch->id,
+        'row_index' => 1,
+        'raw_payload' => [
+            'or_number' => 'OR-1001',
+        ],
+        'normalized_payload' => [
+            'lrn' => '123456789012',
+            'or_number' => 'OR-1001',
+            'amount' => 1000,
+        ],
+        'classification' => 'payment',
+        'action' => 'pending',
+        'is_unresolved' => false,
+    ]);
+
+    ImportBatchRow::query()->create([
+        'import_batch_id' => $batch->id,
+        'row_index' => 2,
+        'raw_payload' => [
+            'or_number' => 'OR-1001',
+        ],
+        'normalized_payload' => [
+            'lrn' => '123456789012',
+            'or_number' => 'OR-1001',
+            'amount' => 900,
+        ],
+        'classification' => 'payment',
+        'action' => 'pending',
+        'is_unresolved' => false,
+    ]);
+
+    $this->postJson("/finance/import-batches/{$batch->id}/preview")
+        ->assertOk()
+        ->assertJsonPath('batch.status', 'previewed')
+        ->assertJsonPath('preview.before_after_totals.before_total', 1900)
+        ->assertJsonPath('preview.before_after_totals.after_total', 0)
+        ->assertJsonPath('preview.duplicate_buckets.in_batch', 2)
+        ->assertJsonPath('preview.duplicate_buckets.existing', 0);
 });
 
 test('finance preview is blocked after apply', function () {
@@ -171,11 +283,11 @@ test('finance row edits record operational before and after audit payloads', fun
             'or_number' => 'OR-1',
             'amount' => 150,
         ],
-        'validation_errors' => [],
-        'duplicate_flags' => [],
+        'validation_errors' => ['client_side_only'],
+        'duplicate_flags' => ['client_side_only'],
         'classification' => 'due',
         'action' => 'update',
-        'is_unresolved' => false,
+        'is_unresolved' => true,
     ])->assertOk();
 
     $edit = ImportRowEdit::query()
@@ -202,8 +314,8 @@ test('finance row edits record operational before and after audit payloads', fun
         ],
         'validation_errors' => [],
         'duplicate_flags' => [],
-        'classification' => 'due',
-        'action' => 'update',
+        'classification' => 'payment',
+        'action' => 'create',
         'is_unresolved' => false,
     ]);
 });

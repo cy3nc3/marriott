@@ -4,10 +4,7 @@ use App\Models\ImportBatch;
 use App\Models\ImportBatchRow;
 use App\Models\ImportRowEdit;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-
-uses(Tests\TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
     $this->registrar = User::factory()->registrar()->create();
@@ -58,13 +55,13 @@ test('registrar can run the staged student import batch workflow', function () {
             'lrn' => '100000000001',
             'first_name' => 'Ana Marie',
         ],
-        'validation_errors' => [],
-        'duplicate_flags' => [],
+        'validation_errors' => ['client_side_only'],
+        'duplicate_flags' => ['client_side_only'],
         'classification' => 'payment',
         'action' => 'create',
-        'is_unresolved' => false,
+        'is_unresolved' => true,
     ])->assertOk()
-        ->assertJsonPath('row.action', 'create')
+        ->assertJsonPath('row.action', 'update')
         ->assertJsonPath('row.is_unresolved', false);
 
     expect(ImportRowEdit::query()
@@ -111,6 +108,74 @@ test('registrar apply requires preview before batch apply', function () {
     expect($batch->previewed_at)->toBeNull();
     expect($batch->applied_at)->toBeNull();
     expect($batch->status)->toBe('uploaded');
+});
+
+test('editing row in preview recomputes unresolved status for registrar imports', function () {
+    $batch = registrarImportBatch([
+        'status' => 'previewed',
+        'previewed_at' => now(),
+    ]);
+
+    $row = ImportBatchRow::query()->create([
+        'import_batch_id' => $batch->id,
+        'row_index' => 1,
+        'raw_payload' => [
+            'lrn' => '100000000001',
+        ],
+        'normalized_payload' => [
+            'lrn' => '100000000001',
+        ],
+        'classification' => 'unresolved',
+        'action' => 'blocked',
+        'validation_errors' => ['missing_first_name'],
+        'is_unresolved' => true,
+    ]);
+
+    $this->patchJson("/registrar/import-batches/{$batch->id}/rows/{$row->id}", [
+        'normalized_payload' => [
+            'lrn' => '100000000001',
+            'first_name' => 'Ana',
+        ],
+        'classification' => 'unresolved',
+        'action' => 'blocked',
+        'validation_errors' => ['fake'],
+        'is_unresolved' => true,
+    ])->assertOk()
+        ->assertJsonPath('row.classification', 'mixed')
+        ->assertJsonPath('row.action', 'update')
+        ->assertJsonPath('row.validation_errors', [])
+        ->assertJsonPath('row.is_unresolved', false);
+});
+
+test('registrar apply is blocked when unresolved rows exist', function () {
+    $batch = registrarImportBatch([
+        'status' => 'previewed',
+        'previewed_at' => now(),
+    ]);
+
+    ImportBatchRow::query()->create([
+        'import_batch_id' => $batch->id,
+        'row_index' => 1,
+        'raw_payload' => [
+            'lrn' => '100000000001',
+        ],
+        'normalized_payload' => [
+            'lrn' => '100000000001',
+        ],
+        'validation_errors' => ['missing_first_name'],
+        'classification' => 'unresolved',
+        'action' => 'blocked',
+        'is_unresolved' => true,
+    ]);
+
+    $this->postJson("/registrar/import-batches/{$batch->id}/apply")
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['batch']);
+
+    $batch->refresh();
+
+    expect($batch->status)->toBe('previewed');
+    expect($batch->applied_at)->toBeNull();
 });
 
 test('registrar preview is one way after the first successful preview', function () {
@@ -251,11 +316,11 @@ test('registrar row edits record operational before and after audit payloads', f
             'lrn' => '100000000001',
             'first_name' => 'Ana Marie',
         ],
-        'validation_errors' => [],
-        'duplicate_flags' => [],
-        'classification' => 'mixed',
-        'action' => 'update',
-        'is_unresolved' => false,
+        'validation_errors' => ['client_side_only'],
+        'duplicate_flags' => ['client_side_only'],
+        'classification' => 'unresolved',
+        'action' => 'blocked',
+        'is_unresolved' => true,
     ])->assertOk();
 
     $edit = ImportRowEdit::query()

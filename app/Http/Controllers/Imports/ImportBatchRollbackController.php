@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Imports;
 
 use App\Http\Controllers\Controller;
 use App\Models\ImportBatch;
+use App\Services\Imports\ImportRollbackService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class ImportBatchRollbackController extends Controller
 {
+    public function __construct(private ImportRollbackService $rollbackService) {}
+
     public function store(Request $request, ImportBatch $importBatch): JsonResponse
     {
         $expectedModule = $this->expectedModule($request);
@@ -18,19 +21,10 @@ class ImportBatchRollbackController extends Controller
         abort_if((int) $importBatch->uploaded_by !== (int) $request->user()?->id, 403);
         $this->ensureConsistentState($importBatch);
 
-        if ($importBatch->status !== 'applied' || $importBatch->applied_at === null) {
-            throw ValidationException::withMessages([
-                'batch' => 'Only applied batches can be rolled back.',
-            ]);
-        }
-
-        $importBatch->update([
-            'summary' => array_merge($importBatch->summary ?? [], [
-                'rollback_stub' => true,
-            ]),
-            'status' => 'rolled_back',
-            'rolled_back_at' => now(),
-        ]);
+        $importBatch = $this->rollbackService->rollback(
+            $importBatch,
+            (int) $request->user()?->id,
+        );
 
         return response()->json([
             'message' => 'Import batch rollback recorded.',
