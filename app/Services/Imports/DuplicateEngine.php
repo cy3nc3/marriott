@@ -37,22 +37,22 @@ class DuplicateEngine
             return $this->buildKey([$lrn, $orNumber]);
         }
 
-        $paymentDate = $this->normalizeDate($this->firstAvailable($payment, [
+        $paymentDate = $this->firstParseableDate($payment, [
             'payment_date',
             'date',
             'transaction_date',
             'posted_at',
-        ]));
-        $amount = $this->normalizeAmount($this->firstAvailable($payment, [
+        ]);
+        $amount = $this->firstParseableAmount($payment, [
             'amount',
             'payment_amount',
             'total_amount',
-        ]));
-        $referenceNo = $this->normalizeString($this->firstAvailable($payment, [
+        ]);
+        $referenceNo = $this->firstParseableString($payment, [
             'reference_no',
             'reference',
             'reference_number',
-        ]));
+        ]);
 
         if ($paymentDate === null || $amount === null || $referenceNo === null) {
             return null;
@@ -89,6 +89,69 @@ class DuplicateEngine
         return null;
     }
 
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  array<int, string>  $keys
+     */
+    private function firstParseableDate(array $row, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $row)) {
+                continue;
+            }
+
+            $value = $row[$key];
+            $parsedDate = $this->valueParser->parseDate($value);
+            if ($parsedDate !== null) {
+                return $parsedDate->toDateString();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  array<int, string>  $keys
+     */
+    private function firstParseableAmount(array $row, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $row)) {
+                continue;
+            }
+
+            $value = $row[$key];
+            $parsedAmount = $this->valueParser->parseDecimal($value);
+            if ($parsedAmount !== null) {
+                return number_format($parsedAmount, 2, '.', '');
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  array<int, string>  $keys
+     */
+    private function firstParseableString(array $row, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $row)) {
+                continue;
+            }
+
+            $value = $row[$key];
+            $normalized = $this->valueParser->normalizeString($value);
+            if ($normalized !== null) {
+                return $normalized;
+            }
+        }
+
+        return null;
+    }
+
     private function normalizeLearnerReferenceNumber(mixed $value): ?string
     {
         $normalized = preg_replace('/\D/', '', (string) $value) ?? '';
@@ -99,17 +162,5 @@ class DuplicateEngine
     private function normalizeString(mixed $value): ?string
     {
         return $this->valueParser->normalizeString($value);
-    }
-
-    private function normalizeAmount(mixed $value): ?string
-    {
-        $parsedAmount = $this->valueParser->parseDecimal($value);
-
-        return $parsedAmount === null ? null : number_format($parsedAmount, 2, '.', '');
-    }
-
-    private function normalizeDate(mixed $value): ?string
-    {
-        return $this->valueParser->parseDate($value)?->toDateString();
     }
 }

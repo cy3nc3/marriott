@@ -49,6 +49,30 @@ test('duplicate engine accepts formatted currency amounts in fallback duplicate 
     ]))->toBe('123456789012|2026-04-21|1234.50|REF-001');
 });
 
+test('duplicate engine falls back to a later parseable amount alias when the first amount alias is invalid', function (): void {
+    $engine = app(DuplicateEngine::class);
+
+    expect($engine->paymentDuplicateKey([
+        'lrn' => '123456789012',
+        'payment_date' => '04/21/2026',
+        'amount' => 'not-a-number',
+        'payment_amount' => '$1,234.50',
+        'reference_no' => 'REF-001',
+    ]))->toBe('123456789012|2026-04-21|1234.50|REF-001');
+});
+
+test('duplicate engine falls back to a later parseable payment date alias when the first payment date alias is invalid', function (): void {
+    $engine = app(DuplicateEngine::class);
+
+    expect($engine->paymentDuplicateKey([
+        'lrn' => '123456789012',
+        'payment_date' => '20240314',
+        'transaction_date' => '04/21/2026',
+        'amount' => '1500.00',
+        'reference_no' => 'REF-001',
+    ]))->toBe('123456789012|2026-04-21|1500.00|REF-001');
+});
+
 test('duplicate engine normalizes duplicated internal whitespace in key parts', function (): void {
     $engine = app(DuplicateEngine::class);
 
