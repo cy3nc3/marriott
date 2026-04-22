@@ -1,0 +1,45 @@
+<?php
+
+use App\Services\Imports\FinanceReconciliationService;
+
+uses(Tests\TestCase::class);
+
+test('finance reconciliation service reports a valid match when the net matches the expected delta', function (): void {
+    $service = app(FinanceReconciliationService::class);
+
+    expect($service->reconcile(
+        [
+            ['amount_due' => 1250.00],
+            ['amount_due' => 250.00],
+        ],
+        [
+            ['amount' => 1000.00],
+            ['amount' => 100.00],
+        ],
+        400.00
+    ))->toBe([
+        'net' => 400.00,
+        'expected_delta' => 400.00,
+        'valid' => true,
+    ]);
+});
+
+test('finance reconciliation service reports an invalid match when the expected delta differs', function (): void {
+    $service = app(FinanceReconciliationService::class);
+
+    expect($service->reconcile(
+        [
+            ['amount_due' => 1250.00],
+            ['amount_due' => 250.00],
+        ],
+        [
+            ['amount' => 1000.00],
+            ['amount' => 100.00],
+        ],
+        350.00
+    ))->toBe([
+        'net' => 400.00,
+        'expected_delta' => 350.00,
+        'valid' => false,
+    ]);
+});
