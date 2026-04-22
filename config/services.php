@@ -35,4 +35,17 @@ return [
         ],
     ],
 
+    'enrollment_claim_mail' => [
+        'enabled' => env('ENROLLMENT_CLAIM_MAIL_ENABLED', false),
+        'claim_base_url' => env('ENROLLMENT_CLAIM_BASE_URL', env('APP_URL')),
+    ],
+
+    'enrollment_claim_sms' => [
+        'enabled' => env('ENROLLMENT_CLAIM_SMS_ENABLED', false),
+    ],
+
+    'firebase' => [
+        'api_key' => env('FIREBASE_API_KEY'),
+    ],
+
 ];

@@ -3,6 +3,7 @@
 use App\Enums\UserRole;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\AnnouncementNotificationController;
+use App\Http\Controllers\Auth\AccountClaimController;
 use App\Http\Controllers\Auth\SavedAccountLoginController;
 use App\Http\Controllers\Finance\DashboardController as FinanceDashboardController;
 use App\Http\Controllers\ParentPortal\DashboardController as ParentDashboardController;
@@ -17,6 +18,21 @@ use Inertia\Inertia;
 Route::middleware('guest')
     ->post('login/saved-account', [SavedAccountLoginController::class, 'store'])
     ->name('login.saved-account.store');
+
+Route::middleware('guest')
+    ->group(function (): void {
+        Route::get('account/claim/{token}', [AccountClaimController::class, 'show'])
+            ->name('account.claim.show');
+        Route::post('account/claim/{token}/otp/send', [AccountClaimController::class, 'sendOtp'])
+            ->middleware('throttle:3,1')
+            ->name('account.claim.otp.send');
+        Route::post('account/claim/{token}/otp/verify', [AccountClaimController::class, 'verifyOtp'])
+            ->middleware('throttle:6,1')
+            ->name('account.claim.otp.verify');
+        Route::post('account/claim/{token}', [AccountClaimController::class, 'store'])
+            ->middleware('throttle:6,1')
+            ->name('account.claim.store');
+    });
 
 Route::get('/', function () {
     if (auth()->check()) {

@@ -10,8 +10,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Enrollment extends Model
 {
     use Auditable;
+
     protected $fillable = [
         'student_id',
+        'email',
         'academic_year_id',
         'grade_level_id',
         'section_id',
@@ -57,5 +59,10 @@ class Enrollment extends Model
     public function departures(): HasMany
     {
         return $this->hasMany(StudentDeparture::class);
+    }
+
+    public function accountClaimTokens(): HasMany
+    {
+        return $this->hasMany(AccountClaimToken::class);
     }
 }

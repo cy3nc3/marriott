@@ -14,6 +14,7 @@ use App\Models\RemedialCase;
 use App\Models\Student;
 use App\Models\StudentDiscount;
 use App\Models\Transaction;
+use App\Services\Auth\EnrollmentAccountClaimService;
 use App\Services\DashboardCacheService;
 use App\Services\Finance\OrNumberReservationService;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,7 +28,10 @@ use Inertia\Response;
 
 class CashierPanelController extends Controller
 {
-    public function __construct(private OrNumberReservationService $orNumberReservationService) {}
+    public function __construct(
+        private OrNumberReservationService $orNumberReservationService,
+        private EnrollmentAccountClaimService $enrollmentAccountClaimService,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -566,7 +570,7 @@ class CashierPanelController extends Controller
         }
 
         if ($enrollment->payment_term === 'cash') {
-            $enrollment->update(['status' => 'enrolled']);
+            $this->transitionEnrollmentStatus($enrollment, 'enrolled');
 
             return;
         }
@@ -585,7 +589,7 @@ class CashierPanelController extends Controller
             ? 'enrolled'
             : 'for_cashier_payment';
 
-        $enrollment->update(['status' => $newStatus]);
+        $this->transitionEnrollmentStatus($enrollment, $newStatus);
     }
 
     private function allocatePaymentAcrossDues(
@@ -798,6 +802,24 @@ class CashierPanelController extends Controller
 
         Enrollment::query()
             ->whereIn('id', $idsToMarkEnrolled)
-            ->update(['status' => 'enrolled']);
+            ->get()
+            ->each(function (Enrollment $enrollment): void {
+                $this->transitionEnrollmentStatus($enrollment, 'enrolled');
+            });
+    }
+
+    private function transitionEnrollmentStatus(Enrollment $enrollment, string $newStatus): void
+    {
+        $previousStatus = (string) $enrollment->status;
+
+        if ($previousStatus === $newStatus) {
+            return;
+        }
+
+        $enrollment->update(['status' => $newStatus]);
+
+        if ($previousStatus !== 'enrolled' && $newStatus === 'enrolled') {
+            $this->enrollmentAccountClaimService->issueForEnrollment($enrollment);
+        }
     }
 }

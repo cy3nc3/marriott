@@ -15,6 +15,7 @@ use App\Models\RemedialCase;
 use App\Models\Transaction;
 use App\Models\TransactionDueAllocation;
 use App\Models\User;
+use App\Services\Auth\EnrollmentAccountClaimService;
 use App\Services\DashboardCacheService;
 use App\Services\Finance\TransactionHistoryWorkbookExporter;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,6 +29,10 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class TransactionHistoryController extends Controller
 {
+    public function __construct(
+        private EnrollmentAccountClaimService $enrollmentAccountClaimService,
+    ) {}
+
     public function index(IndexTransactionHistoryRequest $request): Response
     {
         $validated = $request->validated();
@@ -1055,19 +1060,35 @@ class TransactionHistoryController extends Controller
             ->sum('total_amount'), 2);
 
         if ($enrollment->payment_term === 'cash') {
-            $enrollment->update([
-                'status' => $totalPaidInYear > 0 ? 'enrolled' : 'for_cashier_payment',
-            ]);
+            $this->transitionEnrollmentStatus(
+                $enrollment,
+                $totalPaidInYear > 0 ? 'enrolled' : 'for_cashier_payment'
+            );
 
             return;
         }
 
         if ($totalPaidInYear >= (float) $enrollment->downpayment) {
-            $enrollment->update(['status' => 'enrolled']);
+            $this->transitionEnrollmentStatus($enrollment, 'enrolled');
 
             return;
         }
 
-        $enrollment->update(['status' => 'for_cashier_payment']);
+        $this->transitionEnrollmentStatus($enrollment, 'for_cashier_payment');
+    }
+
+    private function transitionEnrollmentStatus(Enrollment $enrollment, string $newStatus): void
+    {
+        $previousStatus = (string) $enrollment->status;
+
+        if ($previousStatus === $newStatus) {
+            return;
+        }
+
+        $enrollment->update(['status' => $newStatus]);
+
+        if ($previousStatus !== 'enrolled' && $newStatus === 'enrolled') {
+            $this->enrollmentAccountClaimService->issueForEnrollment($enrollment);
+        }
     }
 }

@@ -25,10 +25,12 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
   - Reason: easier operations (managed backups/patching), cleaner isolation from app runtime, and simpler scaling path.
   - Initial target: smallest managed node in `sgp1`, then scale vertically based on real production metrics.
 - `[?]` Mail provider: undecided
+- `[/]` Mail provider: Resend (implementation in progress)
   - Needed for password reset, account verification, reminders, and production notifications.
   - Constraint: do not plan on self-hosted SMTP from the droplet; use a third-party mail provider/API.
   - Inbox access note: system-generated addresses require mailbox hosting (or forwarding) to be readable; sending-only SMTP/API does not create inboxes.
-  - Draft implementation guide: see `docs/email-demo-delivery-plan.md` (includes enrollment-triggered email flow and free-provider setup options).
+  - Current implementation uses queued claim-email notifications with `MAIL_MAILER=resend`.
+  - Reference: `docs/email-demo-delivery-plan.md`.
 - `[?]` Backup storage strategy: undecided
   - Decide whether backups stay on the server, are copied off-server, or are stored in cloud/object storage.
 - `[?]` Deployment method: undecided
@@ -120,10 +122,12 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
 - `[ ]` Set `APP_ENV=production`.
 - `[ ]` Set `APP_DEBUG=false`.
 - `[ ]` Set `APP_URL` to the final HTTPS domain.
+- `[ ]` Set `ENROLLMENT_CLAIM_BASE_URL` to the same final HTTPS domain (or explicit claim domain).
 - `[ ]` Generate and preserve the production `APP_KEY`.
   - Do not regenerate this key after real users or encrypted data exist.
 - `[ ]` Set production database credentials.
 - `[ ]` Set production mail credentials.
+- `[ ]` Set production SMS/Firebase credentials for claim OTP.
 - `[ ]` Set `LOG_LEVEL` appropriately, usually `warning` or `error`.
 - `[ ]` Confirm `SESSION_DRIVER`.
   - Current default: `database`.
@@ -248,13 +252,30 @@ php artisan queue:restart
 
 ## Mail And Notifications
 
-- `[ ]` Configure SMTP or mail provider.
+- `[/]` Configure SMTP or mail provider.
+- `[/]` Resend API-based mail configured in app; production DNS verification still required.
 - `[ ]` Set `MAIL_FROM_ADDRESS`.
 - `[ ]` Set `MAIL_FROM_NAME`.
 - `[ ]` Test password reset email.
 - `[ ]` Test email verification if enabled.
 - `[ ]` Test reminder/notification mail paths if used.
 - `[ ]` Confirm mail failures are logged or monitored.
+
+## Account Claim And OTP Readiness
+
+- `[/]` Enrollment-to-claim-email flow implemented.
+- `[/]` Queue worker required for claim mail dispatch.
+- `[/]` Firebase phone OTP verification integrated in claim flow.
+- `[ ]` Add production app host to Firebase Authorized Domains.
+- `[ ]` Confirm Phone Auth provider is enabled in Firebase production project.
+- `[ ]` Validate OTP deliverability in production region/carrier mix.
+
+## Mobile Number Consistency
+
+- `[x]` Canonical mobile format standardized to `+639XXXXXXXXX`.
+- `[x]` Enrollment UI uses fixed `+63` prefix and subscriber input (`9XXXXXXXXX`).
+- `[x]` Claim verification UI uses same fixed-prefix input pattern.
+- `[ ]` Backfill/migrate legacy stored numbers to canonical format if needed.
 
 ## App Functionality Smoke Tests
 

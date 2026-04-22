@@ -753,7 +753,7 @@ test('registrar enrollment intake supports create update and delete', function (
     expect($student->gender)->toBe('Female');
     expect($student->birthdate?->toDateString())->toBe('2011-05-12');
     expect($student->guardian_name)->toBe('Guardian Name');
-    expect($student->contact_number)->toBe('09171234567');
+    expect($student->contact_number)->toBe('+639171234567');
 
     $monthlySchedules = BillingSchedule::query()
         ->where('student_id', $student->id)
@@ -808,7 +808,7 @@ test('registrar enrollment intake supports create update and delete', function (
     expect($student->fresh()->gender)->toBe('Female');
     expect($student->fresh()->birthdate?->toDateString())->toBe('2011-06-15');
     expect($student->fresh()->guardian_name)->toBe('Updated Guardian');
-    expect($student->fresh()->contact_number)->toBe('09998887777');
+    expect($student->fresh()->contact_number)->toBe('+639998887777');
 
     $quarterlySchedules = BillingSchedule::query()
         ->where('student_id', $student->id)
@@ -1062,12 +1062,13 @@ test('registrar enrollment intake requires birthdate', function () {
         ->assertSessionHasErrors(['birthdate']);
 });
 
-test('registrar enrollment intake validates guardian contact number as exactly 11 digits', function () {
+test('registrar enrollment intake validates guardian contact number as a valid PH mobile number', function () {
     $this->from('/registrar/enrollment')
         ->post('/registrar/enrollment', [
             'lrn' => '123456789012',
             'first_name' => 'Invalid',
             'last_name' => 'Contact',
+            'birthdate' => '2010-01-01',
             'guardian_name' => 'Guardian Name',
             'guardian_contact_number' => '0917123456',
             'payment_term' => 'cash',

@@ -53,6 +53,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 interface EnrollmentRow {
     id: number;
     lrn: string;
+    email: string | null;
     first_name: string;
     middle_name: string | null;
     last_name: string;
@@ -123,6 +124,32 @@ interface EnrollmentLookupResponse {
     } | null;
 }
 
+const normalizeMobileSubscriberDigits = (value: string): string => {
+    const digits = value.replace(/\D/g, '');
+
+    if (digits.startsWith('9')) {
+        return digits.slice(0, 10);
+    }
+
+    if (digits.startsWith('09')) {
+        return digits.slice(1, 11);
+    }
+
+    if (digits.startsWith('63')) {
+        return digits.slice(2, 12);
+    }
+
+    return digits.slice(0, 10);
+};
+
+const formatMobileForDisplay = (subscriberDigits: string): string => {
+    if (subscriberDigits.length === 10 && subscriberDigits.startsWith('9')) {
+        return `+63${subscriberDigits}`;
+    }
+
+    return '-';
+};
+
 export default function Enrollment({
     enrollments,
     grade_level_options,
@@ -165,6 +192,7 @@ export default function Enrollment({
         birthdate: '',
         guardian_name: '',
         guardian_contact_number: '',
+        email: '',
         grade_level_id: '',
         section_id: '',
         payment_term: 'monthly',
@@ -179,6 +207,7 @@ export default function Enrollment({
         birthdate: '',
         guardian_name: '',
         guardian_contact_number: '',
+        email: '',
         grade_level_id: '',
         section_id: '',
         payment_term: 'monthly',
@@ -247,6 +276,7 @@ export default function Enrollment({
             createForm.setData('birthdate', '');
             createForm.setData('guardian_name', '');
             createForm.setData('guardian_contact_number', '');
+            createForm.setData('email', '');
             createForm.setData('grade_level_id', '');
             createForm.setData('section_id', '');
 
@@ -261,7 +291,9 @@ export default function Enrollment({
         createForm.setData('guardian_name', payload.student.guardian_name ?? '');
         createForm.setData(
             'guardian_contact_number',
-            payload.student.guardian_contact_number ?? '',
+            normalizeMobileSubscriberDigits(
+                payload.student.guardian_contact_number ?? '',
+            ),
         );
         createForm.setData(
             'grade_level_id',
@@ -400,7 +432,10 @@ export default function Enrollment({
             gender: item.gender || '',
             birthdate: item.birthdate || '',
             guardian_name: item.guardian_name || '',
-            guardian_contact_number: item.guardian_contact_number || '',
+            guardian_contact_number: normalizeMobileSubscriberDigits(
+                item.guardian_contact_number || '',
+            ),
+            email: item.email || '',
             grade_level_id: item.grade_level_id
                 ? String(item.grade_level_id)
                 : sectionGradeLevelId
@@ -706,7 +741,7 @@ export default function Enrollment({
 
     const hasStepTwoRequiredFields =
         createForm.data.guardian_name.trim() !== '' &&
-        createForm.data.guardian_contact_number.trim() !== '';
+        createForm.data.guardian_contact_number.trim().length === 10;
 
     const hasStepThreeRequiredFields =
         createForm.data.grade_level_id !== '' &&
@@ -1037,25 +1072,31 @@ export default function Enrollment({
                                         <Label htmlFor="guardian-contact">
                                             Guardian Contact
                                         </Label>
-                                        <Input
-                                            id="guardian-contact"
-                                            placeholder="eg. 09171234567"
-                                            inputMode="numeric"
-                                            pattern="[0-9]*"
-                                            maxLength={11}
-                                            value={
-                                                createForm.data
-                                                    .guardian_contact_number
-                                            }
-                                            onChange={(event) =>
-                                                createForm.setData(
-                                                    'guardian_contact_number',
-                                                    event.target.value
-                                                        .replace(/\D/g, '')
-                                                        .slice(0, 11),
-                                                )
-                                            }
-                                        />
+                                        <div className="flex w-full min-w-0">
+                                            <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                                                +63
+                                            </span>
+                                            <Input
+                                                id="guardian-contact"
+                                                className="rounded-l-none"
+                                                placeholder="9XXXXXXXXX"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                maxLength={10}
+                                                value={
+                                                    createForm.data
+                                                        .guardian_contact_number
+                                                }
+                                                onChange={(event) =>
+                                                    createForm.setData(
+                                                        'guardian_contact_number',
+                                                        normalizeMobileSubscriberDigits(
+                                                            event.target.value,
+                                                        ),
+                                                    )
+                                                }
+                                            />
+                                        </div>
                                         {createForm.errors
                                             .guardian_contact_number && (
                                             <p className="text-sm text-destructive">
@@ -1063,6 +1104,28 @@ export default function Enrollment({
                                                     createForm.errors
                                                         .guardian_contact_number
                                                 }
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="contact-email">
+                                            Contact Email
+                                        </Label>
+                                        <Input
+                                            id="contact-email"
+                                            type="email"
+                                            placeholder="eg. guardian@example.com"
+                                            value={createForm.data.email}
+                                            onChange={(event) =>
+                                                createForm.setData(
+                                                    'email',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        {createForm.errors.email && (
+                                            <p className="text-sm text-destructive">
+                                                {createForm.errors.email}
                                             </p>
                                         )}
                                     </div>
@@ -1305,9 +1368,16 @@ export default function Enrollment({
                                             Guardian Contact
                                         </p>
                                         <p>
-                                            {createForm.data
-                                                .guardian_contact_number || '-'}
+                                            {formatMobileForDisplay(
+                                                createForm.data
+                                                    .guardian_contact_number,
+                                            )}
                                         </p>
+
+                                        <p className="text-muted-foreground">
+                                            Contact Email
+                                        </p>
+                                        <p>{createForm.data.email || '-'}</p>
 
                                         <p className="text-muted-foreground">
                                             Grade Level
@@ -1745,22 +1815,29 @@ export default function Enrollment({
                             </div>
                             <div className="space-y-2">
                                 <Label>Guardian Contact Number</Label>
-                                <Input
-                                    inputMode="numeric"
-                                    pattern="[0-9]*"
-                                    maxLength={11}
-                                    value={
-                                        editForm.data.guardian_contact_number
-                                    }
-                                    onChange={(event) =>
-                                        editForm.setData(
-                                            'guardian_contact_number',
-                                            event.target.value
-                                                .replace(/\D/g, '')
-                                                .slice(0, 11),
-                                        )
-                                    }
-                                />
+                                <div className="flex w-full min-w-0">
+                                    <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                                        +63
+                                    </span>
+                                    <Input
+                                        className="rounded-l-none"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        maxLength={10}
+                                        placeholder="9XXXXXXXXX"
+                                        value={
+                                            editForm.data.guardian_contact_number
+                                        }
+                                        onChange={(event) =>
+                                            editForm.setData(
+                                                'guardian_contact_number',
+                                                normalizeMobileSubscriberDigits(
+                                                    event.target.value,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </div>
                                 {editForm.errors.guardian_contact_number && (
                                     <p className="text-sm text-destructive">
                                         {
@@ -1770,6 +1847,25 @@ export default function Enrollment({
                                     </p>
                                 )}
                             </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Contact Email</Label>
+                            <Input
+                                type="email"
+                                value={editForm.data.email}
+                                onChange={(event) =>
+                                    editForm.setData(
+                                        'email',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            {editForm.errors.email && (
+                                <p className="text-sm text-destructive">
+                                    {editForm.errors.email}
+                                </p>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">

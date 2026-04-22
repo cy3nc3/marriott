@@ -16,6 +16,7 @@ use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\TransactionDueAllocation;
 use App\Services\AuditLogService;
+use App\Services\Auth\EnrollmentAccountClaimService;
 use App\Services\DashboardCacheService;
 use App\Services\Finance\BillingScheduleService;
 use Carbon\Carbon;
@@ -26,7 +27,10 @@ use Inertia\Response;
 
 class DataImportController extends Controller
 {
-    public function __construct(private BillingScheduleService $billingScheduleService) {}
+    public function __construct(
+        private BillingScheduleService $billingScheduleService,
+        private EnrollmentAccountClaimService $enrollmentAccountClaimService,
+    ) {}
 
     public function index(): Response
     {
@@ -778,7 +782,7 @@ class DataImportController extends Controller
         }
 
         if ($enrollment->payment_term === 'cash') {
-            $enrollment->update(['status' => 'enrolled']);
+            $this->transitionEnrollmentStatus($enrollment, 'enrolled');
 
             return;
         }
@@ -797,7 +801,22 @@ class DataImportController extends Controller
             ? 'enrolled'
             : 'for_cashier_payment';
 
+        $this->transitionEnrollmentStatus($enrollment, $newStatus);
+    }
+
+    private function transitionEnrollmentStatus(Enrollment $enrollment, string $newStatus): void
+    {
+        $previousStatus = (string) $enrollment->status;
+
+        if ($previousStatus === $newStatus) {
+            return;
+        }
+
         $enrollment->update(['status' => $newStatus]);
+
+        if ($previousStatus !== 'enrolled' && $newStatus === 'enrolled') {
+            $this->enrollmentAccountClaimService->issueForEnrollment($enrollment);
+        }
     }
 
     private function firstAvailable(array $row, array $keys): ?string

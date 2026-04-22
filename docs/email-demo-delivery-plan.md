@@ -1,5 +1,15 @@
 # Email Demo Delivery Plan (Enrollment -> Email Sent)
 
+## Current Implementation Status (2026-04-22)
+
+- Implemented: enrollment-to-claim-email flow using Resend + queued notification.
+- Implemented: claim page now requires phone verification before password setup.
+- Implemented: Firebase SMS OTP verification on claim flow.
+- Implemented: expired claim-link recovery path after successful phone verification (new token issued).
+- Implemented: mobile number normalization to canonical `+639XXXXXXXXX`.
+- Implemented: claim-link base URL configuration via `ENROLLMENT_CLAIM_BASE_URL`.
+- Draft remains: production-grade mail inbox/routing hardening and final DNS/mail policy rollout.
+
 ## Objective
 
 Enable the system to send account claim/credential instructions to the email provided during enrollment, using a free setup suitable for capstone demonstration.
@@ -35,6 +45,27 @@ Enable the system to send account claim/credential instructions to the email pro
 6. Recipient sets password and activates account.
 7. System marks token as used and logs audit event.
 
+## Implemented Claim + OTP Flow
+
+1. Enrollment reaches `enrolled` status.
+2. System issues a claim token and queues claim email notification.
+3. Recipient opens claim link.
+4. Recipient sees redacted enrolled mobile (`+63 9*****####`).
+5. Recipient enters mobile using fixed `+63` prefix input (`9XXXXXXXXX`).
+6. Backend validates entered phone against enrollment record.
+7. Firebase sends OTP.
+8. Recipient verifies OTP.
+9. Recipient sets password.
+10. Token is consumed and cannot be reused.
+
+## Mobile Number Normalization Rule
+
+- Canonical persisted format: `+639XXXXXXXXX`.
+- Accepted enrollment/claim inputs are normalized to canonical format.
+- UI input pattern for enrollment and claim:
+  - prefix: fixed `+63` (not editable)
+  - user input: subscriber number only (`9XXXXXXXXX`)
+
 ## Implementation Checklist (Laravel)
 
 1. Data model
@@ -68,6 +99,23 @@ Enable the system to send account claim/credential instructions to the email pro
 - Do not email plaintext passwords.
 - Use signed/hashed token and short expiry.
 - Rate-limit claim attempts.
+
+## Environment Variables Added/Used
+
+```env
+ENROLLMENT_CLAIM_MAIL_ENABLED=true
+ENROLLMENT_CLAIM_SMS_ENABLED=true
+ENROLLMENT_CLAIM_BASE_URL=http://127.0.0.1:8001
+MAIL_MAILER=resend
+RESEND_API_KEY=re_xxx
+FIREBASE_API_KEY=AIza...
+VITE_FIREBASE_API_KEY=AIza...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+```
 
 ## Provider Setup Option A (Preferred): Resend
 
@@ -114,7 +162,7 @@ This allows you to demonstrate that external recipients can receive system email
 
 - On enrollment approval, email is sent to provided address.
 - Recipient receives claim email within acceptable delay (queue + provider latency).
-- Claim link works once and expires correctly.
+- Claim link works once; expired links can be refreshed after successful phone verification.
 - Audit trail records email dispatch and claim completion.
 
 ## Demo Test Script

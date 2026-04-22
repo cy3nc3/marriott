@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -96,6 +97,7 @@ class EnrollmentController extends Controller
                 return [
                     'id' => $enrollment->id,
                     'lrn' => $enrollment->student?->lrn ?? '',
+                    'email' => $enrollment->email,
                     'first_name' => $enrollment->student?->first_name ?? '',
                     'middle_name' => $enrollment->student?->middle_name,
                     'last_name' => $enrollment->student?->last_name ?? '',
@@ -362,8 +364,9 @@ class EnrollmentController extends Controller
             'gender' => 'nullable|string|in:Male,Female',
             'birthdate' => 'required|date|before_or_equal:today',
             'guardian_name' => 'required|string|max:255',
-            'guardian_contact_number' => 'required_without:emergency_contact|string|digits:11',
-            'emergency_contact' => 'nullable|string|digits:11',
+            'guardian_contact_number' => 'required_without:emergency_contact|string|max:20',
+            'emergency_contact' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
             'payment_term' => 'required|string|in:cash,full,monthly,quarterly,semi-annual',
             'downpayment' => 'nullable|numeric|min:0|max:999999.99',
             'section_id' => 'nullable|integer|exists:sections,id',
@@ -371,10 +374,10 @@ class EnrollmentController extends Controller
             'academic_year_id' => 'nullable|integer|exists:academic_years,id',
         ], [
             'lrn.digits' => 'LRN must be exactly 12 digits.',
-            'guardian_contact_number.digits' => 'Guardian contact number must be exactly 11 digits.',
-            'emergency_contact.digits' => 'Guardian contact number must be exactly 11 digits.',
         ]);
-        $guardianContactNumber = (string) ($validated['guardian_contact_number'] ?? $validated['emergency_contact'] ?? '');
+        $guardianContactNumber = $this->normalizeGuardianContactNumber(
+            (string) ($validated['guardian_contact_number'] ?? $validated['emergency_contact'] ?? '')
+        );
 
         $activeAcademicYear = isset($validated['academic_year_id'])
             ? AcademicYear::query()->find((int) $validated['academic_year_id'])
@@ -449,6 +452,7 @@ class EnrollmentController extends Controller
                 if ($existingEnrollment) {
                     $existingEnrollment->update([
                         'grade_level_id' => $resolvedGradeLevelId,
+                        'email' => $validated['email'] ?? null,
                         'section_id' => $selectedSection?->id,
                         'payment_term' => $paymentTerm,
                         'downpayment' => $downpayment,
@@ -465,6 +469,7 @@ class EnrollmentController extends Controller
 
                 $enrollment = Enrollment::query()->create([
                     'student_id' => $student->id,
+                    'email' => $validated['email'] ?? null,
                     'academic_year_id' => $activeAcademicYear->id,
                     'grade_level_id' => $resolvedGradeLevelId,
                     'section_id' => $selectedSection?->id,
@@ -532,17 +537,18 @@ class EnrollmentController extends Controller
             'gender' => 'nullable|string|in:Male,Female',
             'birthdate' => 'required|date|before_or_equal:today',
             'guardian_name' => 'required|string|max:255',
-            'guardian_contact_number' => 'required_without:emergency_contact|string|digits:11',
-            'emergency_contact' => 'nullable|string|digits:11',
+            'guardian_contact_number' => 'required_without:emergency_contact|string|max:20',
+            'emergency_contact' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
             'payment_term' => 'required|string|in:cash,full,monthly,quarterly,semi-annual',
             'downpayment' => 'nullable|numeric|min:0|max:999999.99',
             'section_id' => 'nullable|integer|exists:sections,id',
             'grade_level_id' => 'nullable|integer|exists:grade_levels,id',
         ], [
-            'guardian_contact_number.digits' => 'Guardian contact number must be exactly 11 digits.',
-            'emergency_contact.digits' => 'Guardian contact number must be exactly 11 digits.',
         ]);
-        $guardianContactNumber = (string) ($validated['guardian_contact_number'] ?? $validated['emergency_contact'] ?? '');
+        $guardianContactNumber = $this->normalizeGuardianContactNumber(
+            (string) ($validated['guardian_contact_number'] ?? $validated['emergency_contact'] ?? '')
+        );
 
         $paymentTerm = $this->normalizePaymentTerm($validated['payment_term']);
         $downpayment = $this->normalizeDownpayment($paymentTerm, $validated['downpayment'] ?? null);
@@ -582,6 +588,7 @@ class EnrollmentController extends Controller
 
                 $enrollment->update([
                     'grade_level_id' => $resolvedGradeLevelId,
+                    'email' => $validated['email'] ?? null,
                     'section_id' => $selectedSection?->id,
                     'payment_term' => $paymentTerm,
                     'downpayment' => $downpayment,
@@ -913,5 +920,26 @@ class EnrollmentController extends Controller
         }
 
         return $fallbackGradeLevelId;
+    }
+
+    private function normalizeGuardianContactNumber(string $phoneNumber): string
+    {
+        $digits = preg_replace('/\D+/', '', $phoneNumber) ?? '';
+
+        if (str_starts_with($digits, '09') && strlen($digits) === 11) {
+            return '+63'.substr($digits, 1);
+        }
+
+        if (str_starts_with($digits, '9') && strlen($digits) === 10) {
+            return '+63'.$digits;
+        }
+
+        if (str_starts_with($digits, '63') && strlen($digits) === 12) {
+            return '+'.$digits;
+        }
+
+        throw ValidationException::withMessages([
+            'guardian_contact_number' => 'Guardian contact number must be a valid PH mobile number (e.g. +639XXXXXXXXX).',
+        ]);
     }
 }

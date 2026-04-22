@@ -163,4 +163,9 @@ class User extends Authenticatable
     {
         return $this->hasOne(AccountActivationCode::class);
     }
+
+    public function accountClaimTokens(): HasMany
+    {
+        return $this->hasMany(AccountClaimToken::class);
+    }
 }

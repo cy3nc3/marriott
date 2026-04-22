@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AcademicYear;
+use App\Models\AccountClaimToken;
 use App\Models\BillingSchedule;
 use App\Models\Enrollment;
 use App\Models\Fee;
@@ -11,8 +12,10 @@ use App\Models\RemedialCase;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Notifications\EnrollmentAccountClaimNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -733,6 +736,81 @@ test('cashier transaction marks non cash enrollment as enrolled when downpayment
 
     $enrollment->refresh();
     expect($enrollment->status)->toBe('enrolled');
+});
+
+test('cashier transaction issues account claim token and queues claim email when enrollment becomes enrolled', function () {
+    config()->set('services.enrollment_claim_mail.enabled', true);
+    Notification::fake();
+
+    $academicYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 9',
+        'level_order' => 9,
+    ]);
+
+    $studentUser = User::factory()->create([
+        'must_change_password' => true,
+    ]);
+
+    $student = Student::query()->create([
+        'user_id' => $studentUser->id,
+        'lrn' => '355678901234',
+        'first_name' => 'Nina',
+        'last_name' => 'Santiago',
+    ]);
+
+    $enrollment = Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $academicYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => null,
+        'email' => 'nina.santiago@example.test',
+        'payment_term' => 'monthly',
+        'downpayment' => 3000,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    $this->post('/finance/cashier-panel/transactions', [
+        'student_id' => $student->id,
+        'or_number' => 'OR-2026-0002-B',
+        'payment_mode' => 'cash',
+        'reference_no' => null,
+        'remarks' => null,
+        'tendered_amount' => 3000,
+        'items' => [
+            [
+                'type' => 'custom',
+                'description' => 'Enrollment Downpayment',
+                'amount' => 3000,
+            ],
+        ],
+    ])->assertRedirect();
+
+    $enrollment->refresh();
+
+    expect($enrollment->status)->toBe('enrolled');
+    expect(AccountClaimToken::query()->where('user_id', $studentUser->id)->count())->toBe(1);
+
+    Notification::assertSentOnDemand(
+        EnrollmentAccountClaimNotification::class,
+        function (EnrollmentAccountClaimNotification $notification, array $channels, object $notifiable): bool {
+            $mailRoutes = $notifiable->routes['mail'] ?? [];
+
+            if (is_string($mailRoutes)) {
+                $mailRoutes = [$mailRoutes];
+            }
+
+            return in_array('mail', $channels, true)
+                && in_array('nina.santiago@example.test', $mailRoutes, true);
+        },
+    );
 });
 
 test('cashier transaction still enrolls when posted date is outside school year date range', function () {
