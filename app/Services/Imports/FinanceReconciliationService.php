@@ -54,7 +54,7 @@ class FinanceReconciliationService
             return null;
         }
 
-        foreach (['amount', 'amount_due', 'due_amount', 'total_amount'] as $key) {
+        foreach (['amount', 'amount_due', 'due_amount', 'total_amount', 'payment_amount', 'installment_amount'] as $key) {
             if (! array_key_exists($key, $row)) {
                 continue;
             }

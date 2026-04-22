@@ -98,9 +98,7 @@ class DuplicateEngine
 
     private function normalizeString(mixed $value): ?string
     {
-        $normalized = trim((string) $value);
-
-        return $normalized !== '' ? $normalized : null;
+        return $this->valueParser->normalizeString($value);
     }
 
     private function normalizeAmount(mixed $value): ?string

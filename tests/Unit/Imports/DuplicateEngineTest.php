@@ -49,6 +49,18 @@ test('duplicate engine accepts formatted currency amounts in fallback duplicate 
     ]))->toBe('123456789012|2026-04-21|1234.50|REF-001');
 });
 
+test('duplicate engine normalizes duplicated internal whitespace in key parts', function (): void {
+    $engine = app(DuplicateEngine::class);
+
+    expect($engine->paymentDuplicateKey([
+        'lrn' => '123456789012',
+        'or_number' => 'OR-  000123',
+        'payment_date' => '04/21/2026',
+        'amount' => '1500.00',
+        'reference_no' => 'REF  001',
+    ]))->toBe('123456789012|OR- 000123');
+});
+
 test('duplicate engine returns null when the fallback key cannot be assembled', function (): void {
     $engine = app(DuplicateEngine::class);
 

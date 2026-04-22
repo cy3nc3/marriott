@@ -61,3 +61,21 @@ test('finance reconciliation service parses formatted currency strings', functio
         'valid' => true,
     ]);
 });
+
+test('finance reconciliation service resolves payment and installment amount aliases', function (): void {
+    $service = app(FinanceReconciliationService::class);
+
+    expect($service->reconcile(
+        [
+            ['payment_amount' => '₱1,000.00'],
+        ],
+        [
+            ['installment_amount' => '₱250.00'],
+        ],
+        750.00
+    ))->toBe([
+        'net' => 750.00,
+        'expected_delta' => 750.00,
+        'valid' => true,
+    ]);
+});
