@@ -26,6 +26,9 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
   - Initial target: smallest managed node in `sgp1`, then scale vertically based on real production metrics.
 - `[?]` Mail provider: undecided
   - Needed for password reset, account verification, reminders, and production notifications.
+  - Constraint: do not plan on self-hosted SMTP from the droplet; use a third-party mail provider/API.
+  - Inbox access note: system-generated addresses require mailbox hosting (or forwarding) to be readable; sending-only SMTP/API does not create inboxes.
+  - Draft implementation guide: see `docs/email-demo-delivery-plan.md` (includes enrollment-triggered email flow and free-provider setup options).
 - `[?]` Backup storage strategy: undecided
   - Decide whether backups stay on the server, are copied off-server, or are stored in cloud/object storage.
 - `[?]` Deployment method: undecided
@@ -95,14 +98,13 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
   - DigitalOcean selected; droplet, managed database, and Spaces are provisioned.
   - Remaining provisioning work: OS/app stack setup, firewall hardening, deployment pipeline, and runtime process configuration.
   - Access milestone: SSH access to the production droplet is confirmed.
-- `[ ]` Install or confirm PHP version compatible with the app.
+- `[x]` Install or confirm PHP version compatible with the app.
   - Project target from AGENTS.md: PHP 8.4.1.
   - Composer constraint currently allows PHP `^8.2`.
   - Current server status: PHP 8.4.x installed and confirmed on droplet.
-- `[ ]` Install required PHP extensions.
+- `[/]` Install required PHP extensions.
   - Minimum expected Laravel extensions: BCMath, Ctype, cURL, DOM, Fileinfo, JSON, Mbstring, OpenSSL, PDO, Tokenizer, XML.
   - Also verify extensions needed by PhpSpreadsheet exports, such as Zip, XML, GD, and related spreadsheet/image support.
-- `[/]` Install required PHP extensions.
   - Initial Laravel/Spreadsheet-related extension set installed on droplet; final verification pending `composer check-platform-reqs`.
 - `[x]` Install Composer on the deployment machine or build machine.
 - `[x]` Install Node.js and npm compatible with the Vite build.
@@ -169,9 +171,12 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
 ```
 
 - `[ ]` Confirm scheduled commands are expected in production:
-  - `grading:send-deadline-reminders`
-  - `finance:send-due-reminders`
-  - `announcements:send-event-reminders`
+  - Current scheduler entry: `notifications:dispatch-scheduled` (runs every minute via `schedule:run`).
+  - Confirm this dispatcher covers grading, finance, and announcement reminder workflows in production.
+  - Manual command paths still available:
+    - `grading:send-deadline-reminders`
+    - `finance:send-due-reminders`
+    - `announcements:send-event-reminders`
 - `[ ]` Configure a persistent queue worker with Supervisor, systemd, or the host's process manager.
 - `[ ]` Use a production queue command similar to:
 
@@ -275,19 +280,21 @@ php artisan queue:restart
 
 ## Verification Commands
 
-- `[ ]` Run PHP tests:
+- `[!]` Run PHP tests:
+  - Current blocker: `php artisan test --compact` fails with duplicate Pest test-case usage in `tests/Feature/Finance/FinanceImportBatchWorkflowTest.php`.
+  - Resolve test bootstrap conflict before production cutover.
 
 ```bash
 php artisan test --compact
 ```
 
-- `[ ]` Run frontend type check:
+- `[x]` Run frontend type check:
 
 ```bash
 npm run types
 ```
 
-- `[ ]` Run frontend build:
+- `[x]` Run frontend build:
 
 ```bash
 npm run build
@@ -359,6 +366,7 @@ Add dated entries here as decisions are made.
 | 2026-04-21 | Added detailed DigitalOcean stack and cost-planning section | Includes droplet size options, optional services, monthly scenarios, and credit constraints for budgeting. |
 | 2026-04-22 | Database engine set to Managed PostgreSQL | Chosen for easier operations and cleaner separation from application compute. |
 | 2026-04-22 | Spaces selected for production object storage | Bucket(s) provisioned to support public/private file handling and backup offloading. |
+| 2026-04-22 | Outbound mail delivery constraint identified | DigitalOcean droplet SMTP ports are blocked by default; third-party email provider/API is required. |
 
 ## Completion Log
 
@@ -371,3 +379,5 @@ Add dated entries here as tasks are completed.
 | 2026-04-22 | Spaces object storage provisioned | Bucket(s) created for production file storage strategy. |
 | 2026-04-22 | SSH access to production droplet confirmed | Successful key-based login from local machine to droplet. |
 | 2026-04-22 | Base runtime installed on droplet | Confirmed PHP 8.4.x, Node 22.x, npm, and Composer availability. |
+| 2026-04-22 | Local frontend verification passed | `npm run types` and `npm run build` completed successfully. |
+| 2026-04-22 | Local backend test verification blocked | `php artisan test --compact` failed due duplicate Pest test-case declaration in finance feature tests. |
