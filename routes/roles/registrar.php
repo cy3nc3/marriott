@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Imports\ImportBatchRollbackController;
+use App\Http\Controllers\Imports\StudentImportBatchController;
 use App\Http\Controllers\Registrar\BatchPromotionController;
 use App\Http\Controllers\Registrar\DataImportController;
 use App\Http\Controllers\Registrar\EnrollmentController;
@@ -25,6 +27,11 @@ Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->
     Route::get('/permanent-records', [PermanentRecordsController::class, 'index'])->middleware('desktop_only')->name('permanent_records');
     Route::get('/data-import', [DataImportController::class, 'index'])->middleware('desktop_only')->name('data_import');
     Route::post('/data-import/permanent-records', [DataImportController::class, 'import'])->middleware('desktop_only')->name('data_import.permanent_records');
+    Route::post('/import-batches', [StudentImportBatchController::class, 'store'])->middleware('desktop_only')->name('import_batches.store');
+    Route::post('/import-batches/{importBatch}/preview', [StudentImportBatchController::class, 'preview'])->middleware('desktop_only')->name('import_batches.preview');
+    Route::patch('/import-batches/{importBatch}/rows/{importBatchRow}', [StudentImportBatchController::class, 'updateRow'])->middleware('desktop_only')->name('import_batches.rows.update');
+    Route::post('/import-batches/{importBatch}/apply', [StudentImportBatchController::class, 'apply'])->middleware('desktop_only')->name('import_batches.apply');
+    Route::post('/import-batches/{importBatch}/rollback', [ImportBatchRollbackController::class, 'store'])->middleware('desktop_only')->name('import_batches.rollback');
 
     Route::get('/batch-promotion', [BatchPromotionController::class, 'index'])->middleware('desktop_only')->name('batch_promotion');
     Route::post('/batch-promotion/review', [BatchPromotionController::class, 'resolveReviewCase'])->middleware('desktop_only')->name('batch_promotion.review');

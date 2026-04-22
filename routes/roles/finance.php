@@ -9,6 +9,8 @@ use App\Http\Controllers\Finance\FeeStructureController;
 use App\Http\Controllers\Finance\ProductInventoryController;
 use App\Http\Controllers\Finance\StudentLedgersController;
 use App\Http\Controllers\Finance\TransactionHistoryController;
+use App\Http\Controllers\Imports\FinanceImportBatchController;
+use App\Http\Controllers\Imports\ImportBatchRollbackController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'role:finance'])->prefix('finance')->name('finance.')->group(function () {
@@ -27,6 +29,11 @@ Route::middleware(['auth', 'verified', 'role:finance'])->prefix('finance')->name
     Route::post('/transaction-history/{transaction}/reissue', [TransactionHistoryController::class, 'reissue'])->middleware('desktop_only')->name('transaction_history.reissue');
     Route::get('/data-import', [DataImportController::class, 'index'])->middleware('desktop_only')->name('data_import');
     Route::post('/data-import/transactions', [DataImportController::class, 'import'])->middleware('desktop_only')->name('data_import.transactions');
+    Route::post('/import-batches', [FinanceImportBatchController::class, 'store'])->middleware('desktop_only')->name('import_batches.store');
+    Route::post('/import-batches/{importBatch}/preview', [FinanceImportBatchController::class, 'preview'])->middleware('desktop_only')->name('import_batches.preview');
+    Route::patch('/import-batches/{importBatch}/rows/{importBatchRow}', [FinanceImportBatchController::class, 'updateRow'])->middleware('desktop_only')->name('import_batches.rows.update');
+    Route::post('/import-batches/{importBatch}/apply', [FinanceImportBatchController::class, 'apply'])->middleware('desktop_only')->name('import_batches.apply');
+    Route::post('/import-batches/{importBatch}/rollback', [ImportBatchRollbackController::class, 'store'])->middleware('desktop_only')->name('import_batches.rollback');
 
     Route::get('/product-inventory', [ProductInventoryController::class, 'index'])->middleware('desktop_only')->name('product_inventory');
     Route::post('/product-inventory', [ProductInventoryController::class, 'store'])->middleware('desktop_only')->name('product_inventory.store');
