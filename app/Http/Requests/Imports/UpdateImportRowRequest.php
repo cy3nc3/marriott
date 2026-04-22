@@ -17,8 +17,8 @@ class UpdateImportRowRequest extends FormRequest
             'normalized_payload' => ['nullable', 'array'],
             'validation_errors' => ['nullable', 'array'],
             'duplicate_flags' => ['nullable', 'array'],
-            'classification' => ['nullable', 'string', 'max:255'],
-            'action' => ['nullable', 'string', 'max:255'],
+            'classification' => ['nullable', 'in:payment,due,mixed,unresolved'],
+            'action' => ['nullable', 'in:pending,create,update,skip,blocked'],
             'is_unresolved' => ['nullable', 'boolean'],
         ];
     }

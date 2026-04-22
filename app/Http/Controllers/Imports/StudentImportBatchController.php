@@ -17,6 +17,14 @@ class StudentImportBatchController extends Controller
 {
     private const MODULE = 'registrar_students';
 
+    private const STATUS_UPLOADED = 'uploaded';
+
+    private const STATUS_PREVIEWED = 'previewed';
+
+    private const STATUS_APPLIED = 'applied';
+
+    private const STATUS_ROLLED_BACK = 'rolled_back';
+
     public function store(UploadImportBatchRequest $request): JsonResponse
     {
         $file = $request->file('import_file');
@@ -42,7 +50,12 @@ class StudentImportBatchController extends Controller
 
     public function preview(PreviewImportBatchRequest $request, ImportBatch $importBatch): JsonResponse
     {
-        $batch = $this->batch($importBatch);
+        $batch = $this->batch($request, $importBatch);
+        $this->ensureBatchState(
+            $batch,
+            [self::STATUS_UPLOADED, self::STATUS_PREVIEWED],
+            'Only uploaded or previewed batches can be previewed.'
+        );
         $validated = $request->validated();
 
         $batch->update([
@@ -50,7 +63,7 @@ class StudentImportBatchController extends Controller
             'summary' => array_merge($batch->summary ?? [], $validated['summary'] ?? [], [
                 'preview_generated' => true,
             ]),
-            'status' => 'previewed',
+            'status' => self::STATUS_PREVIEWED,
             'previewed_at' => now(),
         ]);
 
@@ -65,7 +78,12 @@ class StudentImportBatchController extends Controller
         ImportBatch $importBatch,
         ImportBatchRow $importBatchRow
     ): JsonResponse {
-        $batch = $this->batch($importBatch);
+        $batch = $this->batch($request, $importBatch);
+        $this->ensureBatchState(
+            $batch,
+            [self::STATUS_UPLOADED, self::STATUS_PREVIEWED],
+            'Rows can only be edited before the batch is applied.'
+        );
 
         abort_unless($importBatchRow->import_batch_id === $batch->id, 404);
 
@@ -97,7 +115,12 @@ class StudentImportBatchController extends Controller
 
     public function apply(ApplyImportBatchRequest $request, ImportBatch $importBatch): JsonResponse
     {
-        $batch = $this->batch($importBatch);
+        $batch = $this->batch($request, $importBatch);
+        $this->ensureBatchState(
+            $batch,
+            [self::STATUS_PREVIEWED],
+            'Preview is required before applying this import batch.'
+        );
 
         if ($batch->previewed_at === null) {
             throw ValidationException::withMessages([
@@ -109,7 +132,7 @@ class StudentImportBatchController extends Controller
             'summary' => array_merge($batch->summary ?? [], [
                 'applied_stub' => true,
             ]),
-            'status' => 'applied',
+            'status' => self::STATUS_APPLIED,
             'applied_at' => now(),
         ]);
 
@@ -119,11 +142,48 @@ class StudentImportBatchController extends Controller
         ]);
     }
 
-    private function batch(ImportBatch $importBatch): ImportBatch
+    private function batch(ApplyImportBatchRequest|PreviewImportBatchRequest|UpdateImportRowRequest $request, ImportBatch $importBatch): ImportBatch
     {
         abort_unless($importBatch->module === self::MODULE, 404);
+        abort_if((int) $importBatch->uploaded_by !== (int) $request->user()?->id, 403);
 
         return $importBatch;
+    }
+
+    private function ensureBatchState(ImportBatch $batch, array $allowedStatuses, string $transitionMessage): void
+    {
+        $this->ensureConsistentState($batch);
+
+        if (! in_array($batch->status, $allowedStatuses, true)) {
+            throw ValidationException::withMessages([
+                'batch' => $transitionMessage,
+            ]);
+        }
+    }
+
+    private function ensureConsistentState(ImportBatch $batch): void
+    {
+        $isConsistent = match ($batch->status) {
+            self::STATUS_UPLOADED => $batch->previewed_at === null
+                && $batch->applied_at === null
+                && $batch->rolled_back_at === null,
+            self::STATUS_PREVIEWED => $batch->previewed_at !== null
+                && $batch->applied_at === null
+                && $batch->rolled_back_at === null,
+            self::STATUS_APPLIED => $batch->previewed_at !== null
+                && $batch->applied_at !== null
+                && $batch->rolled_back_at === null,
+            self::STATUS_ROLLED_BACK => $batch->previewed_at !== null
+                && $batch->applied_at !== null
+                && $batch->rolled_back_at !== null,
+            default => false,
+        };
+
+        if (! $isConsistent) {
+            throw ValidationException::withMessages([
+                'batch' => 'Import batch state is inconsistent.',
+            ]);
+        }
     }
 
     private function batchPayload(ImportBatch $importBatch): array

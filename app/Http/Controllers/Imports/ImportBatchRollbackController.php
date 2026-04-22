@@ -15,10 +15,12 @@ class ImportBatchRollbackController extends Controller
         $expectedModule = $this->expectedModule($request);
 
         abort_unless($expectedModule !== null && $importBatch->module === $expectedModule, 404);
+        abort_if((int) $importBatch->uploaded_by !== (int) $request->user()?->id, 403);
+        $this->ensureConsistentState($importBatch);
 
-        if ($importBatch->applied_at === null) {
+        if ($importBatch->status !== 'applied' || $importBatch->applied_at === null) {
             throw ValidationException::withMessages([
-                'batch' => 'Apply is required before rolling back this import batch.',
+                'batch' => 'Only applied batches can be rolled back.',
             ]);
         }
 
@@ -52,5 +54,30 @@ class ImportBatchRollbackController extends Controller
         }
 
         return null;
+    }
+
+    private function ensureConsistentState(ImportBatch $batch): void
+    {
+        $isConsistent = match ($batch->status) {
+            'uploaded' => $batch->previewed_at === null
+                && $batch->applied_at === null
+                && $batch->rolled_back_at === null,
+            'previewed' => $batch->previewed_at !== null
+                && $batch->applied_at === null
+                && $batch->rolled_back_at === null,
+            'applied' => $batch->previewed_at !== null
+                && $batch->applied_at !== null
+                && $batch->rolled_back_at === null,
+            'rolled_back' => $batch->previewed_at !== null
+                && $batch->applied_at !== null
+                && $batch->rolled_back_at !== null,
+            default => false,
+        };
+
+        if (! $isConsistent) {
+            throw ValidationException::withMessages([
+                'batch' => 'Import batch state is inconsistent.',
+            ]);
+        }
     }
 }
