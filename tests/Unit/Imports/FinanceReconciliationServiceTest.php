@@ -62,6 +62,24 @@ test('finance reconciliation service parses formatted currency strings', functio
     ]);
 });
 
+test('finance reconciliation service ignores payment-family aliases in due context', function (): void {
+    $service = app(FinanceReconciliationService::class);
+
+    expect($service->reconcile(
+        [
+            ['amount' => '$1,000.00', 'payment_amount' => '$900.00', 'total_amount' => '$800.00'],
+        ],
+        [
+            ['amount' => '$100.00'],
+        ],
+        -100.00
+    ))->toBe([
+        'net' => -100.00,
+        'expected_delta' => -100.00,
+        'valid' => true,
+    ]);
+});
+
 test('finance reconciliation service resolves mixed alias rows by context', function (): void {
     $service = app(FinanceReconciliationService::class);
 

@@ -55,7 +55,7 @@ class FinanceReconciliationService
         }
 
         $aliasPriority = $isDueContext
-            ? ['amount_due', 'due_amount', 'installment_amount', 'total_amount', 'amount', 'payment_amount']
+            ? ['amount_due', 'due_amount', 'installment_amount']
             : ['amount', 'payment_amount', 'total_amount', 'amount_due', 'due_amount', 'installment_amount'];
 
         foreach ($aliasPriority as $key) {
