@@ -25,12 +25,14 @@ class AnnouncementEventService
 
         $targetRoles = $this->normalizeStringArray($validated['target_roles'] ?? null);
         $targetUserIds = $this->normalizeIntegerArray($validated['target_user_ids'] ?? null);
+        $deliveryChannels = $this->normalizeDeliveryChannels($validated['delivery_channels'] ?? null);
 
         $payload = [
             ...$validated,
             'type' => $normalizedType,
             'target_roles' => $targetRoles !== [] ? $targetRoles : null,
             'target_user_ids' => $targetUserIds !== [] ? $targetUserIds : null,
+            'delivery_channels' => $deliveryChannels,
         ];
 
         if ($normalizedType === Announcement::TYPE_EVENT) {
@@ -222,5 +224,27 @@ class AnnouncementEventService
         }
 
         return (string) $user->role;
+    }
+
+    /**
+     * @param  array<int, mixed>|null  $values
+     * @return array<int, string>
+     */
+    private function normalizeDeliveryChannels(?array $values): array
+    {
+        $channels = collect($values ?? [])
+            ->filter(fn (mixed $value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn (string $value): string => trim(strtolower($value)))
+            ->filter(
+                fn (string $value): bool => in_array($value, Announcement::allowedDeliveryChannels(), true)
+            )
+            ->unique()
+            ->values();
+
+        if (! $channels->contains(Announcement::DELIVERY_CHANNEL_IN_APP)) {
+            $channels->prepend(Announcement::DELIVERY_CHANNEL_IN_APP);
+        }
+
+        return $channels->all();
     }
 }

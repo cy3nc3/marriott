@@ -33,6 +33,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { UsersCombobox } from '@/components/ui/users-combobox';
 import AppLayout from '@/layouts/app-layout';
@@ -62,6 +63,7 @@ interface AnnouncementRecord {
     response_mode: 'none' | 'ack_rsvp';
     target_roles: string[] | null;
     target_user_ids: number[] | null;
+    delivery_channels: ('in_app' | 'email' | 'sms')[];
     is_active: boolean;
     created_at: string;
     publish_at: string | null;
@@ -170,6 +172,7 @@ export default function Announcements({
         type: 'notice' as 'notice' | 'event',
         target_roles: [] as string[],
         target_user_ids: [] as number[],
+        delivery_channels: ['in_app'] as ('in_app' | 'email' | 'sms')[],
         publish_at: '',
         event_starts_at: '',
         event_ends_at: '',
@@ -244,6 +247,7 @@ export default function Announcements({
                 type: item.type,
                 target_roles: item.target_roles ?? [],
                 target_user_ids: item.target_user_ids ?? [],
+                delivery_channels: item.delivery_channels ?? ['in_app'],
                 publish_at: toDateTimeLocalValue(item.publish_at),
                 event_starts_at: toDateTimeLocalValue(item.event_starts_at),
                 event_ends_at: toDateTimeLocalValue(item.event_ends_at),
@@ -264,6 +268,7 @@ export default function Announcements({
                 type: 'notice',
                 target_roles: [],
                 target_user_ids: [],
+                delivery_channels: ['in_app'],
                 publish_at: '',
                 event_starts_at: '',
                 event_ends_at: '',
@@ -298,6 +303,29 @@ export default function Announcements({
             forceFormData: true,
             onSuccess: closeDialog,
         });
+    };
+
+    const toggleDeliveryChannel = (channel: 'email' | 'sms', enabled: boolean) => {
+        const baseChannels = form.data.delivery_channels.includes('in_app')
+            ? form.data.delivery_channels
+            : ['in_app', ...form.data.delivery_channels];
+
+        const filteredChannels = baseChannels.filter(
+            (value) => value === 'in_app' || value === 'email' || value === 'sms',
+        );
+
+        const nextSet = new Set(filteredChannels);
+        if (enabled) {
+            nextSet.add(channel);
+        } else {
+            nextSet.delete(channel);
+        }
+
+        if (!nextSet.has('in_app')) {
+            nextSet.add('in_app');
+        }
+
+        form.setData('delivery_channels', Array.from(nextSet) as ('in_app' | 'email' | 'sms')[]);
     };
 
     const submitDelete = () => {
@@ -825,6 +853,48 @@ export default function Announcements({
                         {form.errors.target_user_ids && (
                             <p className="text-xs text-destructive">
                                 {form.errors.target_user_ids}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="grid gap-3 rounded-md border p-3">
+                        <div>
+                            <Label>Delivery Channels</Label>
+                            <p className="text-xs text-muted-foreground">
+                                In-app delivery is always enabled. Optionally send email or SMS as well.
+                            </p>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+                            <div>
+                                <p className="text-sm font-medium">Email (Resend)</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Send a copy to each recipient&apos;s email.
+                                </p>
+                            </div>
+                            <Switch
+                                checked={form.data.delivery_channels.includes('email')}
+                                onCheckedChange={(checked) =>
+                                    toggleDeliveryChannel('email', Boolean(checked))
+                                }
+                            />
+                        </div>
+                        <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+                            <div>
+                                <p className="text-sm font-medium">SMS (Firebase backend)</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Sends only when Firebase SMS mode supports custom message dispatch.
+                                </p>
+                            </div>
+                            <Switch
+                                checked={form.data.delivery_channels.includes('sms')}
+                                onCheckedChange={(checked) =>
+                                    toggleDeliveryChannel('sms', Boolean(checked))
+                                }
+                            />
+                        </div>
+                        {form.errors.delivery_channels && (
+                            <p className="text-xs text-destructive">
+                                {form.errors.delivery_channels}
                             </p>
                         )}
                     </div>

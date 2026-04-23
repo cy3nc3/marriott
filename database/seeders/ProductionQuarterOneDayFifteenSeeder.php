@@ -668,7 +668,7 @@ class ProductionQuarterOneDayFifteenSeeder extends Seeder
                         'last_name' => $lastName,
                         'gender' => $gender,
                         'birthdate' => $birthdate,
-                        'contact_number' => '09'.substr($lrn, 0, 9),
+                        'contact_number' => '+639'.substr($lrn, 0, 9),
                         'address' => "{$section->name}, San Francisco Del Monte, Quezon City",
                         'guardian_name' => "Parent {$lastName}",
                         'is_lis_synced' => true,

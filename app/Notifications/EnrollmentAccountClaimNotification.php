@@ -12,9 +12,9 @@ class EnrollmentAccountClaimNotification extends Notification implements ShouldQ
     use Queueable;
 
     public function __construct(
-        private readonly string $claimUrl,
+        private readonly ?string $studentClaimUrl,
+        private readonly ?string $parentClaimUrl,
         private readonly string $expiresAtLabel,
-        private readonly string $accountEmail,
     ) {}
 
     /**
@@ -32,14 +32,21 @@ class EnrollmentAccountClaimNotification extends Notification implements ShouldQ
      */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        $mailMessage = (new MailMessage)
             ->subject('Your MarriottConnect account is ready')
             ->greeting('Hello!')
-            ->line('Your enrollment has been approved, and your MarriottConnect account is ready.')
-            ->line("Account email: {$this->accountEmail}")
-            ->action('Set your password', $this->claimUrl)
-            ->line("This claim link expires on {$this->expiresAtLabel}.")
+            ->line('Your enrollment has been approved, and your MarriottConnect accounts are ready.')
+            ->line('Use the links below to set each account password:')
+            ->line($this->studentClaimUrl
+                ? "Claim Student Account: {$this->studentClaimUrl}"
+                : 'Claim Student Account: Not available')
+            ->line($this->parentClaimUrl
+                ? "Claim Parent Account: {$this->parentClaimUrl}"
+                : 'Claim Parent Account: Not available')
+            ->line("These claim links expire on {$this->expiresAtLabel}.")
             ->line('If you did not expect this message, please contact school support.');
+
+        return $mailMessage;
     }
 
     /**
@@ -50,9 +57,9 @@ class EnrollmentAccountClaimNotification extends Notification implements ShouldQ
     public function toArray(object $notifiable): array
     {
         return [
-            'claim_url' => $this->claimUrl,
+            'student_claim_url' => $this->studentClaimUrl,
+            'parent_claim_url' => $this->parentClaimUrl,
             'expires_at_label' => $this->expiresAtLabel,
-            'account_email' => $this->accountEmail,
         ];
     }
 }

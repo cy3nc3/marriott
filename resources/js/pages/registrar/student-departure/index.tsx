@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { AlertTriangle, Search, UserMinus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +45,10 @@ type LookupStudent = {
     id: number;
     lrn: string;
     name: string;
+};
+
+type StudentSuggestionsResponse = {
+    students: LookupStudent[];
 };
 
 type SelectedStudent = {
@@ -93,13 +97,20 @@ export default function StudentDeparture({
 }: Props) {
     const [searchValue, setSearchValue] = useState(filters.search ?? '');
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-    const searchSuggestions = student_lookup.map((student) => ({
-        id: student.id,
-        label: student.name,
-        value: student.name,
-        description: `LRN: ${student.lrn}`,
-        keywords: student.lrn,
-    }));
+    const baseSearchSuggestions = useMemo(
+        () =>
+            student_lookup.map((student) => ({
+                id: student.id,
+                label: student.name,
+                value: student.name,
+                description: `LRN: ${student.lrn}`,
+                keywords: student.lrn,
+            })),
+        [student_lookup],
+    );
+    const [searchSuggestions, setSearchSuggestions] = useState(
+        baseSearchSuggestions,
+    );
 
     const departureForm = useForm({
         student_id: selected_student?.id ?? 0,
@@ -118,6 +129,63 @@ export default function StudentDeparture({
             remarks: departure_form_defaults.remarks,
         });
     }, [selected_student, departure_form_defaults, departureForm]);
+
+    useEffect(() => {
+        setSearchSuggestions(baseSearchSuggestions);
+    }, [baseSearchSuggestions]);
+
+    useEffect(() => {
+        const normalizedQuery = searchValue.trim();
+
+        if (normalizedQuery === '') {
+            setSearchSuggestions(baseSearchSuggestions);
+
+            return;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(async () => {
+            try {
+                const response = await fetch(
+                    `/registrar/student-departure/student-suggestions?search=${encodeURIComponent(normalizedQuery)}`,
+                    {
+                        headers: {
+                            Accept: 'application/json',
+                        },
+                        signal: controller.signal,
+                    },
+                );
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const payload =
+                    (await response.json()) as StudentSuggestionsResponse;
+                setSearchSuggestions(
+                    payload.students.map((student) => ({
+                        id: student.id,
+                        label: student.name,
+                        value: student.name,
+                        description: `LRN: ${student.lrn}`,
+                        keywords: student.lrn,
+                    })),
+                );
+            } catch (error) {
+                if (
+                    error instanceof DOMException &&
+                    error.name === 'AbortError'
+                ) {
+                    return;
+                }
+            }
+        }, 250);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+            controller.abort();
+        };
+    }, [baseSearchSuggestions, searchValue]);
 
     const applyLookupFilters = (next?: {
         search?: string;
@@ -158,7 +226,7 @@ export default function StudentDeparture({
                         <CardTitle>Student Lookup</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                        <div className="grid gap-4 md:grid-cols-[1fr_300px_auto]">
+                        <div className="grid gap-4 md:grid-cols-[1fr_auto]">
                             <div className="space-y-2">
                                 <Label>Search</Label>
                                 <SearchAutocompleteInput
@@ -166,7 +234,12 @@ export default function StudentDeparture({
                                     value={searchValue}
                                     onValueChange={setSearchValue}
                                     suggestions={searchSuggestions}
-                                    onEnterPress={applyLookupFilters}
+                                    onEnterPress={() =>
+                                        applyLookupFilters({
+                                            search: searchValue,
+                                            studentId: null,
+                                        })
+                                    }
                                     onSelectSuggestion={(option) => {
                                         const selectedSearch =
                                             option.value ?? option.label;
@@ -178,39 +251,15 @@ export default function StudentDeparture({
                                     }}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label>Selected Learner</Label>
-                                <Select
-                                    value={
-                                        selected_student
-                                            ? String(selected_student.id)
-                                            : undefined
-                                    }
-                                    onValueChange={(value) =>
-                                        applyLookupFilters({
-                                            studentId: Number(value),
-                                        })
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select learner" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {student_lookup.map((student) => (
-                                            <SelectItem
-                                                key={student.id}
-                                                value={String(student.id)}
-                                            >
-                                                {student.name} ({student.lrn})
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
                             <div className="flex items-end">
                                 <Button
                                     variant="outline"
-                                    onClick={() => applyLookupFilters()}
+                                    onClick={() =>
+                                        applyLookupFilters({
+                                            search: searchValue,
+                                            studentId: null,
+                                        })
+                                    }
                                 >
                                     <Search className="size-4" />
                                     Search

@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import InputError from '@/components/input-error';
@@ -9,6 +9,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
 import { firebaseAuth } from '@/lib/firebase';
+import type { SharedData } from '@/types';
 
 type Props = {
     token: string;
@@ -16,6 +17,8 @@ type Props = {
     phone_number_redacted: string;
     phone_verified: boolean;
     is_expired: boolean;
+    claim_completed: boolean;
+    login_url: string;
 };
 
 export default function ClaimAccount({
@@ -24,7 +27,10 @@ export default function ClaimAccount({
     phone_number_redacted,
     phone_verified,
     is_expired,
+    claim_completed,
+    login_url,
 }: Props) {
+    const { flash } = usePage<SharedData>().props;
     const normalizeMobileSubscriberDigits = (value: string): string => {
         const digits = value.replace(/\D/g, '');
 
@@ -59,6 +65,10 @@ export default function ClaimAccount({
     const confirmationResultRef = useRef<ConfirmationResult | null>(null);
 
     const canSetPassword = phone_verified && !is_expired;
+    const claimCompletionMessage =
+        (typeof flash.status === 'string' && flash.status.trim() !== ''
+            ? flash.status
+            : 'Password has been set successfully. Make sure to remember your account email and password.') as string;
 
     const normalizedSubscriberPhoneNumber = useMemo(() => {
         const digits = normalizeMobileSubscriberDigits(phoneNumberInput || '');
@@ -310,14 +320,41 @@ export default function ClaimAccount({
             <div className="grid gap-6">
                 <div id="claim-recaptcha" className="hidden" />
 
-                {!canSetPassword && (
+                {claim_completed && (
+                    <div className="grid gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                        <p className="text-sm font-medium text-emerald-700">
+                            Password Set Successfully
+                        </p>
+                        <p className="text-sm text-emerald-700">
+                            {claimCompletionMessage}
+                        </p>
+                        <div className="grid gap-2">
+                            <Label htmlFor="account_email_confirmed">Account email</Label>
+                            <Input
+                                id="account_email_confirmed"
+                                type="email"
+                                value={account_email}
+                                readOnly
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            className="w-full"
+                            onClick={() => router.visit(login_url)}
+                        >
+                            Proceed to Log in
+                        </Button>
+                    </div>
+                )}
+
+                {!claim_completed && !canSetPassword && (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p className="text-sm font-medium text-slate-700">Mobile Number:</p>
                         <p className="mt-1 text-base text-slate-900">{phone_number_redacted}</p>
                     </div>
                 )}
 
-                {!phone_verified && !otpSent && (
+                {!claim_completed && !phone_verified && !otpSent && (
                     <div className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p className="text-sm text-slate-600">
                             Enter the full phone number used during enrollment. We will verify it
@@ -356,7 +393,7 @@ export default function ClaimAccount({
                     </div>
                 )}
 
-                {!phone_verified && otpSent && (
+                {!claim_completed && !phone_verified && otpSent && (
                     <div className="grid gap-4 rounded-xl border border-slate-200 p-4">
                         <p className="text-sm text-slate-700">
                             Phone number verified! Check the phone number for the one-time password
@@ -384,7 +421,7 @@ export default function ClaimAccount({
                     </div>
                 )}
 
-                {canSetPassword && (
+                {!claim_completed && canSetPassword && (
                     <div className="grid gap-6 rounded-xl border border-slate-200 p-4">
                         <div className="grid gap-2">
                             <Label htmlFor="account_email">Account email</Label>
@@ -424,7 +461,7 @@ export default function ClaimAccount({
                     </div>
                 )}
 
-                {is_expired && !phone_verified && (
+                {!claim_completed && is_expired && !phone_verified && (
                     <p className="text-sm text-amber-700">
                         This claim link has expired. Verify OTP to generate a new claim link.
                     </p>

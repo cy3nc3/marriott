@@ -115,4 +115,17 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Demo Redirect Recipient
+    |--------------------------------------------------------------------------
+    |
+    | When set, all outbound application email is redirected to this single
+    | recipient. This is useful for capstone/demo environments where user
+    | mailbox hosting is not provisioned yet.
+    |
+    */
+
+    'demo_redirect_to' => env('DEMO_MAIL_REDIRECT_TO'),
+
 ];

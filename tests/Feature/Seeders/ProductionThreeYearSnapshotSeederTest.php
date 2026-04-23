@@ -11,7 +11,9 @@ use App\Models\Section;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\ProductionThreeYearSnapshotSeeder;
+use Illuminate\Support\Facades\Hash;
 
 test('production three year snapshot seeder builds a deterministic q1-only current year dataset', function () {
     $this->seed(ProductionThreeYearSnapshotSeeder::class);
@@ -32,6 +34,12 @@ test('production three year snapshot seeder builds a deterministic q1-only curre
     expect($admin?->name)->toBe('Alex Avellanosa');
     expect($registrar?->name)->toBe('Jocelyn Cleofe');
     expect($finance?->name)->toBe('Corrine Avellanosa');
+    expect($admin)->not->toBeNull();
+    expect($registrar)->not->toBeNull();
+    expect($finance)->not->toBeNull();
+    expect(Hash::check('password', (string) $admin?->password))->toBeTrue();
+    expect(Hash::check('password', (string) $registrar?->password))->toBeTrue();
+    expect(Hash::check('password', (string) $finance?->password))->toBeTrue();
 
     $currentYearSections = Section::query()
         ->with('gradeLevel:id,level_order')
@@ -82,4 +90,16 @@ test('production three year snapshot seeder builds a deterministic q1-only curre
             ->where('quarter', '!=', '1')
             ->count()
     )->toBe(0);
+});
+
+test('database seeder uses production three year snapshot as default', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $currentYear = AcademicYear::query()->where('name', '2025-2026')->first();
+    $admin = User::query()->where('email', 'admin@marriott.edu')->first();
+
+    expect($currentYear?->status)->toBe('ongoing');
+    expect($currentYear?->current_quarter)->toBe('1');
+    expect($admin?->name)->toBe('Alex Avellanosa');
+    expect(Hash::check('password', (string) $admin?->password))->toBeTrue();
 });

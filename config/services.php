@@ -48,4 +48,11 @@ return [
         'api_key' => env('FIREBASE_API_KEY'),
     ],
 
+    'announcement_sms' => [
+        'enabled' => env('ANNOUNCEMENT_SMS_ENABLED', false),
+        'provider' => env('ANNOUNCEMENT_SMS_PROVIDER', 'firebase'),
+        'firebase_mode' => env('ANNOUNCEMENT_SMS_FIREBASE_MODE', 'auth_verification_only'),
+        'firebase_sms_endpoint' => env('ANNOUNCEMENT_FIREBASE_SMS_ENDPOINT'),
+    ],
+
 ];

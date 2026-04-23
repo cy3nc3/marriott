@@ -14,6 +14,8 @@ use App\Services\Auth\AccountActivationCodeManager;
 use App\Services\DashboardCacheService;
 use App\Services\Finance\BillingScheduleService;
 use App\Services\Registrar\RegistrationAssessmentBuilder;
+use App\Services\SchoolForms\EnrollmentExportBuilder;
+use App\Services\SchoolForms\EnrollmentTemplateAdapter;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -41,36 +43,21 @@ class EnrollmentController extends Controller
 
     public function index(Request $request): Response
     {
-        $schoolYearOptions = AcademicYear::query()
-            ->orderByDesc('start_date')
-            ->get(['id', 'name', 'status', 'start_date'])
-            ->map(function (AcademicYear $academicYear) {
-                return [
-                    'id' => (int) $academicYear->id,
-                    'name' => $academicYear->name,
-                    'status' => $academicYear->status,
-                ];
-            })
-            ->values();
+        $activeAcademicYear = AcademicYear::query()
+            ->where('status', 'ongoing')
+            ->first() ?? AcademicYear::query()
+            ->latest('start_date')
+            ->first();
 
-        $selectedAcademicYearId = $request->integer('academic_year_id');
-        if (
-            $selectedAcademicYearId <= 0
-            || ! $schoolYearOptions->pluck('id')->contains($selectedAcademicYearId)
-        ) {
-            $selectedAcademicYearId = (int) ($schoolYearOptions->firstWhere('status', 'ongoing')['id']
-                ?? ($schoolYearOptions->first()['id'] ?? 0));
+        $queueStatuses = ['for_cashier_payment', 'enrolled'];
+        $selectedStatus = (string) $request->query('status', 'for_cashier_payment');
+        if (! in_array($selectedStatus, $queueStatuses, true)) {
+            $selectedStatus = 'for_cashier_payment';
         }
 
-        $selectedAcademicYear = $selectedAcademicYearId > 0
-            ? AcademicYear::query()->find($selectedAcademicYearId)
-            : null;
-
-        $queueStatuses = ['for_cashier_payment'];
-
         $baseQuery = Enrollment::query()
-            ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
-                $query->where('academic_year_id', $selectedAcademicYear->id);
+            ->when($activeAcademicYear, function ($query) use ($activeAcademicYear) {
+                $query->where('academic_year_id', $activeAcademicYear->id);
             })
             ->whereIn('status', $queueStatuses);
 
@@ -91,6 +78,7 @@ class EnrollmentController extends Controller
                         ->orWhere('last_name', 'like', "%{$search}%");
                 });
             })
+            ->where('status', $selectedStatus)
             ->latest('id')
             ->paginate(10)
             ->through(function (Enrollment $enrollment) {
@@ -131,8 +119,8 @@ class EnrollmentController extends Controller
 
         $sectionOptions = Section::query()
             ->with('gradeLevel:id,name')
-            ->when($selectedAcademicYear, function ($query) use ($selectedAcademicYear) {
-                $query->where('academic_year_id', $selectedAcademicYear->id);
+            ->when($activeAcademicYear, function ($query) use ($activeAcademicYear) {
+                $query->where('academic_year_id', $activeAcademicYear->id);
             })
             ->orderBy('grade_level_id')
             ->orderBy('name')
@@ -150,15 +138,18 @@ class EnrollmentController extends Controller
             'enrollments' => $enrollments,
             'grade_level_options' => $gradeLevelOptions,
             'section_options' => $sectionOptions,
-            'school_year_options' => $schoolYearOptions->all(),
-            'selected_school_year_id' => $selectedAcademicYear?->id,
-            'selected_school_year_status' => $selectedAcademicYear?->status,
+            'active_school_year' => $activeAcademicYear ? [
+                'id' => (int) $activeAcademicYear->id,
+                'name' => $activeAcademicYear->name,
+                'status' => $activeAcademicYear->status,
+            ] : null,
             'summary' => [
                 'for_cashier_payment' => (clone $baseQuery)->where('status', 'for_cashier_payment')->count(),
+                'enrolled' => (clone $baseQuery)->where('status', 'enrolled')->count(),
             ],
             'filters' => [
                 'search' => $search,
-                'academic_year_id' => $selectedAcademicYear?->id,
+                'status' => $selectedStatus,
             ],
         ]);
     }
@@ -220,94 +211,53 @@ class EnrollmentController extends Controller
 
     public function export(
         Request $request,
+        EnrollmentExportBuilder $enrollmentExportBuilder,
+        EnrollmentTemplateAdapter $enrollmentTemplateAdapter,
     ): BinaryFileResponse|RedirectResponse {
         $validated = $request->validate([
             'academic_year_id' => ['nullable', 'integer', 'exists:academic_years,id'],
-            'section_ids' => ['nullable', 'array'],
-            'section_ids.*' => ['integer', 'exists:sections,id'],
         ]);
 
-        $selectedAcademicYearId = $request->integer('academic_year_id');
-        $selectedSectionIds = collect($validated['section_ids'] ?? [])
-            ->map(fn (mixed $id): int => (int) $id)
-            ->filter(fn (int $id): bool => $id > 0)
-            ->unique()
-            ->values();
+        $selectedAcademicYearId = (int) ($validated['academic_year_id'] ?? 0);
 
         $academicYear = $selectedAcademicYearId > 0
             ? AcademicYear::query()->find($selectedAcademicYearId)
             : AcademicYear::query()->where('status', 'ongoing')->first();
 
         if (! $academicYear) {
-            return back()->with('error', 'No academic year found for SF1 reference export.');
+            return back()->with('error', 'No academic year found for enrollment export.');
         }
 
-        $outputPath = storage_path('app/temp/'.uniqid('sf1-reference-', true).'.csv');
+        $templatePath = base_path('templates/_SY 26-27 Enrolment.xlsx');
+        if (! is_file($templatePath)) {
+            return back()->with('error', 'Enrollment export template is missing.');
+        }
+
+        $outputPath = storage_path('app/temp/'.uniqid('enrollment-', true).'.xlsx');
         if (! is_dir(dirname($outputPath))) {
             mkdir(dirname($outputPath), 0777, true);
         }
 
-        $rows = Enrollment::query()
-            ->with([
-                'student:id,lrn,first_name,middle_name,last_name,gender,birthdate,address,guardian_name,contact_number',
-                'gradeLevel:id,name',
-                'section:id,name',
-            ])
-            ->where('academic_year_id', $academicYear->id)
-            ->when(
-                $selectedSectionIds->isNotEmpty(),
-                fn ($query) => $query->whereIn('section_id', $selectedSectionIds->all())
-            )
-            ->whereIn('status', ['for_cashier_payment', 'enrolled'])
-            ->get()
-            ->sortBy(function (Enrollment $enrollment): string {
-                return strtolower(trim("{$enrollment->student?->last_name} {$enrollment->student?->first_name}"));
-            })
-            ->values();
+        $originalMemoryLimit = ini_get('memory_limit');
+        ini_set('memory_limit', '512M');
 
-        $handle = fopen($outputPath, 'w');
-        if ($handle === false) {
-            return back()->with('error', 'Unable to generate SF1 reference export.');
+        try {
+            $enrollmentTemplateAdapter->exportRows(
+                $templatePath,
+                $outputPath,
+                $enrollmentExportBuilder->buildMetadata($academicYear),
+                $enrollmentExportBuilder->buildRows($academicYear)
+            );
+        } finally {
+            if ($originalMemoryLimit !== false) {
+                ini_set('memory_limit', $originalMemoryLimit);
+            }
         }
-
-        fputcsv($handle, [
-            'LRN',
-            'First Name',
-            'Middle Name',
-            'Last Name',
-            'Gender',
-            'Birthdate',
-            'Address',
-            'Guardian Name',
-            'Guardian Contact Number',
-            'Grade Level',
-            'Section',
-            'Enrollment Status',
-        ]);
-
-        foreach ($rows as $enrollment) {
-            fputcsv($handle, [
-                (string) ($enrollment->student?->lrn ?? ''),
-                (string) ($enrollment->student?->first_name ?? ''),
-                (string) ($enrollment->student?->middle_name ?? ''),
-                (string) ($enrollment->student?->last_name ?? ''),
-                (string) ($enrollment->student?->gender ?? ''),
-                (string) ($enrollment->student?->birthdate?->toDateString() ?? ''),
-                (string) ($enrollment->student?->address ?? ''),
-                (string) ($enrollment->student?->guardian_name ?? ''),
-                (string) ($enrollment->student?->contact_number ?? ''),
-                (string) ($enrollment->gradeLevel?->name ?? ''),
-                (string) ($enrollment->section?->name ?? ''),
-                (string) $enrollment->status,
-            ]);
-        }
-
-        fclose($handle);
 
         $sanitizedYear = strtolower((string) preg_replace('/[^A-Za-z0-9]+/', '-', $academicYear->name));
 
         return response()
-            ->download($outputPath, "sf1-reference-{$sanitizedYear}.csv")
+            ->download($outputPath, "enrollment-{$sanitizedYear}.xlsx")
             ->deleteFileAfterSend(true);
     }
 
@@ -361,7 +311,7 @@ class EnrollmentController extends Controller
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'gender' => 'nullable|string|in:Male,Female',
+            'gender' => 'required|string|in:Male,Female',
             'birthdate' => 'required|date|before_or_equal:today',
             'guardian_name' => 'required|string|max:255',
             'guardian_contact_number' => 'required_without:emergency_contact|string|max:20',
@@ -374,6 +324,7 @@ class EnrollmentController extends Controller
             'academic_year_id' => 'nullable|integer|exists:academic_years,id',
         ], [
             'lrn.digits' => 'LRN must be exactly 12 digits.',
+            'gender.required' => 'Gender is required.',
         ]);
         $guardianContactNumber = $this->normalizeGuardianContactNumber(
             (string) ($validated['guardian_contact_number'] ?? $validated['emergency_contact'] ?? '')
@@ -534,7 +485,7 @@ class EnrollmentController extends Controller
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'gender' => 'nullable|string|in:Male,Female',
+            'gender' => 'required|string|in:Male,Female',
             'birthdate' => 'required|date|before_or_equal:today',
             'guardian_name' => 'required|string|max:255',
             'guardian_contact_number' => 'required_without:emergency_contact|string|max:20',

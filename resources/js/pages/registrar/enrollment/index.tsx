@@ -32,6 +32,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import registrar from '@/routes/registrar';
 import {
@@ -92,19 +93,18 @@ interface Props {
     };
     grade_level_options: GradeLevelOption[];
     section_options: SectionOption[];
-    school_year_options: {
+    active_school_year: {
         id: number;
         name: string;
         status: string;
-    }[];
-    selected_school_year_id: number | null;
-    selected_school_year_status: string | null;
+    } | null;
     summary: {
         for_cashier_payment: number;
+        enrolled: number;
     };
     filters: {
         search?: string;
-        academic_year_id?: number;
+        status?: 'for_cashier_payment' | 'enrolled';
     };
 }
 
@@ -154,9 +154,7 @@ export default function Enrollment({
     enrollments,
     grade_level_options,
     section_options,
-    school_year_options,
-    selected_school_year_id,
-    selected_school_year_status,
+    active_school_year,
     summary,
     filters,
 }: Props) {
@@ -164,8 +162,8 @@ export default function Enrollment({
     const [editingItem, setEditingItem] = useState<EnrollmentRow | null>(null);
     const [createStep, setCreateStep] = useState<1 | 2 | 3 | 4>(1);
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
-    const [selectedSchoolYearId, setSelectedSchoolYearId] = useState(
-        selected_school_year_id ? String(selected_school_year_id) : '',
+    const [statusTab, setStatusTab] = useState<'for_cashier_payment' | 'enrolled'>(
+        filters.status === 'enrolled' ? 'enrolled' : 'for_cashier_payment',
     );
     const [isStepOneExpanded, setIsStepOneExpanded] = useState(false);
     const [isLookupLoading, setIsLookupLoading] = useState(false);
@@ -181,8 +179,8 @@ export default function Enrollment({
     const latestLookupLrnRef = useRef<string | null>(null);
 
     const createForm = useForm({
-        academic_year_id: selected_school_year_id
-            ? String(selected_school_year_id)
+        academic_year_id: active_school_year
+            ? String(active_school_year.id)
             : '',
         lrn: '',
         first_name: '',
@@ -247,7 +245,7 @@ export default function Enrollment({
         router.get(
             registrar.enrollment.url({
                 query: {
-                    academic_year_id: selectedSchoolYearId || undefined,
+                    status: statusTab,
                     search: value || undefined,
                     page: undefined,
                 },
@@ -263,9 +261,7 @@ export default function Enrollment({
 
     const applyLookupResult = (payload: EnrollmentLookupResponse) => {
         if (typeof payload.academic_year_id === 'number') {
-            const ongoingYearId = String(payload.academic_year_id);
-            createForm.setData('academic_year_id', ongoingYearId);
-            setSelectedSchoolYearId(ongoingYearId);
+            createForm.setData('academic_year_id', String(payload.academic_year_id));
         }
 
         if (!payload.student) {
@@ -648,18 +644,16 @@ export default function Enrollment({
         }
     };
 
-    const switchSchoolYear = (value: string) => {
-        setSelectedSchoolYearId(value);
-        setCreateStep(1);
-        createForm.setData('academic_year_id', value);
-        latestLookupLrnRef.current = null;
-        setIsStepOneExpanded(false);
-        setLookupStatus('idle');
-        setLookupMessage('Type 12 digits to continue.');
+    const switchStatusTab = (value: string) => {
+        if (value !== 'for_cashier_payment' && value !== 'enrolled') {
+            return;
+        }
+
+        setStatusTab(value);
         router.get(
             registrar.enrollment.url({
                 query: {
-                    academic_year_id: value || undefined,
+                    status: value,
                     search: searchQuery || undefined,
                     page: undefined,
                 },
@@ -677,7 +671,7 @@ export default function Enrollment({
         router.get(
             registrar.enrollment.url({
                 query: {
-                    academic_year_id: selectedSchoolYearId || undefined,
+                    status: statusTab,
                     search: searchQuery || undefined,
                     page: page > 1 ? page : undefined,
                 },
@@ -691,14 +685,8 @@ export default function Enrollment({
         );
     };
 
-    const exportSf1Reference = () => {
-        const params = new URLSearchParams();
-
-        if (selectedSchoolYearId) {
-            params.set('academic_year_id', selectedSchoolYearId);
-        }
-
-        window.location.assign(`/registrar/enrollment/export?${params.toString()}`);
+    const exportEnrollmentWorkbook = () => {
+        window.location.assign('/registrar/enrollment/export');
     };
 
     const searchSuggestions = useMemo(
@@ -737,6 +725,7 @@ export default function Enrollment({
         createForm.data.lrn.trim() !== '' &&
         createForm.data.first_name.trim() !== '' &&
         createForm.data.last_name.trim() !== '' &&
+        createForm.data.gender.trim() !== '' &&
         createForm.data.birthdate.trim() !== '';
 
     const hasStepTwoRequiredFields =
@@ -750,7 +739,7 @@ export default function Enrollment({
             createForm.data.downpayment.trim() !== '');
 
     const createStepProgress = (createStep / 4) * 100;
-    const intakeCreationDisabled = selected_school_year_status === 'completed';
+    const intakeCreationDisabled = active_school_year?.status === 'completed';
     const createStepLabelMap: Record<1 | 2 | 3 | 4, string> = {
         1: 'Student Details',
         2: 'Guardian Details',
@@ -1501,35 +1490,20 @@ export default function Enrollment({
                         <CardHeader className="border-b">
                             <div className="flex flex-col gap-3">
                                 <CardTitle>Enrollment Queue</CardTitle>
-                                <div className="flex flex-wrap items-center gap-2 text-sm">
-                                    <Badge variant="outline">
-                                        For Cashier Payment:{' '}
-                                        {summary.for_cashier_payment}
-                                    </Badge>
-                                </div>
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                                    <Select
-                                        value={selectedSchoolYearId}
-                                        onValueChange={switchSchoolYear}
+                                    <Tabs
+                                        value={statusTab}
+                                        onValueChange={switchStatusTab}
                                     >
-                                        <SelectTrigger className="w-full sm:w-44">
-                                            <SelectValue placeholder="School Year" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {school_year_options.map(
-                                                (schoolYear) => (
-                                                    <SelectItem
-                                                        key={schoolYear.id}
-                                                        value={String(
-                                                            schoolYear.id,
-                                                        )}
-                                                    >
-                                                        {schoolYear.name}
-                                                    </SelectItem>
-                                                ),
-                                            )}
-                                        </SelectContent>
-                                    </Select>
+                                        <TabsList>
+                                            <TabsTrigger value="for_cashier_payment">
+                                                For Cashier Payment
+                                            </TabsTrigger>
+                                            <TabsTrigger value="enrolled">
+                                                Enrolled
+                                            </TabsTrigger>
+                                        </TabsList>
+                                    </Tabs>
                                     <SearchAutocompleteInput
                                         wrapperClassName="w-full sm:max-w-sm"
                                         placeholder="Search by LRN or name..."
@@ -1541,11 +1515,10 @@ export default function Enrollment({
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        onClick={exportSf1Reference}
-                                        disabled={!selectedSchoolYearId}
+                                        onClick={exportEnrollmentWorkbook}
                                     >
                                         <Download className="size-4" />
-                                        Export SF1 Reference
+                                        Export Enrollment Workbook
                                     </Button>
                                 </div>
                             </div>
@@ -1619,26 +1592,31 @@ export default function Enrollment({
                                                     >
                                                         <Printer className="size-4" />
                                                     </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="size-8"
-                                                        onClick={() =>
-                                                            openEdit(item)
-                                                        }
-                                                    >
-                                                        <Pencil className="size-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="size-8"
-                                                        onClick={() =>
-                                                            setItemToRemove(item)
-                                                        }
-                                                    >
-                                                        <Trash2 className="size-4" />
-                                                    </Button>
+                                                    {normalizeStatus(item.status) !==
+                                                        'enrolled' && (
+                                                        <>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="size-8"
+                                                                onClick={() =>
+                                                                    openEdit(item)
+                                                                }
+                                                            >
+                                                                <Pencil className="size-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="size-8"
+                                                                onClick={() =>
+                                                                    setItemToRemove(item)
+                                                                }
+                                                            >
+                                                                <Trash2 className="size-4" />
+                                                            </Button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         </TableRow>

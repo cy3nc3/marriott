@@ -16,6 +16,8 @@ use App\Models\RemedialSubjectFee;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Models\Subject;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -44,53 +46,11 @@ class RemedialEntryController extends Controller
 
         $search = trim((string) $request->input('search', ''));
 
-        $students = Student::query()
-            ->with([
-                'enrollments' => function ($query) use ($selectedAcademicYearId) {
-                    $query
-                        ->where('academic_year_id', $selectedAcademicYearId)
-                        ->with(['gradeLevel:id,name', 'section:id,name']);
-                },
-            ])
-            ->where(function ($query) use ($selectedAcademicYearId) {
-                $query
-                    ->where('is_for_remedial', true)
-                    ->orWhereHas('remedialRecords', function ($recordQuery) use ($selectedAcademicYearId) {
-                        $recordQuery->where('academic_year_id', $selectedAcademicYearId);
-                    });
-            })
-            ->when($selectedGradeLevelId, function ($query) use ($selectedGradeLevelId, $selectedAcademicYearId) {
-                $query->whereHas('enrollments', function ($enrollmentQuery) use ($selectedGradeLevelId, $selectedAcademicYearId) {
-                    $enrollmentQuery
-                        ->where('academic_year_id', $selectedAcademicYearId)
-                        ->where('grade_level_id', $selectedGradeLevelId);
-                });
-            })
-            ->when($search, function ($query, $search) {
-                $query->where(function ($searchQuery) use ($search) {
-                    $searchQuery
-                        ->where('lrn', 'like', "%{$search}%")
-                        ->orWhere('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%");
-                });
-            })
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get();
-
-        $studentList = $students->map(function (Student $student) {
-            $enrollment = $student->enrollments->first();
-
-            return [
-                'id' => $student->id,
-                'lrn' => $student->lrn,
-                'name' => trim("{$student->first_name} {$student->last_name}"),
-                'grade_level_id' => $enrollment?->grade_level_id,
-                'grade_and_section' => $enrollment?->gradeLevel?->name && $enrollment?->section?->name
-                    ? "{$enrollment->gradeLevel->name} - {$enrollment->section->name}"
-                    : 'Unassigned',
-            ];
-        })->values();
+        $studentList = $this->resolveStudentLookup(
+            $selectedAcademicYearId,
+            $selectedGradeLevelId,
+            $search,
+        );
 
         $selectedStudentId = (int) ($request->input('student_id') ?: $studentList->first()['id'] ?? 0);
 
@@ -257,6 +217,30 @@ class RemedialEntryController extends Controller
                 'search' => $search ?: null,
                 'student_id' => $selectedStudentId ?: null,
             ],
+        ]);
+    }
+
+    public function studentSuggestions(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->input('search', ''));
+        $academicYearId = (int) $request->input('academic_year_id');
+        $gradeLevelId = $request->filled('grade_level_id')
+            ? (int) $request->input('grade_level_id')
+            : null;
+
+        if ($search === '') {
+            return response()->json([
+                'students' => [],
+            ]);
+        }
+
+        return response()->json([
+            'students' => $this->resolveStudentLookup(
+                $academicYearId,
+                $gradeLevelId,
+                $search,
+                5,
+            ),
         ]);
     }
 
@@ -656,5 +640,71 @@ class RemedialEntryController extends Controller
             'running_balance' => round($previousRunningBalance + $amount, 2),
             'reference_id' => null,
         ]);
+    }
+
+    private function resolveStudentLookup(
+        int $academicYearId,
+        ?int $gradeLevelId,
+        string $search,
+        ?int $limit = null
+    ): Collection {
+        $normalizedSearch = strtolower($search);
+
+        $query = Student::query()
+            ->with([
+                'enrollments' => function ($enrollmentQuery) use ($academicYearId): void {
+                    $enrollmentQuery
+                        ->where('academic_year_id', $academicYearId)
+                        ->with(['gradeLevel:id,name', 'section:id,name']);
+                },
+            ])
+            ->where(function (Builder $studentQuery) use ($academicYearId): void {
+                $studentQuery
+                    ->where('is_for_remedial', true)
+                    ->orWhereHas('remedialRecords', function (Builder $recordQuery) use ($academicYearId): void {
+                        $recordQuery->where('academic_year_id', $academicYearId);
+                    });
+            })
+            ->when($gradeLevelId, function (Builder $studentQuery) use ($gradeLevelId, $academicYearId): void {
+                $studentQuery->whereHas(
+                    'enrollments',
+                    function (Builder $enrollmentQuery) use ($gradeLevelId, $academicYearId): void {
+                        $enrollmentQuery
+                            ->where('academic_year_id', $academicYearId)
+                            ->where('grade_level_id', $gradeLevelId);
+                    }
+                );
+            })
+            ->when($search !== '', function (Builder $studentQuery) use ($normalizedSearch): void {
+                $studentQuery->where(function (Builder $searchQuery) use ($normalizedSearch): void {
+                    $searchQuery
+                        ->whereRaw('LOWER(lrn) LIKE ?', ["%{$normalizedSearch}%"])
+                        ->orWhereRaw('LOWER(first_name) LIKE ?', ["%{$normalizedSearch}%"])
+                        ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$normalizedSearch}%"]);
+                });
+            })
+            ->orderBy('last_name')
+            ->orderBy('first_name');
+
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+
+        return $query
+            ->get()
+            ->map(function (Student $student): array {
+                $enrollment = $student->enrollments->first();
+
+                return [
+                    'id' => $student->id,
+                    'lrn' => $student->lrn,
+                    'name' => trim("{$student->first_name} {$student->last_name}"),
+                    'grade_level_id' => $enrollment?->grade_level_id,
+                    'grade_and_section' => $enrollment?->gradeLevel?->name && $enrollment?->section?->name
+                        ? "{$enrollment->gradeLevel->name} - {$enrollment->section->name}"
+                        : 'Unassigned',
+                ];
+            })
+            ->values();
     }
 }

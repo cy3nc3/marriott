@@ -3,6 +3,7 @@
 namespace App\Http\Requests\SuperAdmin;
 
 use App\Enums\UserRole;
+use App\Models\Announcement;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -45,6 +46,8 @@ class StoreAnnouncementRequest extends FormRequest
             'target_roles.*' => ['string', Rule::in($this->roleValues())],
             'target_user_ids' => ['nullable', 'array'],
             'target_user_ids.*' => ['integer', 'exists:users,id'],
+            'delivery_channels' => ['nullable', 'array'],
+            'delivery_channels.*' => ['string', Rule::in(Announcement::allowedDeliveryChannels())],
             'publish_at' => ['nullable', 'date'],
             'event_starts_at' => [Rule::requiredIf($this->input('type', 'notice') === 'event'), 'nullable', 'date'],
             'event_ends_at' => ['nullable', 'date', 'after_or_equal:event_starts_at'],
@@ -64,6 +67,7 @@ class StoreAnnouncementRequest extends FormRequest
             'attachments.max' => 'You can upload up to 5 attachments per announcement.',
             'attachments.*.max' => 'Each attachment must be 10MB or smaller.',
             'attachments.*.mimes' => 'Allowed attachment types: images, PDF, Word, Excel, CSV, and TXT files.',
+            'delivery_channels.*.in' => 'Invalid delivery channel selected.',
             'expires_at.after_or_equal' => 'Expiry must be on or after the publish schedule.',
             'event_starts_at.required' => 'Event start date and time is required for event announcements.',
             'event_ends_at.after_or_equal' => 'Event end time must be on or after the event start time.',

@@ -9,8 +9,11 @@ use App\Models\Enrollment;
 use App\Models\Student;
 use App\Models\StudentDeparture;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,27 +26,7 @@ class StudentDepartureController extends Controller
             ->where('status', 'ongoing')
             ->value('id');
 
-        $studentLookup = Student::query()
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($searchQuery) use ($search) {
-                    $searchQuery
-                        ->where('lrn', 'like', "%{$search}%")
-                        ->orWhere('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%");
-                });
-            })
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->limit(20)
-            ->get(['id', 'lrn', 'first_name', 'last_name'])
-            ->map(function (Student $student): array {
-                return [
-                    'id' => (int) $student->id,
-                    'lrn' => $student->lrn,
-                    'name' => trim("{$student->first_name} {$student->last_name}"),
-                ];
-            })
-            ->values();
+        $studentLookup = $this->resolveStudentLookup($search, 20);
 
         $selectedStudentId = (int) ($request->input('student_id') ?: ($studentLookup->first()['id'] ?? 0));
 
@@ -139,6 +122,21 @@ class StudentDepartureController extends Controller
         ]);
     }
 
+    public function studentSuggestions(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->input('search', ''));
+
+        if ($search === '') {
+            return response()->json([
+                'students' => [],
+            ]);
+        }
+
+        return response()->json([
+            'students' => $this->resolveStudentLookup($search, 5),
+        ]);
+    }
+
     public function store(StoreStudentDepartureRequest $request): RedirectResponse
     {
         $validated = $request->validated();
@@ -198,5 +196,32 @@ class StudentDepartureController extends Controller
         }
 
         return back()->with('success', 'Student departure processed.');
+    }
+
+    private function resolveStudentLookup(string $search, int $limit): Collection
+    {
+        $normalizedSearch = strtolower($search);
+
+        return Student::query()
+            ->when($search !== '', function (Builder $query) use ($normalizedSearch): void {
+                $query->where(function (Builder $searchQuery) use ($normalizedSearch): void {
+                    $searchQuery
+                        ->whereRaw('LOWER(lrn) LIKE ?', ["%{$normalizedSearch}%"])
+                        ->orWhereRaw('LOWER(first_name) LIKE ?', ["%{$normalizedSearch}%"])
+                        ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$normalizedSearch}%"]);
+                });
+            })
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->limit($limit)
+            ->get(['id', 'lrn', 'first_name', 'last_name'])
+            ->map(function (Student $student): array {
+                return [
+                    'id' => (int) $student->id,
+                    'lrn' => $student->lrn,
+                    'name' => trim("{$student->first_name} {$student->last_name}"),
+                ];
+            })
+            ->values();
     }
 }

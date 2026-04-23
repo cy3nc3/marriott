@@ -5,6 +5,7 @@ namespace App\Providers;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -46,5 +47,11 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null
         );
+
+        $demoRedirectRecipient = trim((string) config('mail.demo_redirect_to', ''));
+
+        if ($demoRedirectRecipient !== '') {
+            Mail::alwaysTo($demoRedirectRecipient);
+        }
     }
 }

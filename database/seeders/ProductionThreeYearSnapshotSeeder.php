@@ -16,6 +16,7 @@ use App\Models\SubjectAssignment;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Hash;
 
 class ProductionThreeYearSnapshotSeeder extends Seeder
 {
@@ -41,6 +42,7 @@ class ProductionThreeYearSnapshotSeeder extends Seeder
         $this->normalizeCurrentYearStudentNames();
         $this->seedHistoricalCoverageForCompletedYears();
         $this->enforceCurrentYearQuarterOneSubmissionsOnly();
+        $this->enforceSeededAccountPasswords();
     }
 
     private function seedNamedStaffAccounts(): void
@@ -314,5 +316,12 @@ class ProductionThreeYearSnapshotSeeder extends Seeder
         return GradeLevel::query()
             ->whereKey($gradeLevelId)
             ->value('level_order');
+    }
+
+    private function enforceSeededAccountPasswords(): void
+    {
+        User::query()->update([
+            'password' => Hash::make('password'),
+        ]);
     }
 }

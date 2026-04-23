@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { Save } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,10 @@ interface StudentOption {
     name: string;
     grade_level_id: number | null;
     grade_and_section: string;
+}
+
+interface StudentSuggestionsResponse {
+    students: StudentOption[];
 }
 
 interface RemedialRow {
@@ -144,13 +148,20 @@ export default function RemedialEntry({
               : '',
     );
     const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
-    const searchSuggestions = students.map((student) => ({
-        id: student.id,
-        label: student.name,
-        value: student.name,
-        description: `LRN: ${student.lrn}`,
-        keywords: `${student.lrn} ${student.grade_and_section}`,
-    }));
+    const baseSearchSuggestions = useMemo(
+        () =>
+            students.map((student) => ({
+                id: student.id,
+                label: student.name,
+                value: student.name,
+                description: `LRN: ${student.lrn}`,
+                keywords: `${student.lrn} ${student.grade_and_section}`,
+            })),
+        [students],
+    );
+    const [searchSuggestions, setSearchSuggestions] = useState(
+        baseSearchSuggestions,
+    );
 
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat('en-PH', {
@@ -182,6 +193,72 @@ export default function RemedialEntry({
         academic_year_id: Number(academicYearId || 0),
         student_id: Number(studentId || 0),
     });
+
+    useEffect(() => {
+        setSearchSuggestions(baseSearchSuggestions);
+    }, [baseSearchSuggestions]);
+
+    useEffect(() => {
+        const normalizedQuery = searchQuery.trim();
+
+        if (normalizedQuery === '') {
+            setSearchSuggestions(baseSearchSuggestions);
+
+            return;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(async () => {
+            try {
+                const query = new URLSearchParams({
+                    search: normalizedQuery,
+                    academic_year_id: academicYearId,
+                });
+
+                if (gradeLevelId !== 'all') {
+                    query.set('grade_level_id', gradeLevelId);
+                }
+
+                const response = await fetch(
+                    `/registrar/remedial-entry/student-suggestions?${query.toString()}`,
+                    {
+                        headers: {
+                            Accept: 'application/json',
+                        },
+                        signal: controller.signal,
+                    },
+                );
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const payload =
+                    (await response.json()) as StudentSuggestionsResponse;
+                setSearchSuggestions(
+                    payload.students.map((student) => ({
+                        id: student.id,
+                        label: student.name,
+                        value: student.name,
+                        description: `LRN: ${student.lrn}`,
+                        keywords: `${student.lrn} ${student.grade_and_section}`,
+                    })),
+                );
+            } catch (error) {
+                if (
+                    error instanceof DOMException &&
+                    error.name === 'AbortError'
+                ) {
+                    return;
+                }
+            }
+        }, 250);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+            controller.abort();
+        };
+    }, [academicYearId, baseSearchSuggestions, gradeLevelId, searchQuery]);
 
     const applyFilters = (next?: {
         academicYearId?: string;

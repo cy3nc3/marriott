@@ -159,7 +159,7 @@
             </thead>
             <tbody>
                 @forelse ($assessment['dues']['rows'] as $due)
-+                    <tr>
+                    <tr>
                         <td>{{ $due['description'] }}</td>
                         <td>{{ $due['due_date_label'] ?: 'N/A' }}</td>
                         <td class="align-right">PHP {{ number_format((float) $due['amount_due'], 2) }}</td>
@@ -184,34 +184,34 @@
             </tfoot>
         </table>
 
-        <h2>Account Credentials</h2>
+        <h2>Account Access</h2>
         <table>
             <thead>
                 <tr>
                     <th>Account</th>
-                    <th>Username</th>
-                    <th>One-Time Activation Code</th>
-                    <th>Code Expires At</th>
+                    <th>Account Email</th>
+                    <th>Access Method</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>Student</td>
                     <td>{{ $assessment['accounts']['student']['email'] ?: 'N/A' }}</td>
-                    <td>{{ $assessment['accounts']['student']['activation_code'] ?: 'No new code issued in this print.' }}</td>
-                    <td>{{ $assessment['accounts']['student']['activation_expires_at'] ?: 'N/A' }}</td>
+                    <td>Claim account link via email + phone OTP verification</td>
                 </tr>
                 <tr>
                     <td>Parent</td>
                     <td>{{ $assessment['accounts']['parent']['email'] ?: 'N/A' }}</td>
-                    <td>{{ $assessment['accounts']['parent']['activation_code'] ?: 'No new code issued in this print.' }}</td>
-                    <td>{{ $assessment['accounts']['parent']['activation_expires_at'] ?: 'N/A' }}</td>
+                    <td>Claim account link via email + phone OTP verification</td>
                 </tr>
             </tbody>
         </table>
 
         <div class="note">
-            Activation codes are one-time only. After sign-in, immediately set a new password to complete account activation.
+            <strong>How to claim account access:</strong><br>
+            1. Once the enrollment is finalized and marked as enrolled, the system sends a claim-account email to the listed address.<br>
+            2. Open the claim link, verify the enrolled mobile number with OTP, then set a new password.<br>
+            3. One-time activation codes are no longer used in this workflow.
         </div>
     </div>
 

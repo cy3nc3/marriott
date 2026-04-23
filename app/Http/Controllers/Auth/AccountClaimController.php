@@ -30,23 +30,18 @@ class AccountClaimController extends Controller
                 ]);
         }
 
-        if ($accountClaimToken->isUsed()) {
-            return redirect()
-                ->route('login')
-                ->withErrors([
-                    'token' => 'This claim link has already been used.',
-                ]);
-        }
-
         $phoneVerified = $this->isPhoneVerified($accountClaimToken->id);
         $phoneNumber = (string) ($accountClaimToken->enrollment?->student?->contact_number ?? '');
+        $tokenAlreadyUsed = $accountClaimToken->isUsed();
 
         return Inertia::render('auth/claim-account', [
             'token' => $token,
             'account_email' => (string) ($accountClaimToken->user?->email ?? ''),
             'phone_number_redacted' => $this->redactPhoneNumber($phoneNumber),
-            'phone_verified' => $phoneVerified,
-            'is_expired' => ! $accountClaimToken->isUsable(),
+            'phone_verified' => $tokenAlreadyUsed ? true : $phoneVerified,
+            'is_expired' => $tokenAlreadyUsed ? false : ! $accountClaimToken->isUsable(),
+            'claim_completed' => $tokenAlreadyUsed || (bool) session('claim_completed', false),
+            'login_url' => route('login'),
         ]);
     }
 
@@ -145,7 +140,16 @@ class AccountClaimController extends Controller
                 ]);
         }
 
-        $replacementPlainToken = $claimService->issuePlainTokenForEnrollment($enrollment);
+        $claimUser = $accountClaimToken->user;
+        if (! $claimUser) {
+            return redirect()
+                ->route('login')
+                ->withErrors([
+                    'token' => 'Unable to issue a new claim link at this time.',
+                ]);
+        }
+
+        $replacementPlainToken = $claimService->issuePlainTokenForEnrollmentUser($enrollment, $claimUser);
         if (! $replacementPlainToken) {
             return redirect()
                 ->route('login')
@@ -195,8 +199,9 @@ class AccountClaimController extends Controller
         session()->forget($this->phoneVerifiedSessionKey($accountClaimToken->id));
 
         return redirect()
-            ->route('login')
-            ->with('status', 'Account claimed successfully. Please sign in.');
+            ->route('account.claim.show', ['token' => $token])
+            ->with('claim_completed', true)
+            ->with('status', 'Password has been set. Keep your account email and password for your next login.');
     }
 
     private function markPhoneVerified(int $claimTokenId): void

@@ -105,21 +105,6 @@ class ScheduleController extends Controller
                 ->values();
         }
 
-        if ($breakItems->isEmpty()) {
-            $breakItems = collect([
-                [
-                    'label' => 'Recess Break',
-                    'start' => '10:00',
-                    'end' => '10:30',
-                ],
-                [
-                    'label' => 'Lunch Break',
-                    'start' => '12:00',
-                    'end' => '13:00',
-                ],
-            ]);
-        }
-
         return Inertia::render('student/schedule/index', [
             'schedule_items' => $scheduleItems,
             'break_items' => $breakItems,

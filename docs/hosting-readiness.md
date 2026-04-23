@@ -16,25 +16,26 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
   - Reason: available GitHub Student Developer Pack credits make it the practical first production host.
   - Target shape: VPS or managed service that supports PHP-FPM, queue workers, cron, writable storage, and scripted deployments.
 - `[x]` Domain name: `msqc.tech`
-- `[/]` Domain registrar / DNS strategy: currently registered with `get.tech`
-  - Decision pending: keep registration at `get.tech` and switch only DNS to Cloudflare, or transfer full registration to Cloudflare later.
-  - Current recommendation: move DNS to Cloudflare first; full registrar transfer is optional and can wait until the app is stable in production.
+- `[x]` Domain registrar / DNS strategy: keep registrar at `get.tech`, move DNS to Cloudflare
+  - Decision: DNS management/TLS/proxying will be handled in Cloudflare; registrar transfer is not required for capstone deployment.
 - `[x]` SSL/TLS provider: Cloudflare
   - Plan: use Cloudflare for DNS, proxying, and TLS in front of DigitalOcean.
 - `[x]` Database engine: PostgreSQL (DigitalOcean Managed PostgreSQL)
   - Reason: easier operations (managed backups/patching), cleaner isolation from app runtime, and simpler scaling path.
   - Initial target: smallest managed node in `sgp1`, then scale vertically based on real production metrics.
-- `[?]` Mail provider: undecided
-- `[/]` Mail provider: Resend (implementation in progress)
+- `[x]` Mail provider: Resend + Cloudflare Email Routing (demo inbox strategy)
   - Needed for password reset, account verification, reminders, and production notifications.
   - Constraint: do not plan on self-hosted SMTP from the droplet; use a third-party mail provider/API.
-  - Inbox access note: system-generated addresses require mailbox hosting (or forwarding) to be readable; sending-only SMTP/API does not create inboxes.
-  - Current implementation uses queued claim-email notifications with `MAIL_MAILER=resend`.
+  - Outbound mail: Resend (`MAIL_MAILER=resend`) for transactional sends.
+  - Inbox strategy for capstone demo: route system-created addresses through Cloudflare Email Routing to a demo Gmail inbox.
+  - Temporary app-level fallback implemented: set `DEMO_MAIL_REDIRECT_TO` to force all outbound mail to one demo inbox while account addresses remain domain-realistic.
+  - Note: this is a demo-friendly forwarding setup, not full mailbox hosting per account.
   - Reference: `docs/email-demo-delivery-plan.md`.
-- `[?]` Backup storage strategy: undecided
-  - Decide whether backups stay on the server, are copied off-server, or are stored in cloud/object storage.
-- `[?]` Deployment method: undecided
-  - Options: manual SSH deploy, GitHub Actions, Laravel Forge deploy script, host panel deployment, or another CI/CD pipeline.
+- `[x]` Backup storage strategy: Spaces-based off-server backups
+  - Decision: keep operational backups on server as needed, but copy/store backup artifacts in the provisioned DigitalOcean Spaces bucket.
+- `[x]` Deployment method: single-environment manual SSH deployment
+  - Plan: deploy one hosted environment on `msqc.tech` for capstone/demo use.
+  - Note: reset or reseed demo data as needed before final presentation.
 - `[x]` DigitalOcean product choice: Droplet
   - Reason: this Laravel app needs queue workers, scheduled commands, writable local storage, spreadsheet temp files, local backups, and attachment/avatar file handling that fit a VM better than App Platform.
   - Rejected option: App Platform is convenient, but its filesystem is ephemeral and not suitable for the app's current local-storage patterns without additional refactoring to Spaces/object storage and managed background process configuration.
@@ -44,12 +45,12 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
 ### Planned Core Architecture
 
 - `[x]` App compute: `1x Basic Droplet` (Ubuntu LTS)
-- `[ ]` Private networking: `1x VPC` (free)
-- `[ ]` Network security: `Cloud Firewall` (free)
-- `[ ]` SSL/TLS + DNS: `Cloudflare` (free plan)
-- `[ ]` Backups: enable Droplet backups (weekly 20% or daily 30% of Droplet price)
-- `[ ]` Monitoring: DigitalOcean Monitoring + alerts (free)
-- `[ ]` Billing safety: configure billing alert threshold
+- `[x]` Private networking: `1x VPC` (free)
+- `[x]` Network security: `Cloud Firewall` (free)
+- `[x]` SSL/TLS + DNS: `Cloudflare` (free plan)
+- `[x]` Backups: enable Droplet backups (weekly 20% or daily 30% of Droplet price)
+- `[x]` Monitoring: DigitalOcean Monitoring + alerts (free)
+- `[x]` Billing safety: configure billing alert threshold
 
 ### Optional Services (Choose Based On Requirements)
 
@@ -61,7 +62,7 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
 ### Droplet Size Candidates
 
 - `[ ]` 2 GiB / 2 vCPU Basic: `$18/mo`
-- `[ ]` 4 GiB / 2 vCPU Basic: `$24/mo` (recommended default starting size)
+- `[x]` 4 GiB / 2 vCPU Basic: `$24/mo` (recommended default starting size)
 - `[ ]` 8 GiB / 4 vCPU Basic: `$48/mo`
 
 ### Service Price Reference (For Budgeting)
@@ -90,8 +91,8 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
 
 ### Credit Constraints (Important)
 
-- `[ ]` Confirm your current GitHub Student credit expiration date in DO billing.
-- `[ ]` Confirm credit applicability to your selected services before provisioning.
+- `[x]` Confirm your current GitHub Student credit expiration date in DO billing.
+- `[x]` Confirm credit applicability to your selected services before provisioning.
 - `[!]` Promotional credits do **not** apply to some ineligible charges (for example support plans, Marketplace charges, and upfront prepayments).
 
 ## Server Requirements
@@ -388,6 +389,12 @@ Add dated entries here as decisions are made.
 | 2026-04-22 | Database engine set to Managed PostgreSQL | Chosen for easier operations and cleaner separation from application compute. |
 | 2026-04-22 | Spaces selected for production object storage | Bucket(s) provisioned to support public/private file handling and backup offloading. |
 | 2026-04-22 | Outbound mail delivery constraint identified | DigitalOcean droplet SMTP ports are blocked by default; third-party email provider/API is required. |
+| 2026-04-23 | Deployment approach set to staging-first then production | Use separate staging/prod runtime contexts on the droplet to reduce launch risk. |
+| 2026-04-23 | Deployment approach simplified to single environment | `msqc.tech` will be used as demo/testing host for capstone delivery. |
+| 2026-04-23 | DNS strategy finalized | Keep domain registration at `get.tech` and move/manage DNS in Cloudflare only. |
+| 2026-04-23 | Mail strategy finalized for capstone demo | Use Resend for outbound emails and Cloudflare Email Routing to forward demo account mail to a demo Gmail inbox. |
+| 2026-04-23 | Backup storage strategy finalized | Use DigitalOcean Spaces as off-server backup storage target. |
+| 2026-04-23 | Account claim flow setup standardized for this device | Local `.env` configured with Resend + Firebase values and claim feature flags; added smoke-test checklist doc. |
 
 ## Completion Log
 
@@ -402,3 +409,5 @@ Add dated entries here as tasks are completed.
 | 2026-04-22 | Base runtime installed on droplet | Confirmed PHP 8.4.x, Node 22.x, npm, and Composer availability. |
 | 2026-04-22 | Local frontend verification passed | `npm run types` and `npm run build` completed successfully. |
 | 2026-04-22 | Local backend test verification blocked | `php artisan test --compact` failed due duplicate Pest test-case declaration in finance feature tests. |
+| 2026-04-23 | Local claim-flow migrations applied | Pending migrations including account-claim tables were migrated successfully. |
+| 2026-04-23 | Account claim routes/tests verified locally | `php artisan route:list --name=account.claim` and `php artisan test --compact tests/Feature/AccountClaimFlowTest.php` both passed. |

@@ -13,7 +13,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->name('registrar.')->group(function () {
     Route::get('/student-directory', [StudentDirectoryController::class, 'index'])->name('student_directory');
+    Route::patch('/student-directory/{student}', [StudentDirectoryController::class, 'update'])->middleware('desktop_only')->name('student_directory.update');
     Route::post('/student-directory/sf1-upload', [StudentDirectoryController::class, 'uploadSf1'])->middleware('desktop_only')->name('student_directory.sf1_upload');
+    Route::get('/student-directory/export-sf1-reference', [StudentDirectoryController::class, 'exportSf1Reference'])->middleware('desktop_only')->name('student_directory.export_sf1_reference');
 
     Route::get('/enrollment', [EnrollmentController::class, 'index'])->middleware('desktop_only')->name('enrollment');
     Route::get('/enrollment/lookup', [EnrollmentController::class, 'lookup'])->middleware('desktop_only')->name('enrollment.lookup');
@@ -37,9 +39,11 @@ Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->
     Route::post('/batch-promotion/review', [BatchPromotionController::class, 'resolveReviewCase'])->middleware('desktop_only')->name('batch_promotion.review');
 
     Route::get('/remedial-entry', [RemedialEntryController::class, 'index'])->middleware('desktop_only')->name('remedial_entry');
+    Route::get('/remedial-entry/student-suggestions', [RemedialEntryController::class, 'studentSuggestions'])->middleware('desktop_only')->name('remedial_entry.student_suggestions');
     Route::post('/remedial-entry/intake', [RemedialEntryController::class, 'storeIntake'])->middleware('desktop_only')->name('remedial_entry.intake');
     Route::post('/remedial-entry', [RemedialEntryController::class, 'store'])->middleware('desktop_only')->name('remedial_entry.store');
 
+    Route::get('/student-departure/student-suggestions', [StudentDepartureController::class, 'studentSuggestions'])->middleware('desktop_only')->name('student_departure.student_suggestions');
     Route::get('/student-departure', [StudentDepartureController::class, 'index'])->middleware('desktop_only')->name('student_departure');
     Route::post('/student-departure', [StudentDepartureController::class, 'store'])->middleware('desktop_only')->name('student_departure.store');
 });

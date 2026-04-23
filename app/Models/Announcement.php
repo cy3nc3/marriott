@@ -9,6 +9,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Announcement extends Model
 {
+    public const DELIVERY_CHANNEL_IN_APP = 'in_app';
+
+    public const DELIVERY_CHANNEL_EMAIL = 'email';
+
+    public const DELIVERY_CHANNEL_SMS = 'sms';
+
     public const TYPE_NOTICE = 'notice';
 
     public const TYPE_EVENT = 'event';
@@ -25,6 +31,7 @@ class Announcement extends Model
         'response_mode',
         'target_roles',
         'target_user_ids',
+        'delivery_channels',
         'publish_at',
         'event_starts_at',
         'event_ends_at',
@@ -41,6 +48,7 @@ class Announcement extends Model
         'response_mode' => 'string',
         'target_roles' => 'array',
         'target_user_ids' => 'array',
+        'delivery_channels' => 'array',
         'publish_at' => 'datetime',
         'event_starts_at' => 'datetime',
         'event_ends_at' => 'datetime',
@@ -115,5 +123,36 @@ class Announcement extends Model
     public function isEventType(): bool
     {
         return $this->type === self::TYPE_EVENT;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function allowedDeliveryChannels(): array
+    {
+        return [
+            self::DELIVERY_CHANNEL_IN_APP,
+            self::DELIVERY_CHANNEL_EMAIL,
+            self::DELIVERY_CHANNEL_SMS,
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function normalizedDeliveryChannels(): array
+    {
+        $channels = collect($this->delivery_channels ?? [])
+            ->filter(fn (mixed $channel): bool => is_string($channel))
+            ->map(fn (string $channel): string => trim(strtolower($channel)))
+            ->filter(fn (string $channel): bool => in_array($channel, self::allowedDeliveryChannels(), true))
+            ->unique()
+            ->values();
+
+        if (! $channels->contains(self::DELIVERY_CHANNEL_IN_APP)) {
+            $channels->prepend(self::DELIVERY_CHANNEL_IN_APP);
+        }
+
+        return $channels->all();
     }
 }

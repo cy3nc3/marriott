@@ -88,7 +88,7 @@ test('registrar sf1 upload rejects inbound sync requests', function () {
         ->assertRedirect()
         ->assertSessionHas(
             'error',
-            'Inbound SF1 sync is disabled. Use Enrollment > Export SF1 Reference for LIS enrollment.'
+            'Inbound SF1 sync is disabled. Use Student Directory > Export SF1 Reference for LIS enrollment.'
         );
 
     $student->refresh();

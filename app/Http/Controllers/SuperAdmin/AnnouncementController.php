@@ -12,6 +12,7 @@ use App\Models\AnnouncementAttachment;
 use App\Models\User;
 use App\Services\AnnouncementAnalyticsService;
 use App\Services\AnnouncementAudienceResolver;
+use App\Services\AnnouncementDeliveryService;
 use App\Services\AnnouncementEventService;
 use App\Services\AuditLogService;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,6 +31,7 @@ class AnnouncementController extends Controller
         private AnnouncementAnalyticsService $announcementAnalyticsService,
         private AnnouncementEventService $announcementEventService,
         private AnnouncementAudienceResolver $announcementAudienceResolver,
+        private AnnouncementDeliveryService $announcementDeliveryService,
     ) {}
 
     public function index(Request $request): Response
@@ -91,6 +93,7 @@ class AnnouncementController extends Controller
                         'response_mode' => (string) ($announcement->response_mode ?? Announcement::RESPONSE_MODE_NONE),
                         'target_roles' => $announcement->target_roles,
                         'target_user_ids' => $announcement->target_user_ids,
+                        'delivery_channels' => $announcement->normalizedDeliveryChannels(),
                         'is_active' => (bool) $announcement->is_active,
                         'created_at' => $announcement->created_at?->toIso8601String(),
                         'publish_at' => $announcement->publish_at?->toIso8601String(),
@@ -278,6 +281,7 @@ class AnnouncementController extends Controller
         });
 
         $announcement->loadCount('recipients');
+        $deliveryResult = $this->announcementDeliveryService->deliverForAnnouncement($announcement, $user);
 
         $auditLogService->log('announcement.created', $announcement, null, $announcement->only([
             'id',
@@ -286,6 +290,7 @@ class AnnouncementController extends Controller
             'response_mode',
             'target_roles',
             'target_user_ids',
+            'delivery_channels',
             'publish_at',
             'event_starts_at',
             'event_ends_at',
@@ -297,7 +302,21 @@ class AnnouncementController extends Controller
             'attachment_count' => $announcement->attachments()->count(),
         ]);
 
-        return back()->with('success', 'Announcement posted successfully.');
+        $successMessage = 'Announcement posted successfully.';
+        if ($deliveryResult['email_sent'] > 0 || $deliveryResult['sms_sent'] > 0) {
+            $successMessage .= sprintf(
+                ' Email sent: %d, SMS sent: %d.',
+                $deliveryResult['email_sent'],
+                $deliveryResult['sms_sent'],
+            );
+        }
+
+        $response = back()->with('success', $successMessage);
+        if (is_string($deliveryResult['warning']) && $deliveryResult['warning'] !== '') {
+            $response->with('warning', $deliveryResult['warning']);
+        }
+
+        return $response;
     }
 
     public function update(
@@ -328,6 +347,7 @@ class AnnouncementController extends Controller
             'response_mode',
             'target_roles',
             'target_user_ids',
+            'delivery_channels',
             'publish_at',
             'event_starts_at',
             'event_ends_at',
@@ -369,6 +389,7 @@ class AnnouncementController extends Controller
             'response_mode',
             'target_roles',
             'target_user_ids',
+            'delivery_channels',
             'publish_at',
             'event_starts_at',
             'event_ends_at',

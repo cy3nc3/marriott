@@ -1,8 +1,10 @@
-import { Head, router, usePage } from '@inertiajs/react';
-import { Download, Printer, RefreshCw } from 'lucide-react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { format } from 'date-fns';
+import { Download, Eye, Pencil, Printer, RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateOfBirthPicker } from '@/components/ui/date-picker';
 import {
     Dialog,
     DialogContent,
@@ -10,7 +12,10 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -39,8 +44,17 @@ interface StudentRow {
     id: number;
     enrollment_id: number | null;
     lrn: string;
+    first_name: string;
+    middle_name: string | null;
+    last_name: string;
+    gender: string | null;
+    birthdate: string | null;
+    guardian_name: string | null;
+    guardian_contact_number: string | null;
+    email: string | null;
     student_name: string;
     grade_section: string;
+    enrollment_status: string | null;
     status: 'enrolled' | 'transferred_out' | 'dropped' | 'not_currently_enrolled';
 }
 
@@ -68,6 +82,32 @@ interface Props {
     };
 }
 
+const normalizeMobileSubscriberDigits = (value: string): string => {
+    const digits = value.replace(/\D/g, '');
+
+    if (digits.startsWith('9')) {
+        return digits.slice(0, 10);
+    }
+
+    if (digits.startsWith('09')) {
+        return digits.slice(1, 11);
+    }
+
+    if (digits.startsWith('63')) {
+        return digits.slice(2, 12);
+    }
+
+    return digits.slice(0, 10);
+};
+
+const formatMobileForDisplay = (subscriberDigits: string): string => {
+    if (subscriberDigits.length === 10 && subscriberDigits.startsWith('9')) {
+        return `+63${subscriberDigits}`;
+    }
+
+    return '-';
+};
+
 export default function StudentDirectory({
     students,
     section_options,
@@ -79,10 +119,22 @@ export default function StudentDirectory({
     const openedAssessmentUrlRef = useRef<string | null>(null);
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const [selectedStudent, setSelectedStudent] = useState<StudentRow | null>(null);
+    const [isDetailEditMode, setIsDetailEditMode] = useState(false);
     const [selectedSectionIds, setSelectedSectionIds] = useState<number[]>(
         section_options.map((section) => section.id),
     );
     const [exportSelectionError, setExportSelectionError] = useState('');
+    const detailForm = useForm({
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        gender: '',
+        birthdate: '',
+        guardian_name: '',
+        guardian_contact_number: '',
+        email: '',
+    });
 
     const searchSuggestions = students.data.map((student) => ({
         id: student.id,
@@ -128,7 +180,7 @@ export default function StudentDirectory({
         });
 
         setIsExportDialogOpen(false);
-        window.location.assign(`/registrar/enrollment/export?${params.toString()}`);
+        window.location.assign(`/registrar/student-directory/export-sf1-reference?${params.toString()}`);
     };
 
     useEffect(() => {
@@ -192,6 +244,64 @@ export default function StudentDirectory({
                 preserveState: true,
             },
         );
+    };
+
+    const openStudentDetails = (student: StudentRow) => {
+        setSelectedStudent(student);
+        setIsDetailEditMode(false);
+        detailForm.clearErrors();
+        detailForm.setData({
+            first_name: student.first_name || '',
+            middle_name: student.middle_name || '',
+            last_name: student.last_name || '',
+            gender: student.gender || '',
+            birthdate: student.birthdate || '',
+            guardian_name: student.guardian_name || '',
+            guardian_contact_number: normalizeMobileSubscriberDigits(
+                student.guardian_contact_number || '',
+            ),
+            email: student.email || '',
+        });
+    };
+
+    const closeStudentDetails = () => {
+        setSelectedStudent(null);
+        setIsDetailEditMode(false);
+        detailForm.clearErrors();
+    };
+
+    const submitStudentDetailsUpdate = () => {
+        if (!selectedStudent) {
+            return;
+        }
+
+        detailForm.patch(`/registrar/student-directory/${selectedStudent.id}`, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setSelectedStudent({
+                    ...selectedStudent,
+                    first_name: detailForm.data.first_name,
+                    middle_name: detailForm.data.middle_name || null,
+                    last_name: detailForm.data.last_name,
+                    gender: detailForm.data.gender || null,
+                    birthdate: detailForm.data.birthdate || null,
+                    guardian_name: detailForm.data.guardian_name || null,
+                    guardian_contact_number: formatMobileForDisplay(
+                        detailForm.data.guardian_contact_number,
+                    ),
+                    email: detailForm.data.email || null,
+                    student_name: [
+                        detailForm.data.first_name,
+                        detailForm.data.last_name,
+                    ]
+                        .map((value) => value.trim())
+                        .filter((value) => value.length > 0)
+                        .join(' '),
+                });
+                setIsDetailEditMode(false);
+            },
+        });
     };
 
     const statusLabel = (status: StudentRow['status']): string => {
@@ -266,6 +376,19 @@ export default function StudentDirectory({
                                                 {statusLabel(student.status)}
                                             </p>
                                             <div className="flex items-center gap-2 pt-1">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        openStudentDetails(
+                                                            student,
+                                                        )
+                                                    }
+                                                >
+                                                    <Eye className="size-4" />
+                                                    View Details
+                                                </Button>
                                                 <Button
                                                     type="button"
                                                     variant="outline"
@@ -351,6 +474,26 @@ export default function StudentDirectory({
                                                 </TableCell>
                                                 <TableCell className="border-l pr-6">
                                                     <div className="flex justify-end gap-2">
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-8"
+                                                                    onClick={() =>
+                                                                        openStudentDetails(
+                                                                            student,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Eye className="size-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                View student details
+                                                            </TooltipContent>
+                                                        </Tooltip>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <Button
@@ -453,6 +596,198 @@ export default function StudentDirectory({
                     </div>
                 </Card>
             </div>
+
+            <Dialog open={!!selectedStudent} onOpenChange={(open) => !open && closeStudentDetails()}>
+                <DialogContent className="sm:max-w-[520px]">
+                    <DialogHeader>
+                        <DialogTitle>Student Details</DialogTitle>
+                    </DialogHeader>
+                    {selectedStudent && (
+                        <div className="space-y-4 py-2">
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                    <Label>First Name</Label>
+                                    {isDetailEditMode ? (
+                                        <Input
+                                            value={detailForm.data.first_name}
+                                            onChange={(event) => detailForm.setData('first_name', event.target.value)}
+                                        />
+                                    ) : (
+                                        <p className="text-sm">{selectedStudent.first_name || '-'}</p>
+                                    )}
+                                    {detailForm.errors.first_name && (
+                                        <p className="text-sm text-destructive">{detailForm.errors.first_name}</p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Middle Name</Label>
+                                    {isDetailEditMode ? (
+                                        <Input
+                                            value={detailForm.data.middle_name}
+                                            onChange={(event) => detailForm.setData('middle_name', event.target.value)}
+                                        />
+                                    ) : (
+                                        <p className="text-sm">{selectedStudent.middle_name || '-'}</p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Last Name</Label>
+                                    {isDetailEditMode ? (
+                                        <Input
+                                            value={detailForm.data.last_name}
+                                            onChange={(event) => detailForm.setData('last_name', event.target.value)}
+                                        />
+                                    ) : (
+                                        <p className="text-sm">{selectedStudent.last_name || '-'}</p>
+                                    )}
+                                    {detailForm.errors.last_name && (
+                                        <p className="text-sm text-destructive">{detailForm.errors.last_name}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Gender</Label>
+                                    {isDetailEditMode ? (
+                                        <Select
+                                            value={detailForm.data.gender || 'none'}
+                                            onValueChange={(value) => detailForm.setData('gender', value === 'none' ? '' : value)}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select gender" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">Select gender</SelectItem>
+                                                <SelectItem value="Male">Male</SelectItem>
+                                                <SelectItem value="Female">Female</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    ) : (
+                                        <p className="text-sm">{selectedStudent.gender || '-'}</p>
+                                    )}
+                                    {detailForm.errors.gender && (
+                                        <p className="text-sm text-destructive">{detailForm.errors.gender}</p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Birthdate</Label>
+                                    {isDetailEditMode ? (
+                                        <DateOfBirthPicker
+                                            date={detailForm.data.birthdate ? new Date(detailForm.data.birthdate) : undefined}
+                                            setDate={(date) => detailForm.setData('birthdate', date ? format(date, 'yyyy-MM-dd') : '')}
+                                            className="w-full"
+                                            placeholder="Select date"
+                                        />
+                                    ) : (
+                                        <p className="text-sm">{selectedStudent.birthdate || '-'}</p>
+                                    )}
+                                    {detailForm.errors.birthdate && (
+                                        <p className="text-sm text-destructive">{detailForm.errors.birthdate}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Guardian Name</Label>
+                                {isDetailEditMode ? (
+                                    <Input
+                                        value={detailForm.data.guardian_name}
+                                        onChange={(event) => detailForm.setData('guardian_name', event.target.value)}
+                                    />
+                                ) : (
+                                    <p className="text-sm">{selectedStudent.guardian_name || '-'}</p>
+                                )}
+                                {detailForm.errors.guardian_name && (
+                                    <p className="text-sm text-destructive">{detailForm.errors.guardian_name}</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Guardian Contact Number</Label>
+                                {isDetailEditMode ? (
+                                    <div className="flex w-full min-w-0">
+                                        <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                                            +63
+                                        </span>
+                                        <Input
+                                            className="rounded-l-none"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            maxLength={10}
+                                            placeholder="9XXXXXXXXX"
+                                            value={detailForm.data.guardian_contact_number}
+                                            onChange={(event) =>
+                                                detailForm.setData(
+                                                    'guardian_contact_number',
+                                                    normalizeMobileSubscriberDigits(event.target.value),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                ) : (
+                                    <p className="text-sm">
+                                        {formatMobileForDisplay(
+                                            normalizeMobileSubscriberDigits(selectedStudent.guardian_contact_number || ''),
+                                        )}
+                                    </p>
+                                )}
+                                {detailForm.errors.guardian_contact_number && (
+                                    <p className="text-sm text-destructive">
+                                        {detailForm.errors.guardian_contact_number}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Contact Email</Label>
+                                {isDetailEditMode ? (
+                                    <Input
+                                        type="email"
+                                        value={detailForm.data.email}
+                                        onChange={(event) => detailForm.setData('email', event.target.value)}
+                                    />
+                                ) : (
+                                    <p className="text-sm">{selectedStudent.email || '-'}</p>
+                                )}
+                                {detailForm.errors.email && (
+                                    <p className="text-sm text-destructive">{detailForm.errors.email}</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        {isDetailEditMode ? (
+                            <>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsDetailEditMode(false)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={submitStudentDetailsUpdate}
+                                    disabled={detailForm.processing}
+                                >
+                                    Save Changes
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button type="button" variant="outline" onClick={closeStudentDetails}>
+                                    Close
+                                </Button>
+                                <Button type="button" onClick={() => setIsDetailEditMode(true)}>
+                                    <Pencil className="size-4" />
+                                    Edit
+                                </Button>
+                            </>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog
                 open={isExportDialogOpen}
