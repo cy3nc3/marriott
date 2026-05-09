@@ -54,6 +54,7 @@ type SelectedStudent = {
     enrollment_status: string | null;
     payment_plan: string | null;
     stated_downpayment: number;
+    enrollment_balance_due: number;
     remaining_balance: number;
     assessment_total_before_downpayment: number;
     remedial_case: {
@@ -127,6 +128,17 @@ const buildDownpaymentTransactionItem = (
     id: 'auto-downpayment',
     type: 'assessment_fee',
     description: 'Enrollment Downpayment',
+    amount: Number(amount.toFixed(2)),
+    fee_id: null,
+    inventory_item_id: null,
+});
+
+const buildEnrollmentFullPaymentTransactionItem = (
+    amount: number,
+): CurrentTransactionItem => ({
+    id: 'auto-enrollment-full-payment',
+    type: 'assessment_fee',
+    description: 'Enrollment Full Payment',
     amount: Number(amount.toFixed(2)),
     fee_id: null,
     inventory_item_id: null,
@@ -371,9 +383,40 @@ export default function CashierPanel({
             return;
         }
 
+        if (selected_student.enrollment_status !== 'for_cashier_payment') {
+            setTransactionItems([]);
+
+            return;
+        }
+
+        if (selected_student.payment_plan === 'cash') {
+            const enrollmentBalanceDue = Number(
+                selected_student.enrollment_balance_due,
+            );
+            const fallbackAssessmentTotal = Number(
+                selected_student.assessment_total_before_downpayment,
+            );
+            const autoAmount =
+                Number.isFinite(enrollmentBalanceDue) &&
+                enrollmentBalanceDue > 0
+                    ? enrollmentBalanceDue
+                    : Number.isFinite(fallbackAssessmentTotal)
+                      ? fallbackAssessmentTotal
+                      : 0;
+
+            if (autoAmount > 0) {
+                setTransactionItems([
+                    buildEnrollmentFullPaymentTransactionItem(autoAmount),
+                ]);
+            } else {
+                setTransactionItems([]);
+            }
+
+            return;
+        }
+
         const statedDownpayment = Number(selected_student.stated_downpayment);
         const shouldAutoSetDownpaymentItem =
-            selected_student.enrollment_status === 'for_cashier_payment' &&
             Number.isFinite(statedDownpayment) &&
             statedDownpayment > 0;
 

@@ -1,13 +1,16 @@
-import { Head, router, useForm } from '@inertiajs/react';
-import { Save } from 'lucide-react';
+import { Head, router } from '@inertiajs/react';
+import { Eye, ListChecks, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
     SelectContent,
@@ -25,7 +28,6 @@ import {
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import registrar from '@/routes/registrar';
-import { store } from '@/routes/registrar/remedial_entry';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -48,14 +50,23 @@ interface StudentOption {
     grade_and_section: string;
 }
 
-interface StudentSuggestionsResponse {
-    students: StudentOption[];
+interface ConditionalStudent {
+    id: number;
+    lrn: string;
+    name: string;
+    grade_and_section: string;
+    failed_subject_count: number;
+    remedial_case_status: string;
 }
 
 interface RemedialRow {
     record_id: number | null;
     subject_id: number;
     subject_name: string;
+    school_year: string;
+    enrolled_for_remedial: boolean;
+    assigned_teacher_id: number | null;
+    assigned_teacher_name: string | null;
     final_rating: number | null;
     remedial_class_mark: number | null;
     recomputed_final_grade: number | null;
@@ -81,26 +92,32 @@ interface RemedialCaseSummary {
     paid_at: string | null;
 }
 
+interface RecentEncodingDetail {
+    subject_name: string;
+    final_rating: number;
+    remedial_class_mark: number;
+    recomputed_final_grade: number;
+    status: string;
+}
+
 interface RecentEncoding {
+    key: string;
     student_name: string;
     lrn: string;
     school_year: string;
     updated_at: string;
     status: string;
+    details: RecentEncodingDetail[];
 }
 
 interface Props {
     academic_years: Option[];
-    grade_levels: Option[];
     students: StudentOption[];
+    conditional_students: ConditionalStudent[];
     selected_student: SelectedStudent | null;
     remedial_case: RemedialCaseSummary | null;
-    intake_meta: {
-        failed_subject_count: number;
-        fee_per_subject: number;
-        estimated_total: number;
-    };
     remedial_rows: RemedialRow[];
+    teacher_options: Option[];
     recent_encodings: RecentEncoding[];
     filters: {
         academic_year_id: number | null;
@@ -110,176 +127,85 @@ interface Props {
     };
 }
 
-interface RemedialFormRow {
-    subject_id: number;
-    final_rating: string;
-    remedial_class_mark: string;
+function prettifyCaseStatus(status: string): string {
+    return status.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export default function RemedialEntry({
     academic_years,
-    grade_levels,
-    students,
+    conditional_students,
     selected_student,
     remedial_case,
-    intake_meta,
     remedial_rows,
+    teacher_options,
     recent_encodings,
     filters,
 }: Props) {
-    const [academicYearId, setAcademicYearId] = useState<string>(
+    const [academicYearId] = useState<string>(
         filters.academic_year_id
             ? String(filters.academic_year_id)
             : academic_years[0]
               ? String(academic_years[0].id)
               : '',
     );
-    const [gradeLevelId, setGradeLevelId] = useState<string>(
-        filters.grade_level_id ? String(filters.grade_level_id) : 'all',
-    );
-    const [searchQuery, setSearchQuery] = useState<string>(
-        filters.search || '',
-    );
     const [studentId, setStudentId] = useState<string>(
-        filters.student_id
-            ? String(filters.student_id)
-            : students[0]
-              ? String(students[0].id)
-              : '',
+        filters.student_id ? String(filters.student_id) : '',
     );
-    const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
-    const baseSearchSuggestions = useMemo(
-        () =>
-            students.map((student) => ({
-                id: student.id,
-                label: student.name,
-                value: student.name,
-                description: `LRN: ${student.lrn}`,
-                keywords: `${student.lrn} ${student.grade_and_section}`,
-            })),
-        [students],
+    const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
+    const [studentModalQuery, setStudentModalQuery] = useState('');
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [selectedHistory, setSelectedHistory] = useState<RecentEncoding | null>(
+        null,
     );
-    const [searchSuggestions, setSearchSuggestions] = useState(
-        baseSearchSuggestions,
+    const [enrollingSubjectId, setEnrollingSubjectId] = useState<number | null>(
+        null,
     );
+    const [teacherAssignments, setTeacherAssignments] = useState<
+        Record<number, string>
+    >(() => {
+        const initial: Record<number, string> = {};
+        remedial_rows.forEach((row) => {
+            if (row.assigned_teacher_id) {
+                initial[row.subject_id] = String(row.assigned_teacher_id);
+            }
+        });
 
-    const formatCurrency = (amount: number) =>
-        new Intl.NumberFormat('en-PH', {
-            style: 'currency',
-            currency: 'PHP',
-        }).format(amount || 0);
-
-    const remedialForm = useForm<{
-        academic_year_id: number;
-        student_id: number;
-        save_mode: 'draft' | 'submitted';
-        records: RemedialFormRow[];
-    }>({
-        academic_year_id: Number(academicYearId || 0),
-        student_id: Number(studentId || 0),
-        save_mode: 'draft',
-        records: remedial_rows.map((row) => ({
-            subject_id: row.subject_id,
-            final_rating:
-                row.final_rating !== null ? String(row.final_rating) : '',
-            remedial_class_mark:
-                row.remedial_class_mark !== null
-                    ? String(row.remedial_class_mark)
-                    : '',
-        })),
-    });
-
-    const intakeForm = useForm({
-        academic_year_id: Number(academicYearId || 0),
-        student_id: Number(studentId || 0),
+        return initial;
     });
 
     useEffect(() => {
-        setSearchSuggestions(baseSearchSuggestions);
-    }, [baseSearchSuggestions]);
+        const nextAssignments: Record<number, string> = {};
+        remedial_rows.forEach((row) => {
+            if (row.assigned_teacher_id) {
+                nextAssignments[row.subject_id] = String(row.assigned_teacher_id);
+            }
+        });
+        setTeacherAssignments(nextAssignments);
+    }, [remedial_rows, studentId]);
 
-    useEffect(() => {
-        const normalizedQuery = searchQuery.trim();
-
-        if (normalizedQuery === '') {
-            setSearchSuggestions(baseSearchSuggestions);
-
-            return;
+    const conditionalStudentsFiltered = useMemo(() => {
+        const query = studentModalQuery.trim().toLowerCase();
+        if (query === '') {
+            return conditional_students;
         }
 
-        const controller = new AbortController();
-        const timeoutId = window.setTimeout(async () => {
-            try {
-                const query = new URLSearchParams({
-                    search: normalizedQuery,
-                    academic_year_id: academicYearId,
-                });
-
-                if (gradeLevelId !== 'all') {
-                    query.set('grade_level_id', gradeLevelId);
-                }
-
-                const response = await fetch(
-                    `/registrar/remedial-entry/student-suggestions?${query.toString()}`,
-                    {
-                        headers: {
-                            Accept: 'application/json',
-                        },
-                        signal: controller.signal,
-                    },
-                );
-
-                if (!response.ok) {
-                    return;
-                }
-
-                const payload =
-                    (await response.json()) as StudentSuggestionsResponse;
-                setSearchSuggestions(
-                    payload.students.map((student) => ({
-                        id: student.id,
-                        label: student.name,
-                        value: student.name,
-                        description: `LRN: ${student.lrn}`,
-                        keywords: `${student.lrn} ${student.grade_and_section}`,
-                    })),
-                );
-            } catch (error) {
-                if (
-                    error instanceof DOMException &&
-                    error.name === 'AbortError'
-                ) {
-                    return;
-                }
-            }
-        }, 250);
-
-        return () => {
-            window.clearTimeout(timeoutId);
-            controller.abort();
-        };
-    }, [academicYearId, baseSearchSuggestions, gradeLevelId, searchQuery]);
+        return conditional_students.filter((student) => {
+            const haystack = `${student.name} ${student.lrn} ${student.grade_and_section}`.toLowerCase();
+            return haystack.includes(query);
+        });
+    }, [conditional_students, studentModalQuery]);
 
     const applyFilters = (next?: {
         academicYearId?: string;
-        gradeLevelId?: string;
-        search?: string;
         studentId?: string;
     }) => {
         const resolvedAcademicYear = next?.academicYearId ?? academicYearId;
-        const resolvedGradeLevel = next?.gradeLevelId ?? gradeLevelId;
-        const resolvedSearch = next?.search ?? searchQuery;
         const resolvedStudent = next?.studentId ?? studentId;
 
         router.get(
             registrar.remedial_entry.url({
                 query: {
                     academic_year_id: resolvedAcademicYear || undefined,
-                    grade_level_id:
-                        resolvedGradeLevel === 'all'
-                            ? undefined
-                            : resolvedGradeLevel,
-                    search: resolvedSearch || undefined,
                     student_id: resolvedStudent || undefined,
                 },
             }),
@@ -290,585 +216,470 @@ export default function RemedialEntry({
         );
     };
 
-    const updateRecord = (
-        index: number,
-        field: keyof RemedialFormRow,
-        value: string,
-    ) => {
-        const updated = [...remedialForm.data.records];
-        updated[index] = {
-            ...updated[index],
-            [field]: value,
-        };
-        remedialForm.setData('records', updated);
-    };
+    const isRemedialPaid = remedial_case?.status === 'paid';
 
-    const computedRow = (index: number) => {
-        const finalRaw = remedialForm.data.records[index]?.final_rating ?? '';
-        const remedialRaw =
-            remedialForm.data.records[index]?.remedial_class_mark ?? '';
-
-        if (finalRaw.trim() === '' || remedialRaw.trim() === '') {
-            return {
-                recomputed: '--',
-                status: 'For Encoding',
-            };
-        }
-
-        const finalValue = Number(finalRaw);
-        const remedialValue = Number(remedialRaw);
-        const hasNumbers =
-            !Number.isNaN(finalValue) && !Number.isNaN(remedialValue);
-
-        if (!hasNumbers) {
-            return {
-                recomputed: '--',
-                status: 'For Encoding',
-            };
-        }
-
-        const recomputed = ((finalValue + remedialValue) / 2).toFixed(2);
-        const status = Number(recomputed) >= 75 ? 'Passed' : 'Failed';
-
-        return {
-            recomputed,
-            status,
-        };
-    };
-
-    const createRemedialIntake = () => {
+    const enrollFailedSubject = (subjectId: number) => {
         if (!studentId || !academicYearId) {
             return;
         }
 
-        intakeForm.transform((data) => ({
-            ...data,
-            academic_year_id: Number(academicYearId),
-            student_id: Number(studentId),
-        }));
-
-        intakeForm.post('/registrar/remedial-entry/intake', {
-            preserveScroll: true,
-            onFinish: () => {
-                intakeForm.transform((data) => data);
+        setEnrollingSubjectId(subjectId);
+        router.post(
+            '/registrar/remedial-entry/intake-subject',
+            {
+                academic_year_id: Number(academicYearId),
+                student_id: Number(studentId),
+                subject_id: subjectId,
+                assigned_teacher_id: Number(
+                    teacherAssignments[subjectId] || 0,
+                ),
             },
-        });
-    };
-
-    const canSubmitRemedialResults = remedial_case?.status === 'paid';
-
-    const save = (mode: 'draft' | 'submitted') => {
-        if (!studentId || !academicYearId) return;
-        if (mode === 'submitted' && !canSubmitRemedialResults) return;
-
-        remedialForm.transform((data) => ({
-            ...data,
-            academic_year_id: Number(academicYearId),
-            student_id: Number(studentId),
-            save_mode: mode,
-            records: data.records.map((record) => ({
-                subject_id: record.subject_id,
-                final_rating:
-                    record.final_rating.trim() === ''
-                        ? null
-                        : Number(record.final_rating),
-                remedial_class_mark:
-                    record.remedial_class_mark.trim() === ''
-                        ? null
-                        : Number(record.remedial_class_mark),
-            })),
-        }));
-
-        remedialForm.post(store().url, {
-            preserveScroll: true,
-            onFinish: () => {
-                remedialForm.transform((data) => data);
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setEnrollingSubjectId(null);
+                },
             },
-        });
+        );
     };
 
     return (
         <>
             <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Remedial Entry" />
+                <Head title="Remedial Entry" />
 
-            <div className="flex flex-col gap-6">
-                <Card className="gap-2">
-                    <CardHeader className="border-b">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <CardTitle>Remedial Context</CardTitle>
-                            <Badge variant="outline">
-                                Status:{' '}
-                                {selected_student?.overall_result ||
-                                    'No Student'}
-                            </Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                            <div className="space-y-2">
-                                <Label>School Year</Label>
-                                <Select
-                                    value={academicYearId}
-                                    onValueChange={(value) => {
-                                        setAcademicYearId(value);
-                                        applyFilters({
-                                            academicYearId: value,
-                                        });
-                                    }}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select school year" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {academic_years.map((year) => (
-                                            <SelectItem
-                                                key={year.id}
-                                                value={String(year.id)}
-                                            >
-                                                {year.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Grade Level</Label>
-                                <Select
-                                    value={gradeLevelId}
-                                    onValueChange={(value) => {
-                                        setGradeLevelId(value);
-                                        applyFilters({
-                                            gradeLevelId: value,
-                                        });
-                                    }}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">
-                                            All Grade Levels
-                                        </SelectItem>
-                                        {grade_levels.map((level) => (
-                                            <SelectItem
-                                                key={level.id}
-                                                value={String(level.id)}
-                                            >
-                                                {level.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Search Student</Label>
-                                <div className="flex gap-2">
-                                    <SearchAutocompleteInput
-                                        value={searchQuery}
-                                        placeholder="LRN or student name"
-                                        onValueChange={setSearchQuery}
-                                        suggestions={searchSuggestions}
-                                        onEnterPress={() =>
-                                            applyFilters({
-                                                search: searchQuery,
-                                            })
-                                        }
-                                        onSelectSuggestion={(option) => {
-                                            const selectedId = String(
-                                                option.id,
-                                            );
-                                            const selectedSearch =
-                                                option.value ?? option.label;
-
-                                            setSearchQuery(selectedSearch);
-                                            setStudentId(selectedId);
-                                            applyFilters({
-                                                search: selectedSearch,
-                                                studentId: selectedId,
-                                            });
-                                        }}
-                                    />
-                                    <Button
-                                        variant="outline"
-                                        onClick={() =>
-                                            applyFilters({
-                                                search: searchQuery,
-                                            })
-                                        }
-                                    >
-                                        Find
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Selected Student</Label>
-                                <Select
-                                    value={studentId}
-                                    onValueChange={(value) => {
-                                        setStudentId(value);
-                                        applyFilters({
-                                            studentId: value,
-                                        });
-                                    }}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Choose student" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {students.map((student) => (
-                                            <SelectItem
-                                                key={student.id}
-                                                value={String(student.id)}
-                                            >
-                                                {student.name} ({student.lrn})
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <div className="grid gap-6 lg:grid-cols-3">
+                <div className="flex flex-col gap-6">
                     <Card className="gap-2">
                         <CardHeader className="border-b">
-                            <CardTitle>Selected Student</CardTitle>
+                            <div className="flex items-center justify-between gap-3">
+                                <CardTitle>Selected Student</CardTitle>
+                                <Button
+                                    variant="outline"
+                                    className="justify-start"
+                                    onClick={() => setIsStudentModalOpen(true)}
+                                >
+                                    <Users className="size-4" />
+                                    {`Select Student (${conditional_students.length})`}
+                                </Button>
+                            </div>
                         </CardHeader>
-                        <CardContent className="space-y-2 pt-6">
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Name
-                                </p>
-                                <p className="text-sm font-medium">
-                                    {selected_student?.name || '--'}
-                                </p>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    LRN
-                                </p>
-                                <p className="text-sm font-medium">
-                                    {selected_student?.lrn || '--'}
-                                </p>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Section
-                                </p>
-                                <p className="text-sm font-medium">
-                                    {selected_student?.grade_and_section ||
-                                        '--'}
-                                </p>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Failed Subjects
-                                </p>
-                                <p className="text-sm font-medium">
-                                    {intake_meta.failed_subject_count}
-                                </p>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Fee Per Subject
-                                </p>
-                                <p className="text-sm font-medium">
-                                    {formatCurrency(
-                                        intake_meta.fee_per_subject,
-                                    )}
-                                </p>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Estimated Total
-                                </p>
-                                <p className="text-sm font-medium">
-                                    {formatCurrency(
-                                        intake_meta.estimated_total,
-                                    )}
-                                </p>
-                            </div>
-                            {remedial_case ? (
-                                <>
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-sm text-muted-foreground">
-                                            Remedial Intake
+                        <CardContent className="pt-5">
+                            <div className="rounded-lg border bg-muted/30 p-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="space-y-1">
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                            Student
                                         </p>
-                                        <Badge
-                                            variant="outline"
-                                            className={
-                                                remedial_case.status === 'paid'
-                                                    ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-                                                    : 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-                                            }
-                                        >
-                                            {remedial_case.status
-                                                .replaceAll('_', ' ')
-                                                .replace(/\b\w/g, (c) => c.toUpperCase())}
-                                        </Badge>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-sm text-muted-foreground">
-                                            Amount Paid
+                                        <p className="text-base font-semibold">
+                                            {selected_student?.name || '--'}
                                         </p>
-                                        <p className="text-sm font-medium">
-                                            {formatCurrency(
-                                                remedial_case.amount_paid,
-                                            )}
+                                        <p className="text-sm text-muted-foreground">
+                                            {`LRN: ${selected_student?.lrn || '--'}`}
                                         </p>
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-sm text-muted-foreground">
-                                            Intake Balance
-                                        </p>
-                                        <p className="text-sm font-medium">
-                                            {formatCurrency(
-                                                remedial_case.balance,
-                                            )}
-                                        </p>
-                                    </div>
-                                </>
-                            ) : null}
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Overall Result
-                                </p>
-                                <Badge variant="outline">
-                                    {selected_student?.overall_result ||
-                                        'No Student'}
-                                </Badge>
+                                    <Badge variant="outline">
+                                        {selected_student?.overall_result ||
+                                            'No Student'}
+                                    </Badge>
+                                </div>
                             </div>
-                            <Button
-                                onClick={createRemedialIntake}
-                                disabled={
-                                    intakeForm.processing ||
-                                    !studentId ||
-                                    Number(academicYearId || 0) <= 0 ||
-                                    intake_meta.failed_subject_count <= 0
-                                }
-                            >
-                                {remedial_case
-                                    ? 'Recalculate Remedial Intake'
-                                    : 'Create Remedial Intake'}
-                            </Button>
                         </CardContent>
                     </Card>
 
-                    <Card className="lg:col-span-2">
-                        <CardHeader className="border-b">
-                            <CardTitle>Remedial Subject Ratings</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <Table>
+                    <Card>
+                            <CardHeader className="border-b">
+                                <CardTitle>Remedial Subject Ratings</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="pl-6">
+                                                Subject
+                                            </TableHead>
+                                            <TableHead>School Year</TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Failing Grade
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Assigned Teacher
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Intake
+                                            </TableHead>
+                                            <TableHead className="border-l text-center">
+                                                Encoding
+                                            </TableHead>
+                                            <TableHead className="border-l pr-6 text-right">
+                                                Status
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {remedial_rows.map((row) => {
+                                            return (
+                                                <TableRow key={row.subject_id}>
+                                                    <TableCell className="pl-6 font-medium">
+                                                        {row.subject_name}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {row.school_year}
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center">
+                                                        {row.final_rating ?? '--'}
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center">
+                                                        <Select
+                                                            value={
+                                                                teacherAssignments[
+                                                                    row.subject_id
+                                                                ] ??
+                                                                (row.assigned_teacher_id
+                                                                    ? String(
+                                                                          row.assigned_teacher_id,
+                                                                      )
+                                                                    : 'none')
+                                                            }
+                                                            onValueChange={(value) =>
+                                                                setTeacherAssignments(
+                                                                    (current) => ({
+                                                                        ...current,
+                                                                        [row.subject_id]:
+                                                                            value ===
+                                                                            'none'
+                                                                                ? ''
+                                                                                : value,
+                                                                    }),
+                                                                )
+                                                            }
+                                                            disabled={row.enrolled_for_remedial}
+                                                        >
+                                                            <SelectTrigger className="mx-auto w-52">
+                                                                <SelectValue placeholder="Assign teacher" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="none">
+                                                                    Assign teacher
+                                                                </SelectItem>
+                                                                {teacher_options.map(
+                                                                    (teacher) => (
+                                                                        <SelectItem
+                                                                            key={
+                                                                                teacher.id
+                                                                            }
+                                                                            value={String(
+                                                                                teacher.id,
+                                                                            )}
+                                                                        >
+                                                                            {
+                                                                                teacher.name
+                                                                            }
+                                                                        </SelectItem>
+                                                                    ),
+                                                                )}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center">
+                                                        {row.record_id !== null ? (
+                                                            <Badge variant="outline">
+                                                                Added
+                                                            </Badge>
+                                                        ) : row.enrolled_for_remedial ? (
+                                                            <Badge variant="outline">
+                                                                Queued
+                                                            </Badge>
+                                                        ) : (
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="outline"
+                                                                disabled={
+                                                                    enrollingSubjectId ===
+                                                                        row.subject_id ||
+                                                                    !teacherAssignments[
+                                                                        row.subject_id
+                                                                    ]
+                                                                }
+                                                                onClick={() =>
+                                                                    enrollFailedSubject(
+                                                                        row.subject_id,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Add to Intake
+                                                            </Button>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="border-l text-center">
+                                                        {row.record_id !== null ? (
+                                                            <Badge variant="outline">
+                                                                Encoded
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="outline">
+                                                                Pending
+                                                            </Badge>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="border-l pr-6 text-right">
+                                                        {row.record_id !== null ? (
+                                                            <Badge variant="outline">
+                                                                {row.status}
+                                                            </Badge>
+                                                        ) : row.enrolled_for_remedial ? (
+                                                            <Badge variant="outline">
+                                                                {isRemedialPaid
+                                                                    ? 'For Teacher Encoding'
+                                                                    : 'For Cashier Payment'}
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="outline">
+                                                                Not Selected
+                                                            </Badge>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                        {remedial_rows.length === 0 && (
+                                            <TableRow>
+                                            <TableCell
+                                                    colSpan={7}
+                                                    className="h-24 text-center text-sm text-muted-foreground"
+                                                >
+                                                    No failed subjects found for
+                                                    this student context.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                            <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsHistoryModalOpen(true)}
+                                >
+                                    <ListChecks className="size-4" />
+                                    Remedial Encoding History
+                                </Button>
+                            </div>
+                        </Card>
+                </div>
+            </AppLayout>
+
+            <Dialog open={isStudentModalOpen} onOpenChange={setIsStudentModalOpen}>
+                <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>Select Conditional Student</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <Input
+                            value={studentModalQuery}
+                            onChange={(event) =>
+                                setStudentModalQuery(event.target.value)
+                            }
+                            placeholder="Search by name, LRN, or grade"
+                        />
+                        <div className="max-h-[420px] overflow-auto rounded-md border">
+                            <Table className="w-full table-fixed">
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="pl-6">
-                                            Subject
-                                        </TableHead>
-                                        <TableHead className="border-l text-center">
-                                            Original
-                                        </TableHead>
-                                        <TableHead className="border-l text-center">
-                                            Remedial
-                                        </TableHead>
-                                        <TableHead className="border-l text-center">
-                                            Final Rating
-                                        </TableHead>
-                                        <TableHead className="border-l pr-6 text-right">
-                                            Status
+                                        <TableHead className="w-[30%] pl-4">Student</TableHead>
+                                        <TableHead className="w-[17%]">LRN</TableHead>
+                                        <TableHead className="w-[20%]">Grade</TableHead>
+                                        <TableHead className="w-[10%]">Failed</TableHead>
+                                        <TableHead className="w-[13%]">Intake</TableHead>
+                                        <TableHead className="w-[10%] pr-4 text-right">
+                                            Action
                                         </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {remedial_rows.map((row, index) => {
-                                        const liveRow = computedRow(index);
-
-                                        return (
-                                            <TableRow key={row.subject_id}>
-                                                <TableCell className="pl-6 font-medium">
-                                                    {row.subject_name}
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    <Input
-                                                        value={
-                                                            remedialForm.data
-                                                                .records[index]
-                                                                ?.final_rating ||
-                                                            ''
-                                                        }
-                                                        onChange={(event) =>
-                                                            updateRecord(
-                                                                index,
-                                                                'final_rating',
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                        className="mx-auto w-20"
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    <Input
-                                                        value={
-                                                            remedialForm.data
-                                                                .records[index]
-                                                                ?.remedial_class_mark ||
-                                                            ''
-                                                        }
-                                                        onChange={(event) =>
-                                                            updateRecord(
-                                                                index,
-                                                                'remedial_class_mark',
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                        className="mx-auto w-20"
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="border-l text-center">
-                                                    {liveRow.recomputed}
-                                                </TableCell>
-                                                <TableCell className="border-l pr-6 text-right">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={
-                                                            liveRow.status === 'Passed'
-                                                                ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-                                                                : liveRow.status === 'Failed'
-                                                                  ? 'bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800'
-                                                                  : ''
-                                                        }
-                                                    >
-                                                        {liveRow.status}
-                                                    </Badge>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                    {remedial_rows.length === 0 && (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={5}
-                                                className="h-24 text-center text-sm text-muted-foreground"
-                                            >
-                                                No remedial subjects found for
-                                                this context.
+                                    {conditionalStudentsFiltered.map((student) => (
+                                        <TableRow key={student.id}>
+                                            <TableCell className="truncate pl-4 font-medium" title={student.name}>
+                                                {student.name}
+                                            </TableCell>
+                                            <TableCell className="truncate whitespace-nowrap" title={student.lrn}>
+                                                {student.lrn}
+                                            </TableCell>
+                                            <TableCell className="truncate" title={student.grade_and_section}>
+                                                {student.grade_and_section}
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap">
+                                                {student.failed_subject_count}
+                                            </TableCell>
+                                            <TableCell className="truncate" title={prettifyCaseStatus(student.remedial_case_status)}>
+                                                {prettifyCaseStatus(
+                                                    student.remedial_case_status,
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="pr-4 text-right whitespace-nowrap">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        const nextId = String(
+                                                            student.id,
+                                                        );
+                                                        setStudentId(nextId);
+                                                        setIsStudentModalOpen(
+                                                            false,
+                                                        );
+                                                        applyFilters({
+                                                            studentId: nextId,
+                                                        });
+                                                    }}
+                                                >
+                                                    Select
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
-                                    )}
+                                    ))}
+                                    {conditionalStudentsFiltered.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={6}
+                                                className="h-20 text-center text-sm text-muted-foreground"
+                                            >
+                                                No conditional students found.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : null}
                                 </TableBody>
                             </Table>
-                        </CardContent>
-                        <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
-                            <Button
-                                variant="outline"
-                                onClick={() => save('draft')}
-                                disabled={
-                                    remedialForm.processing ||
-                                    !studentId ||
-                                    remedial_rows.length === 0
-                                }
-                            >
-                                Save Draft
-                            </Button>
-                            <Button
-                                onClick={() => setIsSubmitConfirmOpen(true)}
-                                disabled={
-                                    remedialForm.processing ||
-                                    !studentId ||
-                                    remedial_rows.length === 0 ||
-                                    !canSubmitRemedialResults
-                                }
-                            >
-                                <Save className="size-4" />
-                                Submit Remedial Results
-                            </Button>
                         </div>
-                        {!canSubmitRemedialResults ? (
-                            <p className="px-4 pb-3 text-xs text-muted-foreground">
-                                Remedial intake must be fully paid before
-                                submitting remedial results.
-                            </p>
-                        ) : null}
-                    </Card>
-                </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
-                <Card>
-                    <CardHeader className="border-b">
-                        <CardTitle>Recent Remedial Encodings</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0">
+            <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+                <DialogContent className="max-w-5xl">
+                    <DialogHeader>
+                        <DialogTitle>Remedial Encoding History</DialogTitle>
+                    </DialogHeader>
+                    <div className="max-h-[460px] overflow-auto rounded-md border">
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="pl-6">
-                                        Student
-                                    </TableHead>
+                                    <TableHead className="pl-4">Student</TableHead>
                                     <TableHead>LRN</TableHead>
                                     <TableHead>School Year</TableHead>
-                                    <TableHead>Last Updated</TableHead>
-                                    <TableHead className="pr-6 text-right">
-                                        Status
+                                    <TableHead>Updated</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="pr-4 text-right">
+                                        Action
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {recent_encodings.map((row) => (
-                                    <TableRow
-                                        key={`${row.lrn}-${row.school_year}`}
-                                    >
-                                        <TableCell className="pl-6 font-medium">
+                                    <TableRow key={row.key}>
+                                        <TableCell className="pl-4 font-medium">
                                             {row.student_name}
                                         </TableCell>
                                         <TableCell>{row.lrn}</TableCell>
                                         <TableCell>{row.school_year}</TableCell>
                                         <TableCell>{row.updated_at}</TableCell>
-                                        <TableCell className="pr-6 text-right">
-                                            <Badge
+                                        <TableCell>{row.status}</TableCell>
+                                        <TableCell className="pr-4 text-right">
+                                            <Button
+                                                type="button"
                                                 variant="outline"
-                                                className={
-                                                    row.status === 'Submitted'
-                                                        ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-                                                        : ''
+                                                size="sm"
+                                                onClick={() =>
+                                                    setSelectedHistory(row)
                                                 }
                                             >
-                                                {row.status}
-                                            </Badge>
+                                                <Eye className="size-4" />
+                                                View Details
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                                {recent_encodings.length === 0 && (
+                                {recent_encodings.length === 0 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={5}
-                                            className="h-24 text-center text-sm text-muted-foreground"
+                                            colSpan={6}
+                                            className="h-20 text-center text-sm text-muted-foreground"
                                         >
                                             No remedial encodings yet.
                                         </TableCell>
                                     </TableRow>
-                                )}
+                                ) : null}
                             </TableBody>
                         </Table>
-                    </CardContent>
-                </Card>
-            </div>
-        </AppLayout>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
-        <ActionConfirmDialog
-            open={isSubmitConfirmOpen}
-            onOpenChange={setIsSubmitConfirmOpen}
-            title="Submit Remedial Results"
-            description="Are you sure you want to submit these remedial results? This will finalize the student's grades for the affected subjects and may update their overall status."
-            confirmLabel="Confirm Submission"
-            loading={remedialForm.processing}
-            onConfirm={() => save('submitted')}
-        />
+            <Dialog
+                open={selectedHistory !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setSelectedHistory(null);
+                    }
+                }}
+            >
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Remedial Encoding Details
+                            {selectedHistory
+                                ? ` · ${selectedHistory.student_name} (${selectedHistory.school_year})`
+                                : ''}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="max-h-[430px] overflow-auto rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="pl-4">Subject</TableHead>
+                                    <TableHead>Failing Grade</TableHead>
+                                    <TableHead>Remedial Grade</TableHead>
+                                    <TableHead>Recomputed</TableHead>
+                                    <TableHead className="pr-4">Status</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {(selectedHistory?.details ?? []).map((detail) => (
+                                    <TableRow
+                                        key={`${detail.subject_name}-${detail.final_rating}-${detail.remedial_class_mark}`}
+                                    >
+                                        <TableCell className="pl-4 font-medium">
+                                            {detail.subject_name}
+                                        </TableCell>
+                                        <TableCell>{detail.final_rating}</TableCell>
+                                        <TableCell>
+                                            {detail.remedial_class_mark}
+                                        </TableCell>
+                                        <TableCell>
+                                            {detail.recomputed_final_grade}
+                                        </TableCell>
+                                        <TableCell className="pr-4">
+                                            {detail.status}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {(selectedHistory?.details ?? []).length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={5}
+                                            className="h-20 text-center text-sm text-muted-foreground"
+                                        >
+                                            No subject details found.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : null}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

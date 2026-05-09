@@ -44,7 +44,7 @@ import AppLogo from './app-logo';
 const footerNavItems: NavItem[] = [
     {
         title: 'System Help',
-        href: '#',
+        href: '/system-help',
         icon: HelpCircle,
     },
 ];
@@ -216,6 +216,16 @@ const roleNavItems: Record<string, NavItem[]> = {
             icon: CheckSquare,
         },
         {
+            title: 'Historical Records',
+            href: '/teacher/historical-records',
+            icon: History,
+        },
+        {
+            title: 'Remedial Encoding',
+            href: '/teacher/remedial-encoding',
+            icon: CheckSquare,
+        },
+        {
             title: 'Advisory Board',
             href: '/teacher/advisory-board',
             icon: UserCheck,
@@ -250,6 +260,8 @@ const handheldAllowedHrefMap: Record<string, string[]> = {
         '/teacher/schedule',
         '/teacher/attendance',
         '/teacher/grading-sheet',
+        '/teacher/historical-records',
+        '/teacher/remedial-encoding',
         '/teacher/advisory-board',
     ],
     student: ['/student/schedule', '/student/grades'],

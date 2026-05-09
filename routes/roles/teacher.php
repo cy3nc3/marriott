@@ -3,6 +3,8 @@
 use App\Http\Controllers\Teacher\AdvisoryBoardController;
 use App\Http\Controllers\Teacher\AttendanceController;
 use App\Http\Controllers\Teacher\GradingSheetController;
+use App\Http\Controllers\Teacher\HistoricalRecordsController;
+use App\Http\Controllers\Teacher\RemedialEncodingController;
 use App\Http\Controllers\Teacher\ScheduleController;
 use Illuminate\Support\Facades\Route;
 
@@ -10,9 +12,14 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
     Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule');
 
     Route::get('/grading-sheet', [GradingSheetController::class, 'index'])->name('grading_sheet');
+    Route::get('/historical-records', [HistoricalRecordsController::class, 'index'])->name('historical_records');
     Route::post('/grading-sheet/rubric', [GradingSheetController::class, 'updateRubric'])->name('grading_sheet.update_rubric');
     Route::post('/grading-sheet/assessments', [GradingSheetController::class, 'storeAssessment'])->name('grading_sheet.store_assessment');
+    Route::patch('/grading-sheet/assessments/{assessment}', [GradingSheetController::class, 'updateAssessment'])->name('grading_sheet.update_assessment');
+    Route::delete('/grading-sheet/assessments/{assessment}', [GradingSheetController::class, 'destroyAssessment'])->name('grading_sheet.destroy_assessment');
     Route::post('/grading-sheet/scores', [GradingSheetController::class, 'storeScores'])->name('grading_sheet.store_scores');
+    Route::get('/remedial-encoding', [RemedialEncodingController::class, 'index'])->middleware('desktop_only')->name('remedial_encoding');
+    Route::post('/remedial-encoding', [RemedialEncodingController::class, 'store'])->middleware('desktop_only')->name('remedial_encoding.store');
 
     Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance');
     Route::get('/attendance/export-sf2', [AttendanceController::class, 'exportSf2'])->name('attendance.export_sf2');
@@ -20,4 +27,5 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
 
     Route::get('/advisory-board', [AdvisoryBoardController::class, 'index'])->name('advisory_board');
     Route::post('/advisory-board/conduct', [AdvisoryBoardController::class, 'storeConduct'])->name('advisory_board.store_conduct');
+    Route::post('/advisory-board/release-grades', [AdvisoryBoardController::class, 'releaseGrades'])->name('advisory_board.release_grades');
 });

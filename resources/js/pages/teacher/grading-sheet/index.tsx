@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { CheckCircle2, Plus, Settings2 } from 'lucide-react';
+import { CheckCircle2, Pencil, Plus, Settings2, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -46,6 +46,9 @@ type SubjectOption = {
 };
 
 type Context = {
+    academic_year_options: { id: number; name: string; status: string }[];
+    selected_academic_year_id: number | null;
+    is_read_only_historical: boolean;
     section_options: SectionOption[];
     subject_options: SubjectOption[];
     selected_section_id: number | null;
@@ -63,6 +66,7 @@ type RubricWeights = {
 
 type Assessment = {
     id: number;
+    type: 'WW' | 'PT' | 'QA';
     title: string;
     max_points: number;
 };
@@ -126,6 +130,7 @@ export default function GradingSheet({
 }: Props) {
     const gradingSheetRoute = teacher.grading_sheet;
     const isFeatureLocked = feature_lock.is_locked;
+    const isFinalized = status === 'submitted' || status === 'verified';
 
     const statusLabel =
         status === 'submitted'
@@ -139,6 +144,10 @@ export default function GradingSheet({
     const [isAssessmentModalOpen, setIsAssessmentModalOpen] = useState(false);
     const [isRubricModalOpen, setIsRubricModalOpen] = useState(false);
     const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
+    const [editingAssessment, setEditingAssessment] =
+        useState<Assessment | null>(null);
+    const [assessmentPendingDelete, setAssessmentPendingDelete] =
+        useState<Assessment | null>(null);
 
     const [assessmentTitle, setAssessmentTitle] = useState('');
     const [assessmentComponent, setAssessmentComponent] = useState<
@@ -205,6 +214,8 @@ export default function GradingSheet({
         router.get(
             gradingSheetRoute.url({
                 query: {
+                    academic_year_id:
+                        context.selected_academic_year_id || undefined,
                     section_id: sectionId || undefined,
                     subject_id: subjectId || undefined,
                     quarter,
@@ -246,6 +257,18 @@ export default function GradingSheet({
         );
     };
 
+    const handleAcademicYearChange = (value: string) => {
+        router.get(
+            gradingSheetRoute.url({
+                query: {
+                    academic_year_id: Number(value),
+                },
+            }),
+            {},
+            { preserveScroll: true, replace: true },
+        );
+    };
+
     const handleScoreChange = (
         studentId: number,
         assessmentId: number,
@@ -259,6 +282,26 @@ export default function GradingSheet({
             ...previousValues,
             [`${studentId}-${assessmentId}`]: value,
         }));
+    };
+
+    const resetAssessmentForm = () => {
+        setEditingAssessment(null);
+        setAssessmentTitle('');
+        setAssessmentComponent('WW');
+        setAssessmentMaxPoints('10');
+    };
+
+    const openCreateAssessmentModal = () => {
+        resetAssessmentForm();
+        setIsAssessmentModalOpen(true);
+    };
+
+    const openEditAssessmentModal = (assessment: Assessment) => {
+        setEditingAssessment(assessment);
+        setAssessmentTitle(assessment.title);
+        setAssessmentComponent(assessment.type);
+        setAssessmentMaxPoints(String(assessment.max_points));
+        setIsAssessmentModalOpen(true);
     };
 
     const submitRubric = () => {
@@ -293,22 +336,50 @@ export default function GradingSheet({
             return;
         }
 
+        const payload = {
+            subject_assignment_id: context.selected_assignment_id,
+            quarter: context.selected_quarter,
+            type: assessmentComponent,
+            title: normalizedTitle,
+            max_score: asNumber(assessmentMaxPoints),
+        };
+
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsAssessmentModalOpen(false);
+                resetAssessmentForm();
+            },
+        };
+
+        if (editingAssessment) {
+            router.patch(
+                `/teacher/grading-sheet/assessments/${editingAssessment.id}`,
+                payload,
+                options,
+            );
+
+            return;
+        }
+
         router.post(
             gradingSheetRoute.store_assessment.url(),
-            {
-                subject_assignment_id: context.selected_assignment_id,
-                quarter: context.selected_quarter,
-                type: assessmentComponent,
-                title: normalizedTitle,
-                max_score: asNumber(assessmentMaxPoints),
-            },
+            payload,
+            options,
+        );
+    };
+
+    const deleteAssessment = () => {
+        if (!assessmentPendingDelete) {
+            return;
+        }
+
+        router.delete(
+            `/teacher/grading-sheet/assessments/${assessmentPendingDelete.id}`,
             {
                 preserveScroll: true,
                 onSuccess: () => {
-                    setIsAssessmentModalOpen(false);
-                    setAssessmentTitle('');
-                    setAssessmentComponent('WW');
-                    setAssessmentMaxPoints('10');
+                    setAssessmentPendingDelete(null);
                 },
             },
         );
@@ -390,6 +461,36 @@ export default function GradingSheet({
                         ) : null}
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex flex-col gap-3 sm:flex-row">
+                                {context.academic_year_options.length > 0 && (
+                                    <Select
+                                        value={
+                                            context.selected_academic_year_id
+                                                ? String(
+                                                      context.selected_academic_year_id,
+                                                  )
+                                                : undefined
+                                        }
+                                        onValueChange={handleAcademicYearChange}
+                                    >
+                                        <SelectTrigger className="w-full sm:w-44">
+                                            <SelectValue placeholder="School Year" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {context.academic_year_options.map(
+                                                (schoolYear) => (
+                                                    <SelectItem
+                                                        key={schoolYear.id}
+                                                        value={String(
+                                                            schoolYear.id,
+                                                        )}
+                                                    >
+                                                        {schoolYear.name}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                                 <Select
                                     value={selectedSectionValue}
                                     onValueChange={handleSectionChange}
@@ -494,7 +595,14 @@ export default function GradingSheet({
                                 </Button>
                                 <Button
                                     onClick={() => setIsSubmitConfirmOpen(true)}
+                                    variant={isFinalized ? 'secondary' : 'default'}
+                                    className={
+                                        isFinalized
+                                            ? 'cursor-not-allowed opacity-60 saturate-50'
+                                            : undefined
+                                    }
                                     disabled={
+                                        isFinalized ||
                                         !can_edit ||
                                         !context.has_assignment ||
                                         students.length === 0 ||
@@ -502,7 +610,7 @@ export default function GradingSheet({
                                     }
                                 >
                                     <CheckCircle2 className="size-4" />
-                                    Submit Final Grades
+                                    {isFinalized ? 'Final Grades Locked' : 'Submit Final Grades'}
                                 </Button>
                             </div>
                         </div>
@@ -523,7 +631,7 @@ export default function GradingSheet({
                             <CardTitle>Score Matrix</CardTitle>
                             <Button
                                 size="sm"
-                                onClick={() => setIsAssessmentModalOpen(true)}
+                                onClick={openCreateAssessmentModal}
                                 disabled={!context.has_assignment || !can_edit}
                             >
                                 <Plus className="size-4" />
@@ -576,27 +684,110 @@ export default function GradingSheet({
                                                     (assessment) => (
                                                         <TableHead
                                                             key={assessment.id}
-                                                            className="border-l text-center"
+                                                            className="group relative min-w-32 border-l text-center"
                                                         >
-                                                            {assessment.title} ({' '}
-                                                            {
-                                                                assessment.max_points
-                                                            }
-                                                            )
+                                                            <div className="flex items-center justify-center transition-opacity group-hover:opacity-0">
+                                                                <span>
+                                                                    {
+                                                                        assessment.title
+                                                                    }{' '}
+                                                                    (
+                                                                    {
+                                                                        assessment.max_points
+                                                                    }
+                                                                    )
+                                                                </span>
+                                                            </div>
+                                                            {can_edit ? (
+                                                                <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-7"
+                                                                        onClick={() =>
+                                                                            openEditAssessmentModal(
+                                                                                assessment,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Pencil className="size-3.5" />
+                                                                        <span className="sr-only">
+                                                                            Edit assessment
+                                                                        </span>
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-7 text-destructive hover:text-destructive"
+                                                                        onClick={() =>
+                                                                            setAssessmentPendingDelete(
+                                                                                assessment,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Trash2 className="size-3.5" />
+                                                                        <span className="sr-only">
+                                                                            Remove assessment
+                                                                        </span>
+                                                                    </Button>
+                                                                </div>
+                                                            ) : null}
                                                         </TableHead>
                                                     ),
                                                 ),
                                         )}
                                         {quarterly_exam_assessment ? (
-                                            <TableHead className="border-l text-center">
-                                                {
-                                                    quarterly_exam_assessment.title
-                                                }{' '}
-                                                (
-                                                {
-                                                    quarterly_exam_assessment.max_points
-                                                }
-                                                )
+                                            <TableHead className="group relative min-w-36 border-l text-center">
+                                                <div className="flex items-center justify-center transition-opacity group-hover:opacity-0">
+                                                    <span>
+                                                        {
+                                                            quarterly_exam_assessment.title
+                                                        }{' '}
+                                                        (
+                                                        {
+                                                            quarterly_exam_assessment.max_points
+                                                        }
+                                                        )
+                                                    </span>
+                                                </div>
+                                                {can_edit ? (
+                                                    <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="size-7"
+                                                            onClick={() =>
+                                                                openEditAssessmentModal(
+                                                                    quarterly_exam_assessment,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Pencil className="size-3.5" />
+                                                            <span className="sr-only">
+                                                                Edit assessment
+                                                            </span>
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="size-7 text-destructive hover:text-destructive"
+                                                            onClick={() =>
+                                                                setAssessmentPendingDelete(
+                                                                    quarterly_exam_assessment,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Trash2 className="size-3.5" />
+                                                            <span className="sr-only">
+                                                                Remove assessment
+                                                            </span>
+                                                        </Button>
+                                                    </div>
+                                                ) : null}
                                             </TableHead>
                                         ) : null}
                                         <TableHead className="border-l pr-6 text-right">
@@ -717,8 +908,15 @@ export default function GradingSheet({
 
                 <ResponsiveFormDialog
                     open={isAssessmentModalOpen}
-                    onOpenChange={setIsAssessmentModalOpen}
-                    title="Add Assessment"
+                    onOpenChange={(open) => {
+                        setIsAssessmentModalOpen(open);
+                        if (!open) {
+                            resetAssessmentForm();
+                        }
+                    }}
+                    title={
+                        editingAssessment ? 'Edit Assessment' : 'Add Assessment'
+                    }
                     contentClassName="sm:max-w-lg"
                     bodyClassName="grid gap-4 py-2"
                     footer={
@@ -729,7 +927,9 @@ export default function GradingSheet({
                             >
                                 Cancel
                             </Button>
-                            <Button onClick={submitAssessment}>Add</Button>
+                            <Button onClick={submitAssessment}>
+                                {editingAssessment ? 'Save Changes' : 'Add'}
+                            </Button>
                         </div>
                     }
                 >
@@ -869,6 +1069,23 @@ export default function GradingSheet({
                     confirmLabel="Confirm Submission"
                     loading={false}
                     onConfirm={() => submitScores('submitted')}
+                />
+                <ActionConfirmDialog
+                    open={assessmentPendingDelete !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setAssessmentPendingDelete(null);
+                        }
+                    }}
+                    title="Remove Assessment"
+                    description={
+                        assessmentPendingDelete
+                            ? `Remove "${assessmentPendingDelete.title}" and its encoded student scores? This cannot be undone.`
+                            : 'Remove this assessment and its encoded student scores? This cannot be undone.'
+                    }
+                    confirmLabel="Remove Assessment"
+                    loading={false}
+                    onConfirm={deleteAssessment}
                 />
             </div>
         </AppLayout>

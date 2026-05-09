@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Teacher\Concerns\ResolvesTeacherAcademicYearAccess;
 use App\Http\Requests\Teacher\IndexAttendanceRequest;
 use App\Http\Requests\Teacher\StoreAttendanceRequest;
 use App\Models\AcademicYear;
@@ -19,6 +20,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AttendanceController extends Controller
 {
+    use ResolvesTeacherAcademicYearAccess;
+
     public function exportSf2(
         IndexAttendanceRequest $request,
         Sf2ExportBuilder $builder,
@@ -80,23 +83,33 @@ class AttendanceController extends Controller
     {
         $validated = $request->validated();
         $teacherId = (int) auth()->id();
+        $yearOptions = $this->resolveTeacherAcademicYearOptions($teacherId);
+        $selectedAcademicYearId = $this->resolveSelectedTeacherAcademicYearId(
+            $yearOptions,
+            (int) ($validated['academic_year_id'] ?? 0) ?: null
+        );
+        if (isset($validated['academic_year_id']) && ! $yearOptions->pluck('id')->contains((int) $validated['academic_year_id'])) {
+            abort(403);
+        }
 
-        $activeAcademicYear = AcademicYear::query()
-            ->where('status', 'ongoing')
-            ->first()
-            ?? AcademicYear::query()->orderByDesc('start_date')->first();
+        $selectedAcademicYear = $selectedAcademicYearId
+            ? AcademicYear::query()->find($selectedAcademicYearId)
+            : null;
         $selectedMonth = (string) ($validated['month'] ?? now()->format('Y-m'));
         $monthStart = Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
-        $featureLocked = ! $this->isTeacherAcademicFeatureAvailable($activeAcademicYear);
+        $isReadOnlyHistorical = $this->isReadOnlyHistoricalYear($selectedAcademicYearId);
+        $featureLocked = $isReadOnlyHistorical || ! $this->isTeacherAcademicFeatureAvailable($selectedAcademicYear);
         $monthOutOfScope = ! $this->doesMonthOverlapAcademicYear(
             $monthStart->toDateString(),
             $monthEnd->toDateString(),
-            $activeAcademicYear
+            $selectedAcademicYear
         );
-        $featureLockMessage = $featureLocked
-            ? $this->resolveFeatureLockMessage($activeAcademicYear, 'Attendance')
-            : null;
+        $featureLockMessage = $isReadOnlyHistorical
+            ? 'Historical attendance is read-only.'
+            : ($featureLocked
+            ? $this->resolveFeatureLockMessage($selectedAcademicYear, 'Attendance')
+            : null);
 
         $days = collect(range(1, $monthStart->daysInMonth))
             ->map(function (int $day) use ($monthStart) {
@@ -111,8 +124,8 @@ class AttendanceController extends Controller
             ->filter(function (array $dayItem) {
                 return ! in_array((string) $dayItem['weekday'], ['SAT', 'SUN'], true);
             })
-            ->filter(function (array $dayItem) use ($activeAcademicYear) {
-                return $this->isDateWithinAcademicYear($dayItem['date'], $activeAcademicYear);
+            ->filter(function (array $dayItem) use ($selectedAcademicYear) {
+                return $this->isDateWithinAcademicYear($dayItem['date'], $selectedAcademicYear);
             })
             ->values();
 
@@ -126,9 +139,9 @@ class AttendanceController extends Controller
             ->whereHas('teacherSubject', function ($query) use ($teacherId) {
                 $query->where('teacher_id', $teacherId);
             })
-            ->when($activeAcademicYear, function ($query) use ($activeAcademicYear) {
-                $query->whereHas('section', function ($sectionQuery) use ($activeAcademicYear) {
-                    $sectionQuery->where('academic_year_id', $activeAcademicYear->id);
+            ->when($selectedAcademicYearId, function ($query) use ($selectedAcademicYearId) {
+                $query->whereHas('section', function ($sectionQuery) use ($selectedAcademicYearId) {
+                    $sectionQuery->where('academic_year_id', $selectedAcademicYearId);
                 });
             })
             ->get(['id', 'section_id', 'teacher_subject_id'])
@@ -164,6 +177,10 @@ class AttendanceController extends Controller
             ->pluck('id')
             ->all();
         $selectedAssignmentId = (int) ($validated['subject_assignment_id'] ?? ($classOptions->first()['id'] ?? 0));
+
+        if (isset($validated['subject_assignment_id']) && ! in_array((int) $validated['subject_assignment_id'], $allowedAssignmentIds, true)) {
+            abort(403);
+        }
 
         if (! in_array($selectedAssignmentId, $allowedAssignmentIds, true)) {
             $selectedAssignmentId = (int) ($classOptions->first()['id'] ?? 0);
@@ -229,7 +246,10 @@ class AttendanceController extends Controller
                 'class_options' => $classOptions,
                 'selected_subject_assignment_id' => $selectedAssignmentId > 0 ? $selectedAssignmentId : null,
                 'selected_month' => $selectedMonth,
-                'active_school_year' => $activeAcademicYear?->name,
+                'active_school_year' => $selectedAcademicYear?->name,
+                'academic_year_options' => $yearOptions->all(),
+                'selected_academic_year_id' => $selectedAcademicYearId,
+                'is_read_only_historical' => $isReadOnlyHistorical,
             ],
             'feature_lock' => [
                 'is_locked' => $featureLocked,
@@ -238,7 +258,7 @@ class AttendanceController extends Controller
             'month_scope' => [
                 'is_out_of_scope' => $monthOutOfScope,
                 'message' => $monthOutOfScope
-                    ? $this->resolveMonthScopeLockMessage($activeAcademicYear)
+                    ? $this->resolveMonthScopeLockMessage($selectedAcademicYear)
                     : null,
             ],
             'days' => $days,
@@ -263,6 +283,7 @@ class AttendanceController extends Controller
         if (! $assignment?->section) {
             return back()->with('error', 'You can only update attendance for your assigned classes.');
         }
+        $this->enforceCurrentYearWriteAccess((int) $assignment->section->academic_year_id);
         $assignmentAcademicYear = AcademicYear::query()->find($assignment->section->academic_year_id);
         if (! $this->isTeacherAcademicFeatureAvailable($assignmentAcademicYear)) {
             return back()->with('error', $this->resolveFeatureLockMessage($assignmentAcademicYear, 'Attendance'));

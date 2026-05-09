@@ -4,24 +4,28 @@ namespace App\Services\Registrar;
 
 use App\Enums\UserRole;
 use App\Models\BillingSchedule;
+use App\Models\ClassSchedule;
+use App\Models\Discount;
 use App\Models\Enrollment;
 use App\Models\Fee;
+use App\Models\LedgerEntry;
+use App\Models\StudentDiscount;
 use App\Models\User;
+use App\Services\Finance\DiscountBucketCalculator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class RegistrationAssessmentBuilder
 {
+    public function __construct(private DiscountBucketCalculator $discountBucketCalculator) {}
+
     /**
-     * @param  array{
-     *     student_activation_code?: string|null,
-     *     parent_activation_code?: string|null
-     * }  $credentialSnapshot
      * @return array<string, mixed>
      */
-    public function build(Enrollment $enrollment, array $credentialSnapshot = []): array
+    public function build(Enrollment $enrollment): array
     {
         $enrollment->loadMissing([
-            'student.user.activationCode',
+            'student.user',
             'gradeLevel:id,name',
             'academicYear:id,name',
             'section:id,name,adviser_id,grade_level_id',
@@ -32,7 +36,6 @@ class RegistrationAssessmentBuilder
         $studentUser = $student?->user;
         $parentUser = $student
             ? User::query()
-                ->with('activationCode')
                 ->where('role', UserRole::PARENT->value)
                 ->whereHas('students', function ($query) use ($student): void {
                     $query->where('students.id', $student->id);
@@ -45,45 +48,52 @@ class RegistrationAssessmentBuilder
             (int) $enrollment->grade_level_id,
             (int) $enrollment->academic_year_id
         );
+        $academicSchedule = $this->resolveAcademicSchedule((int) ($enrollment->section_id ?? 0));
+        $adjustments = $this->resolveAdjustments($enrollment, (float) $fees['total']);
+        $netAssessment = round(
+            max(
+                (float) $fees['total']
+                - (float) $adjustments['discounts_scholarships']
+                + (float) $adjustments['other_charges']
+                - (float) $adjustments['credit_adjustment'],
+                0
+            ),
+            2
+        );
 
         $billingSchedule = BillingSchedule::query()
             ->where('student_id', $enrollment->student_id)
             ->where('academic_year_id', $enrollment->academic_year_id)
             ->orderBy('due_date')
             ->orderBy('id')
-            ->get(['description', 'due_date', 'amount_due', 'amount_paid', 'status'])
+            ->get(['description', 'due_date', 'amount_due', 'amount_paid'])
             ->map(function (BillingSchedule $billingSchedule): array {
                 $amountDue = round((float) $billingSchedule->amount_due, 2);
                 $amountPaid = round((float) $billingSchedule->amount_paid, 2);
+                $isUponEnrollment = Str::of((string) $billingSchedule->description)
+                    ->lower()
+                    ->contains('upon enrollment');
 
                 return [
                     'description' => (string) $billingSchedule->description,
                     'due_date' => $billingSchedule->due_date?->toDateString(),
-                    'due_date_label' => $billingSchedule->due_date?->format('M d, Y'),
+                    'due_date_label' => $isUponEnrollment
+                        ? 'Upon Enrollment'
+                        : ($billingSchedule->due_date?->format('M d, Y') ?? 'N/A'),
                     'amount_due' => $amountDue,
                     'amount_paid' => $amountPaid,
                     'balance' => round(max($amountDue - $amountPaid, 0), 2),
-                    'status' => $this->formatDueStatus((string) $billingSchedule->status),
                 ];
             })
             ->values();
-
-        $studentActivationCode = isset($credentialSnapshot['student_activation_code'])
-            ? (string) $credentialSnapshot['student_activation_code']
-            : null;
-        $parentActivationCode = isset($credentialSnapshot['parent_activation_code'])
-            ? (string) $credentialSnapshot['parent_activation_code']
-            : null;
 
         return [
             'generated_at' => now()->toDateTimeString(),
             'student' => [
                 'lrn' => (string) ($student?->lrn ?? ''),
-                'name' => $this->formatStudentName(
-                    (string) ($student?->first_name ?? ''),
-                    $student?->middle_name,
-                    (string) ($student?->last_name ?? ''),
-                ),
+                'first_name' => (string) ($student?->first_name ?? ''),
+                'middle_name' => (string) ($student?->middle_name ?? ''),
+                'last_name' => (string) ($student?->last_name ?? ''),
             ],
             'enrollment' => [
                 'school_year' => (string) ($enrollment->academicYear?->name ?? ''),
@@ -94,13 +104,19 @@ class RegistrationAssessmentBuilder
                     $enrollment->section?->adviser?->last_name,
                     $enrollment->section?->adviser?->name,
                 ),
-                'payment_plan' => $this->formatPaymentPlan((string) $enrollment->payment_term),
-                'downpayment' => round((float) $enrollment->downpayment, 2),
+                'email' => (string) ($enrollment->email ?? ''),
+            ],
+            'academic' => [
+                'schedule_rows' => $academicSchedule,
+                'schedule_compact_rows' => $this->compactScheduleRows($academicSchedule),
             ],
             'assessment' => [
                 'tuition' => round((float) $fees['tuition'], 2),
-                'miscellaneous' => round((float) $fees['miscellaneous'], 2),
-                'total' => round((float) $fees['tuition'] + (float) $fees['miscellaneous'], 2),
+                'miscellaneous_other_total' => round((float) $fees['miscellaneous_other_total'], 2),
+                'breakdown' => $fees['breakdown'],
+                'total' => round((float) $fees['total'], 2),
+                'adjustments' => $adjustments,
+                'net_assessment' => $netAssessment,
             ],
             'dues' => [
                 'rows' => $billingSchedule->all(),
@@ -111,33 +127,36 @@ class RegistrationAssessmentBuilder
             'accounts' => [
                 'student' => [
                     'email' => (string) ($studentUser?->email ?? ''),
-                    'activation_code' => $studentActivationCode,
-                    'activation_expires_at' => $studentUser?->activationCode?->expires_at?->toDateTimeString(),
                 ],
                 'parent' => [
                     'email' => (string) ($parentUser?->email ?? ''),
-                    'activation_code' => $parentActivationCode,
-                    'activation_expires_at' => $parentUser?->activationCode?->expires_at?->toDateTimeString(),
                 ],
             ],
         ];
     }
 
     /**
-     * @return array{tuition: float, miscellaneous: float}
+     * @return array{
+     *     tuition: float,
+     *     miscellaneous_other_total: float,
+     *     total: float,
+     *     breakdown: array<int, array{name: string, amount: float}>
+     * }
      */
     private function resolveAssessmentFees(int $gradeLevelId, int $academicYearId): array
     {
         if ($gradeLevelId <= 0) {
             return [
                 'tuition' => 0.0,
-                'miscellaneous' => 0.0,
+                'miscellaneous_other_total' => 0.0,
+                'total' => 0.0,
+                'breakdown' => [],
             ];
         }
 
         $baseQuery = Fee::query()
             ->where('grade_level_id', $gradeLevelId)
-            ->whereIn('type', ['tuition', 'miscellaneous']);
+            ->whereIn('type', ['tuition', 'miscellaneous', 'books_modules', 'other']);
 
         $hasVersionedRows = $academicYearId > 0
             ? (clone $baseQuery)
@@ -149,45 +168,246 @@ class RegistrationAssessmentBuilder
         $fees = $hasVersionedRows
             ? (clone $baseQuery)
                 ->where('academic_year_id', $academicYearId)
-                ->get(['type', 'amount'])
+                ->get(['type', 'name', 'amount'])
             : (clone $baseQuery)
                 ->whereNull('academic_year_id')
-                ->get(['type', 'amount']);
+                ->get(['type', 'name', 'amount']);
+
+        $breakdownRows = $fees
+            ->where('type', '!=', 'tuition')
+            ->values()
+            ->map(function (Fee $fee): array {
+                return [
+                    'name' => (string) $fee->name,
+                    'amount' => round((float) $fee->amount, 2),
+                ];
+            })
+            ->all();
+
+        $tuition = round((float) $fees->where('type', 'tuition')->sum('amount'), 2);
+        $miscellaneousAndOther = round((float) $fees->where('type', '!=', 'tuition')->sum('amount'), 2);
 
         return [
-            'tuition' => round((float) $fees->where('type', 'tuition')->sum('amount'), 2),
-            'miscellaneous' => round((float) $fees->where('type', 'miscellaneous')->sum('amount'), 2),
+            'tuition' => $tuition,
+            'miscellaneous_other_total' => $miscellaneousAndOther,
+            'total' => round($tuition + $miscellaneousAndOther, 2),
+            'breakdown' => $breakdownRows,
         ];
     }
 
-    private function formatPaymentPlan(string $paymentPlan): string
+    /**
+     * @return array<int, array{day: string, time: string, subject: string, teacher: string}>
+     */
+    private function resolveAcademicSchedule(int $sectionId): array
     {
-        return match ($paymentPlan) {
-            'monthly' => 'Monthly',
-            'quarterly' => 'Quarterly',
-            'semi-annual' => 'Semi-Annual',
-            'cash', 'full' => 'Cash',
-            default => ucwords(str_replace('_', ' ', $paymentPlan)),
-        };
+        if ($sectionId <= 0) {
+            return [];
+        }
+
+        $dayOrder = [
+            'Monday' => 1,
+            'Tuesday' => 2,
+            'Wednesday' => 3,
+            'Thursday' => 4,
+            'Friday' => 5,
+            'Saturday' => 6,
+            'Sunday' => 7,
+        ];
+
+        return ClassSchedule::query()
+            ->with([
+                'subjectAssignment.teacherSubject.subject:id,subject_name',
+                'subjectAssignment.teacherSubject.teacher:id,first_name,last_name,name',
+            ])
+            ->where('section_id', $sectionId)
+            ->where('type', 'academic')
+            ->get()
+            ->sort(function (ClassSchedule $left, ClassSchedule $right) use ($dayOrder): int {
+                $leftDay = $dayOrder[(string) $left->day] ?? 99;
+                $rightDay = $dayOrder[(string) $right->day] ?? 99;
+
+                if ($leftDay !== $rightDay) {
+                    return $leftDay <=> $rightDay;
+                }
+
+                return strcmp((string) $left->start_time, (string) $right->start_time);
+            })
+            ->values()
+            ->map(function (ClassSchedule $schedule): array {
+                $subjectName = (string) ($schedule->subjectAssignment?->teacherSubject?->subject?->subject_name ?? 'Subject');
+                $teacher = $this->formatAdviserName(
+                    $schedule->subjectAssignment?->teacherSubject?->teacher?->first_name,
+                    $schedule->subjectAssignment?->teacherSubject?->teacher?->last_name,
+                    $schedule->subjectAssignment?->teacherSubject?->teacher?->name
+                );
+
+                return [
+                    'day' => (string) $schedule->day,
+                    'time' => $this->formatTimeRange((string) $schedule->start_time, (string) $schedule->end_time),
+                    'subject' => $subjectName,
+                    'teacher' => $teacher,
+                ];
+            })
+            ->all();
     }
 
-    private function formatDueStatus(string $status): string
+    /**
+     * @return array{
+     *     discounts_scholarships: float,
+     *     other_charges: float,
+     *     credit_adjustment: float
+     * }
+     */
+    private function resolveAdjustments(Enrollment $enrollment, float $assessmentTotal): array
     {
-        return match ($status) {
-            'paid' => 'Paid',
-            'partially_paid' => 'Partially Paid',
-            'unpaid' => 'Unpaid',
-            default => ucwords(str_replace('_', ' ', $status)),
-        };
+        $discountSummary = $this->discountBucketCalculator->summarizeForStudent(
+            (int) $enrollment->student_id,
+            (int) $enrollment->academic_year_id,
+            $assessmentTotal
+        );
+        $discountTotal = round((float) ($discountSummary['total_discount_amount'] ?? 0), 2);
+
+        $otherCharges = round((float) LedgerEntry::query()
+            ->where('student_id', $enrollment->student_id)
+            ->where('academic_year_id', $enrollment->academic_year_id)
+            ->where('debit', '>', 0)
+            ->where(function ($query): void {
+                $query
+                    ->whereRaw('LOWER(description) like ?', ['%charge%'])
+                    ->orWhereRaw('LOWER(description) like ?', ['%other%']);
+            })
+            ->sum('debit'), 2);
+
+        $creditAdjustment = round((float) LedgerEntry::query()
+            ->where('student_id', $enrollment->student_id)
+            ->where('academic_year_id', $enrollment->academic_year_id)
+            ->where('credit', '>', 0)
+            ->whereRaw('LOWER(description) like ?', ['%adjustment%'])
+            ->sum('credit'), 2);
+
+        return [
+            'discounts_scholarships' => $discountTotal,
+            'other_charges' => $otherCharges,
+            'credit_adjustment' => $creditAdjustment,
+        ];
     }
 
-    private function formatStudentName(string $firstName, ?string $middleName, string $lastName): string
+    private function formatTimeRange(string $startTime, string $endTime): string
     {
-        return trim(implode(' ', array_filter([
-            trim($firstName),
-            trim((string) $middleName),
-            trim($lastName),
-        ])));
+        if ($startTime === '' || $endTime === '') {
+            return 'N/A';
+        }
+
+        return sprintf(
+            '%s - %s',
+            date('g:i A', strtotime($startTime)),
+            date('g:i A', strtotime($endTime))
+        );
+    }
+
+    /**
+     * @param  array<int, array{day: string, time: string, subject: string, teacher: string}>  $rows
+     * @return array<int, array{subject: string, teacher: string, day: string, time: string}>
+     */
+    private function compactScheduleRows(array $rows): array
+    {
+        $grouped = [];
+
+        foreach ($rows as $row) {
+            $subject = trim((string) ($row['subject'] ?? ''));
+            $teacher = trim((string) ($row['teacher'] ?? ''));
+            $day = trim((string) ($row['day'] ?? ''));
+            $time = trim((string) ($row['time'] ?? ''));
+
+            if ($subject === '' || $teacher === '' || $day === '' || $time === '') {
+                continue;
+            }
+
+            $key = mb_strtolower($subject.'|'.$teacher);
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'subject' => $subject,
+                    'teacher' => $teacher,
+                    'slots' => [],
+                ];
+            }
+
+            $grouped[$key]['slots'][] = [
+                'day' => $day,
+                'time' => $time,
+            ];
+        }
+
+        return collect($grouped)
+            ->flatMap(function (array $entry): array {
+                $slotsByTime = [];
+                foreach ($entry['slots'] as $slot) {
+                    $time = (string) ($slot['time'] ?? '');
+                    $day = (string) ($slot['day'] ?? '');
+                    if ($time === '' || $day === '') {
+                        continue;
+                    }
+                    $slotsByTime[$time] ??= [];
+                    $slotsByTime[$time][] = $day;
+                }
+
+                $resultRows = [];
+                foreach ($slotsByTime as $time => $days) {
+                    $resultRows[] = [
+                        'subject' => $entry['subject'],
+                        'teacher' => $entry['teacher'],
+                        'day' => $this->compactDayLabel($days),
+                        'time' => $time,
+                    ];
+                }
+
+                return $resultRows;
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>  $days
+     */
+    private function compactDayLabel(array $days): string
+    {
+        $orderedDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        $tokens = [
+            'Monday' => 'M',
+            'Tuesday' => 'T',
+            'Wednesday' => 'W',
+            'Thursday' => 'TH',
+            'Friday' => 'F',
+            'Saturday' => 'SAT',
+            'Sunday' => 'SUN',
+        ];
+
+        $uniqueDays = collect($days)
+            ->map(fn (string $day): string => trim($day))
+            ->filter(fn (string $day): bool => in_array($day, $orderedDays, true))
+            ->unique()
+            ->values();
+
+        if ($uniqueDays->isEmpty()) {
+            return 'N/A';
+        }
+
+        $isWeekdayOnly = $uniqueDays->every(fn (string $day): bool => in_array($day, array_slice($orderedDays, 0, 5), true));
+        if ($isWeekdayOnly) {
+            $weekdayToken = '';
+            foreach (array_slice($orderedDays, 0, 5) as $day) {
+                if ($uniqueDays->contains($day)) {
+                    $weekdayToken .= $tokens[$day];
+                }
+            }
+
+            return $weekdayToken;
+        }
+
+        return $uniqueDays
+            ->map(fn (string $day): string => $tokens[$day] ?? $day)
+            ->implode('/');
     }
 
     private function formatAdviserName(?string $firstName, ?string $lastName, ?string $fallbackName): string

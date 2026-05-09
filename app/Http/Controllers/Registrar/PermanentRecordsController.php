@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Registrar;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
+use App\Models\GradeRelease;
 use App\Models\PermanentRecord;
 use App\Models\Student;
 use Inertia\Inertia;
@@ -72,6 +74,15 @@ class PermanentRecordsController extends Controller
                 ->orderByDesc('id')
                 ->get()
                 ->map(function (PermanentRecord $record) use ($selectedStudent): array {
+                    $subjects = $this->resolveRecordSubjects(
+                        (int) $selectedStudent->id,
+                        (int) $record->academic_year_id
+                    );
+
+                    if ($record->academicYear?->status === 'ongoing' && $subjects === []) {
+                        return [];
+                    }
+
                     return [
                         'id' => (int) $record->id,
                         'school_year' => $record->academicYear?->name ?? 'N/A',
@@ -79,12 +90,10 @@ class PermanentRecordsController extends Controller
                         'school_name' => $record->school_name ?: 'Marriott School',
                         'status' => $record->status,
                         'failed_subject_count' => (int) $record->failed_subject_count,
-                        'subjects' => $this->resolveRecordSubjects(
-                            (int) $selectedStudent->id,
-                            (int) $record->academic_year_id
-                        ),
+                        'subjects' => $subjects,
                     ];
                 })
+                ->filter()
                 ->values();
         }
 
@@ -113,10 +122,29 @@ class PermanentRecordsController extends Controller
             return [];
         }
 
+        $releasedQuarters = GradeRelease::query()
+            ->where('academic_year_id', $academicYearId)
+            ->where('section_id', $enrollment->section_id)
+            ->pluck('quarter')
+            ->map(fn ($quarter): string => (string) $quarter)
+            ->all();
+
+        if ($releasedQuarters === []) {
+            $academicYearStatus = AcademicYear::query()
+                ->whereKey($academicYearId)
+                ->value('status');
+
+            if ($academicYearStatus === 'ongoing') {
+                return [];
+            }
+
+            $releasedQuarters = ['1', '2', '3', '4'];
+        }
+
         $quarterGrades = FinalGrade::query()
             ->with('subjectAssignment.teacherSubject.subject:id,subject_name')
             ->where('enrollment_id', $enrollment->id)
-            ->whereIn('quarter', ['1', '2', '3', '4'])
+            ->whereIn('quarter', $releasedQuarters)
             ->get();
 
         return $quarterGrades

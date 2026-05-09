@@ -304,8 +304,13 @@ export default function ClaimAccount({
             },
             {
                 preserveScroll: true,
-                onError: () => {
-                    setPasswordError('Unable to set password. Check validation and try again.');
+                onError: (errors) => {
+                    setPasswordError(
+                        errors.password
+                            || errors.password_confirmation
+                            || errors.token
+                            || 'Unable to set password. Check validation and try again.',
+                    );
                 },
                 onFinish: () => setSavingPassword(false),
             },
@@ -439,6 +444,9 @@ export default function ClaimAccount({
                                 value={password}
                                 onChange={(event) => setPassword(event.target.value)}
                             />
+                            <p className="text-xs text-muted-foreground">
+                                Use at least 12 characters with uppercase, lowercase, numbers, and symbols.
+                            </p>
                         </div>
 
                         <div className="grid gap-2">

@@ -233,19 +233,19 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {status && (
-                <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                     {status}
                 </div>
             )}
 
             {showSavedAccountsList && (
                 <div className="space-y-3">
-                    <p className="text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase">
+                    <p className="text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400">
                         Saved Accounts
                     </p>
-                    <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                    <div className="max-h-36 space-y-2 overflow-y-auto pr-1">
                         {storedAccounts.map((account) => (
                             <div key={account.email} className="group relative">
                                 <button
@@ -253,13 +253,13 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                                     onClick={() =>
                                         handleChooseStoredAccount(account)
                                     }
-                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-left transition hover:border-slate-300"
+                                    className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 pr-10 text-left transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
                                 >
-                                    <div className="flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                                    <div className="flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                                         <UserRound className="size-4" />
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-medium text-slate-800">
+                                        <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
                                             {account.email}
                                         </p>
                                     </div>
@@ -270,7 +270,7 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                                         handleRemoveStoredAccount(account.email)
                                     }
                                     aria-label={`Remove ${account.email}`}
-                                    className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full p-1 text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:opacity-100 group-hover:opacity-100"
+                                    className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full p-1 text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:opacity-100 group-hover:opacity-100 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                                     disabled={
                                         processing || isRememberAccountLoading
                                     }
@@ -286,29 +286,29 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
             {showingSavedAccounts && hasSelectedSavedAccount && (
                 <div className="space-y-4">
                     <div>
-                        <p className="text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase">
+                        <p className="text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400">
                             {isRememberAccountLoading
                                 ? 'Logging in'
                                 : 'Log in as'}
                         </p>
-                        <div className="mt-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-                            <div className="flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                        <div className="mt-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900">
+                            <div className="flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                                 <UserRound className="size-4" />
                             </div>
-                            <p className="min-w-0 truncate text-sm font-medium text-slate-800">
+                            <p className="min-w-0 truncate text-sm font-medium text-slate-800 dark:text-slate-100">
                                 {selectedAccount?.email}
                             </p>
                         </div>
                     </div>
 
                     {isRememberAccountLoading ? (
-                        <div className="flex items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">
+                        <div className="flex items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300">
                             <Spinner />
                             Logging in as {selectedAccount?.email}
                         </div>
                     ) : (
-                        <div className="space-y-2">
-                            <Label htmlFor="password" className="font-medium">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="password" className="font-medium text-slate-800 dark:text-slate-100">
                                 Password
                             </Label>
                             <PasswordInput
@@ -318,7 +318,7 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                                 onChange={(event) =>
                                     setData('password', event.target.value)
                                 }
-                                className="h-12 rounded-xl border-slate-200 bg-white text-base"
+                                className="h-11 rounded-xl border-slate-200 bg-white text-base text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50"
                                 required
                                 tabIndex={2}
                                 autoComplete="current-password"
@@ -331,7 +331,7 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                     <Button
                         type="button"
                         variant="ghost"
-                        className="h-11 w-full rounded-xl text-sm text-slate-700"
+                        className="h-10 w-full rounded-xl text-sm text-slate-700 dark:text-slate-200"
                         onClick={handleBackToAccountList}
                         disabled={processing || isRememberAccountLoading}
                     >
@@ -342,8 +342,8 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
 
             {(!showingSavedAccounts || isUsingAnotherAccount) && (
                 <>
-                    <div className="space-y-2">
-                        <Label htmlFor="email" className="font-medium">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="email" className="font-medium text-slate-800 dark:text-slate-100">
                             Email Address
                         </Label>
                         <div className="relative">
@@ -356,7 +356,7 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                                 onChange={(event) =>
                                     setData('email', event.target.value)
                                 }
-                                className="h-12 rounded-xl border-slate-200 bg-white pl-10 text-base"
+                                className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-base text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50"
                                 required
                                 autoFocus
                                 tabIndex={1}
@@ -367,9 +367,9 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                         <InputError message={errors.email} />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                         <div className="flex items-center">
-                            <Label htmlFor="password" className="font-medium">
+                            <Label htmlFor="password" className="font-medium text-slate-800 dark:text-slate-100">
                                 Password
                             </Label>
                             {canResetPassword && (
@@ -389,7 +389,7 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                             onChange={(event) =>
                                 setData('password', event.target.value)
                             }
-                            className="h-12 rounded-xl border-slate-200 bg-white text-base"
+                            className="h-11 rounded-xl border-slate-200 bg-white text-base text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50"
                             required
                             tabIndex={2}
                             autoComplete="current-password"
@@ -412,7 +412,7 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                             setData('remember', checked === true)
                         }
                     />
-                    <span className="text-sm text-slate-700">Remember me</span>
+                    <span className="text-sm text-slate-700 dark:text-slate-200">Remember me</span>
                 </label>
 
                 {canResetPassword && shouldShowSavedAccountPasswordField && (
@@ -424,7 +424,7 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
 
             <Button
                 type="submit"
-                className="h-12 w-full rounded-xl text-base"
+                className="h-11 w-full rounded-xl text-base"
                 tabIndex={3}
                 disabled={processing || isRememberAccountLoading}
                 data-test="login-button"
@@ -437,7 +437,7 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                 <Button
                     type="button"
                     variant="ghost"
-                    className="h-11 w-full rounded-xl text-sm text-slate-700"
+                    className="h-10 w-full rounded-xl text-sm text-slate-700 dark:text-slate-200"
                     onClick={handleUseAnotherAccount}
                 >
                     Login with another account
@@ -448,7 +448,7 @@ export function LoginForm({ status, canResetPassword }: LoginFormProps) {
                     <Button
                         type="button"
                         variant="ghost"
-                        className="h-11 w-full rounded-xl text-sm text-slate-700"
+                        className="h-10 w-full rounded-xl text-sm text-slate-700 dark:text-slate-200"
                         onClick={handleBackToSavedAccounts}
                     >
                         Back to saved accounts

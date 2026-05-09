@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\UserRole;
+use Database\Seeders\Support\SeedNameBank;
 use App\Models\AcademicYear;
 use App\Models\ClassSchedule;
 use App\Models\Enrollment;
@@ -16,6 +17,7 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class ProductionBaselineSeeder extends Seeder
 {
@@ -51,18 +53,25 @@ class ProductionBaselineSeeder extends Seeder
 
     private function seedRoleAccounts(): void
     {
-        foreach (UserRole::cases() as $role) {
-            $prefix = str_replace('_', '', $role->value);
+        $staffBlueprint = [
+            ['role' => UserRole::SUPER_ADMIN, 'first_name' => 'Super', 'last_name' => 'Admin'],
+            ['role' => UserRole::ADMIN, 'first_name' => 'Alex', 'last_name' => 'Avellanosa'],
+            ['role' => UserRole::REGISTRAR, 'first_name' => 'Jocelyn', 'last_name' => 'Cleofe'],
+            ['role' => UserRole::FINANCE, 'first_name' => 'Corrine', 'last_name' => 'Avellanosa'],
+        ];
+
+        foreach ($staffBlueprint as $staff) {
+            $email = $this->staffEmail($staff['first_name'], $staff['last_name']);
 
             User::query()->updateOrCreate(
-                ['email' => "{$prefix}@marriott.edu"],
+                ['email' => $email],
                 [
-                    'first_name' => 'Test',
-                    'last_name' => $role->label(),
-                    'name' => "Test {$role->label()}",
+                    'first_name' => $staff['first_name'],
+                    'last_name' => $staff['last_name'],
+                    'name' => "{$staff['first_name']} {$staff['last_name']}",
                     'password' => Hash::make('password'),
                     'birthday' => '1990-01-01',
-                    'role' => $role,
+                    'role' => $staff['role'],
                     'is_active' => true,
                 ]
             );
@@ -119,6 +128,23 @@ class ProductionBaselineSeeder extends Seeder
                         );
                     });
             });
+
+        $sections = Section::query()
+            ->orderBy('academic_year_id')
+            ->orderBy('grade_level_id')
+            ->orderBy('name')
+            ->get(['id', 'academic_year_id', 'grade_level_id', 'name', 'adviser_id']);
+
+        foreach ($sections as $index => $section) {
+            $teacher = $teachers[$index % $teachers->count()];
+            if (! $teacher instanceof User) {
+                continue;
+            }
+
+            $section->update([
+                'adviser_id' => $teacher->id,
+            ]);
+        }
     }
 
     private function seedHistoricalStudents(): void
@@ -170,14 +196,19 @@ class ProductionBaselineSeeder extends Seeder
 
     private function upsertStudentWithParent(int $index): Student
     {
-        $lrn = '100000'.str_pad((string) $index, 4, '0', STR_PAD_LEFT);
+        $lrn = sprintf('2404%08d', $index);
+        $nameSet = $this->nameSetForIndex($index - 1);
+        $emailLastNameToken = Str::of($nameSet['student_last_name'])
+            ->ascii()
+            ->lower()
+            ->replaceMatches('/[^a-z0-9]+/', '');
 
         $studentUser = User::query()->updateOrCreate(
-            ['email' => "student.{$lrn}@marriott.edu"],
+            ['email' => "{$emailLastNameToken}.{$lrn}@marriott.edu"],
             [
-                'first_name' => 'Student',
-                'last_name' => (string) $index,
-                'name' => "Student {$index}",
+                'first_name' => $nameSet['student_first_name'],
+                'last_name' => $nameSet['student_last_name'],
+                'name' => "{$nameSet['student_first_name']} {$nameSet['student_last_name']}",
                 'password' => Hash::make('password'),
                 'birthday' => '2010-01-01',
                 'role' => UserRole::STUDENT,
@@ -188,9 +219,9 @@ class ProductionBaselineSeeder extends Seeder
         $parentUser = User::query()->updateOrCreate(
             ['email' => "parent.{$lrn}@marriott.edu"],
             [
-                'first_name' => 'Parent',
-                'last_name' => (string) $index,
-                'name' => "Parent {$index}",
+                'first_name' => $nameSet['guardian_first_name'],
+                'last_name' => $nameSet['student_last_name'],
+                'name' => "{$nameSet['guardian_first_name']} {$nameSet['student_last_name']}",
                 'password' => Hash::make('password'),
                 'birthday' => '1980-01-01',
                 'role' => UserRole::PARENT,
@@ -202,11 +233,11 @@ class ProductionBaselineSeeder extends Seeder
             ['lrn' => $lrn],
             [
                 'user_id' => $studentUser->id,
-                'first_name' => 'Student',
-                'last_name' => (string) $index,
+                'first_name' => $nameSet['student_first_name'],
+                'last_name' => $nameSet['student_last_name'],
                 'gender' => $index % 2 === 0 ? 'Male' : 'Female',
                 'birthdate' => '2010-01-01',
-                'guardian_name' => "Parent {$index}",
+                'guardian_name' => "{$nameSet['guardian_first_name']} {$nameSet['student_last_name']}",
                 'contact_number' => '0917000'.str_pad((string) $index, 4, '0', STR_PAD_LEFT),
                 'address' => "Demo Address {$index}",
                 'is_lis_synced' => true,
@@ -227,5 +258,32 @@ class ProductionBaselineSeeder extends Seeder
         );
 
         return $student;
+    }
+
+    /**
+     * @return array{student_first_name: string, student_last_name: string, guardian_first_name: string}
+     */
+    private function nameSetForIndex(int $index): array
+    {
+        return SeedNameBank::studentIdentity($index);
+    }
+
+    private function staffEmail(string $firstName, string $lastName): string
+    {
+        $firstToken = Str::of($firstName)
+            ->ascii()
+            ->lower()
+            ->replaceMatches('/[^a-z0-9 ]+/', '')
+            ->squish()
+            ->explode(' ')
+            ->filter()
+            ->first();
+
+        $lastToken = Str::of($lastName)
+            ->ascii()
+            ->lower()
+            ->replaceMatches('/[^a-z0-9]+/', '');
+
+        return "{$firstToken}.{$lastToken}@marriott.edu";
     }
 }

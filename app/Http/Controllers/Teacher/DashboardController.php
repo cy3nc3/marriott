@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Teacher\Concerns\ResolvesTeacherAcademicYearAccess;
 use App\Models\AcademicYear;
 use App\Models\ClassSchedule;
 use App\Models\Enrollment;
@@ -15,14 +16,17 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    use ResolvesTeacherAcademicYearAccess;
+
     public function index(): Response
     {
         $teacherId = (int) auth()->id();
         $today = now()->format('l');
+        $selectedAcademicYearId = $this->resolveCurrentAcademicYearId();
 
         $todaySchedules = collect(DashboardCacheService::remember(
-            "teacher:dashboard:schedules:{$teacherId}:{$today}",
-            function () use ($teacherId, $today): array {
+            "teacher:dashboard:schedules:{$teacherId}:{$today}:".($selectedAcademicYearId ?? 'none'),
+            function () use ($teacherId, $today, $selectedAcademicYearId): array {
                 return ClassSchedule::query()
                     ->with([
                         'section:id,grade_level_id,name,adviser_id',
@@ -32,6 +36,11 @@ class DashboardController extends Controller
                         'subjectAssignment.teacherSubject.subject:id,subject_name',
                     ])
                     ->where('day', $today)
+                    ->when($selectedAcademicYearId, function ($query) use ($selectedAcademicYearId) {
+                        $query->whereHas('section', function ($sectionQuery) use ($selectedAcademicYearId) {
+                            $sectionQuery->where('academic_year_id', $selectedAcademicYearId);
+                        });
+                    })
                     ->where(function ($query) use ($teacherId) {
                         $query
                             ->whereHas('subjectAssignment.teacherSubject', function ($teacherQuery) use ($teacherId) {
@@ -66,8 +75,11 @@ class DashboardController extends Controller
                             'time_label' => $this->toTimeLabel($classSchedule->start_time, $classSchedule->end_time),
                             'title' => $title,
                             'section' => $sectionLabel ?: 'Unassigned',
-                            'duration_minutes' => Carbon::createFromFormat('H:i:s', $classSchedule->end_time)
-                                ->diffInMinutes(Carbon::createFromFormat('H:i:s', $classSchedule->start_time)),
+                            'duration_minutes' => max(
+                                0,
+                                (int) Carbon::createFromFormat('H:i:s', $classSchedule->start_time)
+                                    ->diffInMinutes(Carbon::createFromFormat('H:i:s', $classSchedule->end_time))
+                            ),
                         ];
                     })
                     ->values()
@@ -75,10 +87,9 @@ class DashboardController extends Controller
             }
         ));
 
-        $activeYear = AcademicYear::query()
-            ->where('status', 'ongoing')
-            ->first()
-            ?? AcademicYear::query()->orderByDesc('start_date')->first();
+        $activeYear = $selectedAcademicYearId
+            ? AcademicYear::query()->find($selectedAcademicYearId)
+            : null;
 
         $totalClassesCount = 0;
         $finalizedClassesCount = 0;

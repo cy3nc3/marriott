@@ -7,10 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\GradeLevel;
+use App\Models\PermanentRecord;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
-use App\Services\Auth\AccountActivationCodeManager;
 use App\Services\DashboardCacheService;
 use App\Services\Finance\BillingScheduleService;
 use App\Services\Registrar\RegistrationAssessmentBuilder;
@@ -20,10 +20,10 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Inertia\Inertia;
@@ -34,11 +34,8 @@ class EnrollmentController extends Controller
 {
     private const DEFAULT_PARENT_BIRTHDAY = '1980-01-01';
 
-    private const ASSESSMENT_CREDENTIAL_CACHE_TTL_MINUTES = 15;
-
     public function __construct(
         private BillingScheduleService $billingScheduleService,
-        private AccountActivationCodeManager $accountActivationCodeManager,
     ) {}
 
     public function index(Request $request): Response
@@ -95,6 +92,8 @@ class EnrollmentController extends Controller
                     'guardian_contact_number' => $enrollment->student?->contact_number ?? '',
                     'payment_term' => $enrollment->payment_term,
                     'downpayment' => (float) $enrollment->downpayment,
+                    'report_card_submitted' => (bool) $enrollment->report_card_submitted,
+                    'birth_certificate_submitted' => (bool) $enrollment->birth_certificate_submitted,
                     'status' => $enrollment->status,
                     'grade_level_id' => $enrollment->grade_level_id,
                     'section_id' => $enrollment->section_id,
@@ -187,10 +186,7 @@ class EnrollmentController extends Controller
             ]);
         }
 
-        $fallbackGradeLevelId = (int) (GradeLevel::query()->orderBy('level_order')->value('id') ?? 0);
-        $recommendedGradeLevelId = $fallbackGradeLevelId > 0
-            ? $this->resolvePromotedGradeLevelId($student, $fallbackGradeLevelId)
-            : null;
+        $policy = $this->buildEnrollmentPolicySnapshot($student, $activeAcademicYear);
 
         return response()->json([
             'matched' => true,
@@ -204,8 +200,12 @@ class EnrollmentController extends Controller
                 'birthdate' => $student->birthdate?->toDateString(),
                 'guardian_name' => $student->guardian_name,
                 'guardian_contact_number' => $student->contact_number,
-                'recommended_grade_level_id' => $recommendedGradeLevelId,
+                'recommended_grade_level_id' => $policy['recommended_grade_level_id'],
             ],
+            'grade_prefill_mode' => $policy['grade_prefill_mode'],
+            'grade_guardrail' => $policy['grade_guardrail'],
+            'status_flags' => $policy['status_flags'],
+            'source_context' => $policy['source_context'],
         ]);
     }
 
@@ -266,42 +266,10 @@ class EnrollmentController extends Controller
         Enrollment $enrollment,
         RegistrationAssessmentBuilder $builder,
     ): View {
-        $credentialToken = trim((string) $request->query('credential_token', ''));
-        $credentialSnapshot = $this->pullAssessmentCredentialSnapshot(
-            (int) $enrollment->id,
-            $credentialToken !== '' ? $credentialToken : null
-        );
-
         return view('registrar.enrollment-assessment', [
-            'assessment' => $builder->build($enrollment, $credentialSnapshot),
+            'assessment' => $builder->build($enrollment),
             'autoprint' => $request->boolean('autoprint'),
         ]);
-    }
-
-    public function regenerateAssessmentCredentials(Enrollment $enrollment): RedirectResponse
-    {
-        $student = $enrollment->student;
-        if (! $student instanceof Student) {
-            return back()->with('error', 'Unable to regenerate activation codes for this enrollment.');
-        }
-
-        $assessmentCredentialToken = $this->storeAssessmentCredentialSnapshot(
-            (int) $enrollment->id,
-            $this->ensureAccounts($student, true)
-        );
-
-        $assessmentPrintParameters = [
-            'enrollment' => (int) $enrollment->id,
-            'autoprint' => 1,
-        ];
-
-        if ($assessmentCredentialToken) {
-            $assessmentPrintParameters['credential_token'] = $assessmentCredentialToken;
-        }
-
-        return back()
-            ->with('success', 'Activation codes regenerated.')
-            ->with('assessment_print_url', route('registrar.enrollment.assessment', $assessmentPrintParameters));
     }
 
     public function store(Request $request): RedirectResponse
@@ -319,9 +287,15 @@ class EnrollmentController extends Controller
             'email' => 'nullable|email|max:255',
             'payment_term' => 'required|string|in:cash,full,monthly,quarterly,semi-annual',
             'downpayment' => 'nullable|numeric|min:0|max:999999.99',
+            'report_card_submitted' => 'nullable|boolean',
+            'birth_certificate_submitted' => 'nullable|boolean',
             'section_id' => 'nullable|integer|exists:sections,id',
             'grade_level_id' => 'nullable|integer|exists:grade_levels,id',
             'academic_year_id' => 'nullable|integer|exists:academic_years,id',
+            'resolve_older_conditional' => 'nullable|boolean',
+            'resolve_older_retained' => 'nullable|boolean',
+            'conditional_resolution_notes' => 'nullable|string|max:1000',
+            'retained_resolution_notes' => 'nullable|string|max:1000',
         ], [
             'lrn.digits' => 'LRN must be exactly 12 digits.',
             'gender.required' => 'Gender is required.',
@@ -354,7 +328,6 @@ class EnrollmentController extends Controller
         }
 
         $storedEnrollmentId = null;
-        $assessmentCredentialToken = null;
 
         try {
             $storeResult = DB::transaction(function () use ($validated, $guardianContactNumber, $activeAcademicYear, $gradeLevelId): array {
@@ -381,7 +354,7 @@ class EnrollmentController extends Controller
 
                 $student->save();
 
-                $accountCredentials = $this->ensureAccounts($student, true);
+                $this->ensureAccounts($student);
 
                 $existingEnrollment = Enrollment::query()
                     ->where('student_id', $student->id)
@@ -394,11 +367,17 @@ class EnrollmentController extends Controller
 
                 $paymentTerm = $this->normalizePaymentTerm($validated['payment_term']);
                 $downpayment = $this->normalizeDownpayment($paymentTerm, $validated['downpayment'] ?? null);
+                $policy = $this->buildEnrollmentPolicySnapshot($student, $activeAcademicYear);
                 $resolvedGradeLevelId = $this->resolveEnrollmentGradeLevelId(
                     $selectedSection,
                     $selectedGradeLevelId,
-                    $this->resolvePromotedGradeLevelId($student, $gradeLevelId)
+                    (int) ($policy['recommended_grade_level_id'] ?? $gradeLevelId)
                 );
+                $this->assertGradeSelectionWithinPolicy(
+                    $resolvedGradeLevelId,
+                    $policy,
+                );
+                $this->resolveOlderStatusesIfConfirmed($student, $validated, $policy);
 
                 if ($existingEnrollment) {
                     $existingEnrollment->update([
@@ -407,6 +386,8 @@ class EnrollmentController extends Controller
                         'section_id' => $selectedSection?->id,
                         'payment_term' => $paymentTerm,
                         'downpayment' => $downpayment,
+                        'report_card_submitted' => (bool) ($validated['report_card_submitted'] ?? false),
+                        'birth_certificate_submitted' => (bool) ($validated['birth_certificate_submitted'] ?? false),
                         'status' => 'for_cashier_payment',
                     ]);
 
@@ -414,7 +395,6 @@ class EnrollmentController extends Controller
 
                     return [
                         'enrollment_id' => (int) $existingEnrollment->id,
-                        'credentials' => $accountCredentials,
                     ];
                 }
 
@@ -426,6 +406,8 @@ class EnrollmentController extends Controller
                     'section_id' => $selectedSection?->id,
                     'payment_term' => $paymentTerm,
                     'downpayment' => $downpayment,
+                    'report_card_submitted' => (bool) ($validated['report_card_submitted'] ?? false),
+                    'birth_certificate_submitted' => (bool) ($validated['birth_certificate_submitted'] ?? false),
                     'status' => 'for_cashier_payment',
                 ]);
 
@@ -433,17 +415,10 @@ class EnrollmentController extends Controller
 
                 return [
                     'enrollment_id' => (int) $enrollment->id,
-                    'credentials' => $accountCredentials,
                 ];
             });
 
             $storedEnrollmentId = (int) ($storeResult['enrollment_id'] ?? 0);
-            $assessmentCredentialToken = $this->storeAssessmentCredentialSnapshot(
-                $storedEnrollmentId,
-                is_array($storeResult['credentials'] ?? null)
-                    ? $storeResult['credentials']
-                    : []
-            );
         } catch (\RuntimeException $exception) {
             return back()->with('error', $exception->getMessage());
         } catch (QueryException $exception) {
@@ -460,10 +435,6 @@ class EnrollmentController extends Controller
             'enrollment' => $storedEnrollmentId,
             'autoprint' => 1,
         ];
-
-        if ($assessmentCredentialToken) {
-            $assessmentPrintParameters['credential_token'] = $assessmentCredentialToken;
-        }
 
         return back()
             ->with('success', 'Enrollment intake saved.')
@@ -493,6 +464,8 @@ class EnrollmentController extends Controller
             'email' => 'nullable|email|max:255',
             'payment_term' => 'required|string|in:cash,full,monthly,quarterly,semi-annual',
             'downpayment' => 'nullable|numeric|min:0|max:999999.99',
+            'report_card_submitted' => 'nullable|boolean',
+            'birth_certificate_submitted' => 'nullable|boolean',
             'section_id' => 'nullable|integer|exists:sections,id',
             'grade_level_id' => 'nullable|integer|exists:grade_levels,id',
         ], [
@@ -543,6 +516,8 @@ class EnrollmentController extends Controller
                     'section_id' => $selectedSection?->id,
                     'payment_term' => $paymentTerm,
                     'downpayment' => $downpayment,
+                    'report_card_submitted' => (bool) ($validated['report_card_submitted'] ?? false),
+                    'birth_certificate_submitted' => (bool) ($validated['birth_certificate_submitted'] ?? false),
                     'status' => 'for_cashier_payment',
                 ]);
 
@@ -584,45 +559,221 @@ class EnrollmentController extends Controller
         return round((float) ($downpayment ?? 0), 2);
     }
 
-    private function resolvePromotedGradeLevelId(Student $student, int $fallbackGradeLevelId): int
+    private function buildEnrollmentPolicySnapshot(Student $student, AcademicYear $activeAcademicYear): array
     {
-        $lastEnrollmentGradeLevelId = Enrollment::query()
+        $latestEnrollment = Enrollment::query()
             ->where('student_id', $student->id)
+            ->with([
+                'academicYear:id,name,start_date,end_date',
+                'gradeLevel:id,name,level_order',
+            ])
             ->whereNotNull('grade_level_id')
+            ->whereHas('academicYear')
+            ->get()
+            ->sortBy(function (Enrollment $enrollment) {
+                return [
+                    (string) ($enrollment->academicYear?->end_date ?? '0000-00-00'),
+                    (string) ($enrollment->academicYear?->start_date ?? '0000-00-00'),
+                    (int) $enrollment->id,
+                ];
+            })
+            ->last();
+
+        $defaultResponse = [
+            'grade_prefill_mode' => 'none',
+            'recommended_grade_level_id' => null,
+            'grade_guardrail' => [
+                'allowed_exact_grade_level_id' => null,
+                'min_allowed_grade_level_order' => null,
+                'max_allowed_grade_level_order' => null,
+            ],
+            'status_flags' => [
+                'has_previous_year_conditional' => false,
+                'has_previous_year_retained' => false,
+                'has_older_unresolved_conditional' => false,
+                'has_older_unresolved_retained' => false,
+            ],
+            'source_context' => null,
+            'meta' => [
+                'latest_enrollment_year_id' => null,
+                'older_year_ids' => [],
+            ],
+        ];
+
+        if (! $latestEnrollment || ! $latestEnrollment->academicYear || ! $latestEnrollment->gradeLevel) {
+            return $defaultResponse;
+        }
+
+        $latestYearId = (int) $latestEnrollment->academic_year_id;
+        $latestGradeLevelId = (int) $latestEnrollment->grade_level_id;
+        $latestGradeLevelOrder = (int) $latestEnrollment->gradeLevel->level_order;
+        $immediatePreviousYear = AcademicYear::query()
+            ->whereDate('end_date', '<', $activeAcademicYear->start_date)
+            ->orderByDesc('end_date')
+            ->orderByDesc('start_date')
+            ->first();
+        $latestStatusRecord = PermanentRecord::query()
+            ->where('student_id', $student->id)
+            ->where('academic_year_id', $latestYearId)
             ->latest('id')
-            ->value('grade_level_id');
+            ->first();
+        $latestStatus = $latestStatusRecord?->status;
 
-        if (! $lastEnrollmentGradeLevelId) {
-            return $fallbackGradeLevelId;
+        $isLatestFromPreviousYear = $immediatePreviousYear
+            && (int) $immediatePreviousYear->id === $latestYearId;
+        $olderYearIds = $immediatePreviousYear
+            ? AcademicYear::query()
+                ->whereDate('end_date', '<', $immediatePreviousYear->start_date)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all()
+            : [];
+
+        $response = $defaultResponse;
+        $response['meta']['latest_enrollment_year_id'] = $latestYearId;
+        $response['meta']['older_year_ids'] = $olderYearIds;
+        $response['source_context'] = [
+            'academic_year_id' => $latestYearId,
+            'academic_year_name' => $latestEnrollment->academicYear->name,
+            'status' => $latestStatus,
+            'grade_level_id' => $latestGradeLevelId,
+            'grade_level_label' => $latestEnrollment->gradeLevel->name,
+        ];
+
+        if ($isLatestFromPreviousYear) {
+            $allowedGradeLevelId = null;
+            $prefillMode = 'none';
+
+            if (in_array($latestStatus, ['promoted', 'conditional', 'completed'], true)) {
+                $nextGradeLevelId = GradeLevel::query()
+                    ->where('level_order', '>', $latestGradeLevelOrder)
+                    ->orderBy('level_order')
+                    ->value('id');
+                $allowedGradeLevelId = (int) ($nextGradeLevelId ?: $latestGradeLevelId);
+                $prefillMode = 'next_grade';
+            } elseif ($latestStatus === 'retained') {
+                $allowedGradeLevelId = $latestGradeLevelId;
+                $prefillMode = 'same_grade';
+            } else {
+                $nextGradeLevelId = GradeLevel::query()
+                    ->where('level_order', '>', $latestGradeLevelOrder)
+                    ->orderBy('level_order')
+                    ->value('id');
+                $allowedGradeLevelId = (int) ($nextGradeLevelId ?: $latestGradeLevelId);
+                $prefillMode = 'next_grade';
+            }
+
+            $allowedOrder = (int) (GradeLevel::query()->whereKey($allowedGradeLevelId)->value('level_order') ?? $latestGradeLevelOrder);
+            $response['grade_prefill_mode'] = $prefillMode;
+            $response['recommended_grade_level_id'] = $allowedGradeLevelId;
+            $response['grade_guardrail'] = [
+                'allowed_exact_grade_level_id' => $allowedGradeLevelId,
+                'min_allowed_grade_level_order' => $allowedOrder,
+                'max_allowed_grade_level_order' => $allowedOrder,
+            ];
+        } else {
+            $response['grade_prefill_mode'] = 'none';
+            $response['recommended_grade_level_id'] = null;
+            $response['grade_guardrail'] = [
+                'allowed_exact_grade_level_id' => null,
+                'min_allowed_grade_level_order' => $latestGradeLevelOrder,
+                'max_allowed_grade_level_order' => null,
+            ];
         }
 
-        $currentGradeLevelOrder = GradeLevel::query()
-            ->whereKey($lastEnrollmentGradeLevelId)
-            ->value('level_order');
+        $allRecords = PermanentRecord::query()
+            ->where('student_id', $student->id)
+            ->get();
 
-        if (! $currentGradeLevelOrder) {
-            return (int) $lastEnrollmentGradeLevelId;
+        if ($immediatePreviousYear) {
+            $previousYearRecord = $allRecords
+                ->where('academic_year_id', (int) $immediatePreviousYear->id)
+                ->sortByDesc('id')
+                ->first();
+            $response['status_flags']['has_previous_year_conditional'] = $previousYearRecord?->status === 'conditional'
+                && $previousYearRecord->conditional_resolved_at === null;
+            $response['status_flags']['has_previous_year_retained'] = $previousYearRecord?->status === 'retained'
+                && $previousYearRecord->retained_resolved_at === null;
         }
 
-        $nextGradeLevelId = GradeLevel::query()
-            ->where('level_order', '>', $currentGradeLevelOrder)
-            ->orderBy('level_order')
-            ->value('id');
+        $olderRecords = $allRecords->filter(function (PermanentRecord $record) use ($olderYearIds): bool {
+            return in_array((int) $record->academic_year_id, $olderYearIds, true);
+        });
+        $response['status_flags']['has_older_unresolved_conditional'] = $olderRecords->contains(function (PermanentRecord $record): bool {
+            return $record->status === 'conditional' && $record->conditional_resolved_at === null;
+        });
+        $response['status_flags']['has_older_unresolved_retained'] = $olderRecords->contains(function (PermanentRecord $record): bool {
+            return $record->status === 'retained' && $record->retained_resolved_at === null;
+        });
 
-        return (int) ($nextGradeLevelId ?: $lastEnrollmentGradeLevelId);
+        return $response;
     }
 
-    /**
-     * @return array{
-     *     student_activation_code: string|null,
-     *     parent_activation_code: string|null
-     * }
-     */
-    private function ensureAccounts(Student $student, bool $issueActivationCodes = false): array
+    private function assertGradeSelectionWithinPolicy(int $selectedGradeLevelId, array $policy): void
+    {
+        $guardrail = $policy['grade_guardrail'] ?? [];
+        $selectedOrder = (int) (GradeLevel::query()->whereKey($selectedGradeLevelId)->value('level_order') ?? 0);
+        $allowedExact = $guardrail['allowed_exact_grade_level_id'] ?? null;
+        $minOrder = $guardrail['min_allowed_grade_level_order'] ?? null;
+        $maxOrder = $guardrail['max_allowed_grade_level_order'] ?? null;
+
+        if ($allowedExact !== null && (int) $allowedExact !== $selectedGradeLevelId) {
+            throw ValidationException::withMessages([
+                'grade_level_id' => 'Selected grade level is not allowed for this returning student.',
+            ]);
+        }
+
+        if ($minOrder !== null && $selectedOrder < (int) $minOrder) {
+            throw ValidationException::withMessages([
+                'grade_level_id' => 'Selected grade level is below the allowed baseline for this student.',
+            ]);
+        }
+
+        if ($maxOrder !== null && $selectedOrder > (int) $maxOrder) {
+            throw ValidationException::withMessages([
+                'grade_level_id' => 'Selected grade level is above the allowed progression for this student.',
+            ]);
+        }
+    }
+
+    private function resolveOlderStatusesIfConfirmed(Student $student, array $validated, array $policy): void
+    {
+        $olderYearIds = collect($policy['meta']['older_year_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $now = Carbon::now();
+
+        if (($validated['resolve_older_conditional'] ?? false) === true && $olderYearIds !== []) {
+            PermanentRecord::query()
+                ->where('student_id', $student->id)
+                ->whereIn('academic_year_id', $olderYearIds)
+                ->where('status', 'conditional')
+                ->whereNull('conditional_resolved_at')
+                ->update([
+                    'conditional_resolved_at' => $now,
+                    'conditional_resolution_notes' => ($validated['conditional_resolution_notes'] ?? null) ?: 'Resolved during enrollment intake confirmation.',
+                    'updated_at' => $now,
+                ]);
+        }
+
+        if (($validated['resolve_older_retained'] ?? false) === true && $olderYearIds !== []) {
+            PermanentRecord::query()
+                ->where('student_id', $student->id)
+                ->whereIn('academic_year_id', $olderYearIds)
+                ->where('status', 'retained')
+                ->whereNull('retained_resolved_at')
+                ->update([
+                    'retained_resolved_at' => $now,
+                    'retained_resolution_notes' => ($validated['retained_resolution_notes'] ?? null) ?: 'Resolved during enrollment intake confirmation.',
+                    'updated_at' => $now,
+                ]);
+        }
+    }
+
+    private function ensureAccounts(Student $student): void
     {
         $studentEmail = $this->buildStudentEmail($student);
         $studentUser = $student->user;
-        $studentWasCreated = false;
 
         if (! $studentUser) {
             $studentUser = User::query()->firstOrCreate(
@@ -638,7 +789,6 @@ class EnrollmentController extends Controller
                     'must_change_password' => true,
                 ]
             );
-            $studentWasCreated = $studentUser->wasRecentlyCreated;
         }
 
         if ($studentUser->email !== $studentEmail) {
@@ -679,7 +829,6 @@ class EnrollmentController extends Controller
                 'must_change_password' => true,
             ]
         );
-        $parentWasCreated = $parentUser->wasRecentlyCreated;
 
         $parentUser->update([
             'first_name' => 'Parent',
@@ -700,15 +849,7 @@ class EnrollmentController extends Controller
                 'updated_at' => now(),
             ]);
 
-            $issuedCodes = $this->issueActivationCodesForAssessment(
-                $studentUser,
-                $parentUser,
-                $issueActivationCodes,
-                $studentWasCreated,
-                $parentWasCreated
-            );
-
-            return $issuedCodes;
+            return;
         }
 
         DB::table('parent_student')->insert([
@@ -717,14 +858,6 @@ class EnrollmentController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-
-        return $this->issueActivationCodesForAssessment(
-            $studentUser,
-            $parentUser,
-            $issueActivationCodes,
-            $studentWasCreated,
-            $parentWasCreated
-        );
     }
 
     private function buildStudentEmail(Student $student): string
@@ -743,96 +876,6 @@ class EnrollmentController extends Controller
         }
 
         return $normalizedSurname;
-    }
-
-    /**
-     * @return array{
-     *     student_activation_code: string|null,
-     *     parent_activation_code: string|null
-     * }
-     */
-    private function issueActivationCodesForAssessment(
-        User $studentUser,
-        User $parentUser,
-        bool $issueActivationCodes,
-        bool $studentWasCreated,
-        bool $parentWasCreated,
-    ): array {
-        if (! $issueActivationCodes) {
-            return [
-                'student_activation_code' => null,
-                'parent_activation_code' => null,
-            ];
-        }
-
-        $issueStudentCode = $studentWasCreated || (bool) $studentUser->must_change_password;
-        $issueParentCode = $parentWasCreated || (bool) $parentUser->must_change_password;
-
-        if ($issueStudentCode && ! $studentUser->must_change_password) {
-            $studentUser->forceFill(['must_change_password' => true])->save();
-        }
-
-        if ($issueParentCode && ! $parentUser->must_change_password) {
-            $parentUser->forceFill(['must_change_password' => true])->save();
-        }
-
-        return [
-            'student_activation_code' => $issueStudentCode
-                ? $this->accountActivationCodeManager->issueForUser($studentUser)
-                : null,
-            'parent_activation_code' => $issueParentCode
-                ? $this->accountActivationCodeManager->issueForUser($parentUser)
-                : null,
-        ];
-    }
-
-    /**
-     * @param  array{
-     *     student_activation_code?: string|null,
-     *     parent_activation_code?: string|null
-     * }  $credentials
-     */
-    private function storeAssessmentCredentialSnapshot(int $enrollmentId, array $credentials): ?string
-    {
-        if (
-            $enrollmentId <= 0
-            || empty($credentials['student_activation_code'])
-            && empty($credentials['parent_activation_code'])
-        ) {
-            return null;
-        }
-
-        $token = (string) Str::uuid();
-        $cacheKey = $this->assessmentCredentialCacheKey($enrollmentId, $token);
-
-        Cache::put($cacheKey, [
-            'student_activation_code' => $credentials['student_activation_code'] ?? null,
-            'parent_activation_code' => $credentials['parent_activation_code'] ?? null,
-        ], now()->addMinutes(self::ASSESSMENT_CREDENTIAL_CACHE_TTL_MINUTES));
-
-        return $token;
-    }
-
-    /**
-     * @return array{
-     *     student_activation_code?: string|null,
-     *     parent_activation_code?: string|null
-     * }
-     */
-    private function pullAssessmentCredentialSnapshot(int $enrollmentId, ?string $token): array
-    {
-        if ($enrollmentId <= 0 || ! $token) {
-            return [];
-        }
-
-        $cachedPayload = Cache::pull($this->assessmentCredentialCacheKey($enrollmentId, $token));
-
-        return is_array($cachedPayload) ? $cachedPayload : [];
-    }
-
-    private function assessmentCredentialCacheKey(int $enrollmentId, string $token): string
-    {
-        return "registration-assessment:{$enrollmentId}:{$token}";
     }
 
     private function resolveSectionForIntake(?int $sectionId, int $academicYearId): ?Section

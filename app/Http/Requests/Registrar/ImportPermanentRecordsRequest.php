@@ -22,7 +22,7 @@ class ImportPermanentRecordsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'import_file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+            'import_file' => ['required', 'file', 'mimes:csv,txt,xls,xlsx', 'max:15360'],
         ];
     }
 
@@ -32,9 +32,9 @@ class ImportPermanentRecordsRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'import_file.required' => 'Please choose a CSV file to import.',
-            'import_file.mimes' => 'Import file must be a CSV file.',
-            'import_file.max' => 'Import file must not exceed 10MB.',
+            'import_file.required' => 'Please choose an import file.',
+            'import_file.mimes' => 'Import file must be CSV, XLS, or XLSX.',
+            'import_file.max' => 'Import file must not exceed 15MB.',
         ];
     }
 }

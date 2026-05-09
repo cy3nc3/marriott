@@ -17,6 +17,8 @@ class PermanentRecord extends Model
         'failed_subject_count',
         'conditional_resolved_at',
         'conditional_resolution_notes',
+        'retained_resolved_at',
+        'retained_resolution_notes',
         'remarks',
     ];
 
@@ -26,6 +28,7 @@ class PermanentRecord extends Model
             'general_average' => 'decimal:2',
             'failed_subject_count' => 'integer',
             'conditional_resolved_at' => 'datetime',
+            'retained_resolved_at' => 'datetime',
         ];
     }
 

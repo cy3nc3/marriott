@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Teacher\Concerns\ResolvesTeacherAcademicYearAccess;
 use App\Http\Requests\Teacher\IndexGradingSheetRequest;
 use App\Http\Requests\Teacher\StoreGradedActivityRequest;
 use App\Http\Requests\Teacher\StoreGradingScoresRequest;
@@ -25,26 +26,38 @@ use Inertia\Response;
 
 class GradingSheetController extends Controller
 {
+    use ResolvesTeacherAcademicYearAccess;
+
     public function index(IndexGradingSheetRequest $request): Response
     {
         $validated = $request->validated();
         $teacherId = (int) auth()->id();
 
-        $activeYear = AcademicYear::query()
-            ->where('status', 'ongoing')
-            ->first()
-            ?? AcademicYear::query()->orderByDesc('start_date')->first();
+        $academicYearOptions = $this->resolveTeacherAcademicYearOptions($teacherId);
+        $selectedAcademicYearId = $this->resolveSelectedTeacherAcademicYearId(
+            $academicYearOptions,
+            (int) ($validated['academic_year_id'] ?? 0) ?: null
+        );
+        if (isset($validated['academic_year_id']) && ! $academicYearOptions->pluck('id')->contains((int) $validated['academic_year_id'])) {
+            abort(403);
+        }
+        $selectedAcademicYear = $selectedAcademicYearId
+            ? AcademicYear::query()->find($selectedAcademicYearId)
+            : null;
+        $isReadOnlyHistorical = $this->isReadOnlyHistoricalYear($selectedAcademicYearId);
 
         $selectedQuarter = (string) ($validated['quarter']
-            ?? ($activeYear?->current_quarter ?: '1'));
+            ?? ($selectedAcademicYear?->current_quarter ?: '1'));
         if (! in_array($selectedQuarter, ['1', '2', '3', '4'], true)) {
             $selectedQuarter = '1';
         }
 
-        $featureLocked = ! $this->isTeacherAcademicFeatureAvailable($activeYear);
-        $featureLockMessage = $featureLocked
-            ? $this->resolveFeatureLockMessage($activeYear, 'Grading sheet')
-            : null;
+        $featureLocked = $isReadOnlyHistorical || ! $this->isTeacherAcademicFeatureAvailable($selectedAcademicYear);
+        $featureLockMessage = $isReadOnlyHistorical
+            ? 'Historical grading sheets are read-only.'
+            : ($featureLocked
+                ? $this->resolveFeatureLockMessage($selectedAcademicYear, 'Grading sheet')
+                : null);
 
         $teacherAssignments = SubjectAssignment::query()
             ->with([
@@ -56,9 +69,9 @@ class GradingSheetController extends Controller
             ->whereHas('teacherSubject', function ($query) use ($teacherId) {
                 $query->where('teacher_id', $teacherId);
             })
-            ->when($activeYear, function ($query) use ($activeYear) {
-                $query->whereHas('section', function ($sectionQuery) use ($activeYear) {
-                    $sectionQuery->where('academic_year_id', $activeYear->id);
+            ->when($selectedAcademicYearId, function ($query) use ($selectedAcademicYearId) {
+                $query->whereHas('section', function ($sectionQuery) use ($selectedAcademicYearId) {
+                    $sectionQuery->where('academic_year_id', $selectedAcademicYearId);
                 });
             })
             ->orderBy('section_id')
@@ -81,6 +94,10 @@ class GradingSheetController extends Controller
             ->values();
 
         $selectedSectionId = (int) ($validated['section_id'] ?? ($sectionOptions->first()['id'] ?? 0));
+        $allowedSectionIds = $sectionOptions->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if ($selectedSectionId > 0 && ! in_array($selectedSectionId, $allowedSectionIds, true)) {
+            $selectedSectionId = (int) ($sectionOptions->first()['id'] ?? 0);
+        }
 
         $subjectOptions = $teacherAssignments
             ->filter(function (SubjectAssignment $subjectAssignment) use ($selectedSectionId) {
@@ -99,6 +116,10 @@ class GradingSheetController extends Controller
             ->values();
 
         $selectedSubjectId = (int) ($validated['subject_id'] ?? ($subjectOptions->first()['id'] ?? 0));
+        $allowedSubjectIds = $subjectOptions->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if ($selectedSubjectId > 0 && ! in_array($selectedSubjectId, $allowedSubjectIds, true)) {
+            $selectedSubjectId = (int) ($subjectOptions->first()['id'] ?? 0);
+        }
 
         $selectedAssignment = $teacherAssignments->first(function (SubjectAssignment $subjectAssignment) use ($selectedSectionId, $selectedSubjectId) {
             return $subjectAssignment->section_id === $selectedSectionId
@@ -140,8 +161,8 @@ class GradingSheetController extends Controller
             $enrollments = Enrollment::query()
                 ->with('student:id,first_name,last_name')
                 ->where('section_id', $selectedSectionId)
-                ->when($activeYear, function ($query) use ($activeYear) {
-                    $query->where('academic_year_id', $activeYear->id);
+                ->when($selectedAcademicYearId, function ($query) use ($selectedAcademicYearId) {
+                    $query->where('academic_year_id', $selectedAcademicYearId);
                 })
                 ->where('status', 'enrolled')
                 ->orderBy('id')
@@ -237,6 +258,9 @@ class GradingSheetController extends Controller
 
         return Inertia::render('teacher/grading-sheet/index', [
             'context' => [
+                'academic_year_options' => $academicYearOptions->all(),
+                'selected_academic_year_id' => $selectedAcademicYearId,
+                'is_read_only_historical' => $isReadOnlyHistorical,
                 'section_options' => $sectionOptions,
                 'subject_options' => $subjectOptions,
                 'selected_section_id' => $selectedSectionId > 0 ? $selectedSectionId : null,
@@ -257,6 +281,7 @@ class GradingSheetController extends Controller
                     'assessments' => $writtenWorks->map(function (GradedActivity $gradedActivity) {
                         return [
                             'id' => $gradedActivity->id,
+                            'type' => $gradedActivity->type,
                             'title' => $gradedActivity->title,
                             'max_points' => (float) $gradedActivity->max_score,
                         ];
@@ -268,6 +293,7 @@ class GradingSheetController extends Controller
                     'assessments' => $performanceTasks->map(function (GradedActivity $gradedActivity) {
                         return [
                             'id' => $gradedActivity->id,
+                            'type' => $gradedActivity->type,
                             'title' => $gradedActivity->title,
                             'max_points' => (float) $gradedActivity->max_score,
                         ];
@@ -277,6 +303,7 @@ class GradingSheetController extends Controller
             'quarterly_exam_assessment' => $quarterlyExams->first()
                 ? [
                     'id' => $quarterlyExams->first()->id,
+                    'type' => $quarterlyExams->first()->type,
                     'title' => $quarterlyExams->first()->title,
                     'max_points' => (float) $quarterlyExams->first()->max_score,
                 ]
@@ -291,21 +318,28 @@ class GradingSheetController extends Controller
     public function updateRubric(UpdateGradingRubricRequest $request): RedirectResponse
     {
         $validated = $request->validated();
-        $activeYear = AcademicYear::query()
-            ->where('status', 'ongoing')
-            ->first()
-            ?? AcademicYear::query()->orderByDesc('start_date')->first();
-
-        if (! $this->isTeacherAcademicFeatureAvailable($activeYear)) {
-            return back()->with('error', $this->resolveFeatureLockMessage($activeYear, 'Grading sheet'));
-        }
-
         $teacherOwnsSubject = TeacherSubject::query()
             ->where('teacher_id', auth()->id())
             ->where('subject_id', $validated['subject_id'])
             ->exists();
 
         if (! $teacherOwnsSubject) {
+            abort(403);
+        }
+
+        $currentAcademicYearId = $this->resolveCurrentAcademicYearId();
+        $hasCurrentYearAssignment = $currentAcademicYearId
+            ? SubjectAssignment::query()
+                ->whereHas('teacherSubject', function ($query) use ($validated) {
+                    $query->where('teacher_id', auth()->id())
+                        ->where('subject_id', $validated['subject_id']);
+                })
+                ->whereHas('section', function ($query) use ($currentAcademicYearId) {
+                    $query->where('academic_year_id', $currentAcademicYearId);
+                })
+                ->exists()
+            : false;
+        if (! $hasCurrentYearAssignment) {
             abort(403);
         }
 
@@ -339,6 +373,7 @@ class GradingSheetController extends Controller
         $assignmentAcademicYear = $subjectAssignment->section
             ? AcademicYear::query()->find($subjectAssignment->section->academic_year_id)
             : null;
+        $this->enforceCurrentYearWriteAccess($subjectAssignment->section?->academic_year_id ? (int) $subjectAssignment->section->academic_year_id : null);
         if (! $this->isTeacherAcademicFeatureAvailable($assignmentAcademicYear)) {
             return back()->with('error', $this->resolveFeatureLockMessage($assignmentAcademicYear, 'Grading sheet'));
         }
@@ -369,6 +404,59 @@ class GradingSheetController extends Controller
         return back()->with('success', 'Assessment added.');
     }
 
+    public function updateAssessment(StoreGradedActivityRequest $request, GradedActivity $assessment): RedirectResponse
+    {
+        $validated = $request->validated();
+        $assessment->load('subjectAssignment.section');
+
+        if ((int) $assessment->subject_assignment_id !== (int) $validated['subject_assignment_id']
+            || (string) $assessment->quarter !== (string) $validated['quarter']) {
+            abort(403);
+        }
+
+        $editabilityError = $this->resolveAssessmentEditabilityError($assessment);
+        if ($editabilityError !== null) {
+            return back()->with('error', $editabilityError);
+        }
+
+        $highestScore = (float) StudentScore::query()
+            ->where('graded_activity_id', $assessment->id)
+            ->max('score');
+
+        if ($highestScore > (float) $validated['max_score']) {
+            return back()->with('error', 'Max points cannot be lower than an existing encoded score.');
+        }
+
+        $assessment->update([
+            'type' => $validated['type'],
+            'title' => $validated['title'],
+            'max_score' => $validated['max_score'],
+        ]);
+
+        DashboardCacheService::bust();
+
+        return back()->with('success', 'Assessment updated.');
+    }
+
+    public function destroyAssessment(GradedActivity $assessment): RedirectResponse
+    {
+        $assessment->load('subjectAssignment.section');
+
+        $editabilityError = $this->resolveAssessmentEditabilityError($assessment);
+        if ($editabilityError !== null) {
+            return back()->with('error', $editabilityError);
+        }
+
+        DB::transaction(function () use ($assessment): void {
+            $assessment->studentScores()->delete();
+            $assessment->delete();
+        });
+
+        DashboardCacheService::bust();
+
+        return back()->with('success', 'Assessment removed.');
+    }
+
     public function storeScores(StoreGradingScoresRequest $request): RedirectResponse
     {
         $validated = $request->validated();
@@ -386,6 +474,7 @@ class GradingSheetController extends Controller
         $assignmentAcademicYear = $subjectAssignment->section
             ? AcademicYear::query()->find($subjectAssignment->section->academic_year_id)
             : null;
+        $this->enforceCurrentYearWriteAccess($subjectAssignment->section?->academic_year_id ? (int) $subjectAssignment->section->academic_year_id : null);
         if (! $this->isTeacherAcademicFeatureAvailable($assignmentAcademicYear)) {
             return back()->with('error', $this->resolveFeatureLockMessage($assignmentAcademicYear, 'Grading sheet'));
         }
@@ -664,6 +753,48 @@ class GradingSheetController extends Controller
         }
 
         return true;
+    }
+
+    private function resolveAssessmentEditabilityError(GradedActivity $assessment): ?string
+    {
+        $subjectAssignment = $assessment->subjectAssignment;
+
+        if (! $subjectAssignment || ! $subjectAssignment->section) {
+            abort(404);
+        }
+
+        $teacherOwnsAssessment = TeacherSubject::query()
+            ->whereKey($subjectAssignment->teacher_subject_id)
+            ->where('teacher_id', auth()->id())
+            ->exists();
+
+        if (! $teacherOwnsAssessment) {
+            abort(403);
+        }
+
+        $academicYearId = (int) $subjectAssignment->section->academic_year_id;
+        $academicYear = AcademicYear::query()->find($academicYearId);
+
+        $this->enforceCurrentYearWriteAccess($academicYearId);
+
+        if (! $this->isTeacherAcademicFeatureAvailable($academicYear)) {
+            return $this->resolveFeatureLockMessage($academicYear, 'Grading sheet');
+        }
+
+        $gradeSubmission = GradeSubmission::query()
+            ->where('academic_year_id', $academicYearId)
+            ->where('subject_assignment_id', $subjectAssignment->id)
+            ->where('quarter', $assessment->quarter)
+            ->first();
+
+        if ($gradeSubmission && in_array($gradeSubmission->status, [
+            GradeSubmission::STATUS_SUBMITTED,
+            GradeSubmission::STATUS_VERIFIED,
+        ], true)) {
+            return 'This class-quarter is already finalized. Return it first before editing assessments.';
+        }
+
+        return null;
     }
 
     private function resolveFeatureLockMessage(?AcademicYear $academicYear, string $featureLabel): string

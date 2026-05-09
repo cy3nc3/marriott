@@ -3,40 +3,54 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Teacher\Concerns\ResolvesTeacherAcademicYearAccess;
 use App\Http\Requests\Teacher\IndexAdvisoryBoardRequest;
 use App\Http\Requests\Teacher\StoreAdvisoryConductRequest;
 use App\Models\AcademicYear;
 use App\Models\ConductRating;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
+use App\Models\GradeRelease;
 use App\Models\GradeSubmission;
 use App\Models\Section;
 use App\Models\SubjectAssignment;
+use App\Services\Registrar\PermanentRecordPopulationService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AdvisoryBoardController extends Controller
 {
+    use ResolvesTeacherAcademicYearAccess;
+
     public function index(IndexAdvisoryBoardRequest $request): Response
     {
         $validated = $request->validated();
         $teacherId = (int) auth()->id();
-
-        $activeYear = AcademicYear::query()
-            ->where('status', 'ongoing')
-            ->first()
-            ?? AcademicYear::query()->orderByDesc('start_date')->first();
+        $academicYearOptions = $this->resolveTeacherAcademicYearOptions($teacherId);
+        $selectedAcademicYearId = $this->resolveSelectedTeacherAcademicYearId(
+            $academicYearOptions,
+            (int) ($validated['academic_year_id'] ?? 0) ?: null
+        );
+        if (isset($validated['academic_year_id']) && ! $academicYearOptions->pluck('id')->contains((int) $validated['academic_year_id'])) {
+            abort(403);
+        }
+        $selectedAcademicYear = $selectedAcademicYearId
+            ? AcademicYear::query()->find($selectedAcademicYearId)
+            : null;
+        $isReadOnlyHistorical = $this->isReadOnlyHistoricalYear($selectedAcademicYearId);
 
         $selectedQuarter = (string) ($validated['quarter']
-            ?? ($activeYear?->current_quarter ?: '1'));
+            ?? ($selectedAcademicYear?->current_quarter ?: '1'));
 
         $advisorySections = Section::query()
             ->with('gradeLevel:id,name')
             ->where('adviser_id', $teacherId)
-            ->when($activeYear, function ($query) use ($activeYear) {
-                $query->where('academic_year_id', $activeYear->id);
+            ->when($selectedAcademicYearId, function ($query) use ($selectedAcademicYearId) {
+                $query->where('academic_year_id', $selectedAcademicYearId);
             })
             ->orderBy('grade_level_id')
             ->orderBy('name')
@@ -66,6 +80,10 @@ class AdvisoryBoardController extends Controller
         $allowedSectionIds = $sectionOptions
             ->pluck('id')
             ->all();
+
+        if (isset($validated['section_id']) && ! in_array((int) $validated['section_id'], $allowedSectionIds, true)) {
+            abort(403);
+        }
 
         if (! in_array($selectedSectionId, $allowedSectionIds, true)) {
             $selectedSectionId = (int) ($sectionOptions->first()['id'] ?? 0);
@@ -196,17 +214,95 @@ class AdvisoryBoardController extends Controller
             $isLocked = $lockedCount === $enrollmentIds->count();
         }
 
+        $gradeRelease = null;
+        $canReleaseGrades = false;
+        $releaseBlockingMessage = null;
+
+        if ($selectedSection) {
+            $gradeRelease = GradeRelease::query()
+                ->with('releasedBy:id,first_name,last_name,name')
+                ->where('academic_year_id', $selectedSection->academic_year_id)
+                ->where('section_id', $selectedSection->id)
+                ->where('quarter', $selectedQuarter)
+                ->first();
+
+            if (! $gradeRelease) {
+                $releaseReadiness = $this->resolveGradeReleaseReadiness($selectedSection, $selectedQuarter);
+                $canReleaseGrades = $releaseReadiness['can_release'];
+                $releaseBlockingMessage = $releaseReadiness['message'];
+            }
+        }
+
         return Inertia::render('teacher/advisory-board/index', [
             'context' => [
                 'section_options' => $sectionOptions,
                 'selected_section_id' => $selectedSectionId > 0 ? $selectedSectionId : null,
                 'selected_quarter' => $selectedQuarter,
+                'academic_year_options' => $academicYearOptions->all(),
+                'selected_academic_year_id' => $selectedAcademicYearId,
+                'is_read_only_historical' => $isReadOnlyHistorical,
             ],
             'grade_columns' => $subjectColumns,
             'grade_rows' => $gradeRows,
             'conduct_rows' => $conductRows,
             'status' => $isLocked ? 'locked' : 'draft',
+            'grade_release' => [
+                'is_released' => (bool) $gradeRelease,
+                'released_at' => $gradeRelease?->released_at?->toIso8601String(),
+                'released_by_name' => $gradeRelease
+                    ? $this->formatUserName(
+                        $gradeRelease->releasedBy?->first_name,
+                        $gradeRelease->releasedBy?->last_name,
+                        $gradeRelease->releasedBy?->name
+                    )
+                    : null,
+                'can_release' => $canReleaseGrades,
+                'blocking_message' => $releaseBlockingMessage,
+            ],
         ]);
+    }
+
+    public function releaseGrades(Request $request, PermanentRecordPopulationService $permanentRecordPopulationService): RedirectResponse
+    {
+        $validated = $request->validate([
+            'section_id' => ['required', 'integer', 'exists:sections,id'],
+            'quarter' => ['required', 'string', 'in:1,2,3,4'],
+        ]);
+
+        $section = Section::query()
+            ->whereKey($validated['section_id'])
+            ->where('adviser_id', auth()->id())
+            ->firstOrFail();
+        $this->enforceCurrentYearWriteAccess((int) $section->academic_year_id);
+
+        $releaseReadiness = $this->resolveGradeReleaseReadiness($section, (string) $validated['quarter']);
+        if (! $releaseReadiness['can_release']) {
+            return back()->with('error', $releaseReadiness['message']);
+        }
+
+        $populationSummary = DB::transaction(function () use ($section, $validated, $permanentRecordPopulationService): array {
+            GradeRelease::query()->updateOrCreate(
+                [
+                    'academic_year_id' => $section->academic_year_id,
+                    'section_id' => $section->id,
+                    'quarter' => $validated['quarter'],
+                ],
+                [
+                    'released_by' => auth()->id(),
+                    'released_at' => now(),
+                ]
+            );
+
+            return $permanentRecordPopulationService->populateForReleasedQuarter(
+                $section,
+                (string) $validated['quarter']
+            );
+        });
+
+        return back()->with(
+            'success',
+            "Quarter grades released to students and parents. Permanent records updated for {$populationSummary['processed']} learner(s)."
+        );
     }
 
     public function storeConduct(StoreAdvisoryConductRequest $request): RedirectResponse
@@ -218,6 +314,7 @@ class AdvisoryBoardController extends Controller
             ->whereKey($validated['section_id'])
             ->where('adviser_id', $teacherId)
             ->firstOrFail();
+        $this->enforceCurrentYearWriteAccess((int) $section->academic_year_id);
 
         $enrollmentIds = Enrollment::query()
             ->where('section_id', $section->id)
@@ -314,5 +411,82 @@ class AdvisoryBoardController extends Controller
     private function formatGrade(float $grade): string
     {
         return number_format($grade, 2, '.', '');
+    }
+
+    /**
+     * @return array{can_release: bool, message: string|null}
+     */
+    private function resolveGradeReleaseReadiness(Section $section, string $quarter): array
+    {
+        $subjectAssignmentIds = SubjectAssignment::query()
+            ->where('section_id', $section->id)
+            ->pluck('id');
+
+        if ($subjectAssignmentIds->isEmpty()) {
+            return [
+                'can_release' => false,
+                'message' => 'Cannot release grades yet. No subject assignments were found for this advisory section.',
+            ];
+        }
+
+        $enrollmentCount = Enrollment::query()
+            ->where('academic_year_id', $section->academic_year_id)
+            ->where('section_id', $section->id)
+            ->where('status', 'enrolled')
+            ->count();
+
+        if ($enrollmentCount === 0) {
+            return [
+                'can_release' => false,
+                'message' => 'Cannot release grades yet. No enrolled students were found for this advisory section.',
+            ];
+        }
+
+        $verifiedAssignmentCount = GradeSubmission::query()
+            ->where('academic_year_id', $section->academic_year_id)
+            ->where('quarter', $quarter)
+            ->whereIn('subject_assignment_id', $subjectAssignmentIds)
+            ->where('status', GradeSubmission::STATUS_VERIFIED)
+            ->distinct('subject_assignment_id')
+            ->count('subject_assignment_id');
+
+        if ($verifiedAssignmentCount < $subjectAssignmentIds->count()) {
+            return [
+                'can_release' => false,
+                'message' => 'Cannot release grades until all subject grades for this quarter are verified.',
+            ];
+        }
+
+        $lockedGradeRows = FinalGrade::query()
+            ->where('quarter', $quarter)
+            ->whereIn('subject_assignment_id', $subjectAssignmentIds)
+            ->where('is_locked', true)
+            ->whereHas('enrollment', function ($query) use ($section): void {
+                $query
+                    ->where('academic_year_id', $section->academic_year_id)
+                    ->where('section_id', $section->id)
+                    ->where('status', 'enrolled');
+            })
+            ->count();
+
+        $expectedGradeRows = $enrollmentCount * $subjectAssignmentIds->count();
+        if ($lockedGradeRows < $expectedGradeRows) {
+            return [
+                'can_release' => false,
+                'message' => 'Cannot release grades yet. Some student grade rows are missing or unlocked.',
+            ];
+        }
+
+        return [
+            'can_release' => true,
+            'message' => null,
+        ];
+    }
+
+    private function formatUserName(?string $firstName, ?string $lastName, ?string $fallbackName): string
+    {
+        $trimmed = trim("{$firstName} {$lastName}");
+
+        return $trimmed !== '' ? $trimmed : ($fallbackName ?: 'Unknown User');
     }
 }

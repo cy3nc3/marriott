@@ -1,19 +1,9 @@
-import { Head, useForm } from '@inertiajs/react';
-import { AlertTriangle, CheckCircle2, CircleDot, RotateCcw, ShieldAlert, UserCheck } from 'lucide-react';
-import { useState } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { CheckCircle2, CircleDot, ShieldAlert } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -39,86 +29,179 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-type QueueRow = {
+type PromotionRow = {
     permanent_record_id: number;
     student_id: number;
     student_name: string;
     lrn: string;
+    grade_level: string;
+    status: 'promoted' | 'completed' | 'conditional' | 'retained';
     failed_subject_count: number;
-    school_year?: string;
-    grade_level?: string;
-    source_year?: string;
-    target_year?: string;
-    recorded_at?: string;
+    progression: string;
 };
 
-type GradeIssueRow = {
-    student_id: number;
-    student_name: string;
-    lrn: string;
-    issue: string;
+type SchoolYearOption = {
+    id: number;
+    name: string;
+    status: string;
 };
 
 interface Props {
     run_summary: {
         run_at: string | null;
         processed_learners: number;
-        promoted: number;
+        passed: number;
         conditional: number;
         retained: number;
-        completed: number;
-        conflicts: number;
-        grade_completeness_issue_count: number;
     };
-    conditional_queue: QueueRow[];
-    held_for_review_queue: QueueRow[];
-    grade_completeness_issues: GradeIssueRow[];
-    source_year: {
-        id: number;
-        name: string;
-    } | null;
-    target_year: {
-        id: number;
-        name: string;
-    } | null;
+    school_years: SchoolYearOption[];
+    selected_year: SchoolYearOption | null;
+    status_breakdown: {
+        passed: PromotionRow[];
+        conditional: PromotionRow[];
+        retained: PromotionRow[];
+    };
+}
+
+function statusBadge(status: PromotionRow['status']) {
+    if (status === 'completed') {
+        return <Badge variant="outline">Completed</Badge>;
+    }
+
+    if (status === 'promoted') {
+        return (
+            <Badge variant="outline" className="border-emerald-200 bg-emerald-500/15 text-emerald-700 dark:border-emerald-800 dark:text-emerald-400">
+                Promoted
+            </Badge>
+        );
+    }
+
+    if (status === 'conditional') {
+        return (
+            <Badge variant="outline" className="border-amber-200 bg-amber-500/15 text-amber-700 dark:border-amber-800 dark:text-amber-400">
+                Conditional
+            </Badge>
+        );
+    }
+
+    return (
+        <Badge variant="outline" className="border-red-200 bg-red-500/15 text-red-700 dark:border-red-800 dark:text-red-400">
+            Retained
+        </Badge>
+    );
+}
+
+function BreakdownTable({
+    rows,
+    emptyMessage,
+    pageSize = 10,
+}: {
+    rows: PromotionRow[];
+    emptyMessage: string;
+    pageSize?: number;
+}) {
+    const [page, setPage] = useState(1);
+    const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+
+    useEffect(() => {
+        setPage(1);
+    }, [rows]);
+
+    const paginatedRows = useMemo(() => {
+        const start = (page - 1) * pageSize;
+        return rows.slice(start, start + pageSize);
+    }, [page, pageSize, rows]);
+
+    return (
+        <div>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="pl-6">Learner</TableHead>
+                        <TableHead>LRN</TableHead>
+                        <TableHead>Grade Level</TableHead>
+                        <TableHead>Failed Subjects</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="pr-6">Progression</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {rows.length === 0 ? (
+                        <TableRow>
+                            <TableCell
+                                className="py-8 text-center text-sm text-muted-foreground"
+                                colSpan={6}
+                            >
+                                {emptyMessage}
+                            </TableCell>
+                        </TableRow>
+                    ) : (
+                        paginatedRows.map((row) => (
+                            <TableRow key={row.permanent_record_id}>
+                                <TableCell className="pl-6 font-medium">
+                                    {row.student_name}
+                                </TableCell>
+                                <TableCell>{row.lrn}</TableCell>
+                                <TableCell>{row.grade_level}</TableCell>
+                                <TableCell>{row.failed_subject_count}</TableCell>
+                                <TableCell>{statusBadge(row.status)}</TableCell>
+                                <TableCell className="pr-6">
+                                    {row.progression}
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    )}
+                </TableBody>
+            </Table>
+            {rows.length > 0 ? (
+                <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                        disabled={page <= 1}
+                    >
+                        Previous
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                        Page {page} of {totalPages}
+                    </p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                            setPage((prev) => Math.min(totalPages, prev + 1))
+                        }
+                        disabled={page >= totalPages}
+                    >
+                        Next
+                    </Button>
+                </div>
+            ) : null}
+        </div>
+    );
 }
 
 export default function BatchPromotion({
     run_summary,
-    conditional_queue,
-    held_for_review_queue,
-    grade_completeness_issues,
-    source_year,
-    target_year,
+    school_years,
+    selected_year,
+    status_breakdown,
 }: Props) {
-    const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-    const [selectedCase, setSelectedCase] = useState<QueueRow | null>(null);
-
-    const reviewForm = useForm({
-        permanent_record_id: 0,
-        decision: 'promoted',
-        note: '',
-    });
-
-    const openReviewDialog = (row: QueueRow) => {
-        setSelectedCase(row);
-        reviewForm.setData({
-            permanent_record_id: row.permanent_record_id,
-            decision: 'promoted',
-            note: '',
-        });
-        setReviewDialogOpen(true);
+    const safeSummary = run_summary ?? {
+        run_at: null,
+        processed_learners: 0,
+        passed: 0,
+        conditional: 0,
+        retained: 0,
     };
-
-    const submitReview = () => {
-        reviewForm.post('/registrar/batch-promotion/review', {
-            preserveScroll: true,
-            onSuccess: () => {
-                setReviewDialogOpen(false);
-                setSelectedCase(null);
-                reviewForm.reset();
-            },
-        });
+    const safeSchoolYears = school_years ?? [];
+    const safeBreakdown = status_breakdown ?? {
+        passed: [],
+        conditional: [],
+        retained: [],
     };
 
     return (
@@ -132,52 +215,94 @@ export default function BatchPromotion({
                             <div>
                                 <CardTitle>Batch Promotion Monitor</CardTitle>
                                 <p className="text-sm text-muted-foreground">
-                                    Source: {source_year?.name ?? 'N/A'}
-                                    {' -> '}
-                                    Target: {target_year?.name ?? 'N/A'}
+                                    Track promotion outcomes by school year.
                                 </p>
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                                Last run:{' '}
-                                {run_summary.run_at
-                                    ? new Date(run_summary.run_at).toLocaleString()
-                                    : 'No run yet'}
+                            <div className="w-full lg:w-72">
+                                <Select
+                                    value={
+                                        selected_year
+                                            ? String(selected_year.id)
+                                            : undefined
+                                    }
+                                    onValueChange={(value) => {
+                                        router.get(
+                                            '/registrar/batch-promotion',
+                                            {
+                                                academic_year_id:
+                                                    Number(value),
+                                            },
+                                            {
+                                                preserveScroll: true,
+                                                preserveState: true,
+                                                replace: true,
+                                            },
+                                        );
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select school year" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {safeSchoolYears.map((schoolYear) => (
+                                            <SelectItem
+                                                key={schoolYear.id}
+                                                value={String(schoolYear.id)}
+                                            >
+                                                {schoolYear.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="pt-6">
+                        <div className="mb-4 text-sm text-muted-foreground">
+                            School Year:{' '}
+                            <span className="font-medium text-foreground">
+                                {selected_year?.name ?? 'N/A'}
+                            </span>
+                            {' · '}
+                            Last run:{' '}
+                            {safeSummary.run_at
+                                ? new Date(safeSummary.run_at).toLocaleString()
+                                : 'No run yet'}
+                        </div>
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <div className="rounded-md border p-3">
                                 <p className="text-xs text-muted-foreground">
                                     Processed Learners
                                 </p>
                                 <p className="text-2xl font-semibold">
-                                    {run_summary.processed_learners}
+                                    {safeSummary.processed_learners}
                                 </p>
                             </div>
                             <div className="rounded-md border p-3">
-                                <p className="text-xs text-muted-foreground">
-                                    Promoted / Completed
+                                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <CheckCircle2 className="size-3.5" />
+                                    Passed
                                 </p>
                                 <p className="text-2xl font-semibold">
-                                    {run_summary.promoted + run_summary.completed}
+                                    {safeSummary.passed}
                                 </p>
                             </div>
                             <div className="rounded-md border p-3">
-                                <p className="text-xs text-muted-foreground">
-                                    Conditional / Retained
+                                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <CircleDot className="size-3.5" />
+                                    Conditional
                                 </p>
                                 <p className="text-2xl font-semibold">
-                                    {run_summary.conditional + run_summary.retained}
+                                    {safeSummary.conditional}
                                 </p>
                             </div>
                             <div className="rounded-md border p-3">
-                                <p className="text-xs text-muted-foreground">
-                                    Blockers / Conflicts
+                                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <ShieldAlert className="size-3.5" />
+                                    Retained
                                 </p>
                                 <p className="text-2xl font-semibold">
-                                    {run_summary.grade_completeness_issue_count +
-                                        run_summary.conflicts}
+                                    {safeSummary.retained}
                                 </p>
                             </div>
                         </div>
@@ -186,246 +311,40 @@ export default function BatchPromotion({
 
                 <Card>
                     <CardHeader className="border-b">
-                        <CardTitle>Conditional Queue</CardTitle>
+                        <CardTitle>Passed Students</CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="pl-6">Learner</TableHead>
-                                    <TableHead>LRN</TableHead>
-                                    <TableHead>Failed Subjects</TableHead>
-                                    <TableHead>School Year</TableHead>
-                                    <TableHead className="pr-6 text-right">
-                                        Status
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {conditional_queue.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            className="py-8 text-center text-sm text-muted-foreground"
-                                            colSpan={5}
-                                        >
-                                            No unresolved conditional learners.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    conditional_queue.map((row) => (
-                                        <TableRow key={row.permanent_record_id}>
-                                            <TableCell className="pl-6 font-medium">
-                                                {row.student_name}
-                                            </TableCell>
-                                            <TableCell>{row.lrn}</TableCell>
-                                            <TableCell>
-                                                {row.failed_subject_count}
-                                            </TableCell>
-                                            <TableCell>
-                                                {row.school_year ?? row.source_year}
-                                            </TableCell>
-                                            <TableCell className="pr-6 text-right">
-                                                <Badge variant="outline">
-                                                    <CircleDot className="size-3" />
-                                                    Conditional
-                                                </Badge>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+                        <BreakdownTable
+                            rows={safeBreakdown.passed}
+                            emptyMessage="No passed students for this school year."
+                        />
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="border-b">
-                        <CardTitle>Held for Registrar Review</CardTitle>
+                        <CardTitle>Conditional Students</CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="pl-6">Learner</TableHead>
-                                    <TableHead>LRN</TableHead>
-                                    <TableHead>School Year</TableHead>
-                                    <TableHead>Failed Subjects</TableHead>
-                                    <TableHead className="pr-6 text-right">
-                                        Action
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {held_for_review_queue.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            className="py-8 text-center text-sm text-muted-foreground"
-                                            colSpan={5}
-                                        >
-                                            No held review cases.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    held_for_review_queue.map((row) => (
-                                        <TableRow key={row.permanent_record_id}>
-                                            <TableCell className="pl-6 font-medium">
-                                                {row.student_name}
-                                            </TableCell>
-                                            <TableCell>{row.lrn}</TableCell>
-                                            <TableCell>
-                                                {row.school_year}
-                                            </TableCell>
-                                            <TableCell>
-                                                {row.failed_subject_count}
-                                            </TableCell>
-                                            <TableCell className="pr-6 text-right">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        openReviewDialog(row)
-                                                    }
-                                                >
-                                                    <RotateCcw className="size-4" />
-                                                    Resolve
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+                        <BreakdownTable
+                            rows={safeBreakdown.conditional}
+                            emptyMessage="No conditional students for this school year."
+                        />
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="border-b">
-                        <CardTitle>Grade Completeness Issues</CardTitle>
+                        <CardTitle>Retained Students</CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="pl-6">Learner</TableHead>
-                                    <TableHead>LRN</TableHead>
-                                    <TableHead className="pr-6">Issue</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {grade_completeness_issues.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            className="py-8 text-center text-sm text-muted-foreground"
-                                            colSpan={3}
-                                        >
-                                            No grade completeness issues from the
-                                            latest run.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    grade_completeness_issues.map((issue) => (
-                                        <TableRow
-                                            key={`${issue.student_id}-${issue.issue}`}
-                                        >
-                                            <TableCell className="pl-6 font-medium">
-                                                {issue.student_name}
-                                            </TableCell>
-                                            <TableCell>{issue.lrn}</TableCell>
-                                            <TableCell className="pr-6 text-sm text-muted-foreground">
-                                                {issue.issue}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+                        <BreakdownTable
+                            rows={safeBreakdown.retained}
+                            emptyMessage="No retained students for this school year."
+                        />
                     </CardContent>
                 </Card>
             </div>
-
-            <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Resolve Review Case</DialogTitle>
-                        <DialogDescription>
-                            {selectedCase?.student_name} ({selectedCase?.lrn})
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Decision</Label>
-                            <Select
-                                value={reviewForm.data.decision}
-                                onValueChange={(value) =>
-                                    reviewForm.setData(
-                                        'decision',
-                                        value as 'promoted' | 'retained',
-                                    )
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="promoted">
-                                        <div className="flex items-center gap-2">
-                                            <UserCheck className="size-4" />
-                                            Promote
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="retained">
-                                        <div className="flex items-center gap-2">
-                                            <ShieldAlert className="size-4" />
-                                            Retain
-                                        </div>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>Resolution Note</Label>
-                            <Input
-                                value={reviewForm.data.note}
-                                onChange={(event) =>
-                                    reviewForm.setData('note', event.target.value)
-                                }
-                                placeholder="State the registrar decision context"
-                            />
-                            {reviewForm.errors.note && (
-                                <p className="text-sm text-destructive">
-                                    {reviewForm.errors.note}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                            <p className="flex items-center gap-2">
-                                <AlertTriangle className="size-4" />
-                                This action closes the hold case and updates the
-                                learner progression record.
-                            </p>
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setReviewDialogOpen(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={submitReview}
-                            disabled={reviewForm.processing}
-                        >
-                            <CheckCircle2 className="size-4" />
-                            Confirm Resolution
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </AppLayout>
     );
 }

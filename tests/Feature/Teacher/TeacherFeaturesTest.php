@@ -245,6 +245,80 @@ test('teacher schedule page is scoped to the active academic year', function () 
         );
 });
 
+test('teacher can view own past-year attendance context and cannot view another teacher assignment', function () {
+    $pastYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+    AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '2',
+    ]);
+    $gradeLevel = GradeLevel::query()->create(['name' => 'Grade 7', 'level_order' => 7]);
+    $subject = Subject::query()->create(['grade_level_id' => $gradeLevel->id, 'subject_code' => 'ENG7', 'subject_name' => 'English 7']);
+    $section = Section::query()->create([
+        'academic_year_id' => $pastYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Mabini',
+        'adviser_id' => null,
+    ]);
+    $teacherSubject = TeacherSubject::query()->create(['teacher_id' => $this->teacher->id, 'subject_id' => $subject->id]);
+    $assignment = SubjectAssignment::query()->create(['section_id' => $section->id, 'teacher_subject_id' => $teacherSubject->id]);
+    $otherTeacher = User::factory()->teacher()->create();
+    $otherTeacherSubject = TeacherSubject::query()->create(['teacher_id' => $otherTeacher->id, 'subject_id' => $subject->id]);
+    $otherAssignment = SubjectAssignment::query()->create(['section_id' => $section->id, 'teacher_subject_id' => $otherTeacherSubject->id]);
+
+    $this->get("/teacher/attendance?academic_year_id={$pastYear->id}&subject_assignment_id={$assignment->id}")
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('context.selected_academic_year_id', $pastYear->id)
+            ->where('context.is_read_only_historical', true));
+
+    $this->get("/teacher/attendance?academic_year_id={$pastYear->id}&subject_assignment_id={$otherAssignment->id}")
+        ->assertForbidden();
+});
+
+test('teacher grading mutations are rejected for past-year assignments', function () {
+    $pastYear = AcademicYear::query()->create([
+        'name' => '2024-2025',
+        'start_date' => '2024-06-01',
+        'end_date' => '2025-03-31',
+        'status' => 'completed',
+        'current_quarter' => '4',
+    ]);
+    AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '2',
+    ]);
+    $gradeLevel = GradeLevel::query()->create(['name' => 'Grade 7', 'level_order' => 7]);
+    $subject = Subject::query()->create(['grade_level_id' => $gradeLevel->id, 'subject_code' => 'MATH7', 'subject_name' => 'Math 7']);
+    $section = Section::query()->create([
+        'academic_year_id' => $pastYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => null,
+    ]);
+    $teacherSubject = TeacherSubject::query()->create(['teacher_id' => $this->teacher->id, 'subject_id' => $subject->id]);
+    $assignment = SubjectAssignment::query()->create(['section_id' => $section->id, 'teacher_subject_id' => $teacherSubject->id]);
+
+    $this->post('/teacher/grading-sheet/assessments', [
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'type' => 'WW',
+        'title' => 'Past year test',
+        'max_score' => 50,
+    ])->assertForbidden();
+});
+
 test('teacher attendance page renders sf2 style attendance rows for subject class assignment', function () {
     $schoolYear = AcademicYear::query()->create([
         'name' => '2025-2026',

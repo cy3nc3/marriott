@@ -14,6 +14,8 @@ class Enrollment extends Model
     protected $fillable = [
         'student_id',
         'email',
+        'report_card_submitted',
+        'birth_certificate_submitted',
         'academic_year_id',
         'grade_level_id',
         'section_id',
@@ -24,6 +26,8 @@ class Enrollment extends Model
 
     protected $casts = [
         'downpayment' => 'decimal:2',
+        'report_card_submitted' => 'boolean',
+        'birth_certificate_submitted' => 'boolean',
     ];
 
     public function student(): BelongsTo

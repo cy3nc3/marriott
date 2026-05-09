@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { Info, Lock, Save } from 'lucide-react';
+import { Info, Lock, Send, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,9 @@ type SectionOption = {
 };
 
 type Context = {
+    academic_year_options: { id: number; name: string; status: string }[];
+    selected_academic_year_id: number | null;
+    is_read_only_historical: boolean;
     section_options: SectionOption[];
     selected_section_id: number | null;
     selected_quarter: '1' | '2' | '3' | '4';
@@ -83,6 +86,13 @@ interface Props {
     grade_rows: GradeRow[];
     conduct_rows: ConductRow[];
     status: 'draft' | 'locked';
+    grade_release: {
+        is_released: boolean;
+        released_at: string | null;
+        released_by_name: string | null;
+        can_release: boolean;
+        blocking_message: string | null;
+    };
 }
 
 const quarterLabels: Record<string, string> = {
@@ -98,9 +108,11 @@ export default function AdvisoryBoard({
     grade_rows,
     conduct_rows,
     status,
+    grade_release,
 }: Props) {
     const advisoryBoardRoute = teacher.advisory_board;
     const [isFinalizeDialogOpen, setIsFinalizeDialogOpen] = useState(false);
+    const [isReleaseDialogOpen, setIsReleaseDialogOpen] = useState(false);
     const [conductRows, setConductRows] = useState<ConductRow[]>(conduct_rows);
 
     useEffect(() => {
@@ -110,6 +122,8 @@ export default function AdvisoryBoard({
     const selectedSectionValue = context.selected_section_id
         ? String(context.selected_section_id)
         : 'section-none';
+    const selectedQuarterLabel =
+        quarterLabels[context.selected_quarter] ?? 'Selected Quarter';
 
     const handleSectionChange = (value: string) => {
         if (value === 'section-none') {
@@ -121,6 +135,8 @@ export default function AdvisoryBoard({
                 query: {
                     section_id: Number(value),
                     quarter: context.selected_quarter,
+                    academic_year_id:
+                        context.selected_academic_year_id || undefined,
                 },
             }),
             {},
@@ -137,6 +153,8 @@ export default function AdvisoryBoard({
                 query: {
                     section_id: context.selected_section_id || undefined,
                     quarter: value,
+                    academic_year_id:
+                        context.selected_academic_year_id || undefined,
                 },
             }),
             {},
@@ -215,10 +233,49 @@ export default function AdvisoryBoard({
         );
     };
 
+    const handleAcademicYearChange = (value: string) => {
+        router.get(
+            advisoryBoardRoute.url({
+                query: {
+                    academic_year_id: Number(value),
+                },
+            }),
+            {},
+            {
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const releaseGrades = () => {
+        if (!context.selected_section_id || !grade_release.can_release) {
+            return;
+        }
+
+        router.post(
+            advisoryBoardRoute.release_grades.url(),
+            {
+                section_id: context.selected_section_id,
+                quarter: context.selected_quarter,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => setIsReleaseDialogOpen(false),
+            },
+        );
+    };
+
     const actionDisabled =
+        context.is_read_only_historical ||
         status === 'locked' ||
         !context.selected_section_id ||
         conductRows.length === 0;
+    const releaseDisabled =
+        context.is_read_only_historical ||
+        grade_release.is_released ||
+        !grade_release.can_release ||
+        !context.selected_section_id;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -239,11 +296,54 @@ export default function AdvisoryBoard({
                                 Status:{' '}
                                 {status === 'locked' ? 'Locked' : 'Draft'}
                             </Badge>
+                            <Badge
+                                variant="outline"
+                                className={
+                                    grade_release.is_released
+                                        ? 'bg-sky-500/15 text-sky-700 hover:bg-sky-500/25 dark:text-sky-400 border-sky-200 dark:border-sky-800'
+                                        : ''
+                                }
+                            >
+                                Grades:{' '}
+                                {grade_release.is_released
+                                    ? 'Released'
+                                    : 'Not Released'}
+                            </Badge>
                         </div>
                     </CardHeader>
                     <CardContent className="pt-6">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex flex-col gap-3 sm:flex-row">
+                                {context.academic_year_options.length > 0 && (
+                                    <Select
+                                        value={
+                                            context.selected_academic_year_id
+                                                ? String(
+                                                      context.selected_academic_year_id,
+                                                  )
+                                                : undefined
+                                        }
+                                        onValueChange={handleAcademicYearChange}
+                                    >
+                                        <SelectTrigger className="w-full sm:w-44">
+                                            <SelectValue placeholder="School Year" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {context.academic_year_options.map(
+                                                (schoolYear) => (
+                                                    <SelectItem
+                                                        key={schoolYear.id}
+                                                        value={String(
+                                                            schoolYear.id,
+                                                        )}
+                                                    >
+                                                        {schoolYear.name}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                                 <Select
                                     value={selectedSectionValue}
                                     onValueChange={handleSectionChange}
@@ -302,6 +402,32 @@ export default function AdvisoryBoard({
                             </div>
                             <div className="flex flex-col gap-2 sm:flex-row">
                                 <Button
+                                    variant={
+                                        grade_release.is_released
+                                            ? 'secondary'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        setIsReleaseDialogOpen(true)
+                                    }
+                                    disabled={releaseDisabled}
+                                    className={
+                                        grade_release.is_released
+                                            ? 'cursor-not-allowed opacity-60 saturate-50'
+                                            : undefined
+                                    }
+                                    title={
+                                        grade_release.is_released
+                                            ? `${selectedQuarterLabel} grades already released.`
+                                            : (grade_release.blocking_message ?? '')
+                                    }
+                                >
+                                    <Send className="size-4" />
+                                    {grade_release.is_released
+                                        ? `${selectedQuarterLabel} Grades Released`
+                                        : `Release ${selectedQuarterLabel} Grades`}
+                                </Button>
+                                <Button
                                     variant="outline"
                                     onClick={() => submitConduct('draft')}
                                     disabled={actionDisabled}
@@ -310,17 +436,40 @@ export default function AdvisoryBoard({
                                     Save Draft
                                 </Button>
                                 <Button
-                                    variant="destructive"
+                                    variant={
+                                        status === 'locked'
+                                            ? 'secondary'
+                                            : 'destructive'
+                                    }
                                     onClick={() =>
                                         setIsFinalizeDialogOpen(true)
                                     }
                                     disabled={actionDisabled}
+                                    className={
+                                        status === 'locked'
+                                            ? 'cursor-not-allowed opacity-60 saturate-50'
+                                            : undefined
+                                    }
                                 >
                                     <Lock className="size-4" />
-                                    Finalize and Lock
+                                    {status === 'locked'
+                                        ? 'Finalized and Locked'
+                                        : 'Finalize and Lock'}
                                 </Button>
                             </div>
                         </div>
+                        {grade_release.is_released && (
+                            <p className="mt-4 text-sm text-muted-foreground">
+                                Released by{' '}
+                                {grade_release.released_by_name ?? '-'}.
+                            </p>
+                        )}
+                        {!grade_release.is_released &&
+                            grade_release.blocking_message && (
+                                <p className="mt-4 text-sm text-muted-foreground">
+                                    {grade_release.blocking_message}
+                                </p>
+                            )}
                     </CardContent>
                 </Card>
 
@@ -608,6 +757,38 @@ export default function AdvisoryBoard({
                             disabled={actionDisabled}
                         >
                             Confirm Lock
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={isReleaseDialogOpen}
+                onOpenChange={setIsReleaseDialogOpen}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            Release {selectedQuarterLabel} Grades
+                        </DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        This will make verified {selectedQuarterLabel.toLowerCase()}{' '}
+                        grades for the selected advisory class visible in
+                        student and parent portals.
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsReleaseDialogOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={releaseGrades}
+                            disabled={releaseDisabled}
+                        >
+                            Confirm {selectedQuarterLabel} Release
                         </Button>
                     </DialogFooter>
                 </DialogContent>

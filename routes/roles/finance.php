@@ -28,6 +28,8 @@ Route::middleware(['auth', 'verified', 'role:finance'])->prefix('finance')->name
     Route::post('/transaction-history/{transaction}/refund', [TransactionHistoryController::class, 'refund'])->middleware('desktop_only')->name('transaction_history.refund');
     Route::post('/transaction-history/{transaction}/reissue', [TransactionHistoryController::class, 'reissue'])->middleware('desktop_only')->name('transaction_history.reissue');
     Route::get('/data-import', [DataImportController::class, 'index'])->middleware('desktop_only')->name('data_import');
+    Route::get('/data-import/transactions/template', [DataImportController::class, 'downloadWorkbookTemplate'])->middleware('desktop_only')->name('data_import.transactions.template');
+    Route::get('/data-import/dues/template', [DataImportController::class, 'downloadDuesTemplate'])->middleware('desktop_only')->name('data_import.dues.template');
     Route::post('/data-import/transactions', [DataImportController::class, 'import'])->middleware('desktop_only')->name('data_import.transactions');
     Route::post('/import-batches', [FinanceImportBatchController::class, 'store'])->middleware('desktop_only')->name('import_batches.store');
     Route::post('/import-batches/{importBatch}/preview', [FinanceImportBatchController::class, 'preview'])->middleware('desktop_only')->name('import_batches.preview');

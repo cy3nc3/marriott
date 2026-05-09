@@ -40,6 +40,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 type PermanentRecordStatus =
+    | 'in_progress'
     | 'promoted'
     | 'conditional'
     | 'retained'
@@ -106,6 +107,10 @@ interface Props {
 }
 
 function statusBadge(status: PermanentRecordStatus) {
+    if (status === 'in_progress') {
+        return <Badge variant="outline" className="bg-sky-500/15 text-sky-700 hover:bg-sky-500/25 dark:text-sky-400 border-sky-200 dark:border-sky-800">In Progress</Badge>;
+    }
+
     if (status === 'promoted') {
         return <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">Promoted</Badge>;
     }
@@ -465,7 +470,7 @@ export default function PermanentRecords({
                                 value={searchQuery}
                                 onValueChange={setSearchQuery}
                                 suggestions={searchSuggestions}
-                                showSuggestions={false}
+                                showSuggestions
                                 placeholder="Search by school year, grade level, school, status, or subject"
                             />
                         </div>
@@ -710,11 +715,14 @@ export default function PermanentRecords({
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Status</Label>
-                                    <Select defaultValue="promoted">
+                                    <Select defaultValue="in_progress">
                                         <SelectTrigger className="w-full">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value="in_progress">
+                                                In Progress
+                                            </SelectItem>
                                             <SelectItem value="promoted">
                                                 Promoted
                                             </SelectItem>
@@ -981,6 +989,9 @@ export default function PermanentRecords({
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value="in_progress">
+                                                In Progress
+                                            </SelectItem>
                                             <SelectItem value="promoted">
                                                 Promoted
                                             </SelectItem>

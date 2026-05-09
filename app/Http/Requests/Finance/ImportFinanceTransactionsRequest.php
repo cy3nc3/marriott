@@ -22,7 +22,7 @@ class ImportFinanceTransactionsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'import_file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+            'import_file' => ['required', 'file', 'mimes:csv,txt,xls,xlsx', 'max:10240'],
         ];
     }
 
@@ -32,8 +32,8 @@ class ImportFinanceTransactionsRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'import_file.required' => 'Please choose a CSV file to import.',
-            'import_file.mimes' => 'Import file must be a CSV file.',
+            'import_file.required' => 'Please choose a CSV or Excel file to import.',
+            'import_file.mimes' => 'Import file must be a CSV, XLS, or XLSX file.',
             'import_file.max' => 'Import file must not exceed 10MB.',
         ];
     }

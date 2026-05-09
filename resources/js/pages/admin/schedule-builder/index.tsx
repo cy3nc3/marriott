@@ -27,6 +27,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -55,6 +60,121 @@ const START_HOUR = 7;
 const END_HOUR = 17;
 const HOUR_HEIGHT = 96;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+const formatDisplayTime = (time: string): string => {
+    if (!time) return 'Select time';
+
+    const [hours, minutes] = time.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHour = hours % 12 || 12;
+
+    return `${displayHour}:${minutes.toString().padStart(2, '0')} ${period}`;
+};
+
+const toTimeValue = (hour12: number, minute: number, period: 'AM' | 'PM') => {
+    const normalizedHour =
+        period === 'PM' ? (hour12 % 12) + 12 : hour12 % 12;
+
+    return `${normalizedHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+};
+
+function TimePickerField({
+    value,
+    onChange,
+    placeholder,
+}: {
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+}) {
+    const [rawHours = '08', rawMinutes = '00'] = (value || '08:00').split(':');
+    const hours24 = Number(rawHours);
+    const minutes = Number(rawMinutes);
+    const period: 'AM' | 'PM' = hours24 >= 12 ? 'PM' : 'AM';
+    const hour12 = hours24 % 12 || 12;
+
+    const updateHour = (nextValue: string) => {
+        if (!/^\d{0,2}$/.test(nextValue)) return;
+
+        const nextHour = Math.min(Math.max(Number(nextValue || 1), 1), 12);
+        onChange(toTimeValue(nextHour, minutes, period));
+    };
+
+    const updateMinute = (nextValue: string) => {
+        if (!/^\d{0,2}$/.test(nextValue)) return;
+
+        const nextMinute = Math.min(Math.max(Number(nextValue || 0), 0), 59);
+        onChange(toTimeValue(hour12, nextMinute, period));
+    };
+
+    const updatePeriod = (nextPeriod: 'AM' | 'PM') => {
+        onChange(toTimeValue(hour12, minutes, nextPeriod));
+    };
+
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 w-full justify-start rounded-lg px-3 text-left font-normal"
+                >
+                    <Clock className="mr-2 size-4 text-muted-foreground" />
+                    <span
+                        className={cn(
+                            !value && 'text-muted-foreground',
+                        )}
+                    >
+                        {value ? formatDisplayTime(value) : placeholder}
+                    </span>
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-3" align="start">
+                <div className="space-y-3">
+                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Set Time
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                        <Input
+                            inputMode="numeric"
+                            value={hour12.toString().padStart(2, '0')}
+                            onChange={(event) => updateHour(event.target.value)}
+                            className="h-11 rounded-lg text-center text-base font-semibold"
+                            aria-label="Hour"
+                        />
+                        <span className="text-lg font-semibold text-muted-foreground">
+                            :
+                        </span>
+                        <Input
+                            inputMode="numeric"
+                            value={minutes.toString().padStart(2, '0')}
+                            onChange={(event) =>
+                                updateMinute(event.target.value)
+                            }
+                            className="h-11 rounded-lg text-center text-base font-semibold"
+                            aria-label="Minute"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        {(['AM', 'PM'] as const).map((option) => (
+                            <Button
+                                key={option}
+                                type="button"
+                                variant={
+                                    period === option ? 'default' : 'outline'
+                                }
+                                className="h-9 rounded-lg"
+                                onClick={() => updatePeriod(option)}
+                            >
+                                {option}
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
+}
 
 interface Teacher {
     id: number;
@@ -826,7 +946,7 @@ export default function ScheduleBuilder({
                     </Card>
 
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                        <DialogContent className="sm:max-w-[450px]">
+                        <DialogContent className="sm:max-w-lg">
                             <DialogHeader>
                                 <DialogTitle>
                                     {selectedItem
@@ -838,55 +958,55 @@ export default function ScheduleBuilder({
                                     period.
                                 </DialogDescription>
                             </DialogHeader>
-                            <div className="space-y-6 py-4">
+                            <div className="space-y-5 py-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-2">
-                                        <Label className="text-xs text-muted-foreground">
+                                        <Label className="text-sm font-medium">
                                             Start Time
                                         </Label>
-                                        <Input
-                                            type="time"
+                                        <TimePickerField
                                             value={
                                                 selectedItem
                                                     ? editForm.data.start_time
                                                     : addForm.data.start_time
                                             }
-                                            onChange={(e) => {
+                                            placeholder="Select start time"
+                                            onChange={(value) => {
                                                 if (selectedItem) {
                                                     editForm.setData(
                                                         'start_time',
-                                                        e.target.value,
+                                                        value,
                                                     );
                                                 } else {
                                                     addForm.setData(
                                                         'start_time',
-                                                        e.target.value,
+                                                        value,
                                                     );
                                                 }
                                             }}
                                         />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label className="text-xs text-muted-foreground">
+                                        <Label className="text-sm font-medium">
                                             End Time
                                         </Label>
-                                        <Input
-                                            type="time"
+                                        <TimePickerField
                                             value={
                                                 selectedItem
                                                     ? editForm.data.end_time
                                                     : addForm.data.end_time
                                             }
-                                            onChange={(e) => {
+                                            placeholder="Select end time"
+                                            onChange={(value) => {
                                                 if (selectedItem) {
                                                     editForm.setData(
                                                         'end_time',
-                                                        e.target.value,
+                                                        value,
                                                     );
                                                 } else {
                                                     addForm.setData(
                                                         'end_time',
-                                                        e.target.value,
+                                                        value,
                                                     );
                                                 }
                                             }}
@@ -904,7 +1024,7 @@ export default function ScheduleBuilder({
                                 />
 
                                 <div className="grid gap-2">
-                                    <Label className="text-xs text-muted-foreground">
+                                    <Label className="text-sm font-medium">
                                         Period Type
                                     </Label>
                                     <Select
@@ -933,7 +1053,7 @@ export default function ScheduleBuilder({
                                             }
                                         }}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger className="h-10 rounded-lg">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -953,7 +1073,7 @@ export default function ScheduleBuilder({
                                 {(selectedItem
                                     ? editForm.data.type
                                     : addForm.data.type) === 'academic' ? (
-                                    <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                                    <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
                                         <div className="flex items-center gap-2 text-primary">
                                             <BookOpen className="size-4" />
                                             <p className="text-xs font-semibold tracking-wider uppercase">
@@ -962,8 +1082,8 @@ export default function ScheduleBuilder({
                                         </div>
 
                                         <div className="grid gap-4">
-                                            <div className="grid gap-1">
-                                                <Label className="text-xs text-muted-foreground">
+                                            <div className="grid gap-2">
+                                                <Label className="text-sm font-medium">
                                                     Subject
                                                 </Label>
                                                 <Select
@@ -977,10 +1097,10 @@ export default function ScheduleBuilder({
                                                         }
                                                     }}
                                                 >
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="h-10 rounded-lg">
                                                         <SelectValue placeholder="Select subject..." />
                                                     </SelectTrigger>
-                                                    <SelectContent>
+                                                    <SelectContent className="max-h-72">
                                                         {subjects.map((s) => (
                                                             <SelectItem key={s.id} value={s.id.toString()}>
                                                                 {s.name}
@@ -990,8 +1110,8 @@ export default function ScheduleBuilder({
                                                 </Select>
                                             </div>
 
-                                            <div className="grid gap-1">
-                                                <Label className="text-xs text-muted-foreground">
+                                            <div className="grid gap-2">
+                                                <Label className="text-sm font-medium">
                                                     Assigned Teacher
                                                 </Label>
                                                 <Select
@@ -1005,10 +1125,10 @@ export default function ScheduleBuilder({
                                                         }
                                                     }}
                                                 >
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="h-10 rounded-lg">
                                                         <SelectValue placeholder="Select teacher..." />
                                                     </SelectTrigger>
-                                                    <SelectContent>
+                                                    <SelectContent className="max-h-72">
                                                         {(() => {
                                                             const currentFormSubjectId = selectedItem ? editForm.data.subject_id : addForm.data.subject_id;
                                                             const modalFilteredTeachers = currentFormSubjectId
@@ -1027,10 +1147,11 @@ export default function ScheduleBuilder({
                                     </div>
                                 ) : (
                                     <div className="grid gap-2">
-                                        <Label className="text-xs text-muted-foreground">
+                                        <Label className="text-sm font-medium">
                                             Label
                                         </Label>
                                         <Input
+                                            className="h-10 rounded-lg"
                                             placeholder="e.g. Recess or Lunch"
                                             value={
                                                 selectedItem

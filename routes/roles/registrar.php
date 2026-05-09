@@ -21,13 +21,14 @@ Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->
     Route::get('/enrollment/lookup', [EnrollmentController::class, 'lookup'])->middleware('desktop_only')->name('enrollment.lookup');
     Route::get('/enrollment/export', [EnrollmentController::class, 'export'])->middleware('desktop_only')->name('enrollment.export');
     Route::get('/enrollment/{enrollment}/assessment', [EnrollmentController::class, 'printAssessment'])->middleware('desktop_only')->name('enrollment.assessment');
-    Route::post('/enrollment/{enrollment}/regenerate-activation-codes', [EnrollmentController::class, 'regenerateAssessmentCredentials'])->middleware('desktop_only')->name('enrollment.regenerate_activation_codes');
     Route::post('/enrollment', [EnrollmentController::class, 'store'])->middleware('desktop_only')->name('enrollment.store');
     Route::patch('/enrollment/{enrollment}', [EnrollmentController::class, 'update'])->middleware('desktop_only')->name('enrollment.update');
     Route::delete('/enrollment/{enrollment}', [EnrollmentController::class, 'destroy'])->middleware('desktop_only')->name('enrollment.destroy');
 
     Route::get('/permanent-records', [PermanentRecordsController::class, 'index'])->middleware('desktop_only')->name('permanent_records');
     Route::get('/data-import', [DataImportController::class, 'index'])->middleware('desktop_only')->name('data_import');
+    Route::get('/data-import/permanent-records/template', [DataImportController::class, 'downloadWorkbookTemplate'])->middleware('desktop_only')->name('data_import.permanent_records.template');
+    Route::post('/data-import/permanent-records/preview', [DataImportController::class, 'preview'])->middleware('desktop_only')->name('data_import.permanent_records.preview');
     Route::post('/data-import/permanent-records', [DataImportController::class, 'import'])->middleware('desktop_only')->name('data_import.permanent_records');
     Route::post('/import-batches', [StudentImportBatchController::class, 'store'])->middleware('desktop_only')->name('import_batches.store');
     Route::post('/import-batches/{importBatch}/preview', [StudentImportBatchController::class, 'preview'])->middleware('desktop_only')->name('import_batches.preview');
@@ -36,11 +37,11 @@ Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->
     Route::post('/import-batches/{importBatch}/rollback', [ImportBatchRollbackController::class, 'store'])->middleware('desktop_only')->name('import_batches.rollback');
 
     Route::get('/batch-promotion', [BatchPromotionController::class, 'index'])->middleware('desktop_only')->name('batch_promotion');
-    Route::post('/batch-promotion/review', [BatchPromotionController::class, 'resolveReviewCase'])->middleware('desktop_only')->name('batch_promotion.review');
 
     Route::get('/remedial-entry', [RemedialEntryController::class, 'index'])->middleware('desktop_only')->name('remedial_entry');
     Route::get('/remedial-entry/student-suggestions', [RemedialEntryController::class, 'studentSuggestions'])->middleware('desktop_only')->name('remedial_entry.student_suggestions');
     Route::post('/remedial-entry/intake', [RemedialEntryController::class, 'storeIntake'])->middleware('desktop_only')->name('remedial_entry.intake');
+    Route::post('/remedial-entry/intake-subject', [RemedialEntryController::class, 'storeIntakeSubject'])->middleware('desktop_only')->name('remedial_entry.intake_subject');
     Route::post('/remedial-entry', [RemedialEntryController::class, 'store'])->middleware('desktop_only')->name('remedial_entry.store');
 
     Route::get('/student-departure/student-suggestions', [StudentDepartureController::class, 'studentSuggestions'])->middleware('desktop_only')->name('student_departure.student_suggestions');

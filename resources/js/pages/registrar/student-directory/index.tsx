@@ -1,7 +1,9 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Download, Eye, Pencil, Printer, RefreshCw } from 'lucide-react';
+import { Download, Eye, Pencil, Printer } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateOfBirthPicker } from '@/components/ui/date-picker';
@@ -27,10 +29,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import registrar from '@/routes/registrar';
-import {
-    assessment,
-    regenerate_activation_codes,
-} from '@/routes/registrar/enrollment';
+import { assessment } from '@/routes/registrar/enrollment';
 import type { BreadcrumbItem, SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -52,10 +51,27 @@ interface StudentRow {
     guardian_name: string | null;
     guardian_contact_number: string | null;
     email: string | null;
+    student_account_email: string | null;
+    parent_account_email: string | null;
+    report_card_submitted: boolean;
+    birth_certificate_submitted: boolean;
     student_name: string;
     grade_section: string;
     enrollment_status: string | null;
-    status: 'enrolled' | 'transferred_out' | 'dropped' | 'not_currently_enrolled';
+    student_account_claimed: boolean;
+    parent_account_claimed: boolean;
+    status: 'enrolled' | 'enrolled_with_missing_requirements' | 'not_enrolled' | 'transferred_out' | 'dropped' | 'not_currently_enrolled';
+    enrollment_history: EnrollmentHistoryRow[];
+}
+
+interface EnrollmentHistoryRow {
+    id: number;
+    school_year: string;
+    grade_level: string;
+    section: string;
+    grade_section: string;
+    status: string;
+    status_label: string;
 }
 
 interface SectionOption {
@@ -108,6 +124,25 @@ const formatMobileForDisplay = (subscriberDigits: string): string => {
     return '-';
 };
 
+const formatLearnerProfileName = (
+    firstName: string | null,
+    middleName: string | null,
+    lastName: string | null,
+): string => {
+    const middleInitial = (middleName || '')
+        .trim()
+        .charAt(0)
+        .toUpperCase();
+
+    const parts = [
+        (firstName || '').trim(),
+        middleInitial !== '' ? `${middleInitial}.` : '',
+        (lastName || '').trim(),
+    ].filter((value) => value.length > 0);
+
+    return parts.join(' ');
+};
+
 export default function StudentDirectory({
     students,
     section_options,
@@ -121,6 +156,7 @@ export default function StudentDirectory({
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState<StudentRow | null>(null);
     const [isDetailEditMode, setIsDetailEditMode] = useState(false);
+    const [isClaimEmailConfirmOpen, setIsClaimEmailConfirmOpen] = useState(false);
     const [selectedSectionIds, setSelectedSectionIds] = useState<number[]>(
         section_options.map((section) => section.id),
     );
@@ -134,6 +170,9 @@ export default function StudentDirectory({
         guardian_name: '',
         guardian_contact_number: '',
         email: '',
+        report_card_submitted: false,
+        birth_certificate_submitted: false,
+        send_claim_email_confirmation: false,
     });
 
     const searchSuggestions = students.data.map((student) => ({
@@ -231,21 +270,6 @@ export default function StudentDirectory({
         );
     };
 
-    const regenerateActivationCodes = (enrollmentId: number | null) => {
-        if (!enrollmentId) {
-            return;
-        }
-
-        router.post(
-            regenerate_activation_codes(enrollmentId).url,
-            {},
-            {
-                preserveScroll: true,
-                preserveState: true,
-            },
-        );
-    };
-
     const openStudentDetails = (student: StudentRow) => {
         setSelectedStudent(student);
         setIsDetailEditMode(false);
@@ -261,6 +285,9 @@ export default function StudentDirectory({
                 student.guardian_contact_number || '',
             ),
             email: student.email || '',
+            report_card_submitted: student.report_card_submitted,
+            birth_certificate_submitted: student.birth_certificate_submitted,
+            send_claim_email_confirmation: false,
         });
     };
 
@@ -270,12 +297,32 @@ export default function StudentDirectory({
         detailForm.clearErrors();
     };
 
-    const submitStudentDetailsUpdate = () => {
+    const submitStudentDetailsUpdate = (forceClaimEmailConfirmation = false) => {
         if (!selectedStudent) {
             return;
         }
 
-        detailForm.patch(`/registrar/student-directory/${selectedStudent.id}`, {
+        const originalEmail = (selectedStudent.email || '').trim().toLowerCase();
+        const nextEmail = detailForm.data.email.trim().toLowerCase();
+        const emailChanged = nextEmail !== '' && nextEmail !== originalEmail;
+        const needsClaimEmailConfirm = emailChanged
+            && selectedStudent.enrollment_status === 'enrolled'
+            && !selectedStudent.student_account_claimed
+            && !selectedStudent.parent_account_claimed
+            && !forceClaimEmailConfirmation;
+
+        if (needsClaimEmailConfirm) {
+            setIsClaimEmailConfirmOpen(true);
+
+            return;
+        }
+
+        detailForm
+            .transform((data) => ({
+                ...data,
+                send_claim_email_confirmation: forceClaimEmailConfirmation,
+            }))
+            .patch(`/registrar/student-directory/${selectedStudent.id}`, {
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
@@ -291,6 +338,8 @@ export default function StudentDirectory({
                         detailForm.data.guardian_contact_number,
                     ),
                     email: detailForm.data.email || null,
+                    report_card_submitted: detailForm.data.report_card_submitted,
+                    birth_certificate_submitted: detailForm.data.birth_certificate_submitted,
                     student_name: [
                         detailForm.data.first_name,
                         detailForm.data.last_name,
@@ -299,18 +348,120 @@ export default function StudentDirectory({
                         .filter((value) => value.length > 0)
                         .join(' '),
                 });
+                detailForm.setData('send_claim_email_confirmation', false);
                 setIsDetailEditMode(false);
+                setIsClaimEmailConfirmOpen(false);
             },
-        });
+            onFinish: () => {
+                detailForm.transform((data) => data);
+            },
+            });
+    };
+
+    const confirmAndSendClaimEmail = () => {
+        submitStudentDetailsUpdate(true);
     };
 
     const statusLabel = (status: StudentRow['status']): string => {
         return ({
             enrolled: 'Enrolled',
+            enrolled_with_missing_requirements: 'Enrolled (Missing Requirements)',
+            not_enrolled: 'Not Enrolled',
             transferred_out: 'Transferred Out',
             dropped: 'Dropped Out',
             not_currently_enrolled: 'Not Currently Enrolled',
         })[status];
+    };
+
+    const directoryStatusBadge = (status: StudentRow['status']) => {
+        const label = statusLabel(status);
+
+        if (status === 'enrolled') {
+            return (
+                <Badge
+                    variant="outline"
+                    className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                >
+                    {label}
+                </Badge>
+            );
+        }
+
+        if (status === 'enrolled_with_missing_requirements') {
+            return (
+                <Badge
+                    variant="outline"
+                    className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                >
+                    {label}
+                </Badge>
+            );
+        }
+
+        if (status === 'not_enrolled') {
+            return <Badge variant="outline">{label}</Badge>;
+        }
+
+        return enrollmentStatusBadge(status, label);
+    };
+
+    const enrollmentStatusBadge = (status: string, label: string) => {
+        if (status === 'enrolled') {
+            return (
+                <Badge
+                    variant="outline"
+                    className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                >
+                    {label}
+                </Badge>
+            );
+        }
+
+        if (status === 'enrolled_with_missing_requirements') {
+            return (
+                <Badge
+                    variant="outline"
+                    className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                >
+                    {label}
+                </Badge>
+            );
+        }
+
+        if (status === 'not_enrolled') {
+            return (
+                <Badge
+                    variant="outline"
+                    className="bg-slate-500/15 text-slate-700 hover:bg-slate-500/25 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+                >
+                    {label}
+                </Badge>
+            );
+        }
+
+        if (status === 'transferred_out') {
+            return (
+                <Badge
+                    variant="outline"
+                    className="bg-sky-500/15 text-sky-700 hover:bg-sky-500/25 dark:text-sky-400 border-sky-200 dark:border-sky-800"
+                >
+                    {label}
+                </Badge>
+            );
+        }
+
+        if (status === 'dropped') {
+            return (
+                <Badge
+                    variant="outline"
+                    className="bg-red-500/15 text-red-700 hover:bg-red-500/25 dark:text-red-400 border-red-200 dark:border-red-800"
+                >
+                    {label}
+                </Badge>
+            );
+        }
+
+        return <Badge variant="outline">{label}</Badge>;
     };
 
     return (
@@ -372,9 +523,7 @@ export default function StudentDirectory({
                                             <p className="text-xs text-muted-foreground">
                                                 {student.grade_section}
                                             </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {statusLabel(student.status)}
-                                            </p>
+                                            <div>{directoryStatusBadge(student.status)}</div>
                                             <div className="flex items-center gap-2 pt-1">
                                                 <Button
                                                     type="button"
@@ -404,22 +553,6 @@ export default function StudentDirectory({
                                                 >
                                                     <Printer className="size-4" />
                                                     Print
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    disabled={
-                                                        !student.enrollment_id
-                                                    }
-                                                    onClick={() =>
-                                                        regenerateActivationCodes(
-                                                            student.enrollment_id,
-                                                        )
-                                                    }
-                                                >
-                                                    <RefreshCw className="size-4" />
-                                                    Regenerate
                                                 </Button>
                                             </div>
                                         </div>
@@ -470,7 +603,7 @@ export default function StudentDirectory({
                                                     {student.grade_section}
                                                 </TableCell>
                                                 <TableCell className="border-l">
-                                                    {statusLabel(student.status)}
+                                                    {directoryStatusBadge(student.status)}
                                                 </TableCell>
                                                 <TableCell className="border-l pr-6">
                                                     <div className="flex justify-end gap-2">
@@ -515,29 +648,6 @@ export default function StudentDirectory({
                                                             </TooltipTrigger>
                                                             <TooltipContent>
                                                                 Print assessment form
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="size-8"
-                                                                    disabled={
-                                                                        !student.enrollment_id
-                                                                    }
-                                                                    onClick={() =>
-                                                                        regenerateActivationCodes(
-                                                                            student.enrollment_id,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <RefreshCw className="size-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                Regenerate activation codes
                                                             </TooltipContent>
                                                         </Tooltip>
                                                     </div>
@@ -598,162 +708,351 @@ export default function StudentDirectory({
             </div>
 
             <Dialog open={!!selectedStudent} onOpenChange={(open) => !open && closeStudentDetails()}>
-                <DialogContent className="sm:max-w-[520px]">
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[860px]">
                     <DialogHeader>
                         <DialogTitle>Student Details</DialogTitle>
                     </DialogHeader>
                     {selectedStudent && (
-                        <div className="space-y-4 py-2">
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="space-y-2">
-                                    <Label>First Name</Label>
-                                    {isDetailEditMode ? (
-                                        <Input
-                                            value={detailForm.data.first_name}
-                                            onChange={(event) => detailForm.setData('first_name', event.target.value)}
-                                        />
-                                    ) : (
-                                        <p className="text-sm">{selectedStudent.first_name || '-'}</p>
-                                    )}
-                                    {detailForm.errors.first_name && (
-                                        <p className="text-sm text-destructive">{detailForm.errors.first_name}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Middle Name</Label>
-                                    {isDetailEditMode ? (
-                                        <Input
-                                            value={detailForm.data.middle_name}
-                                            onChange={(event) => detailForm.setData('middle_name', event.target.value)}
-                                        />
-                                    ) : (
-                                        <p className="text-sm">{selectedStudent.middle_name || '-'}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Last Name</Label>
-                                    {isDetailEditMode ? (
-                                        <Input
-                                            value={detailForm.data.last_name}
-                                            onChange={(event) => detailForm.setData('last_name', event.target.value)}
-                                        />
-                                    ) : (
-                                        <p className="text-sm">{selectedStudent.last_name || '-'}</p>
-                                    )}
-                                    {detailForm.errors.last_name && (
-                                        <p className="text-sm text-destructive">{detailForm.errors.last_name}</p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Gender</Label>
-                                    {isDetailEditMode ? (
-                                        <Select
-                                            value={detailForm.data.gender || 'none'}
-                                            onValueChange={(value) => detailForm.setData('gender', value === 'none' ? '' : value)}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select gender" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">Select gender</SelectItem>
-                                                <SelectItem value="Male">Male</SelectItem>
-                                                <SelectItem value="Female">Female</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <p className="text-sm">{selectedStudent.gender || '-'}</p>
-                                    )}
-                                    {detailForm.errors.gender && (
-                                        <p className="text-sm text-destructive">{detailForm.errors.gender}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Birthdate</Label>
-                                    {isDetailEditMode ? (
-                                        <DateOfBirthPicker
-                                            date={detailForm.data.birthdate ? new Date(detailForm.data.birthdate) : undefined}
-                                            setDate={(date) => detailForm.setData('birthdate', date ? format(date, 'yyyy-MM-dd') : '')}
-                                            className="w-full"
-                                            placeholder="Select date"
-                                        />
-                                    ) : (
-                                        <p className="text-sm">{selectedStudent.birthdate || '-'}</p>
-                                    )}
-                                    {detailForm.errors.birthdate && (
-                                        <p className="text-sm text-destructive">{detailForm.errors.birthdate}</p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Guardian Name</Label>
-                                {isDetailEditMode ? (
-                                    <Input
-                                        value={detailForm.data.guardian_name}
-                                        onChange={(event) => detailForm.setData('guardian_name', event.target.value)}
-                                    />
-                                ) : (
-                                    <p className="text-sm">{selectedStudent.guardian_name || '-'}</p>
-                                )}
-                                {detailForm.errors.guardian_name && (
-                                    <p className="text-sm text-destructive">{detailForm.errors.guardian_name}</p>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Guardian Contact Number</Label>
-                                {isDetailEditMode ? (
-                                    <div className="flex w-full min-w-0">
-                                        <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
-                                            +63
-                                        </span>
-                                        <Input
-                                            className="rounded-l-none"
-                                            inputMode="numeric"
-                                            pattern="[0-9]*"
-                                            maxLength={10}
-                                            placeholder="9XXXXXXXXX"
-                                            value={detailForm.data.guardian_contact_number}
-                                            onChange={(event) =>
-                                                detailForm.setData(
-                                                    'guardian_contact_number',
-                                                    normalizeMobileSubscriberDigits(event.target.value),
-                                                )
-                                            }
-                                        />
+                        <div className="space-y-5 py-2">
+                            <div className="rounded-lg border bg-muted/30 p-4">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                            Learner Profile
+                                        </p>
+                                        <h3 className="text-xl font-semibold leading-tight">
+                                            {formatLearnerProfileName(
+                                                selectedStudent.first_name,
+                                                selectedStudent.middle_name,
+                                                selectedStudent.last_name,
+                                            ) || 'Unnamed Student'}
+                                        </h3>
+                                        <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                                            <span>LRN: {selectedStudent.lrn}</span>
+                                            <span>Current: {selectedStudent.grade_section}</span>
+                                        </div>
                                     </div>
-                                ) : (
-                                    <p className="text-sm">
-                                        {formatMobileForDisplay(
-                                            normalizeMobileSubscriberDigits(selectedStudent.guardian_contact_number || ''),
+                                    <div className="flex items-center gap-2">
+                                        {enrollmentStatusBadge(
+                                            selectedStudent.enrollment_status ?? selectedStudent.status,
+                                            statusLabel(selectedStudent.status),
                                         )}
-                                    </p>
-                                )}
-                                {detailForm.errors.guardian_contact_number && (
-                                    <p className="text-sm text-destructive">
-                                        {detailForm.errors.guardian_contact_number}
-                                    </p>
-                                )}
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>Contact Email</Label>
-                                {isDetailEditMode ? (
-                                    <Input
-                                        type="email"
-                                        value={detailForm.data.email}
-                                        onChange={(event) => detailForm.setData('email', event.target.value)}
-                                    />
-                                ) : (
-                                    <p className="text-sm">{selectedStudent.email || '-'}</p>
-                                )}
-                                {detailForm.errors.email && (
-                                    <p className="text-sm text-destructive">{detailForm.errors.email}</p>
-                                )}
+                            <div className="space-y-4">
+                                <Card className="gap-2">
+                                    <CardHeader className="border-b py-3">
+                                        <CardTitle className="text-sm">
+                                            Personal Information
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4 pt-4">
+                                        <div className="grid gap-4 md:grid-cols-3">
+                                            <div className="space-y-2">
+                                                <Label>First Name</Label>
+                                                {isDetailEditMode ? (
+                                                    <Input
+                                                        value={detailForm.data.first_name}
+                                                        onChange={(event) => detailForm.setData('first_name', event.target.value)}
+                                                    />
+                                                ) : (
+                                                    <p className="rounded-md border bg-background px-3 py-2 text-sm">
+                                                        {selectedStudent.first_name || '-'}
+                                                    </p>
+                                                )}
+                                                {detailForm.errors.first_name && (
+                                                    <p className="text-sm text-destructive">{detailForm.errors.first_name}</p>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Middle Name</Label>
+                                                {isDetailEditMode ? (
+                                                    <Input
+                                                        placeholder="Full middle name, not middle initial"
+                                                        value={detailForm.data.middle_name}
+                                                        onChange={(event) => detailForm.setData('middle_name', event.target.value)}
+                                                    />
+                                                ) : (
+                                                    <p className="rounded-md border bg-background px-3 py-2 text-sm">
+                                                        {selectedStudent.middle_name || '-'}
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Last Name</Label>
+                                                {isDetailEditMode ? (
+                                                    <Input
+                                                        value={detailForm.data.last_name}
+                                                        onChange={(event) => detailForm.setData('last_name', event.target.value)}
+                                                    />
+                                                ) : (
+                                                    <p className="rounded-md border bg-background px-3 py-2 text-sm">
+                                                        {selectedStudent.last_name || '-'}
+                                                    </p>
+                                                )}
+                                                {detailForm.errors.last_name && (
+                                                    <p className="text-sm text-destructive">{detailForm.errors.last_name}</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-4 md:grid-cols-4">
+                                            <div className="space-y-2">
+                                                <Label>Gender</Label>
+                                                {isDetailEditMode ? (
+                                                    <Select
+                                                        value={detailForm.data.gender || 'none'}
+                                                        onValueChange={(value) => detailForm.setData('gender', value === 'none' ? '' : value)}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select gender" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="none">Select gender</SelectItem>
+                                                            <SelectItem value="Male">Male</SelectItem>
+                                                            <SelectItem value="Female">Female</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                ) : (
+                                                    <p className="rounded-md border bg-background px-3 py-2 text-sm">
+                                                        {selectedStudent.gender || '-'}
+                                                    </p>
+                                                )}
+                                                {detailForm.errors.gender && (
+                                                    <p className="text-sm text-destructive">{detailForm.errors.gender}</p>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Birthdate</Label>
+                                                {isDetailEditMode ? (
+                                                    <DateOfBirthPicker
+                                                        date={detailForm.data.birthdate ? new Date(detailForm.data.birthdate) : undefined}
+                                                        setDate={(date) => detailForm.setData('birthdate', date ? format(date, 'yyyy-MM-dd') : '')}
+                                                        className="w-full"
+                                                        placeholder="Select date"
+                                                    />
+                                                ) : (
+                                                    <p className="rounded-md border bg-background px-3 py-2 text-sm">
+                                                        {selectedStudent.birthdate || '-'}
+                                                    </p>
+                                                )}
+                                                {detailForm.errors.birthdate && (
+                                                    <p className="text-sm text-destructive">{detailForm.errors.birthdate}</p>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-2 md:col-span-2">
+                                                <Label>Student Account Email</Label>
+                                                <p className="rounded-md border bg-background px-3 py-2 text-sm">
+                                                    {selectedStudent.student_account_email || '-'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="gap-2">
+                                    <CardHeader className="border-b py-3">
+                                        <CardTitle className="text-sm">
+                                            Guardian and Contact
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="grid gap-4 pt-4 sm:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label>Guardian Name</Label>
+                                            {isDetailEditMode ? (
+                                                <Input
+                                                    value={detailForm.data.guardian_name}
+                                                    onChange={(event) => detailForm.setData('guardian_name', event.target.value)}
+                                                />
+                                            ) : (
+                                                <p className="rounded-md border bg-background px-3 py-2 text-sm">
+                                                    {selectedStudent.guardian_name || '-'}
+                                                </p>
+                                            )}
+                                            {detailForm.errors.guardian_name && (
+                                                <p className="text-sm text-destructive">{detailForm.errors.guardian_name}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Guardian Contact Number</Label>
+                                            {isDetailEditMode ? (
+                                                <div className="flex w-full min-w-0">
+                                                    <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                                                        +63
+                                                    </span>
+                                                    <Input
+                                                        className="rounded-l-none"
+                                                        inputMode="numeric"
+                                                        pattern="[0-9]*"
+                                                        maxLength={10}
+                                                        placeholder="9XXXXXXXXX"
+                                                        value={detailForm.data.guardian_contact_number}
+                                                        onChange={(event) =>
+                                                            detailForm.setData(
+                                                                'guardian_contact_number',
+                                                                normalizeMobileSubscriberDigits(event.target.value),
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <p className="rounded-md border bg-background px-3 py-2 text-sm">
+                                                    {formatMobileForDisplay(
+                                                        normalizeMobileSubscriberDigits(selectedStudent.guardian_contact_number || ''),
+                                                    )}
+                                                </p>
+                                            )}
+                                            {detailForm.errors.guardian_contact_number && (
+                                                <p className="text-sm text-destructive">
+                                                    {detailForm.errors.guardian_contact_number}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Contact Email</Label>
+                                            {isDetailEditMode ? (
+                                                <Input
+                                                    type="email"
+                                                    value={detailForm.data.email}
+                                                    onChange={(event) => detailForm.setData('email', event.target.value)}
+                                                />
+                                            ) : (
+                                                <p className="rounded-md border bg-background px-3 py-2 text-sm">
+                                                    {selectedStudent.email || '-'}
+                                                </p>
+                                            )}
+                                            {detailForm.errors.email && (
+                                                <p className="text-sm text-destructive">{detailForm.errors.email}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Parent Account Email</Label>
+                                            <p className="rounded-md border bg-background px-3 py-2 text-sm">
+                                                {selectedStudent.parent_account_email || '-'}
+                                            </p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="gap-2">
+                                    <CardHeader className="border-b py-3">
+                                        <CardTitle className="text-sm">
+                                            Enrollment Requirements
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3 pt-4">
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <input
+                                                type="checkbox"
+                                                checked={detailForm.data.report_card_submitted}
+                                                disabled={!isDetailEditMode}
+                                                onChange={(event) =>
+                                                    detailForm.setData(
+                                                        'report_card_submitted',
+                                                        event.target.checked,
+                                                    )
+                                                }
+                                            />
+                                            Previous Grade Level Report Card Submitted
+                                        </label>
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <input
+                                                type="checkbox"
+                                                checked={detailForm.data.birth_certificate_submitted}
+                                                disabled={!isDetailEditMode}
+                                                onChange={(event) =>
+                                                    detailForm.setData(
+                                                        'birth_certificate_submitted',
+                                                        event.target.checked,
+                                                    )
+                                                }
+                                            />
+                                            Birth Certificate Submitted
+                                        </label>
+                                        {!detailForm.data.report_card_submitted || !detailForm.data.birth_certificate_submitted ? (
+                                            <p className="text-xs text-muted-foreground">
+                                                This learner is currently tagged with missing requirements.
+                                            </p>
+                                        ) : null}
+                                    </CardContent>
+                                </Card>
                             </div>
+
+                            {!isDetailEditMode && (
+                                <Card className="gap-2">
+                                    <CardHeader className="border-b py-3">
+                                        <CardTitle className="text-sm">
+                                            Enrollment History
+                                        </CardTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            School years where this learner has an enrollment record.
+                                        </p>
+                                    </CardHeader>
+                                    <CardContent className="p-0">
+                                        <div className="overflow-x-auto">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="pl-4">
+                                                            School Year
+                                                        </TableHead>
+                                                        <TableHead className="border-l">
+                                                            Grade Level
+                                                        </TableHead>
+                                                        <TableHead className="border-l">
+                                                            Section
+                                                        </TableHead>
+                                                        <TableHead className="border-l pr-4">
+                                                            Status
+                                                        </TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {selectedStudent.enrollment_history.length === 0 ? (
+                                                        <TableRow>
+                                                            <TableCell
+                                                                colSpan={4}
+                                                                className="h-16 text-center text-sm text-muted-foreground"
+                                                            >
+                                                                No enrollment records found.
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ) : (
+                                                        selectedStudent.enrollment_history.map((enrollment) => (
+                                                            <TableRow key={enrollment.id}>
+                                                                <TableCell className="pl-4 font-medium">
+                                                                    {enrollment.school_year}
+                                                                </TableCell>
+                                                                <TableCell className="border-l">
+                                                                    {enrollment.grade_level}
+                                                                </TableCell>
+                                                                <TableCell className="border-l">
+                                                                    {enrollment.section}
+                                                                </TableCell>
+                                                                <TableCell className="border-l pr-4">
+                                                                    {enrollmentStatusBadge(
+                                                                        enrollment.status,
+                                                                        enrollment.status_label,
+                                                                    )}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))
+                                                    )}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
                         </div>
                     )}
                     <DialogFooter>
@@ -845,6 +1144,16 @@ export default function StudentDirectory({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ActionConfirmDialog
+                open={isClaimEmailConfirmOpen}
+                onOpenChange={setIsClaimEmailConfirmOpen}
+                title="Send Account-Claim Email"
+                description={`Send account-claim email to ${detailForm.data.email.trim()} now? This will issue fresh claim links for student and parent accounts.`}
+                confirmLabel="Send Claim Email"
+                loading={detailForm.processing}
+                onConfirm={confirmAndSendClaimEmail}
+            />
         </AppLayout>
     );
 }

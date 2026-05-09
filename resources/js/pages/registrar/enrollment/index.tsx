@@ -64,6 +64,8 @@ interface EnrollmentRow {
     guardian_contact_number: string;
     payment_term: string;
     downpayment: number;
+    report_card_submitted: boolean;
+    birth_certificate_submitted: boolean;
     status: string;
     grade_level_id: number | null;
     section_id: number | null;
@@ -122,6 +124,25 @@ interface EnrollmentLookupResponse {
         guardian_contact_number: string | null;
         recommended_grade_level_id: number | null;
     } | null;
+    grade_prefill_mode?: 'next_grade' | 'same_grade' | 'none';
+    grade_guardrail?: {
+        allowed_exact_grade_level_id: number | null;
+        min_allowed_grade_level_order: number | null;
+        max_allowed_grade_level_order: number | null;
+    };
+    status_flags?: {
+        has_previous_year_conditional: boolean;
+        has_previous_year_retained: boolean;
+        has_older_unresolved_conditional: boolean;
+        has_older_unresolved_retained: boolean;
+    };
+    source_context?: {
+        academic_year_id: number;
+        academic_year_name: string;
+        status: string | null;
+        grade_level_id: number;
+        grade_level_label: string;
+    } | null;
 }
 
 const normalizeMobileSubscriberDigits = (value: string): string => {
@@ -175,6 +196,24 @@ export default function Enrollment({
     );
     const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
     const [itemToRemove, setItemToRemove] = useState<EnrollmentRow | null>(null);
+    const [lookupGuardrail, setLookupGuardrail] = useState<{
+        allowed_exact_grade_level_id: number | null;
+        min_allowed_grade_level_order: number | null;
+        max_allowed_grade_level_order: number | null;
+    } | null>(null);
+    const [lookupStatusFlags, setLookupStatusFlags] = useState<{
+        has_previous_year_conditional: boolean;
+        has_previous_year_retained: boolean;
+        has_older_unresolved_conditional: boolean;
+        has_older_unresolved_retained: boolean;
+    } | null>(null);
+    const [lookupSourceContext, setLookupSourceContext] = useState<{
+        academic_year_name: string;
+        status: string | null;
+        grade_level_label: string;
+    } | null>(null);
+    const [isOlderConditionalDialogOpen, setIsOlderConditionalDialogOpen] = useState(false);
+    const [isOlderRetainedDialogOpen, setIsOlderRetainedDialogOpen] = useState(false);
     const openedAssessmentUrlRef = useRef<string | null>(null);
     const latestLookupLrnRef = useRef<string | null>(null);
 
@@ -195,6 +234,12 @@ export default function Enrollment({
         section_id: '',
         payment_term: 'monthly',
         downpayment: '',
+        report_card_submitted: false,
+        birth_certificate_submitted: false,
+        resolve_older_conditional: false,
+        resolve_older_retained: false,
+        conditional_resolution_notes: '',
+        retained_resolution_notes: '',
     });
 
     const editForm = useForm({
@@ -210,6 +255,8 @@ export default function Enrollment({
         section_id: '',
         payment_term: 'monthly',
         downpayment: '',
+        report_card_submitted: false,
+        birth_certificate_submitted: false,
     });
 
     const createSectionOptions = useMemo(() => {
@@ -226,6 +273,17 @@ export default function Enrollment({
                 sectionOption.grade_level_id === selectedGradeLevelId,
         );
     }, [createForm.data.grade_level_id, section_options]);
+    const gradeLevelOrderById = useMemo(() => {
+        const sortedIds = [...grade_level_options]
+            .map((item) => item.id)
+            .sort((a, b) => a - b);
+        const map = new Map<number, number>();
+        sortedIds.forEach((gradeId, index) => {
+            map.set(gradeId, index + 1);
+        });
+
+        return map;
+    }, [grade_level_options]);
 
     const editSectionOptions = useMemo(() => {
         const selectedGradeLevelId = Number(editForm.data.grade_level_id || 0);
@@ -275,6 +333,9 @@ export default function Enrollment({
             createForm.setData('email', '');
             createForm.setData('grade_level_id', '');
             createForm.setData('section_id', '');
+            setLookupGuardrail(null);
+            setLookupStatusFlags(null);
+            setLookupSourceContext(null);
 
             return;
         }
@@ -298,6 +359,15 @@ export default function Enrollment({
                 : '',
         );
         createForm.setData('section_id', '');
+        setLookupGuardrail(payload.grade_guardrail ?? null);
+        setLookupStatusFlags(payload.status_flags ?? null);
+        setLookupSourceContext(payload.source_context
+            ? {
+                  academic_year_name: payload.source_context.academic_year_name,
+                  status: payload.source_context.status,
+                  grade_level_label: payload.source_context.grade_level_label,
+              }
+            : null);
     };
 
     const runLrnLookup = async (lrnValue: string) => {
@@ -403,7 +473,16 @@ export default function Enrollment({
                 createForm.setData('payment_term', 'monthly');
                 createForm.setData('grade_level_id', '');
                 createForm.setData('section_id', '');
+                createForm.setData('report_card_submitted', false);
+                createForm.setData('birth_certificate_submitted', false);
+                createForm.setData('resolve_older_conditional', false);
+                createForm.setData('resolve_older_retained', false);
+                createForm.setData('conditional_resolution_notes', '');
+                createForm.setData('retained_resolution_notes', '');
                 latestLookupLrnRef.current = null;
+                setLookupGuardrail(null);
+                setLookupStatusFlags(null);
+                setLookupSourceContext(null);
                 setIsStepOneExpanded(false);
                 setLookupStatus('idle');
                 setLookupMessage('Type 12 digits to continue.');
@@ -440,6 +519,8 @@ export default function Enrollment({
             section_id: item.section_id ? String(item.section_id) : '',
             payment_term: item.payment_term,
             downpayment: String(item.downpayment ?? 0),
+            report_card_submitted: item.report_card_submitted,
+            birth_certificate_submitted: item.birth_certificate_submitted,
         });
     };
 
@@ -586,6 +667,33 @@ export default function Enrollment({
 
     const updateCreateGradeLevel = (value: string) => {
         const gradeLevelId = value === 'unselected' ? '' : value;
+        const numericGradeLevelId = Number(gradeLevelId || 0);
+        const selectedOrder = gradeLevelOrderById.get(numericGradeLevelId) ?? null;
+
+        if (lookupGuardrail) {
+            if (
+                lookupGuardrail.allowed_exact_grade_level_id !== null &&
+                numericGradeLevelId !== lookupGuardrail.allowed_exact_grade_level_id
+            ) {
+                return;
+            }
+
+            if (
+                selectedOrder !== null &&
+                lookupGuardrail.min_allowed_grade_level_order !== null &&
+                selectedOrder < lookupGuardrail.min_allowed_grade_level_order
+            ) {
+                return;
+            }
+
+            if (
+                selectedOrder !== null &&
+                lookupGuardrail.max_allowed_grade_level_order !== null &&
+                selectedOrder > lookupGuardrail.max_allowed_grade_level_order
+            ) {
+                return;
+            }
+        }
 
         createForm.setData('grade_level_id', gradeLevelId);
 
@@ -612,6 +720,52 @@ export default function Enrollment({
         ) {
             createForm.setData('section_id', '');
         }
+    };
+    const isCreateGradeLevelDisabled = (gradeLevelId: number): boolean => {
+        if (!lookupGuardrail) {
+            return false;
+        }
+
+        if (
+            lookupGuardrail.allowed_exact_grade_level_id !== null &&
+            lookupGuardrail.allowed_exact_grade_level_id !== gradeLevelId
+        ) {
+            return true;
+        }
+
+        const order = gradeLevelOrderById.get(gradeLevelId) ?? null;
+        if (
+            order !== null &&
+            lookupGuardrail.min_allowed_grade_level_order !== null &&
+            order < lookupGuardrail.min_allowed_grade_level_order
+        ) {
+            return true;
+        }
+
+        if (
+            order !== null &&
+            lookupGuardrail.max_allowed_grade_level_order !== null &&
+            order > lookupGuardrail.max_allowed_grade_level_order
+        ) {
+            return true;
+        }
+
+        return false;
+    };
+    const handleCreateSaveClick = () => {
+        if (lookupStatusFlags?.has_older_unresolved_conditional) {
+            setIsOlderConditionalDialogOpen(true);
+
+            return;
+        }
+
+        if (lookupStatusFlags?.has_older_unresolved_retained) {
+            setIsOlderRetainedDialogOpen(true);
+
+            return;
+        }
+
+        setIsSaveConfirmOpen(true);
     };
 
     const updateEditGradeLevel = (value: string) => {
@@ -1146,16 +1300,11 @@ export default function Enrollment({
                                                     {grade_level_options.map(
                                                         (gradeLevel) => (
                                                             <SelectItem
-                                                                key={
-                                                                    gradeLevel.id
-                                                                }
-                                                                value={String(
-                                                                    gradeLevel.id,
-                                                                )}
+                                                                key={gradeLevel.id}
+                                                                value={String(gradeLevel.id)}
+                                                                disabled={isCreateGradeLevelDisabled(gradeLevel.id)}
                                                             >
-                                                                {
-                                                                    gradeLevel.name
-                                                                }
+                                                                {gradeLevel.name}
                                                             </SelectItem>
                                                         ),
                                                     )}
@@ -1306,6 +1455,41 @@ export default function Enrollment({
                                                 }
                                             />
                                         </div>
+
+                                        <div className="space-y-2 rounded-md border p-3">
+                                            <p className="text-sm font-medium">
+                                                Submitted Requirements
+                                            </p>
+                                            <label className="flex items-center gap-2 text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={createForm.data.report_card_submitted}
+                                                    onChange={(event) =>
+                                                        createForm.setData(
+                                                            'report_card_submitted',
+                                                            event.target.checked,
+                                                        )
+                                                    }
+                                                />
+                                                Previous Grade Level Report Card
+                                            </label>
+                                            <label className="flex items-center gap-2 text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={createForm.data.birth_certificate_submitted}
+                                                    onChange={(event) =>
+                                                        createForm.setData(
+                                                            'birth_certificate_submitted',
+                                                            event.target.checked,
+                                                        )
+                                                    }
+                                                />
+                                                Birth Certificate
+                                            </label>
+                                            <p className="text-xs text-muted-foreground">
+                                                Enrollment can proceed even if requirements are to-follow.
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -1398,6 +1582,20 @@ export default function Enrollment({
                                                       normalizedDownpayment,
                                                   )}
                                         </p>
+
+                                        <p className="text-muted-foreground">
+                                            Report Card Submitted
+                                        </p>
+                                        <p>
+                                            {createForm.data.report_card_submitted ? 'Yes' : 'No'}
+                                        </p>
+
+                                        <p className="text-muted-foreground">
+                                            Birth Certificate Submitted
+                                        </p>
+                                        <p>
+                                            {createForm.data.birth_certificate_submitted ? 'Yes' : 'No'}
+                                        </p>
                                     </div>
                                 </div>
                             )}
@@ -1464,9 +1662,7 @@ export default function Enrollment({
                                 {createStep === 4 && (
                                     <Button
                                         className="w-full whitespace-normal"
-                                        onClick={() =>
-                                            setIsSaveConfirmOpen(true)
-                                        }
+                                        onClick={handleCreateSaveClick}
                                         disabled={
                                             createForm.processing ||
                                             intakeCreationDisabled
@@ -1993,6 +2189,38 @@ export default function Enrollment({
                                     }
                                 />
                             </div>
+
+                            <div className="space-y-2 rounded-md border p-3">
+                                <p className="text-sm font-medium">
+                                    Submitted Requirements
+                                </p>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={editForm.data.report_card_submitted}
+                                        onChange={(event) =>
+                                            editForm.setData(
+                                                'report_card_submitted',
+                                                event.target.checked,
+                                            )
+                                        }
+                                    />
+                                    Previous Grade Level Report Card
+                                </label>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={editForm.data.birth_certificate_submitted}
+                                        onChange={(event) =>
+                                            editForm.setData(
+                                                'birth_certificate_submitted',
+                                                event.target.checked,
+                                            )
+                                        }
+                                    />
+                                    Birth Certificate
+                                </label>
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>
@@ -2017,11 +2245,97 @@ export default function Enrollment({
                 open={isSaveConfirmOpen}
                 onOpenChange={setIsSaveConfirmOpen}
                 title="Save Enrollment Intake"
-                description={`Are you sure you want to save the enrollment intake for ${formatStudentName(createForm.data.first_name, createForm.data.middle_name || null, createForm.data.last_name)}? This will add them to the queue for cashier payment.`}
+                description={
+                    lookupStatusFlags?.has_previous_year_conditional
+                        ? `Previous-year conditional status detected (${lookupSourceContext?.academic_year_name ?? 'latest year'} - ${lookupSourceContext?.grade_level_label ?? 'grade'}). Proceeding will not auto-resolve the conditional record. Continue saving ${formatStudentName(createForm.data.first_name, createForm.data.middle_name || null, createForm.data.last_name)}?`
+                        : lookupStatusFlags?.has_previous_year_retained
+                          ? `Previous-year retained status detected (${lookupSourceContext?.academic_year_name ?? 'latest year'} - ${lookupSourceContext?.grade_level_label ?? 'grade'}). Grade level is locked to the retained grade for this intake. Continue saving ${formatStudentName(createForm.data.first_name, createForm.data.middle_name || null, createForm.data.last_name)}?`
+                          : `Are you sure you want to save the enrollment intake for ${formatStudentName(createForm.data.first_name, createForm.data.middle_name || null, createForm.data.last_name)}? This will add them to the queue for cashier payment.`
+                }
                 confirmLabel="Confirm Enrollment"
                 loading={createForm.processing}
                 onConfirm={submitCreate}
             />
+
+            <Dialog
+                open={isOlderConditionalDialogOpen}
+                onOpenChange={setIsOlderConditionalDialogOpen}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Older Conditional Record</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        Older unresolved conditional records were found. Was the conditional status already resolved?
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                createForm.setData('resolve_older_conditional', false);
+                                setIsOlderConditionalDialogOpen(false);
+                                if (lookupStatusFlags?.has_older_unresolved_retained) {
+                                    setIsOlderRetainedDialogOpen(true);
+                                    return;
+                                }
+                                setIsSaveConfirmOpen(true);
+                            }}
+                        >
+                            No, Keep Unresolved
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                createForm.setData('resolve_older_conditional', true);
+                                createForm.setData('conditional_resolution_notes', 'Resolved during enrollment intake confirmation.');
+                                setIsOlderConditionalDialogOpen(false);
+                                if (lookupStatusFlags?.has_older_unresolved_retained) {
+                                    setIsOlderRetainedDialogOpen(true);
+                                    return;
+                                }
+                                setIsSaveConfirmOpen(true);
+                            }}
+                        >
+                            Yes, Mark Resolved
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={isOlderRetainedDialogOpen}
+                onOpenChange={setIsOlderRetainedDialogOpen}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Older Retained Record</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        Older unresolved retained records were found. Was the retained status already resolved?
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                createForm.setData('resolve_older_retained', false);
+                                setIsOlderRetainedDialogOpen(false);
+                                setIsSaveConfirmOpen(true);
+                            }}
+                        >
+                            No, Keep Unresolved
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                createForm.setData('resolve_older_retained', true);
+                                createForm.setData('retained_resolution_notes', 'Resolved during enrollment intake confirmation.');
+                                setIsOlderRetainedDialogOpen(false);
+                                setIsSaveConfirmOpen(true);
+                            }}
+                        >
+                            Yes, Mark Resolved
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <ActionConfirmDialog
                 open={!!itemToRemove}

@@ -111,65 +111,76 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
   - Initial Laravel/Spreadsheet-related extension set installed on droplet; final verification pending `composer check-platform-reqs`.
 - `[x]` Install Composer on the deployment machine or build machine.
 - `[x]` Install Node.js and npm compatible with the Vite build.
-- `[ ]` Configure web server to serve only the `public/` directory.
-- `[ ]` Configure HTTPS.
-- `[ ]` Configure server timezone.
-- `[ ]` Configure file upload limits to support announcement attachments up to 10 MB each.
-- `[ ]` Configure server memory and execution limits for spreadsheet exports.
+- `[x]` Configure web server to serve only the `public/` directory.
+  - Nginx site `marriott` is enabled with root `/home/deploy/marriott/public` and Laravel front-controller routing.
+- `[x]` Configure HTTPS.
+  - Let's Encrypt certificate issued and deployed via Certbot for `msqc.tech` and `www.msqc.tech`, with HTTP -> HTTPS redirect enabled.
+- `[x]` Configure server timezone.
+- `[x]` Configure file upload limits to support announcement attachments up to 10 MB each.
+  - Applied on server: `nginx client_max_body_size 12m`, `php upload_max_filesize=12M`, `post_max_size=24M`.
+- `[x]` Configure server memory and execution limits for spreadsheet exports.
+  - Applied on server: `php memory_limit=512M`, `max_execution_time=180`, `max_input_time=180`.
 
 ## Production Environment
 
-- `[ ]` Create production `.env` from `.env.example`.
-- `[ ]` Set `APP_ENV=production`.
-- `[ ]` Set `APP_DEBUG=false`.
-- `[ ]` Set `APP_URL` to the final HTTPS domain.
-- `[ ]` Set `ENROLLMENT_CLAIM_BASE_URL` to the same final HTTPS domain (or explicit claim domain).
-- `[ ]` Generate and preserve the production `APP_KEY`.
+- `[x]` Create production `.env` from `.env.example`.
+- `[x]` Set `APP_ENV=production`.
+- `[x]` Set `APP_DEBUG=false`.
+- `[x]` Set `APP_URL` to the final HTTPS domain.
+- `[x]` Set `ENROLLMENT_CLAIM_BASE_URL` to the same final HTTPS domain (or explicit claim domain).
+- `[x]` Generate and preserve the production `APP_KEY`.
   - Do not regenerate this key after real users or encrypted data exist.
-- `[ ]` Set production database credentials.
-- `[ ]` Set production mail credentials.
-- `[ ]` Set production SMS/Firebase credentials for claim OTP.
-- `[ ]` Set `LOG_LEVEL` appropriately, usually `warning` or `error`.
-- `[ ]` Confirm `SESSION_DRIVER`.
+- `[x]` Set production database credentials.
+  - Runtime now points to DigitalOcean Managed PostgreSQL over private endpoint with TLS (`sslmode=require`).
+- `[x]` Set production mail credentials.
+- `[x]` Set production SMS/Firebase credentials for claim OTP.
+- `[x]` Set `LOG_LEVEL` appropriately, usually `warning` or `error`.
+- `[x]` Confirm `SESSION_DRIVER`.
   - Current default: `database`.
-- `[ ]` Confirm `CACHE_STORE`.
+- `[x]` Confirm `CACHE_STORE`.
   - Current default: `database`.
-- `[ ]` Confirm `QUEUE_CONNECTION`.
+- `[x]` Confirm `QUEUE_CONNECTION`.
   - Current default: `database`.
-- `[ ]` Configure `SESSION_SECURE_COOKIE=true` when running over HTTPS.
+- `[x]` Configure `SESSION_SECURE_COOKIE=true` when running over HTTPS.
 - `[ ]` Review `SESSION_DOMAIN` if using subdomains.
 - `[ ]` Remove or rotate any local/demo credentials.
 
 ## Database
 
-- `[ ]` Create production database and database user.
+- `[x]` Create production database and database user.
 - `[ ]` Grant least-privilege database permissions.
-- `[ ]` Run migrations with `php artisan migrate --force`.
-- `[ ]` Decide whether production seeders should run.
-- `[ ]` Create or verify first super-admin account.
-- `[ ]` Verify database-backed sessions table exists.
-- `[ ]` Verify database-backed cache table exists.
-- `[ ]` Verify database-backed jobs and failed jobs tables exist.
-- `[ ]` Confirm migration status with `php artisan migrate:status`.
-- `[ ]` Create database backup and restore procedure.
+- `[x]` Run migrations with `php artisan migrate --force`.
+- `[x]` Decide whether production seeders should run.
+  - Decision: run default seeder for demo environment (`php artisan db:seed --force`).
+- `[x]` Create or verify first super-admin account.
+  - Verified seeded account: `superadmin@marriott.edu`.
+- `[x]` Verify database-backed sessions table exists.
+- `[x]` Verify database-backed cache table exists.
+- `[x]` Verify database-backed jobs and failed jobs tables exist.
+- `[x]` Confirm migration status with `php artisan migrate:status`.
+- `[x]` Create database backup and restore procedure.
+  - Implemented with `scripts/ops/backup.sh`, `scripts/ops/restore-db.sh`, and runbook `docs/backup-restore.md`.
 - `[ ]` Test backup restore on a non-production copy before launch.
 
 ## Storage And Files
 
-- `[ ]` Ensure `storage/` is writable by the web and queue processes.
-- `[ ]` Ensure `bootstrap/cache/` is writable during deployment.
-- `[ ]` Run `php artisan storage:link`.
+- `[x]` Ensure `storage/` is writable by the web and queue processes.
+- `[x]` Ensure `bootstrap/cache/` is writable during deployment.
+- `[x]` Run `php artisan storage:link`.
 - `[ ]` Confirm public avatars load correctly.
 - `[ ]` Confirm announcement attachments upload correctly.
-- `[ ]` Confirm private announcement attachments are not publicly exposed.
+- `[x]` Confirm private announcement attachments are not publicly exposed.
+  - Direct URL probing of `/storage/app/private/` is blocked (HTTP 404).
 - `[ ]` Confirm attachment view and download routes work after deployment.
 - `[ ]` Confirm temporary spreadsheet export files can be created.
-- `[ ]` Confirm system backup files are stored in the expected location.
-- `[ ]` Include uploaded files and local backups in the server backup plan.
+- `[x]` Confirm system backup files are stored in the expected location.
+  - Verified backup artifacts under `/home/deploy/backups/marriott`.
+- `[x]` Include uploaded files and local backups in the server backup plan.
+  - Backup now captures `storage/app` and PostgreSQL locally, then uploads backup artifacts to DigitalOcean Spaces (`marriott-bucket-private/marriott/backups`).
 
 ## Background Processes
 
-- `[ ]` Configure Laravel scheduler cron:
+- `[x]` Configure Laravel scheduler cron:
 
 ```cron
 * * * * * cd /path/to/app && php artisan schedule:run >> /dev/null 2>&1
@@ -182,14 +193,15 @@ This file tracks decisions and tasks needed before hosting MarriottConnect. Upda
     - `grading:send-deadline-reminders`
     - `finance:send-due-reminders`
     - `announcements:send-event-reminders`
-- `[ ]` Configure a persistent queue worker with Supervisor, systemd, or the host's process manager.
-- `[ ]` Use a production queue command similar to:
+- `[x]` Configure a persistent queue worker with Supervisor, systemd, or the host's process manager.
+- `[x]` Use a production queue command similar to:
 
 ```bash
 php artisan queue:work database --sleep=3 --tries=3 --max-time=3600
 ```
 
-- `[ ]` Add `php artisan queue:restart` to the deployment process.
+- `[x]` Add `php artisan queue:restart` to the deployment process.
+  - Included in operational runbook via `systemctl restart marriott-queue.service` and `php artisan queue:restart` during deploys.
 - `[ ]` Confirm failed jobs are recorded and can be reviewed.
 - `[ ]` Decide whether database queues are enough or Redis should be used later.
 
@@ -203,50 +215,55 @@ php artisan queue:work database --sleep=3 --tries=3 --max-time=3600
 composer install --no-dev --optimize-autoloader
 ```
 
-- `[ ]` Install Node dependencies:
+- `[x]` Install Node dependencies:
 
 ```bash
 npm ci
 ```
 
-- `[ ]` Build frontend assets:
+- `[x]` Build frontend assets:
 
 ```bash
 npm run build
 ```
 
-- `[ ]` Run database migrations:
+- `[x]` Run database migrations:
 
 ```bash
 php artisan migrate --force
 ```
 
-- `[ ]` Optimize Laravel caches:
+- `[/]` Optimize Laravel caches:
 
 ```bash
 php artisan optimize
 ```
 
-- `[ ]` Restart queue workers after deploy:
+- `[x]` Restart queue workers after deploy:
 
 ```bash
 php artisan queue:restart
 ```
 
-- `[ ]` Confirm Vite manifest exists after build.
-- `[ ]` Confirm generated Wayfinder routes/actions are current if the deployment depends on generated frontend route helpers.
+- `[x]` Confirm Vite manifest exists after build.
+- `[x]` Confirm generated Wayfinder routes/actions are current if the deployment depends on generated frontend route helpers.
 - `[ ]` Document rollback procedure.
 
 ## Security Review
 
-- `[ ]` Confirm debug mode is disabled in production.
-- `[ ]` Confirm web server cannot serve `.env`, `storage/app/private`, backups, source files, or vendor files directly.
-- `[ ]` Confirm HTTPS redirects are configured.
-- `[ ]` Confirm cookies are secure and HTTP-only.
+- `[x]` Confirm debug mode is disabled in production.
+  - `php artisan about` reports `Environment=production` and `Debug Mode=OFF`.
+- `[x]` Confirm web server cannot serve `.env`, `storage/app/private`, backups, source files, or vendor files directly.
+  - Verified blocked access (HTTP 404) for `.env`, `/storage/app/private/`, `/backups/`, `/vendor/autoload.php`, `/composer.json`, and `/.git/config`.
+- `[x]` Confirm HTTPS redirects are configured.
+  - Verified `http://msqc.tech/login` responds with `301 -> https://msqc.tech/login`.
+- `[x]` Confirm cookies are secure and HTTP-only.
+  - Verified `marriottconnect-session` cookie includes `secure; httponly`.
 - `[ ]` Confirm trusted proxy behavior matches the host/load balancer.
 - `[ ]` Review role middleware and dashboard access for each user role.
 - `[ ]` Review upload validation and allowed file types.
-- `[ ]` Confirm backup files cannot be downloaded without authorization.
+- `[x]` Confirm backup files cannot be downloaded without authorization.
+  - Direct URL probing of `/backups/` returns HTTP 404.
 - `[ ]` Remove test accounts or rotate their passwords.
 - `[ ]` Rotate secrets that were used during development.
 - `[ ]` Confirm production logs do not expose sensitive information.
@@ -255,8 +272,8 @@ php artisan queue:restart
 
 - `[/]` Configure SMTP or mail provider.
 - `[/]` Resend API-based mail configured in app; production DNS verification still required.
-- `[ ]` Set `MAIL_FROM_ADDRESS`.
-- `[ ]` Set `MAIL_FROM_NAME`.
+- `[x]` Set `MAIL_FROM_ADDRESS`.
+- `[x]` Set `MAIL_FROM_NAME`.
 - `[ ]` Test password reset email.
 - `[ ]` Test email verification if enabled.
 - `[ ]` Test reminder/notification mail paths if used.
@@ -280,8 +297,8 @@ php artisan queue:restart
 
 ## App Functionality Smoke Tests
 
-- `[ ]` Visit `/up` health route.
-- `[ ]` Visit the login page.
+- `[x]` Visit `/up` health route.
+- `[x]` Visit the login page.
 - `[ ]` Log in as super admin.
 - `[ ]` Log in as admin.
 - `[ ]` Log in as registrar.
@@ -294,8 +311,8 @@ php artisan queue:restart
 - `[ ]` Upload, view, and download an announcement attachment.
 - `[ ]` Upload and view a profile avatar.
 - `[ ]` Run a spreadsheet export.
-- `[ ]` Create a system backup.
-- `[ ]` Confirm backup list updates.
+- `[x]` Create a system backup.
+- `[x]` Confirm backup list updates.
 - `[ ]` Confirm finance due reminders do not error.
 - `[ ]` Confirm grade deadline reminders do not error.
 - `[ ]` Confirm announcement event reminders do not error.
@@ -322,25 +339,25 @@ npm run types
 npm run build
 ```
 
-- `[ ]` Check routes:
+- `[x]` Check routes:
 
 ```bash
 php artisan route:list
 ```
 
-- `[ ]` Check migration status:
+- `[x]` Check migration status:
 
 ```bash
 php artisan migrate:status
 ```
 
-- `[ ]` Check application details:
+- `[x]` Check application details:
 
 ```bash
 php artisan about
 ```
 
-- `[ ]` Check platform requirements:
+- `[x]` Check platform requirements:
 
 ```bash
 composer check-platform-reqs --no-interaction
@@ -351,26 +368,31 @@ composer check-platform-reqs --no-interaction
 - `[ ]` Decide log retention.
 - `[ ]` Decide error monitoring tool or process.
 - `[ ]` Decide uptime monitoring tool.
-- `[ ]` Decide backup monitoring process.
-- `[ ]` Decide who receives production alerts.
-- `[ ]` Document how to restart queue workers.
+- `[x]` Decide backup monitoring process.
+  - `marriott-backup.service` now has `OnFailure=marriott-backup-failure-alert.service` using Resend API email alerts.
+- `[x]` Decide who receives production alerts.
+  - Backup failure alerts route to `inbox.laurence@gmail.com`.
+- `[x]` Document how to restart queue workers.
 - `[ ]` Document how to run migrations.
 - `[ ]` Document how to enter and exit maintenance mode.
-- `[ ]` Document how to restore from backup.
+- `[x]` Document how to restore from backup.
+  - See `docs/backup-restore.md`.
 - `[ ]` Document where credentials are stored.
 
 ## Launch Readiness
 
 - `[ ]` All required decisions above are resolved.
-- `[ ]` Production deployment completed.
-- `[ ]` Production migrations completed.
-- `[ ]` Queue worker confirmed running.
-- `[ ]` Scheduler confirmed running.
-- `[ ]` Mail confirmed working.
+- `[x]` Production deployment completed.
+- `[x]` Production migrations completed.
+- `[x]` Queue worker confirmed running.
+- `[x]` Scheduler confirmed running.
+- `[x]` Mail confirmed working.
+  - Verified via successful Resend API test and backup-failure alert service test send.
 - `[ ]` File uploads confirmed working.
-- `[ ]` Backup procedure confirmed working.
+- `[x]` Backup procedure confirmed working.
 - `[ ]` Critical role flows smoke-tested.
-- `[ ]` DNS cutover planned.
+- `[x]` DNS cutover planned.
+  - Cloudflare DNS now points `msqc.tech` and `www` to the droplet for this demo environment.
 - `[ ]` Rollback plan ready.
 - `[ ]` Stakeholders approve launch.
 
@@ -395,6 +417,14 @@ Add dated entries here as decisions are made.
 | 2026-04-23 | Mail strategy finalized for capstone demo | Use Resend for outbound emails and Cloudflare Email Routing to forward demo account mail to a demo Gmail inbox. |
 | 2026-04-23 | Backup storage strategy finalized | Use DigitalOcean Spaces as off-server backup storage target. |
 | 2026-04-23 | Account claim flow setup standardized for this device | Local `.env` configured with Resend + Firebase values and claim feature flags; added smoke-test checklist doc. |
+| 2026-04-24 | Demo deployment mode confirmed | Droplet will be run as a production-like demo environment where iterative refactors are expected during capstone prep. |
+| 2026-04-24 | Production-safe app env defaults applied on droplet | Updated `.env` to `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://msqc.tech`, `ENROLLMENT_CLAIM_BASE_URL=https://msqc.tech`, `LOG_LEVEL=warning`, and `SESSION_SECURE_COOKIE=true`; rebuilt Laravel caches. |
+| 2026-04-24 | Managed PostgreSQL credentials configured in app runtime | `.env` is configured for `DB_CONNECTION=pgsql` with managed host/port/database/user and `DB_SSLMODE=require`; final runtime cutover completed after grants and migration run. |
+| 2026-04-24 | HTTPS certificate and redirect enabled | Certbot issued and deployed certificates for `msqc.tech` and `www.msqc.tech`; nginx now serves valid HTTPS and redirects HTTP to HTTPS. |
+| 2026-04-24 | Mail and Firebase production credentials configured | Set `RESEND_API_KEY`, production mail sender identity, claim mail/sms flags, backend Firebase API key, and Vite Firebase client env values; rebuilt Laravel cache and frontend assets. |
+| 2026-04-24 | Background process strategy finalized on systemd | Chose systemd-managed queue worker service plus scheduler timer/service for production-like demo reliability on single droplet. |
+| 2026-04-24 | Backup automation strategy finalized | Added systemd-driven nightly backup (`marriott-backup.timer`) with PostgreSQL + `storage/app` artifacts and retention handling via ops scripts. |
+| 2026-04-24 | Backup failure alert strategy finalized | Added systemd `OnFailure` hook for backup service and Resend-based email notifier to alert operators immediately on backup failure. |
 
 ## Completion Log
 
@@ -411,3 +441,14 @@ Add dated entries here as tasks are completed.
 | 2026-04-22 | Local backend test verification blocked | `php artisan test --compact` failed due duplicate Pest test-case declaration in finance feature tests. |
 | 2026-04-23 | Local claim-flow migrations applied | Pending migrations including account-claim tables were migrated successfully. |
 | 2026-04-23 | Account claim routes/tests verified locally | `php artisan route:list --name=account.claim` and `php artisan test --compact tests/Feature/AccountClaimFlowTest.php` both passed. |
+| 2026-04-24 | Server deploy baseline completed on droplet | Ran `composer install`, `npm ci`, `npm run build`, generated `APP_KEY`, migrated DB, cached config/routes/views, set writable permissions, created storage symlink, and enabled nginx site for Laravel public root. |
+| 2026-04-24 | Runtime fix applied for current droplet setup | Installed `php8.4-sqlite3` and migrated the current configured sqlite database (`database/database.sqlite`) to unblock immediate demo bring-up. |
+| 2026-04-24 | Upload/export runtime limits configured | Added nginx and PHP-FPM limits for 10MB+ attachments and export workloads; reloaded nginx and restarted PHP-FPM. |
+| 2026-04-24 | Managed PostgreSQL cutover completed | Granted schema privileges to `marriott_app`, ran full `php artisan migrate --force` on `marriott_prod`, and restored `SESSION_DRIVER`, `CACHE_STORE`, and `QUEUE_CONNECTION` to database-backed operation under managed PostgreSQL. |
+| 2026-04-24 | Queue worker deployed as persistent service | Created/enabled `marriott-queue.service` (`php artisan queue:work database --sleep=3 --tries=3 --max-time=3600 --timeout=120`) and verified it is active. |
+| 2026-04-24 | Scheduler deployed as minute timer | Created/enabled `marriott-scheduler.timer` + `marriott-scheduler.service`; verified timer trigger and successful `notifications:dispatch-scheduled` execution in systemd logs. |
+| 2026-04-24 | Backup scripts and timer validated | Installed PostgreSQL 18 client for compatibility, successfully ran `marriott-backup.service`, and confirmed backup artifacts are written to `/home/deploy/backups/marriott`. |
+| 2026-04-24 | Production hardening spot-checks validated | Verified debug mode OFF, HTTP->HTTPS redirect, queue restart signaling, and blocked direct access to `.env`, backup path, and private storage path. |
+| 2026-04-24 | Default demo seeding completed on managed PostgreSQL | Ran `php artisan db:seed --force` (`ProductionThreeYearSnapshotSeeder` chain) and verified seeded admin accounts including `superadmin@marriott.edu`. |
+| 2026-04-24 | Off-server backup upload to Spaces enabled and verified | Configured Spaces credentials/endpoint for backup automation, uploaded backup artifacts to `s3://marriott-bucket-private/marriott/backups/`, and verified remote object listing. |
+| 2026-04-24 | Backup failure email alert tested successfully | Triggered `marriott-backup-failure-alert.service`; service completed `status=0/SUCCESS` and logged successful send to `inbox.laurence@gmail.com`. |

@@ -223,6 +223,7 @@ class SystemBackupService
             'permanent_records',
             'remedial_records',
             'remedial_cases',
+            'remedial_case_subjects',
             'remedial_subject_fees',
             'final_grades',
             'student_departures',

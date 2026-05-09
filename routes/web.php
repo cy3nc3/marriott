@@ -62,7 +62,7 @@ Route::get('dashboard', function () {
     }
 
     if ($user->role === UserRole::TEACHER) {
-        return app(TeacherDashboardController::class)->index();
+        return app(TeacherDashboardController::class)->index(request());
     }
 
     if ($user->role === UserRole::STUDENT) {
@@ -75,6 +75,10 @@ Route::get('dashboard', function () {
 
     return Inertia::render("{$user->role->value}/dashboard");
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::get('system-help', function () {
+    return Inertia::render('system-help');
+})->middleware(['auth', 'verified'])->name('system_help');
 
 Route::middleware(['auth', 'verified', 'role:super_admin,admin,registrar,finance,teacher'])
     ->prefix('announcements')

@@ -100,6 +100,7 @@ class CheckRole
             'super_admin.announcements*' => 'Announcements',
 
             'teacher.grading*' => 'Grading Sheet',
+            'teacher.remedial_encoding*' => 'Grading Sheet',
             'teacher.advisory*' => 'Advisory Board',
             'teacher.schedule*' => 'My Schedule',
             'student.schedule*' => 'My Schedule',

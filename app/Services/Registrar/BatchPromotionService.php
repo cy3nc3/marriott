@@ -277,6 +277,54 @@ class BatchPromotionService
             ->all();
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function buildPromotionStatusBreakdown(AcademicYear $academicYear): array
+    {
+        return PermanentRecord::query()
+            ->with([
+                'student:id,first_name,last_name,lrn',
+                'gradeLevel:id,name,level_order',
+            ])
+            ->where('academic_year_id', $academicYear->id)
+            ->whereIn('status', ['promoted', 'completed', 'conditional', 'retained'])
+            ->orderBy('status')
+            ->orderBy('id')
+            ->get()
+            ->map(function (PermanentRecord $record): array {
+                $currentLevelOrder = (int) ($record->gradeLevel?->level_order ?? 0);
+                $nextGradeLevelName = GradeLevel::query()
+                    ->where('level_order', '>', $currentLevelOrder)
+                    ->orderBy('level_order')
+                    ->value('name');
+
+                $promotionGroup = in_array((string) $record->status, ['promoted', 'completed'], true)
+                    ? 'passed'
+                    : (string) $record->status;
+
+                return [
+                    'permanent_record_id' => (int) $record->id,
+                    'student_id' => (int) $record->student_id,
+                    'student_name' => trim("{$record->student?->first_name} {$record->student?->last_name}"),
+                    'lrn' => $record->student?->lrn,
+                    'grade_level' => $record->gradeLevel?->name,
+                    'status' => (string) $record->status,
+                    'promotion_group' => $promotionGroup,
+                    'failed_subject_count' => (int) $record->failed_subject_count,
+                    'progression' => match ((string) $record->status) {
+                        'retained' => "Retain in {$record->gradeLevel?->name}",
+                        'completed' => 'Completed terminal grade level',
+                        default => $nextGradeLevelName
+                            ? "Promote to {$nextGradeLevelName}"
+                            : 'Promote to next grade level',
+                    },
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
     private function classifyLearner(int $failedSubjectCount): string
     {
         if ($failedSubjectCount <= 0) {

@@ -1,8 +1,16 @@
 import { Head } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { CalendarDays, Clock, Printer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
@@ -37,9 +45,18 @@ type BreakItem = {
 interface Props {
     schedule_items: ScheduleItem[];
     break_items: BreakItem[];
+    academic_year_options: { id: number; name: string; status: string }[];
+    selected_academic_year_id: number | null;
+    is_read_only_historical: boolean;
 }
 
-export default function Schedule({ schedule_items, break_items }: Props) {
+export default function Schedule({
+    schedule_items,
+    break_items,
+    academic_year_options,
+    selected_academic_year_id,
+    is_read_only_historical,
+}: Props) {
     const classCount = schedule_items.filter(
         (item) => item.type === 'class',
     ).length;
@@ -56,6 +73,13 @@ export default function Schedule({ schedule_items, break_items }: Props) {
         ((timeToMinutes(time) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
     const getHeight = (start: string, end: string) =>
         ((timeToMinutes(end) - timeToMinutes(start)) / 60) * HOUR_HEIGHT;
+    const handleAcademicYearChange = (value: string) => {
+        router.get(
+            '/teacher/schedule',
+            { academic_year_id: Number(value) },
+            { preserveScroll: true, replace: true },
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -73,6 +97,36 @@ export default function Schedule({ schedule_items, break_items }: Props) {
                                 <Badge variant="outline">Teacher View</Badge>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
+                                {academic_year_options.length > 0 && (
+                                    <Select
+                                        value={
+                                            selected_academic_year_id
+                                                ? String(
+                                                      selected_academic_year_id,
+                                                  )
+                                                : ''
+                                        }
+                                        onValueChange={(value) =>
+                                            handleAcademicYearChange(
+                                                value,
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger className="h-8 w-full min-w-36 sm:w-40">
+                                            <SelectValue placeholder="School Year" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {academic_year_options.map((year) => (
+                                                <SelectItem
+                                                    key={year.id}
+                                                    value={String(year.id)}
+                                                >
+                                                    {year.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                                 <Badge variant="secondary">
                                     {schedule_items.length} Slots
                                 </Badge>
@@ -82,6 +136,9 @@ export default function Schedule({ schedule_items, break_items }: Props) {
                                 <Badge variant="outline">
                                     {advisoryCount} Advisory
                                 </Badge>
+                                {is_read_only_historical && (
+                                    <Badge variant="outline">Read-only</Badge>
+                                )}
                                 <Button
                                     variant="outline"
                                     size="sm"

@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { Upload } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
@@ -22,7 +22,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 import { RegistrarImportBatchesPanel } from './batches';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -50,6 +50,7 @@ interface Props {
 }
 
 export default function DataImport({ imports }: Props) {
+    const { flash } = usePage<SharedData>().props;
     const [selectedImport, setSelectedImport] = useState<
         Props['imports'][number] | null
     >(null);
@@ -60,6 +61,32 @@ export default function DataImport({ imports }: Props) {
     });
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [showBatchWorkspace, setShowBatchWorkspace] = useState(false);
+
+    const previewData = (flash as Record<string, unknown>).import_preview as {
+        file_name: string;
+        detected_format: string;
+        mode?: 'workbook' | 'single_sheet';
+        headers?: string[];
+        missing_required_headers?: string[];
+        processed_rows?: number;
+        ready_rows?: number;
+        invalid_rows?: number;
+        missing_sheets?: string[];
+        invalid_sheets?: string[];
+        sheets?: {
+            sheet: string;
+            processed_rows: number;
+            headers: string[];
+            missing_required_headers: string[];
+        }[];
+    } | undefined;
+
+    const submitPreview = () => {
+        importForm.post('/registrar/data-import/permanent-records/preview', {
+            forceFormData: true,
+            preserveScroll: true,
+        });
+    };
 
     const submitImport = (event?: FormEvent<HTMLFormElement>) => {
         if (event) event.preventDefault();
@@ -85,6 +112,15 @@ export default function DataImport({ imports }: Props) {
                             <CardTitle>Data Import</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6">
+                            <div className="mb-4 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                                <p className="font-medium text-foreground">
+                                    Workbook sheets required
+                                </p>
+                                <p>`students`</p>
+                                <p className="mt-1">
+                                    Use the enrollment export workbook for enrollment history and discount tagging import.
+                                </p>
+                            </div>
                             <form
                                 className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"
                                 onSubmit={submitImport}
@@ -99,7 +135,7 @@ export default function DataImport({ imports }: Props) {
                                     <Input
                                         id="permanent-record-import-file"
                                         type="file"
-                                        accept=".csv,text/csv"
+                                        accept=".csv,text/csv,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                         onChange={(event) =>
                                             importForm.setData(
                                                 'import_file',
@@ -117,6 +153,16 @@ export default function DataImport({ imports }: Props) {
                                     <Button
                                         type="button"
                                         variant="outline"
+                                        onClick={() => {
+                                            window.location.href =
+                                                '/registrar/data-import/permanent-records/template';
+                                        }}
+                                    >
+                                        Download Template
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
                                         onClick={() =>
                                             setShowBatchWorkspace(
                                                 (current) => !current,
@@ -129,6 +175,17 @@ export default function DataImport({ imports }: Props) {
                                     </Button>
                                     <Button
                                         type="button"
+                                        variant="outline"
+                                        onClick={submitPreview}
+                                        disabled={
+                                            importForm.processing ||
+                                            !importForm.data.import_file
+                                        }
+                                    >
+                                        Preview File
+                                    </Button>
+                                    <Button
+                                        type="button"
                                         onClick={() => setIsConfirmOpen(true)}
                                         disabled={
                                             importForm.processing ||
@@ -136,12 +193,87 @@ export default function DataImport({ imports }: Props) {
                                         }
                                     >
                                         <Upload className="size-4" />
-                                        Import CSV
+                                        Import File
                                     </Button>
                                 </div>
                             </form>
                         </CardContent>
                     </Card>
+
+                    {previewData ? (
+                        <Card>
+                            <CardHeader className="border-b">
+                                <CardTitle>Import Preview</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4 pt-4 text-sm">
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                <p className="text-muted-foreground">File</p>
+                                <p>{previewData.file_name}</p>
+                                <p className="text-muted-foreground">Detected Format</p>
+                                <p>{previewData.detected_format}</p>
+                                </div>
+
+                                {previewData.mode === 'workbook' ? (
+                                    <div className="space-y-3">
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            <p className="text-muted-foreground">Missing Required Sheets</p>
+                                            <p>
+                                                {(previewData.missing_sheets?.length ?? 0) > 0
+                                                    ? previewData.missing_sheets?.join(', ')
+                                                    : 'None'}
+                                            </p>
+                                            <p className="text-muted-foreground">Sheets With Invalid Headers</p>
+                                            <p>
+                                                {(previewData.invalid_sheets?.length ?? 0) > 0
+                                                    ? previewData.invalid_sheets?.join(', ')
+                                                    : 'None'}
+                                            </p>
+                                        </div>
+
+                                        <div className="overflow-x-auto rounded-md border">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Sheet</TableHead>
+                                                        <TableHead>Rows</TableHead>
+                                                        <TableHead>Missing Required Headers</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {(previewData.sheets ?? []).map((sheet) => (
+                                                        <TableRow key={sheet.sheet}>
+                                                            <TableCell className="font-medium">{sheet.sheet}</TableCell>
+                                                            <TableCell>{sheet.processed_rows}</TableCell>
+                                                            <TableCell>
+                                                                {sheet.missing_required_headers.length > 0
+                                                                    ? sheet.missing_required_headers.join(', ')
+                                                                    : 'None'}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                        <p className="text-muted-foreground">Processed Rows</p>
+                                        <p>{previewData.processed_rows ?? 0}</p>
+                                        <p className="text-muted-foreground">Ready Rows</p>
+                                        <p>{previewData.ready_rows ?? 0}</p>
+                                        <p className="text-muted-foreground">Invalid Rows</p>
+                                        <p>{previewData.invalid_rows ?? 0}</p>
+                                        <p className="text-muted-foreground">Missing Required Headers</p>
+                                        <p>
+                                            {(previewData.missing_required_headers?.length ?? 0) > 0
+                                                ? previewData.missing_required_headers?.join(', ')
+                                                : 'None'}
+                                        </p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    ) : null}
 
                     {showBatchWorkspace ? (
                         <RegistrarImportBatchesPanel />
@@ -364,7 +496,7 @@ export default function DataImport({ imports }: Props) {
                 open={isConfirmOpen}
                 onOpenChange={setIsConfirmOpen}
                 title="Import Permanent Records"
-                description="Are you sure you want to import this CSV file? This will create new student records and update existing ones in the system. Please ensure the data layout is correct before proceeding."
+                description="Are you sure you want to import this file? This will create new student records and update existing ones in the system. Please ensure the data layout is correct before proceeding."
                 confirmLabel="Confirm Import"
                 loading={importForm.processing}
                 onConfirm={() => submitImport()}

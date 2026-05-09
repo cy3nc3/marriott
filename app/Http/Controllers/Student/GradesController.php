@@ -7,6 +7,7 @@ use App\Models\AcademicYear;
 use App\Models\ConductRating;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
+use App\Models\GradeRelease;
 use App\Models\GradeSubmission;
 use App\Models\Student;
 use App\Models\User;
@@ -48,6 +49,7 @@ class GradesController extends Controller
             'school_year' => null,
             'adviser_name' => null,
             'adviser_remarks' => null,
+            'released_quarters' => [],
         ];
 
         if ($enrollment) {
@@ -55,6 +57,14 @@ class GradesController extends Controller
             $context['adviser_name'] = $enrollment->section?->adviser
                 ? trim("{$enrollment->section->adviser->first_name} {$enrollment->section->adviser->last_name}")
                 : null;
+            $releasedQuarters = GradeRelease::query()
+                ->where('academic_year_id', $enrollment->academic_year_id)
+                ->where('section_id', $enrollment->section_id)
+                ->pluck('quarter')
+                ->map(fn (mixed $quarter): string => (string) $quarter)
+                ->values()
+                ->all();
+            $context['released_quarters'] = $releasedQuarters;
 
             $finalGrades = FinalGrade::query()
                 ->with('subjectAssignment.teacherSubject.subject:id,subject_name')
@@ -66,11 +76,13 @@ class GradesController extends Controller
                         ->on('grade_submission.quarter', '=', 'final_grades.quarter')
                         ->where('grade_submission.academic_year_id', '=', (int) $enrollment->academic_year_id);
                 })
-                ->where(function ($query): void {
-                    $query
-                        ->whereNull('grade_submission.id')
-                        ->orWhere('grade_submission.status', GradeSubmission::STATUS_VERIFIED);
+                ->join('grade_releases as grade_release', function ($join) use ($enrollment): void {
+                    $join
+                        ->on('grade_release.quarter', '=', 'final_grades.quarter')
+                        ->where('grade_release.academic_year_id', '=', (int) $enrollment->academic_year_id)
+                        ->where('grade_release.section_id', '=', (int) $enrollment->section_id);
                 })
+                ->where('grade_submission.status', GradeSubmission::STATUS_VERIFIED)
                 ->select('final_grades.*')
                 ->get();
 

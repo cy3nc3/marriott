@@ -21,9 +21,14 @@ use App\Services\DashboardCacheService;
 use App\Services\Finance\BillingScheduleService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DataImportController extends Controller
 {
@@ -75,6 +80,42 @@ class DataImportController extends Controller
     ): RedirectResponse {
         $validated = $request->validated();
         $file = $validated['import_file'];
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+
+        if (in_array($extension, ['xls', 'xlsx'], true)) {
+            $workbook = $this->parseWorkbookImport($file);
+            if ($workbook === null) {
+                return back()->with('error', 'Unable to read workbook.');
+            }
+
+            if (($workbook['supported_sheets'] ?? []) === []) {
+                return back()->with('error', 'Workbook must contain at least one supported sheet: transactions or dues.');
+            }
+
+            if (($workbook['invalid_sheets'] ?? []) !== []) {
+                return back()->with('error', 'Workbook has invalid required columns for sheets: '.implode(', ', $workbook['invalid_sheets']).'.');
+            }
+
+            $summary = $this->importWorkbook($workbook['sheets'], (int) auth()->id());
+
+            Setting::set('finance_transactions_last_import_at', now()->toDateTimeString(), 'finance');
+            Setting::set('finance_transactions_last_import_name', $file->getClientOriginalName(), 'finance');
+            Setting::set('finance_transactions_last_import_summary', json_encode($summary), 'finance');
+
+            $auditLogService->log('finance.transactions.imported', Transaction::class, null, [
+                ...$summary,
+                'file_name' => $file->getClientOriginalName(),
+                'mode' => 'workbook',
+            ]);
+
+            DashboardCacheService::bust();
+
+            return back()->with(
+                'success',
+                "Workbook import complete. Imported {$summary['imported_rows']} of {$summary['processed_rows']} rows ({$summary['skipped_rows']} skipped)."
+            );
+        }
+
         $handle = fopen($file->getRealPath(), 'r');
 
         if ($handle === false) {
@@ -143,6 +184,109 @@ class DataImportController extends Controller
         );
     }
 
+    public function downloadWorkbookTemplate(): StreamedResponse
+    {
+        $spreadsheet = new Spreadsheet;
+        $spreadsheet->removeSheetByIndex(0);
+
+        $sheetHeaders = [
+            'transactions' => [
+                'or_number',
+                'student',
+                'payment_mode',
+                'status',
+                'posted_on',
+                'cashier',
+                'amount',
+                'corrected_by',
+                'correction_reason',
+            ],
+        ];
+
+        foreach ($sheetHeaders as $sheetName => $headers) {
+            $sheet = $spreadsheet->createSheet();
+            $sheet->setTitle($sheetName);
+            $sheet->fromArray([$headers], null, 'A1');
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $fileName = 'finance-transactions-import-template.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function downloadDuesTemplate(): StreamedResponse
+    {
+        $spreadsheet = new Spreadsheet;
+        $spreadsheet->removeSheetByIndex(0);
+
+        $studentsSheet = $spreadsheet->createSheet();
+        $studentsSheet->setTitle('students_master');
+        $studentsSheet->fromArray([[
+            'student_key',
+            'lrn',
+            'last_name',
+            'first_name',
+            'middle_name',
+        ]], null, 'A1');
+
+        $duesSheet = $spreadsheet->createSheet();
+        $duesSheet->setTitle('dues');
+        $duesSheet->fromArray([[
+            'student_key',
+            'lrn',
+            'last_name',
+            'first_name',
+            'middle_name',
+            'school_year',
+            'due_1_date',
+            'due_1_amount',
+            'due_1_description',
+            'due_2_date',
+            'due_2_amount',
+            'due_2_description',
+            'due_3_date',
+            'due_3_amount',
+            'due_3_description',
+            'due_4_date',
+            'due_4_amount',
+            'due_4_description',
+        ]], null, 'A1');
+
+        for ($row = 2; $row <= 300; $row++) {
+            $studentsSheet->setCellValue("A{$row}", '');
+            $duesSheet->setCellValue("B{$row}", "=IFERROR(VLOOKUP(\$A{$row},students_master!\$A:\$E,2,FALSE),\"\")");
+            $duesSheet->setCellValue("C{$row}", "=IFERROR(VLOOKUP(\$A{$row},students_master!\$A:\$E,3,FALSE),\"\")");
+            $duesSheet->setCellValue("D{$row}", "=IFERROR(VLOOKUP(\$A{$row},students_master!\$A:\$E,4,FALSE),\"\")");
+            $duesSheet->setCellValue("E{$row}", "=IFERROR(VLOOKUP(\$A{$row},students_master!\$A:\$E,5,FALSE),\"\")");
+            $duesSheet->setCellValue("F{$row}", '');
+
+            $validation = $duesSheet->getCell("A{$row}")->getDataValidation();
+            $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setShowInputMessage(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setFormula1('students_master!$A$2:$A$300');
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $fileName = 'finance-dues-import-template.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
     private function importFinanceRow(array $rowData, array &$summary, int $cashierId): bool
     {
         $lrn = preg_replace('/\D/', '', (string) $this->firstAvailable($rowData, [
@@ -154,7 +298,6 @@ class DataImportController extends Controller
             'academic_year',
             'sy',
         ]);
-        $schoolYearPair = $this->parseSchoolYear($schoolYearValue);
         $orNumber = $this->firstAvailable($rowData, [
             'or_number',
             'or_no',
@@ -194,7 +337,7 @@ class DataImportController extends Controller
             'installment_description',
         ]);
 
-        if ($lrn === '' || ! $schoolYearPair || $orNumber === null || $paymentAmount === null || $paymentAmount <= 0) {
+        if ($orNumber === null || $paymentAmount === null || $paymentAmount <= 0) {
             return false;
         }
 
@@ -202,7 +345,7 @@ class DataImportController extends Controller
             return DB::transaction(function () use (
                 &$summary,
                 $rowData,
-                $schoolYearPair,
+                $schoolYearValue,
                 $lrn,
                 $orNumber,
                 $paymentAmount,
@@ -214,14 +357,23 @@ class DataImportController extends Controller
                 $dueDescription,
                 $cashierId
             ): bool {
-                [$startYear, $endYear] = $schoolYearPair;
-                $academicYearName = "{$startYear}-{$endYear}";
                 $transactionDate = $this->parseTransactionDate($this->firstAvailable($rowData, [
                     'payment_date',
                     'transaction_date',
                     'posted_at',
+                    'posted_on',
                     'date',
                 ])) ?? now();
+                $schoolYearPair = $this->parseSchoolYear($schoolYearValue);
+                if (! $schoolYearPair) {
+                    $schoolYearPair = $this->resolveSchoolYearPairFromDate($transactionDate);
+                }
+                if (! $schoolYearPair) {
+                    return false;
+                }
+
+                [$startYear, $endYear] = $schoolYearPair;
+                $academicYearName = "{$startYear}-{$endYear}";
                 $paymentMode = $this->normalizePaymentMode($this->firstAvailable($rowData, [
                     'payment_mode',
                     'payment_method',
@@ -236,10 +388,22 @@ class DataImportController extends Controller
                 ]) ?: 'Imported Payment';
 
                 [$parsedFirstName, $parsedLastName] = $this->parseNameParts(
-                    $this->firstAvailable($rowData, ['name', 'student_name', 'learner_name'])
+                    $this->firstAvailable($rowData, ['name', 'student_name', 'student', 'learner_name'])
                 );
 
-                $student = Student::query()->where('lrn', $lrn)->first();
+                $student = null;
+                if ($lrn !== '') {
+                    $student = Student::query()->where('lrn', $lrn)->first();
+                }
+
+                if (! $student) {
+                    $student = $this->resolveStudentFromExportRow($rowData);
+                }
+
+                if (! $student && $lrn === '') {
+                    return false;
+                }
+
                 if (! $student) {
                     $student = Student::query()->create([
                         'lrn' => $lrn,
@@ -307,6 +471,10 @@ class DataImportController extends Controller
                 }
 
                 if (! $enrollment) {
+                    if (! $gradeLevel instanceof GradeLevel) {
+                        return false;
+                    }
+
                     $resolvedPaymentTerm = $paymentTerm ?? 'cash';
                     $resolvedDownpayment = $downpayment ?? 0.0;
                     $resolvedStatus = $enrollmentStatus
@@ -315,7 +483,7 @@ class DataImportController extends Controller
                     $enrollment = Enrollment::query()->create([
                         'student_id' => $student->id,
                         'academic_year_id' => $academicYear->id,
-                        'grade_level_id' => (int) $gradeLevel?->id,
+                        'grade_level_id' => $gradeLevel->id,
                         'section_id' => $section?->id,
                         'payment_term' => $resolvedPaymentTerm,
                         'downpayment' => $resolvedDownpayment,
@@ -456,10 +624,234 @@ class DataImportController extends Controller
             'payment_date',
             'transaction_date',
             'posted_at',
+            'posted_on',
             'date',
         ]));
 
         return $date?->timestamp ?? now()->timestamp;
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    private function requiredHeadersBySheet(): array
+    {
+        return [
+            'transactions' => ['or_number', 'student', 'payment_mode', 'status', 'posted_on', 'cashier', 'amount', 'corrected_by', 'correction_reason'],
+            'dues' => ['lrn', 'school_year'],
+        ];
+    }
+
+    /**
+     * @return array{
+     *   sheets: array<string, array{headers: array<int, string>, rows: array<int, array<int, string>>}>,
+     *   supported_sheets: array<int, string>,
+     *   invalid_sheets: array<int, string>
+     * }|null
+     */
+    private function parseWorkbookImport(UploadedFile $file): ?array
+    {
+        try {
+            $spreadsheet = IOFactory::load($file->getRealPath());
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $supportedSheets = array_keys($this->requiredHeadersBySheet());
+        $sheetMap = [];
+
+        foreach ($spreadsheet->getWorksheetIterator() as $worksheet) {
+            $normalizedName = strtolower(trim((string) $worksheet->getTitle()));
+            $rows = $worksheet->toArray(null, true, true, false);
+            if ($rows === [] || ! isset($rows[0]) || ! is_array($rows[0])) {
+                continue;
+            }
+
+            $headers = $this->normalizeCsvHeaders($rows[0]);
+            $dataRows = collect(array_slice($rows, 1))
+                ->filter(fn (array $row): bool => ! $this->isCsvRowEmpty($row))
+                ->map(fn (array $row): array => array_map(
+                    fn ($value): string => trim((string) $value),
+                    $row
+                ))
+                ->values()
+                ->all();
+
+            $sheetMap[$normalizedName] = [
+                'headers' => $headers,
+                'rows' => $dataRows,
+            ];
+        }
+
+        $invalidSheets = [];
+        foreach ($supportedSheets as $sheetName) {
+            if (! isset($sheetMap[$sheetName])) {
+                continue;
+            }
+
+            $headers = $sheetMap[$sheetName]['headers'];
+            $requiredHeaders = $this->requiredHeadersBySheet()[$sheetName];
+            $missingHeaders = collect($requiredHeaders)
+                ->reject(fn (string $header): bool => in_array($header, $headers, true))
+                ->values()
+                ->all();
+
+            if ($sheetName === 'dues' && $missingHeaders === []) {
+                $hasSimple = in_array('due_date', $headers, true) && in_array('due_amount', $headers, true);
+                $hasGrouped = collect(range(1, 12))->contains(function (int $index) use ($headers): bool {
+                    return in_array("due_{$index}_date", $headers, true) && in_array("due_{$index}_amount", $headers, true);
+                });
+
+                if (! $hasSimple && ! $hasGrouped) {
+                    $missingHeaders = ['due_date+due_amount OR due_n_date+due_n_amount'];
+                }
+            }
+
+            if ($missingHeaders !== []) {
+                $invalidSheets[] = $sheetName;
+            }
+        }
+
+        $presentSupportedSheets = collect($supportedSheets)
+            ->filter(fn (string $sheet): bool => array_key_exists($sheet, $sheetMap))
+            ->values()
+            ->all();
+
+        return [
+            'sheets' => $sheetMap,
+            'supported_sheets' => $presentSupportedSheets,
+            'invalid_sheets' => $invalidSheets,
+        ];
+    }
+
+    /**
+     * @param  array<string, array{headers: array<int, string>, rows: array<int, array<int, string>>}>  $sheets
+     * @return array<string, int>
+     */
+    private function importWorkbook(array $sheets, int $cashierId): array
+    {
+        $summary = [
+            'processed_rows' => 0,
+            'imported_rows' => 0,
+            'created_transactions' => 0,
+            'updated_transactions' => 0,
+            'created_students' => 0,
+            'created_academic_years' => 0,
+            'created_grade_levels' => 0,
+            'created_sections' => 0,
+            'created_enrollments' => 0,
+            'created_ledger_entries' => 0,
+            'skipped_rows' => 0,
+        ];
+
+        DB::transaction(function () use ($sheets, $cashierId, &$summary): void {
+            foreach (($sheets['dues']['rows'] ?? []) as $row) {
+                $summary['processed_rows']++;
+                $rowData = $this->mapCsvRow($sheets['dues']['headers'], $row);
+
+                if ($this->importDueRow($rowData, $summary)) {
+                    $summary['imported_rows']++;
+                } else {
+                    $summary['skipped_rows']++;
+                }
+            }
+
+            foreach (($sheets['transactions']['rows'] ?? []) as $row) {
+                $summary['processed_rows']++;
+                $rowData = $this->mapCsvRow($sheets['transactions']['headers'], $row);
+
+                if (! $this->importFinanceRow($rowData, $summary, $cashierId)) {
+                    $summary['skipped_rows']++;
+                }
+            }
+        });
+
+        return $summary;
+    }
+
+    private function importDueRow(array $rowData, array &$summary): bool
+    {
+        $lrn = preg_replace('/\D/', '', (string) $this->firstAvailable($rowData, [
+            'lrn',
+            'learner_reference_number',
+        ]));
+        $schoolYearPair = $this->parseSchoolYear($this->firstAvailable($rowData, [
+            'school_year',
+            'academic_year',
+            'sy',
+        ]));
+        if ($lrn === '' || $schoolYearPair === null) {
+            return false;
+        }
+
+        try {
+            [$startYear, $endYear] = $schoolYearPair;
+            $academicYearName = "{$startYear}-{$endYear}";
+
+            $student = Student::query()->where('lrn', $lrn)->first();
+            if (! $student) {
+                $student = Student::query()->create([
+                    'lrn' => $lrn,
+                    'first_name' => 'Unknown',
+                    'last_name' => 'Student',
+                ]);
+                $summary['created_students']++;
+            }
+
+            $academicYear = AcademicYear::query()->firstOrCreate(
+                ['name' => $academicYearName],
+                [
+                    'start_date' => "{$startYear}-06-01",
+                    'end_date' => "{$endYear}-03-31",
+                    'status' => $endYear < (int) now()->format('Y') ? 'completed' : 'upcoming',
+                    'current_quarter' => $endYear < (int) now()->format('Y') ? '4' : '1',
+                ]
+            );
+            if ($academicYear->wasRecentlyCreated) {
+                $summary['created_academic_years']++;
+            }
+
+            $hasImportedAtLeastOneDue = false;
+
+            $simpleDueDate = $this->parseTransactionDate($this->firstAvailable($rowData, [
+                'due_date',
+                'billing_due_date',
+            ]));
+            $simpleDueAmount = $this->parseDecimal($this->firstAvailable($rowData, [
+                'due_amount',
+                'amount_due',
+                'installment_amount',
+            ]));
+            $simpleDueDescription = $this->firstAvailable($rowData, [
+                'due_description',
+                'billing_description',
+                'installment_description',
+            ]);
+
+            if ($simpleDueDate !== null && $simpleDueAmount !== null && $simpleDueAmount > 0) {
+                $this->upsertDueFromImport($student, $academicYear, $simpleDueDate, $simpleDueAmount, $simpleDueDescription);
+                $hasImportedAtLeastOneDue = true;
+            }
+
+            for ($index = 1; $index <= 12; $index++) {
+                $dueDate = $this->parseTransactionDate($rowData["due_{$index}_date"] ?? null);
+                $dueAmount = $this->parseDecimal($rowData["due_{$index}_amount"] ?? null);
+                $dueDescription = $rowData["due_{$index}_description"] ?? null;
+
+                if ($dueDate === null || $dueAmount === null || $dueAmount <= 0) {
+                    continue;
+                }
+
+                $this->upsertDueFromImport($student, $academicYear, $dueDate, $dueAmount, $dueDescription);
+                $hasImportedAtLeastOneDue = true;
+            }
+
+            return $hasImportedAtLeastOneDue;
+        } catch (\Throwable $throwable) {
+            report($throwable);
+
+            return false;
+        }
     }
 
     /**
@@ -626,6 +1018,61 @@ class DataImportController extends Controller
         } catch (\Throwable $throwable) {
             return null;
         }
+    }
+
+    /**
+     * @return array{0:int,1:int}|null
+     */
+    private function resolveSchoolYearPairFromDate(Carbon $date): ?array
+    {
+        $year = AcademicYear::query()
+            ->whereDate('start_date', '<=', $date->toDateString())
+            ->whereDate('end_date', '>=', $date->toDateString())
+            ->orderByDesc('start_date')
+            ->first(['name']);
+
+        if (! $year instanceof AcademicYear) {
+            return null;
+        }
+
+        return $this->parseSchoolYear((string) $year->name);
+    }
+
+    private function resolveStudentFromExportRow(array $rowData): ?Student
+    {
+        $studentName = trim((string) ($rowData['student'] ?? $rowData['student_name'] ?? ''));
+        if ($studentName === '') {
+            return null;
+        }
+
+        $firstName = '';
+        $lastName = '';
+
+        if (str_contains($studentName, ',')) {
+            [$lastNamePart, $firstNamePart] = array_map('trim', explode(',', $studentName, 2));
+            $lastName = $lastNamePart;
+            $firstName = explode(' ', $firstNamePart)[0] ?? '';
+        } else {
+            [$parsedFirstName, $parsedLastName] = $this->parseNameParts($studentName);
+            $firstName = $parsedFirstName ?? '';
+            $lastName = $parsedLastName ?? '';
+        }
+
+        if ($firstName === '' || $lastName === '') {
+            return null;
+        }
+
+        $matches = Student::query()
+            ->whereRaw('LOWER(first_name) = ?', [mb_strtolower($firstName)])
+            ->whereRaw('LOWER(last_name) = ?', [mb_strtolower($lastName)])
+            ->limit(2)
+            ->get();
+
+        if ($matches->count() !== 1) {
+            return null;
+        }
+
+        return $matches->first();
     }
 
     private function upsertDueFromImport(

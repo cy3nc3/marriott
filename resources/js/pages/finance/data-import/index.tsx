@@ -85,6 +85,13 @@ export default function FinanceDataImport({ imports }: Props) {
                         <CardTitle>Data Import</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
+                        <div className="mb-4 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                            <p className="font-medium text-foreground">
+                                Templates
+                            </p>
+                            <p>Use transaction history export format for transaction imports.</p>
+                            <p>Dues are imported from a separate dues file.</p>
+                        </div>
                         <form
                             className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"
                             onSubmit={submitImport}
@@ -99,7 +106,7 @@ export default function FinanceDataImport({ imports }: Props) {
                                 <Input
                                     id="finance-import-file"
                                     type="file"
-                                    accept=".csv,text/csv"
+                                    accept=".csv,text/csv,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                     onChange={(event) =>
                                         importForm.setData(
                                             'import_file',
@@ -114,6 +121,26 @@ export default function FinanceDataImport({ imports }: Props) {
                                 ) : null}
                             </div>
                             <div className="flex items-end justify-end gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        window.location.href =
+                                            '/finance/data-import/transactions/template';
+                                    }}
+                                >
+                                    Download Transactions Template
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        window.location.href =
+                                            '/finance/data-import/dues/template';
+                                    }}
+                                >
+                                    Download Dues Template
+                                </Button>
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -132,7 +159,7 @@ export default function FinanceDataImport({ imports }: Props) {
                                     disabled={importForm.processing}
                                 >
                                     <Upload className="size-4" />
-                                    Import CSV
+                                    Import File
                                 </Button>
                             </div>
                         </form>

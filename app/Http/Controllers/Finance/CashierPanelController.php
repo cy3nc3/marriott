@@ -113,6 +113,12 @@ class CashierPanelController extends Controller
                     'enrollment_status' => $selectedEnrollment?->status,
                     'payment_plan' => $selectedEnrollment?->payment_term,
                     'stated_downpayment' => (float) ($selectedEnrollment?->downpayment ?? 0),
+                    'enrollment_balance_due' => $selectedEnrollment
+                        ? $this->resolveEnrollmentOutstandingBalance(
+                            (int) $selectedStudent->id,
+                            (int) $selectedEnrollment->academic_year_id
+                        )
+                        : 0.0,
                     'remaining_balance' => $remainingBalance,
                     'assessment_total_before_downpayment' => $assessmentTotalBeforeDownpayment,
                     'remedial_case' => $selectedRemedialCase ? [
@@ -570,7 +576,15 @@ class CashierPanelController extends Controller
         }
 
         if ($enrollment->payment_term === 'cash') {
-            $this->transitionEnrollmentStatus($enrollment, 'enrolled');
+            $outstandingBalance = $this->resolveEnrollmentOutstandingBalance(
+                (int) $student->id,
+                (int) $academicYear->id
+            );
+
+            $newStatus = $outstandingBalance <= 0.009
+                ? 'enrolled'
+                : 'for_cashier_payment';
+            $this->transitionEnrollmentStatus($enrollment, $newStatus);
 
             return;
         }
@@ -781,16 +795,20 @@ class CashierPanelController extends Controller
         $idsToMarkEnrolled = [];
 
         foreach ($pendingEnrollments as $enrollment) {
-            $totalPaid = (float) ($paidByStudent[(int) $enrollment->student_id] ?? 0);
-
             if ((string) $enrollment->payment_term === 'cash') {
-                if ($totalPaid > 0) {
+                $outstandingBalance = $this->resolveEnrollmentOutstandingBalance(
+                    (int) $enrollment->student_id,
+                    (int) $academicYear->id
+                );
+
+                if ($outstandingBalance <= 0.009) {
                     $idsToMarkEnrolled[] = (int) $enrollment->id;
                 }
 
                 continue;
             }
 
+            $totalPaid = (float) ($paidByStudent[(int) $enrollment->student_id] ?? 0);
             if ($totalPaid >= (float) $enrollment->downpayment) {
                 $idsToMarkEnrolled[] = (int) $enrollment->id;
             }
@@ -806,6 +824,38 @@ class CashierPanelController extends Controller
             ->each(function (Enrollment $enrollment): void {
                 $this->transitionEnrollmentStatus($enrollment, 'enrolled');
             });
+    }
+
+    private function resolveEnrollmentOutstandingBalance(int $studentId, int $academicYearId): float
+    {
+        if ($studentId <= 0 || $academicYearId <= 0) {
+            return 0.0;
+        }
+
+        $totals = BillingSchedule::query()
+            ->where('student_id', $studentId)
+            ->where('academic_year_id', $academicYearId)
+            ->selectRaw('COUNT(*) as schedule_count, COALESCE(SUM(amount_due), 0) as total_due, COALESCE(SUM(amount_paid), 0) as total_paid')
+            ->first();
+
+        $scheduleCount = (int) ($totals?->schedule_count ?? 0);
+        $totalDue = (float) ($totals?->total_due ?? 0);
+        $totalPaid = (float) ($totals?->total_paid ?? 0);
+
+        if ($scheduleCount === 0) {
+            $ledgerTotals = LedgerEntry::query()
+                ->where('student_id', $studentId)
+                ->where('academic_year_id', $academicYearId)
+                ->selectRaw('COALESCE(SUM(debit), 0) as total_debit, COALESCE(SUM(credit), 0) as total_credit')
+                ->first();
+
+            $totalDebit = (float) ($ledgerTotals?->total_debit ?? 0);
+            $totalCredit = (float) ($ledgerTotals?->total_credit ?? 0);
+
+            return round(max($totalDebit - $totalCredit, 0), 2);
+        }
+
+        return round(max($totalDue - $totalPaid, 0), 2);
     }
 
     private function transitionEnrollmentStatus(Enrollment $enrollment, string $newStatus): void

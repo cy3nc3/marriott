@@ -11,7 +11,7 @@ export default function Login({ status, canResetPassword }: Props) {
         <>
             <Head title="Log in" />
 
-            <div className="grid min-h-svh bg-[#f3f5f9] lg:h-svh lg:grid-cols-2">
+            <div className="grid min-h-svh bg-[#f3f5f9] dark:bg-slate-950 lg:h-svh lg:grid-cols-2">
                 <div className="hidden overflow-hidden lg:block">
                     <img
                         src="/images/auth/IMG_8884.jpeg"
@@ -20,29 +20,29 @@ export default function Login({ status, canResetPassword }: Props) {
                     />
                 </div>
 
-                <div className="flex items-start justify-center overflow-hidden p-6 md:p-10">
-                    <div className="w-full max-w-md rounded-[2rem] border border-slate-200/80 bg-white px-8 py-10 shadow-2xl shadow-slate-900/8 lg:my-auto">
-                        <div className="mb-10 flex items-center justify-center gap-3">
+                <div className="flex h-svh items-center justify-center overflow-hidden p-4 md:p-6">
+                    <div className="w-full max-w-md rounded-[1.5rem] border border-slate-200/80 bg-white px-6 py-6 shadow-2xl shadow-slate-900/8 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/30">
+                        <div className="mb-5 flex flex-col items-center justify-center gap-2">
                             <img
                                 src="/images/branding/marriott-school-seal.svg"
                                 alt="MarriottConnect logo"
-                                className="size-10 rounded-full object-contain ring-1 ring-slate-200"
+                                className="size-16 object-contain"
                             />
-                            <span className="text-2xl font-semibold tracking-tight text-slate-900">
+                            <span className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
                                 MarriottConnect
                             </span>
                         </div>
 
-                        <div className="mb-8 text-center">
-                            <h1 className="text-4xl font-semibold tracking-tight text-slate-950">
+                        <div className="mb-5 text-center">
+                            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
                                 Welcome Back
                             </h1>
-                            <p className="mt-2 text-sm text-slate-500">
+                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                                 Please enter your details to continue
                             </p>
                         </div>
 
-                        <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200/70">
+                        <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200/70 dark:bg-slate-950/60 dark:ring-slate-800">
                             <LoginForm
                                 status={status}
                                 canResetPassword={canResetPassword}

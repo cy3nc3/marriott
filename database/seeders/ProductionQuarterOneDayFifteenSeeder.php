@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\UserRole;
+use Database\Seeders\Support\SeedNameBank;
 use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\BillingSchedule;
@@ -129,7 +130,7 @@ class ProductionQuarterOneDayFifteenSeeder extends Seeder
         [
             'first_name' => 'Ma Nimfa',
             'last_name' => 'Guinacaran',
-            'email' => 'manimfa.guinacaran@marriott.edu',
+            'email' => 'ma.guinacaran@marriott.edu',
             'subject' => 'MAPEH',
             'slots' => [
                 ['grade' => 7, 'section' => 'St. Paul', 'start' => '08:50', 'end' => '09:30'],
@@ -142,7 +143,7 @@ class ProductionQuarterOneDayFifteenSeeder extends Seeder
         [
             'first_name' => 'Mary Joyce',
             'last_name' => 'Guira',
-            'email' => 'maryjoyce.guira@marriott.edu',
+            'email' => 'mary.guira@marriott.edu',
             'subject' => 'Araling Panlipunan',
             'slots' => [
                 ['grade' => 7, 'section' => 'St. Paul', 'start' => '08:10', 'end' => '08:50'],
@@ -184,29 +185,11 @@ class ProductionQuarterOneDayFifteenSeeder extends Seeder
      * @var array<string, string>
      */
     private const SECTION_ADVISER_BY_KEY = [
-        '7|St. Paul' => 'maryjoyce.guira@marriott.edu',
+        '7|St. Paul' => 'mary.guira@marriott.edu',
         '8|St. Anthony' => 'rocelle.delacruz@marriott.edu',
         '9|St. Francis' => 'elenor.cendana@marriott.edu',
         '10|St. John' => 'beronica.renton@marriott.edu',
         '10|St. Anne' => 'rowell.almonte@marriott.edu',
-    ];
-
-    /**
-     * @var array<int, string>
-     */
-    private const FIRST_NAMES = [
-        'Arielle', 'Bea', 'Carlo', 'Dani', 'Eli', 'Faith', 'Gabriel', 'Hana', 'Ian', 'Janna', 'Kyle', 'Lia',
-        'Mika', 'Noah', 'Olive', 'Paolo', 'Quinn', 'Rica', 'Sean', 'Tala', 'Uriel', 'Vince', 'Wena', 'Xian',
-        'Ysa', 'Zach',
-    ];
-
-    /**
-     * @var array<int, string>
-     */
-    private const LAST_NAMES = [
-        'Abad', 'Bautista', 'Cruz', 'Dizon', 'Escobar', 'Fernandez', 'Garcia', 'Hernandez', 'Ilagan', 'Jimenez',
-        'Luna', 'Mendoza', 'Navarro', 'Ocampo', 'Pascual', 'Quinto', 'Ramos', 'Santos', 'Tolentino', 'Umali',
-        'Valencia', 'Wong', 'Yap', 'Zamora',
     ];
 
     /**
@@ -257,8 +240,17 @@ class ProductionQuarterOneDayFifteenSeeder extends Seeder
         $this->seedDailyTransactions($academicYear, $enrollments, $inventoryItems);
         $this->seedQuarterOneActivitiesAndScores($academicYear, $enrollments);
         $this->seedQuarterOneAttendance($academicYear, $enrollments);
+        $this->enforceRequirementsSubmittedForAllEnrollments();
 
         $this->call(SuperAdminSeeder::class);
+    }
+
+    private function enforceRequirementsSubmittedForAllEnrollments(): void
+    {
+        Enrollment::query()->update([
+            'report_card_submitted' => true,
+            'birth_certificate_submitted' => true,
+        ]);
     }
 
     private function prepareAcademicYear(): AcademicYear
@@ -297,26 +289,26 @@ class ProductionQuarterOneDayFifteenSeeder extends Seeder
             [
                 'role' => UserRole::SUPER_ADMIN,
                 'email' => 'superadmin@marriott.edu',
-                'first_name' => 'Test',
-                'last_name' => 'Super Admin',
-            ],
-            [
-                'role' => UserRole::ADMIN,
-                'email' => 'admin@marriott.edu',
-                'first_name' => 'Test',
+                'first_name' => 'Super',
                 'last_name' => 'Admin',
             ],
             [
+                'role' => UserRole::ADMIN,
+                'email' => 'alex.avellanosa@marriott.edu',
+                'first_name' => 'Alex',
+                'last_name' => 'Avellanosa',
+            ],
+            [
                 'role' => UserRole::REGISTRAR,
-                'email' => 'registrar@marriott.edu',
-                'first_name' => 'Test',
-                'last_name' => 'Registrar',
+                'email' => 'jocelyn.cleofe@marriott.edu',
+                'first_name' => 'Jocelyn',
+                'last_name' => 'Cleofe',
             ],
             [
                 'role' => UserRole::FINANCE,
-                'email' => 'finance@marriott.edu',
-                'first_name' => 'Test',
-                'last_name' => 'Finance',
+                'email' => 'corrine.avellanosa@marriott.edu',
+                'first_name' => 'Corrine',
+                'last_name' => 'Avellanosa',
             ],
         ];
 
@@ -615,9 +607,10 @@ class ProductionQuarterOneDayFifteenSeeder extends Seeder
             $birthYear = 2013 - max($gradeOrder - 7, 0);
 
             for ($studentIndex = 1; $studentIndex <= self::STUDENTS_PER_SECTION; $studentIndex++) {
-                $firstName = self::FIRST_NAMES[($sectionIndex + $studentIndex) % count(self::FIRST_NAMES)];
-                $lastName = self::LAST_NAMES[($sectionIndex * 3 + $studentIndex) % count(self::LAST_NAMES)];
-                $middleName = chr(65 + (($sectionIndex + $studentIndex) % 26));
+                $studentSeedIndex = ($sectionIndex * self::STUDENTS_PER_SECTION) + ($studentIndex - 1);
+                $nameSet = $this->studentNameSetForIndex($studentSeedIndex);
+                $firstName = $nameSet['student_first_name'];
+                $lastName = $nameSet['student_last_name'];
                 $gender = $studentIndex % 2 === 0 ? 'Male' : 'Female';
                 $lrn = sprintf('2526%02d%02d%04d', $gradeOrder, $sectionIndex + 1, $studentIndex);
                 $birthdate = CarbonImmutable::create(
@@ -625,8 +618,11 @@ class ProductionQuarterOneDayFifteenSeeder extends Seeder
                     (($studentIndex - 1) % 12) + 1,
                     (($studentIndex - 1) % 27) + 1
                 )->toDateString();
-                $studentEmail = strtolower("{$firstName}.{$lastName}.{$lrn}@marriott.edu");
-                $studentEmail = (string) preg_replace('/[^a-z0-9@.]/', '', $studentEmail);
+                $emailLastNameToken = Str::of($lastName)
+                    ->ascii()
+                    ->lower()
+                    ->replaceMatches('/[^a-z0-9]+/', '');
+                $studentEmail = "{$emailLastNameToken}.{$lrn}@marriott.edu";
                 $parentEmail = "parent.{$lrn}@marriott.edu";
 
                 $studentUser = User::query()->updateOrCreate(
@@ -647,9 +643,9 @@ class ProductionQuarterOneDayFifteenSeeder extends Seeder
                 $parentUser = User::query()->updateOrCreate(
                     ['email' => $parentEmail],
                     [
-                        'first_name' => 'Parent',
+                        'first_name' => $nameSet['guardian_first_name'],
                         'last_name' => $lastName,
-                        'name' => "Parent {$lastName}",
+                        'name' => "{$nameSet['guardian_first_name']} {$lastName}",
                         'password' => $this->passwordHash,
                         'birthday' => '1983-01-01',
                         'role' => UserRole::PARENT,
@@ -664,13 +660,13 @@ class ProductionQuarterOneDayFifteenSeeder extends Seeder
                     [
                         'user_id' => $studentUser->id,
                         'first_name' => $firstName,
-                        'middle_name' => "{$middleName}.",
+                        'middle_name' => $nameSet['student_middle_name'],
                         'last_name' => $lastName,
                         'gender' => $gender,
                         'birthdate' => $birthdate,
                         'contact_number' => '+639'.substr($lrn, 0, 9),
                         'address' => "{$section->name}, San Francisco Del Monte, Quezon City",
-                        'guardian_name' => "Parent {$lastName}",
+                        'guardian_name' => "{$nameSet['guardian_first_name']} {$lastName}",
                         'is_lis_synced' => true,
                         'sync_error_flag' => false,
                         'sync_error_notes' => null,
@@ -943,21 +939,27 @@ class ProductionQuarterOneDayFifteenSeeder extends Seeder
                     ->addMinutes($transactionIndex * 20);
                 $orNumber = sprintf('OR-2526-%06d', $orSequence++);
 
-                $transaction = Transaction::query()->create([
-                    'or_number' => $orNumber,
-                    'student_id' => $student->id,
-                    'cashier_id' => $cashier->id,
-                    'total_amount' => $totalAmount,
-                    'payment_mode' => self::PAYMENT_MODES[($dayIndex + $transactionIndex) % count(self::PAYMENT_MODES)],
-                    'reference_no' => null,
-                    'remarks' => 'Seeded day-15 quarter one transaction.',
-                    'status' => 'posted',
-                ]);
+                $transaction = Transaction::query()->updateOrCreate(
+                    ['or_number' => $orNumber],
+                    [
+                        'student_id' => $student->id,
+                        'cashier_id' => $cashier->id,
+                        'total_amount' => $totalAmount,
+                        'payment_mode' => self::PAYMENT_MODES[($dayIndex + $transactionIndex) % count(self::PAYMENT_MODES)],
+                        'reference_no' => null,
+                        'remarks' => 'Seeded day-15 quarter one transaction.',
+                        'status' => 'posted',
+                    ]
+                );
 
                 $transaction->timestamps = false;
                 $transaction->created_at = $timestamp;
                 $transaction->updated_at = $timestamp;
                 $transaction->save();
+
+                // Keep seeded transactions idempotent across repeated runs.
+                $transaction->items()->delete();
+                $transaction->dueAllocations()->delete();
 
                 $transaction->items()->createMany(
                     $transactionItems
@@ -1268,6 +1270,14 @@ class ProductionQuarterOneDayFifteenSeeder extends Seeder
     private function sectionKey(int $gradeOrder, string $sectionName): string
     {
         return "{$gradeOrder}|{$sectionName}";
+    }
+
+    /**
+     * @return array{student_first_name: string, student_last_name: string, guardian_first_name: string}
+     */
+    private function studentNameSetForIndex(int $index): array
+    {
+        return SeedNameBank::studentIdentity($index);
     }
 
     private function resolveAssessmentFeeTotal(int $gradeLevelId, int $academicYearId): float

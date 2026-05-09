@@ -60,6 +60,9 @@ interface Props {
         selected_subject_assignment_id: number | null;
         selected_month: string;
         active_school_year: string | null;
+        academic_year_options: { id: number; name: string; status: string }[];
+        selected_academic_year_id: number | null;
+        is_read_only_historical: boolean;
     };
     feature_lock: {
         is_locked: boolean;
@@ -188,6 +191,9 @@ export default function TeacherAttendance({
     const selectedClassValue = context.selected_subject_assignment_id
         ? String(context.selected_subject_assignment_id)
         : 'class-none';
+    const selectedAcademicYearValue = context.selected_academic_year_id
+        ? String(context.selected_academic_year_id)
+        : undefined;
 
     const pendingChangesCount = useMemo(() => {
         let count = 0;
@@ -214,6 +220,7 @@ export default function TeacherAttendance({
     const canEdit =
         !isFeatureLocked &&
         !isMonthOutOfScope &&
+        !context.is_read_only_historical &&
         hasSelectedClass &&
         rows.length > 0;
 
@@ -227,6 +234,7 @@ export default function TeacherAttendance({
             {
                 subject_assignment_id: Number(value),
                 month: context.selected_month,
+                academic_year_id: context.selected_academic_year_id ?? undefined,
             },
             {
                 preserveScroll: true,
@@ -242,6 +250,21 @@ export default function TeacherAttendance({
                 subject_assignment_id:
                     context.selected_subject_assignment_id ?? undefined,
                 month: nextMonth,
+                academic_year_id: context.selected_academic_year_id ?? undefined,
+            },
+            {
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const handleAcademicYearChange = (value: string) => {
+        router.get(
+            '/teacher/attendance',
+            {
+                academic_year_id: Number(value),
+                month: context.selected_month,
             },
             {
                 preserveScroll: true,
@@ -332,6 +355,26 @@ export default function TeacherAttendance({
                     <CardContent className="pt-6">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex flex-col gap-3 sm:flex-row">
+                                {context.academic_year_options.length > 0 && (
+                                    <Select
+                                        value={selectedAcademicYearValue}
+                                        onValueChange={handleAcademicYearChange}
+                                    >
+                                        <SelectTrigger className="w-full sm:w-44">
+                                            <SelectValue placeholder="School Year" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {context.academic_year_options.map((year) => (
+                                                <SelectItem
+                                                    key={year.id}
+                                                    value={String(year.id)}
+                                                >
+                                                    {year.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                                 <Select
                                     value={selectedClassValue}
                                     onValueChange={handleClassChange}

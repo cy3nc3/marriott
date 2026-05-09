@@ -36,4 +36,9 @@ class Section extends Model
     {
         return $this->hasMany(Enrollment::class);
     }
+
+    public function subjectAssignments(): HasMany
+    {
+        return $this->hasMany(SubjectAssignment::class);
+    }
 }
