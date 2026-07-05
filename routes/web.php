@@ -44,36 +44,53 @@ Route::get('/', function () {
 
 Route::get('dashboard', function () {
     $user = auth()->user();
+    $effectiveRole = $user->role;
 
     if ($user->role === UserRole::SUPER_ADMIN) {
+        $viewAsRole = (string) (request()->session()->get('view_as_role') ?? '');
+        $allowed = [
+            UserRole::ADMIN->value,
+            UserRole::REGISTRAR->value,
+            UserRole::FINANCE->value,
+            UserRole::TEACHER->value,
+            UserRole::STUDENT->value,
+            UserRole::PARENT->value,
+        ];
+
+        if (in_array($viewAsRole, $allowed, true)) {
+            $effectiveRole = UserRole::from($viewAsRole);
+        }
+    }
+
+    if ($effectiveRole === UserRole::SUPER_ADMIN) {
         return app(SuperAdminDashboardController::class)->index();
     }
 
-    if ($user->role === UserRole::ADMIN) {
+    if ($effectiveRole === UserRole::ADMIN) {
         return app(AdminDashboardController::class)->index();
     }
 
-    if ($user->role === UserRole::FINANCE) {
+    if ($effectiveRole === UserRole::FINANCE) {
         return app(FinanceDashboardController::class)->index();
     }
 
-    if ($user->role === UserRole::REGISTRAR) {
+    if ($effectiveRole === UserRole::REGISTRAR) {
         return app(RegistrarDashboardController::class)->index();
     }
 
-    if ($user->role === UserRole::TEACHER) {
+    if ($effectiveRole === UserRole::TEACHER) {
         return app(TeacherDashboardController::class)->index(request());
     }
 
-    if ($user->role === UserRole::STUDENT) {
+    if ($effectiveRole === UserRole::STUDENT) {
         return app(StudentDashboardController::class)->index();
     }
 
-    if ($user->role === UserRole::PARENT) {
+    if ($effectiveRole === UserRole::PARENT) {
         return app(ParentDashboardController::class)->index();
     }
 
-    return Inertia::render("{$user->role->value}/dashboard");
+    return Inertia::render("{$effectiveRole->value}/dashboard");
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::get('system-help', function () {

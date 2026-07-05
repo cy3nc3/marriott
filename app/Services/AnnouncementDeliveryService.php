@@ -69,8 +69,7 @@ class AnnouncementDeliveryService
             }
 
             if ($shouldSendEmail) {
-                $recipientEmail = trim((string) $recipient->email);
-                if ($recipientEmail !== '') {
+                foreach ($this->resolveRecipientEmails($recipient) as $recipientEmail) {
                     Notification::route('mail', $recipientEmail)
                         ->notify(new AnnouncementDeliveryNotification($announcement));
                     $emailSent++;
@@ -104,6 +103,22 @@ class AnnouncementDeliveryService
             'sms_skipped' => $smsSkipped,
             'warning' => $warningReason,
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function resolveRecipientEmails(User $recipient): array
+    {
+        return collect([
+            $recipient->email,
+            $recipient->personal_email,
+        ])
+            ->filter(fn (mixed $email): bool => is_string($email) && filter_var(trim($email), FILTER_VALIDATE_EMAIL) !== false)
+            ->map(fn (string $email): string => strtolower(trim($email)))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**

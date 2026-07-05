@@ -5,11 +5,15 @@ namespace App\Http\Controllers\Teacher;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Teacher\Concerns\ResolvesTeacherAcademicYearAccess;
 use App\Models\AcademicYear;
+use App\Models\Attendance;
 use App\Models\ClassSchedule;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
+use App\Models\GradeSubmission;
+use App\Models\Section;
 use App\Models\SubjectAssignment;
 use App\Services\DashboardCacheService;
+use App\Services\DashboardDecisionService;
 use Carbon\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -17,6 +21,10 @@ use Inertia\Response;
 class DashboardController extends Controller
 {
     use ResolvesTeacherAcademicYearAccess;
+
+    public function __construct(
+        private readonly DashboardDecisionService $dashboardDecisionService,
+    ) {}
 
     public function index(): Response
     {
@@ -41,47 +49,36 @@ class DashboardController extends Controller
                             $sectionQuery->where('academic_year_id', $selectedAcademicYearId);
                         });
                     })
-                    ->where(function ($query) use ($teacherId) {
-                        $query
-                            ->whereHas('subjectAssignment.teacherSubject', function ($teacherQuery) use ($teacherId) {
-                                $teacherQuery->where('teacher_id', $teacherId);
-                            })
-                            ->orWhere(function ($advisoryQuery) use ($teacherId) {
-                                $advisoryQuery
-                                    ->whereNull('subject_assignment_id')
-                                    ->whereHas('section', function ($sectionQuery) use ($teacherId) {
-                                        $sectionQuery->where('adviser_id', $teacherId);
-                                    });
-                            });
+                    ->whereHas('subjectAssignment.teacherSubject', function ($teacherQuery) use ($teacherId) {
+                        $teacherQuery->where('teacher_id', $teacherId);
                     })
                     ->orderBy('start_time')
-                    ->orderBy('end_time')
                     ->get()
-                    ->map(function (ClassSchedule $classSchedule): array {
-                        $title = $classSchedule->subjectAssignment?->teacherSubject?->subject?->subject_name
-                            ?? ($classSchedule->label ?: 'Advisory');
-
-                        $gradeLevelName = $classSchedule->section?->gradeLevel?->name;
-                        $sectionName = $classSchedule->section?->name;
-                        $sectionLabel = $sectionName;
-                        if ($gradeLevelName && $sectionName) {
-                            $sectionLabel = "{$gradeLevelName} - {$sectionName}";
-                        }
-
-                        return [
-                            'id' => $classSchedule->id,
-                            'start' => $this->toHourMinute($classSchedule->start_time),
-                            'end' => $this->toHourMinute($classSchedule->end_time),
-                            'time_label' => $this->toTimeLabel($classSchedule->start_time, $classSchedule->end_time),
-                            'title' => $title,
-                            'section' => $sectionLabel ?: 'Unassigned',
-                            'duration_minutes' => max(
-                                0,
-                                (int) Carbon::createFromFormat('H:i:s', $classSchedule->start_time)
-                                    ->diffInMinutes(Carbon::createFromFormat('H:i:s', $classSchedule->end_time))
-                            ),
-                        ];
-                    })
+                    ->map(fn (ClassSchedule $schedule) => [
+                        'id' => $schedule->id,
+                        'title' => $schedule->subjectAssignment?->teacherSubject?->subject?->subject_name ?? $schedule->label ?? 'No Title',
+                        'section' => ($schedule->section?->gradeLevel?->name ?? '').' - '.($schedule->section?->name ?? ''),
+                        'time' => Carbon::parse((string) $schedule->start_time)->format('H:i').' - '.Carbon::parse((string) $schedule->end_time)->format('H:i'),
+                        'is_academic' => $schedule->type === 'academic',
+                        'is_advisory' => $schedule->section?->adviser_id === $teacherId,
+                    ])
+                    ->concat(
+                        Section::query()
+                            ->with('gradeLevel:id,name')
+                            ->where('adviser_id', $teacherId)
+                            ->when($selectedAcademicYearId, fn ($query) => $query->where('academic_year_id', $selectedAcademicYearId))
+                            ->orderBy('grade_level_id')
+                            ->orderBy('name')
+                            ->get(['id', 'academic_year_id', 'grade_level_id', 'name', 'adviser_id'])
+                            ->map(fn (Section $section) => [
+                                'id' => -1 * (int) $section->id,
+                                'title' => 'Advisory',
+                                'section' => ($section->gradeLevel?->name ?? '').' - '.($section->name ?? ''),
+                                'time' => 'Advisory section',
+                                'is_academic' => false,
+                                'is_advisory' => true,
+                            ])
+                    )
                     ->values()
                     ->all();
             }
@@ -89,14 +86,20 @@ class DashboardController extends Controller
 
         $activeYear = $selectedAcademicYearId
             ? AcademicYear::query()->find($selectedAcademicYearId)
-            : null;
+            : AcademicYear::query()->where('status', 'ongoing')->first();
 
+        $cachedMetrics = [];
         $totalClassesCount = 0;
         $finalizedClassesCount = 0;
-        $unfinalizedClassesCount = 0;
         $totalPendingGradeRows = 0;
-        $atRiskLearnersCount = 0;
         $pendingRowsByClass = [];
+        $atRiskLearnersCount = 0;
+        $academicRiskByClass = [];
+        $attendanceRiskCount = 0;
+        $attendanceRiskBySection = [];
+        $submissionSlaRate = 0.0;
+        $slaStatusRows = [];
+        $unfinalizedClassesCount = 0;
 
         if ($activeYear) {
             $currentQuarter = (string) ($activeYear->current_quarter ?: '1');
@@ -124,8 +127,11 @@ class DashboardController extends Controller
                     $finalizedClassesCount = 0;
                     $totalPendingGradeRows = 0;
                     $pendingRowsByClass = [];
+                    $academicRiskByClass = [];
 
                     if ($totalClassesCount > 0) {
+                        $classAssignmentIds = $classAssignments->pluck('id')->all();
+
                         $enrolledCountBySection = Enrollment::query()
                             ->where('academic_year_id', $activeYear->id)
                             ->whereIn('section_id', $classAssignments->pluck('section_id')->unique())
@@ -136,7 +142,7 @@ class DashboardController extends Controller
 
                         $finalGradeSummaryByClass = FinalGrade::query()
                             ->where('quarter', $currentQuarter)
-                            ->whereIn('subject_assignment_id', $classAssignments->pluck('id'))
+                            ->whereIn('subject_assignment_id', $classAssignmentIds)
                             ->selectRaw('subject_assignment_id, count(*) as total, sum(case when is_locked then 1 else 0 end) as locked_total')
                             ->groupBy('subject_assignment_id')
                             ->get()
@@ -172,6 +178,25 @@ class DashboardController extends Controller
                                 $finalizedClassesCount++;
                             }
                         }
+
+                        $academicRiskByClass = FinalGrade::query()
+                            ->join('subject_assignments', 'final_grades.subject_assignment_id', '=', 'subject_assignments.id')
+                            ->join('sections', 'subject_assignments.section_id', '=', 'sections.id')
+                            ->join('grade_levels', 'sections.grade_level_id', '=', 'grade_levels.id')
+                            ->join('teacher_subjects', 'subject_assignments.teacher_subject_id', '=', 'teacher_subjects.id')
+                            ->join('subjects', 'teacher_subjects.subject_id', '=', 'subjects.id')
+                            ->whereIn('final_grades.subject_assignment_id', $classAssignmentIds)
+                            ->where('final_grades.quarter', $currentQuarter)
+                            ->where('final_grades.grade', '<', 75)
+                            ->selectRaw("CONCAT(grade_levels.name, ' - ', sections.name, ' (', subjects.subject_name, ')') as class_label, count(*) as at_risk_count")
+                            ->groupBy('class_label')
+                            ->orderByDesc('at_risk_count')
+                            ->get()
+                            ->map(fn ($row) => [
+                                'label' => (string) $row->class_label,
+                                'value' => (int) $row->at_risk_count,
+                            ])
+                            ->all();
                     }
 
                     $atRiskLearnersCount = FinalGrade::query()
@@ -187,6 +212,8 @@ class DashboardController extends Controller
                         'total_pending_grade_rows' => $totalPendingGradeRows,
                         'pending_rows_by_class' => $pendingRowsByClass,
                         'at_risk_learners_count' => $atRiskLearnersCount,
+                        'class_assignment_ids' => $classAssignments->pluck('id')->map(fn ($id): int => (int) $id)->all(),
+                        'academic_risk_by_class' => $academicRiskByClass,
                     ];
                 }
             );
@@ -196,201 +223,143 @@ class DashboardController extends Controller
             $totalPendingGradeRows = (int) $cachedMetrics['total_pending_grade_rows'];
             $pendingRowsByClass = $cachedMetrics['pending_rows_by_class'];
             $atRiskLearnersCount = (int) $cachedMetrics['at_risk_learners_count'];
+            $academicRiskByClass = $cachedMetrics['academic_risk_by_class'] ?? [];
             $unfinalizedClassesCount = max($totalClassesCount - $finalizedClassesCount, 0);
+
+            $classAssignmentIds = collect($cachedMetrics['class_assignment_ids'] ?? [])
+                ->map(fn ($id): int => (int) $id)
+                ->filter(fn (int $id): bool => $id > 0)
+                ->values();
+
+            if ($classAssignmentIds->isNotEmpty()) {
+                $attendanceLookbackStart = now()->subDays(13)->toDateString();
+                $attendanceRows = Attendance::query()
+                    ->join('enrollments', 'enrollments.id', '=', 'attendances.enrollment_id')
+                    ->join('sections', 'sections.id', '=', 'enrollments.section_id')
+                    ->join('grade_levels', 'grade_levels.id', '=', 'sections.grade_level_id')
+                    ->whereIn('attendances.subject_assignment_id', $classAssignmentIds->all())
+                    ->whereDate('attendances.date', '>=', $attendanceLookbackStart)
+                    ->whereIn('attendances.status', ['absent', 'late'])
+                    ->selectRaw("CONCAT(grade_levels.name, ' - ', sections.name) as section_label, enrollment_id, sum(case when attendances.status = 'absent' then 10 else 5 end) as risk_score")
+                    ->groupBy('section_label', 'enrollment_id')
+                    ->get();
+
+                $attendanceRiskCount = $attendanceRows->where('risk_score', '>=', 70)->count();
+                $attendanceRiskBySection = $attendanceRows->groupBy('section_label')
+                    ->map(fn ($rows, $label) => [
+                        'label' => $label,
+                        'value' => $rows->where('risk_score', '>=', 70)->count(),
+                    ])
+                    ->sortByDesc('value')
+                    ->values()
+                    ->all();
+
+                $submissions = GradeSubmission::query()
+                    ->whereIn('subject_assignment_id', $classAssignmentIds->all())
+                    ->where('quarter', $currentQuarter)
+                    ->get(['status']);
+
+                $totalSubmissions = $submissions->count();
+                $verifiedSubmissions = $submissions->where('status', GradeSubmission::STATUS_VERIFIED)->count();
+                $pendingSubmissions = $totalClassesCount - $totalSubmissions;
+
+                $submissionSlaRate = $totalClassesCount > 0 ? ($verifiedSubmissions / $totalClassesCount) * 100 : 0;
+
+                $slaStatusRows = [
+                    ['status' => 'Verified', 'count' => $verifiedSubmissions],
+                    ['status' => 'Submitted/Pending', 'count' => $totalSubmissions - $verifiedSubmissions],
+                    ['status' => 'Not Yet Submitted', 'count' => $pendingSubmissions],
+                ];
+            }
         }
 
-        $alerts = $this->buildAlerts(
-            $unfinalizedClassesCount,
-            $totalClassesCount,
+        $alerts = $this->dashboardDecisionService->teacherAlerts(
             $atRiskLearnersCount,
-            $totalPendingGradeRows
+            $totalPendingGradeRows,
+            $attendanceRiskCount,
+        );
+
+        $actionLinks = [
+            [
+                'id' => 'open-grading-sheet',
+                'label' => 'Open Grading Sheet',
+                'href' => route('teacher.grading_sheet'),
+            ],
+            [
+                'id' => 'open-attendance',
+                'label' => 'Open Attendance',
+                'href' => route('teacher.attendance'),
+            ],
+            [
+                'id' => 'open-advisory-board',
+                'label' => 'Open Advisory Board',
+                'href' => route('teacher.advisory_board'),
+            ],
+        ];
+
+        $actionLinks = $this->dashboardDecisionService->prioritizeTeacherActionLinks(
+            $actionLinks,
+            $totalPendingGradeRows,
+            $attendanceRiskCount,
+            $atRiskLearnersCount,
+        );
+
+        $kpis = [
+            [
+                'id' => 'teacher-attendance-risk',
+                'label' => 'Class Attendance Summary',
+                'value' => $attendanceRiskCount,
+                'meta' => 'Students with repeated absences or late marks',
+            ],
+            [
+                'id' => 'teacher-grade-sla',
+                'label' => 'Pending Grade Submissions',
+                'value' => number_format($submissionSlaRate, 2).'%',
+                'meta' => 'Current quarter submission coverage',
+            ],
+            [
+                'id' => 'grade-rows-pending',
+                'label' => 'Grade Encoding Status',
+                'value' => $totalPendingGradeRows,
+                'meta' => 'Unposted student grade rows',
+            ],
+            [
+                'id' => 'at-risk-learners',
+                'label' => 'Students With Low Grades',
+                'value' => $atRiskLearnersCount,
+                'meta' => 'Unique learners from current quarter grades',
+            ],
+        ];
+
+        $kpis = $this->dashboardDecisionService->prioritizeTeacherKpis(
+            $kpis,
+            $totalPendingGradeRows,
+            $submissionSlaRate,
+            $atRiskLearnersCount,
+            $attendanceRiskCount,
         );
 
         return Inertia::render('teacher/dashboard', [
-            'kpis' => [
-                [
-                    'id' => 'classes-today',
-                    'label' => 'Classes Today',
-                    'value' => $todaySchedules->count(),
-                    'meta' => 'Scheduled blocks for current day',
-                ],
-                [
-                    'id' => 'quarter-grade-completion',
-                    'label' => 'Quarter Grade Completion',
-                    'value' => "{$finalizedClassesCount} / {$totalClassesCount}",
-                    'meta' => 'Finalized classes for current quarter',
-                ],
-                [
-                    'id' => 'grade-rows-pending',
-                    'label' => 'Grade Rows Pending',
-                    'value' => $totalPendingGradeRows,
-                    'meta' => 'Unposted student grade rows',
-                ],
-                [
-                    'id' => 'at-risk-learners',
-                    'label' => 'At-Risk Learners (<75)',
-                    'value' => $atRiskLearnersCount,
-                    'meta' => 'Unique learners from current quarter grades',
-                ],
-            ],
+            'today_schedules' => $todaySchedules,
+            'kpis' => $kpis,
             'alerts' => $alerts,
-            'trends' => [
-                [
-                    'id' => 'today-classes',
-                    'label' => 'Today Class Snapshot',
-                    'summary' => 'Scheduled class duration per time block',
-                    'display' => 'bar',
-                    'points' => $todaySchedules
-                        ->map(function (array $scheduleItem): array {
-                            return [
-                                'label' => $scheduleItem['start'].'-'.$scheduleItem['end'],
-                                'value' => $scheduleItem['duration_minutes'],
-                            ];
-                        })
-                        ->values()
-                        ->all(),
-                    'chart' => [
-                        'x_key' => 'time_slot',
-                        'rows' => $todaySchedules
-                            ->map(function (array $scheduleItem): array {
-                                return [
-                                    'time_slot' => $scheduleItem['start'].'-'.$scheduleItem['end'],
-                                    'minutes' => $scheduleItem['duration_minutes'],
-                                ];
-                            })
-                            ->values()
-                            ->all(),
-                        'series' => [
-                            [
-                                'key' => 'minutes',
-                                'label' => 'Minutes',
-                            ],
-                        ],
-                    ],
-                ],
-                [
-                    'id' => 'pending-grade-rows-by-class',
-                    'label' => 'Pending Grade Rows by Class',
-                    'summary' => 'Outstanding grade rows per class assignment',
-                    'display' => 'bar',
-                    'points' => $pendingRowsByClass,
-                    'chart' => [
-                        'x_key' => 'class',
-                        'rows' => collect($pendingRowsByClass)
-                            ->map(function (array $point): array {
-                                return [
-                                    'class' => $point['label'],
-                                    'pending_rows' => $point['value'],
-                                ];
-                            })
-                            ->values()
-                            ->all(),
-                        'series' => [
-                            [
-                                'key' => 'pending_rows',
-                                'label' => 'Pending Rows',
-                            ],
-                        ],
-                    ],
-                ],
-            ],
-            'action_links' => [
-                [
-                    'id' => 'open-grading-sheet',
-                    'label' => 'Open Grading Sheet',
-                    'href' => route('teacher.grading_sheet'),
-                ],
-                [
-                    'id' => 'open-advisory-board',
-                    'label' => 'Open Advisory Board',
-                    'href' => route('teacher.advisory_board'),
-                ],
-                [
-                    'id' => 'open-teacher-schedule',
-                    'label' => 'Open My Schedule',
-                    'href' => route('teacher.schedule'),
-                ],
-            ],
             'quarter_grade_completion' => [
                 'total_classes' => $totalClassesCount,
                 'finalized_classes' => $finalizedClassesCount,
                 'unfinalized_classes' => $unfinalizedClassesCount,
+                'total_pending_rows' => $totalPendingGradeRows,
+            ],
+            'trends' => $this->dashboardDecisionService->teacherTrends(
+                $academicRiskByClass,
+                $pendingRowsByClass,
+                $attendanceRiskBySection,
+                $slaStatusRows,
+            ),
+            'action_links' => $actionLinks,
+            'context' => [
+                'current_quarter' => $activeYear?->current_quarter,
+                'academic_year_name' => $activeYear?->name,
             ],
         ]);
-    }
-
-    private function toHourMinute(string $timeValue): string
-    {
-        return substr($timeValue, 0, 5);
-    }
-
-    private function toTimeLabel(string $startTime, string $endTime): string
-    {
-        $start = Carbon::createFromFormat('H:i:s', $startTime)->format('h:i A');
-        $end = Carbon::createFromFormat('H:i:s', $endTime)->format('h:i A');
-
-        return "{$start} - {$end}";
-    }
-
-    /**
-     * @return array<int, array{id: string, title: string, message: string, severity: string}>
-     */
-    private function buildAlerts(
-        int $unfinalizedClassesCount,
-        int $totalClassesCount,
-        int $atRiskLearnersCount,
-        int $totalPendingGradeRows
-    ): array {
-        $alerts = [];
-
-        if ($unfinalizedClassesCount > 0) {
-            $severity = $totalClassesCount > 0
-                && ($unfinalizedClassesCount / $totalClassesCount) >= 0.5
-                ? 'critical'
-                : 'warning';
-
-            $alerts[] = [
-                'id' => 'grade-finalization',
-                'title' => 'Quarter grades are not fully finalized',
-                'message' => "{$unfinalizedClassesCount} class(es) are still unlocked for the current quarter.",
-                'severity' => $severity,
-            ];
-        }
-
-        if ($totalPendingGradeRows > 0) {
-            $alerts[] = [
-                'id' => 'pending-grade-rows',
-                'title' => 'Pending grade rows require encoding',
-                'message' => "{$totalPendingGradeRows} grade row(s) are still missing.",
-                'severity' => $totalPendingGradeRows >= 20 ? 'critical' : 'warning',
-            ];
-        }
-
-        if ($atRiskLearnersCount >= 15) {
-            $alerts[] = [
-                'id' => 'at-risk-learners',
-                'title' => 'High number of at-risk learners',
-                'message' => "{$atRiskLearnersCount} learner(s) currently have quarter grade below 75.",
-                'severity' => 'critical',
-            ];
-        } elseif ($atRiskLearnersCount >= 5) {
-            $alerts[] = [
-                'id' => 'at-risk-learners',
-                'title' => 'At-risk learners require intervention',
-                'message' => "{$atRiskLearnersCount} learner(s) currently have quarter grade below 75.",
-                'severity' => 'warning',
-            ];
-        }
-
-        if ($alerts === []) {
-            $alerts[] = [
-                'id' => 'teacher-stable',
-                'title' => 'Teaching dashboard is stable',
-                'message' => 'Class finalization, grade encoding, and learner risk signals are within target thresholds.',
-                'severity' => 'info',
-            ];
-        }
-
-        return $alerts;
     }
 }

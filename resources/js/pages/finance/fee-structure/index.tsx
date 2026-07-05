@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Download, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -313,13 +319,33 @@ export default function FeeStructure({
             <div className="flex flex-col gap-6">
                 <Card>
                     <CardHeader className="border-b">
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Fee Breakdown by Grade</CardTitle>
-                            <div className="flex items-center gap-2">
-                                <p className="text-sm text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm text-muted-foreground mr-2">
                                     Active School Year: {selectedSchoolYearName}
                                 </p>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm" className="gap-2">
+                                            <Download className="size-4" />
+                                            Export
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => window.location.assign(`/finance/fee-structure/export?format=xlsx&academic_year_id=${selectedSchoolYearId}`)}>
+                                            Export as Excel (.xlsx)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => window.location.assign(`/finance/fee-structure/export?format=csv&academic_year_id=${selectedSchoolYearId}`)}>
+                                            Export as CSV (.csv)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => window.location.assign(`/finance/fee-structure/export?format=pdf&academic_year_id=${selectedSchoolYearId}`)}>
+                                            Export as PDF (.pdf)
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                                 <Button
+                                    size="sm"
                                     onClick={openAddDialog}
                                     disabled={
                                         grade_level_fees.length === 0 ||

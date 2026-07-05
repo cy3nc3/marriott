@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SuperAdmin\UpdateSettingRequest;
 use App\Models\Setting;
 use App\Services\AuditLogService;
 use App\Services\SystemBackupService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -25,26 +26,12 @@ class SettingController extends Controller
         ]);
     }
 
-    public function store(
-        Request $request,
-        SystemBackupService $backupService,
+    public function update(
+        UpdateSettingRequest $request,
         AuditLogService $auditLogService,
+        SystemBackupService $backupService,
     ): RedirectResponse {
-        $validated = $request->validate([
-            'school_name' => 'nullable|string|max:255',
-            'school_id' => 'nullable|string|max:255',
-            'address' => 'nullable|string|max:1000',
-            'maintenance_mode' => 'nullable|boolean',
-            'parent_portal' => 'nullable|boolean',
-            'backup_interval' => 'nullable|string|in:week,month,custom',
-            'backup_interval_days' => 'nullable|integer|min:1|max:365|required_if:backup_interval,custom',
-            'backup_on_quarter' => 'nullable|boolean',
-            'backup_on_year_end' => 'nullable|boolean',
-            'logo' => 'nullable|image|max:2048',
-            'header' => 'nullable|image|max:4096',
-            'run_backup' => 'nullable|boolean',
-            'restore_file' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
         if (! empty($validated['restore_file'])) {
             $restore = $backupService->restoreBackup($validated['restore_file']);
@@ -68,12 +55,19 @@ class SettingController extends Controller
             'school_name',
             'school_id',
             'address',
+            'division',
+            'district',
+            'principal_name',
             'maintenance_mode',
             'parent_portal',
             'backup_interval',
             'backup_interval_days',
             'backup_on_quarter',
             'backup_on_year_end',
+            'teacher_assignment_policy_mode',
+            'teacher_assignment_allow_provisional',
+            'teacher_assignment_allow_admin_override',
+            'teacher_assignment_require_override_reason',
         ];
 
         $updatedSettings = [];
@@ -93,9 +87,11 @@ class SettingController extends Controller
                 $value = (string) $value;
             }
 
-            $group = in_array($key, ['school_name', 'school_id', 'address'], true)
-                ? 'system'
-                : 'backup';
+            $group = match (true) {
+                in_array($key, ['school_name', 'school_id', 'address', 'division', 'district', 'principal_name'], true) => 'system',
+                in_array($key, ['backup_interval', 'backup_interval_days', 'backup_on_quarter', 'backup_on_year_end'], true) => 'backup',
+                default => 'teacher_qualification',
+            };
 
             Setting::set($key, $value, $group);
             $updatedSettings[$key] = $value;
@@ -135,6 +131,18 @@ class SettingController extends Controller
         }
 
         return back()->with('success', 'Settings updated successfully.');
+    }
+
+    public function previewBackup(Request $request, SystemBackupService $backupService): \Illuminate\Http\JsonResponse
+    {
+        $fileName = (string) $request->query('file');
+        $preview = $backupService->getBackupPreview($fileName);
+
+        if (! $preview) {
+            return response()->json(['error' => 'Backup not found'], 404);
+        }
+
+        return response()->json($preview);
     }
 
     private function deletePublicAsset(?string $publicUrl): void

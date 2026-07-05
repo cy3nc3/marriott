@@ -31,6 +31,8 @@ class AnnouncementNotificationController extends Controller
         }
 
         $search = trim((string) $request->input('search', ''));
+        $normalizedSearch = mb_strtolower($search);
+        $searchPattern = "%{$normalizedSearch}%";
         $status = (string) $request->input('status', 'all');
 
         if (! in_array($status, ['all', 'unread', 'read'], true)) {
@@ -57,11 +59,11 @@ class AnnouncementNotificationController extends Controller
                         ]);
                 },
             ])
-            ->when($search !== '', function ($query) use ($search): void {
-                $query->where(function ($searchQuery) use ($search): void {
+            ->when($search !== '', function ($query) use ($searchPattern): void {
+                $query->where(function ($searchQuery) use ($searchPattern): void {
                     $searchQuery
-                        ->where('title', 'like', "%{$search}%")
-                        ->orWhere('content', 'like', "%{$search}%");
+                        ->whereRaw('LOWER(title) LIKE ?', [$searchPattern])
+                        ->orWhereRaw('LOWER(content) LIKE ?', [$searchPattern]);
                 });
             })
             ->when($status === 'unread', function ($query) use ($user): void {

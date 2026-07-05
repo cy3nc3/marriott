@@ -26,7 +26,12 @@ class TeacherSeeder extends Seeder
         foreach (self::TEACHERS as $teacher) {
             $firstName = $teacher['first_name'];
             $lastName = $teacher['last_name'];
-            $email = $this->staffEmail($firstName, $lastName);
+
+            $firstToken = Str::of($firstName)->ascii()->lower()->replaceMatches('/[^a-z0-9 ]+/', '')->squish()->explode(' ')->filter()->first();
+            $lastToken = Str::of($lastName)->ascii()->lower()->replaceMatches('/[^a-z0-9]+/', '');
+
+            $email = "{$firstToken}.{$lastToken}@marriott.edu";
+            $personalEmail = "{$firstToken}.{$lastToken}@test.com";
 
             User::updateOrCreate(
                 ['email' => $email],
@@ -34,30 +39,12 @@ class TeacherSeeder extends Seeder
                     'first_name' => $firstName,
                     'last_name' => $lastName,
                     'name' => "{$firstName} {$lastName}",
+                    'personal_email' => $personalEmail,
                     'password' => Hash::make('password'),
                     'birthday' => '1980-01-01',
                     'role' => UserRole::TEACHER,
                 ]
             );
         }
-    }
-
-    private function staffEmail(string $firstName, string $lastName): string
-    {
-        $firstToken = Str::of($firstName)
-            ->ascii()
-            ->lower()
-            ->replaceMatches('/[^a-z0-9 ]+/', '')
-            ->squish()
-            ->explode(' ')
-            ->filter()
-            ->first();
-
-        $lastToken = Str::of($lastName)
-            ->ascii()
-            ->lower()
-            ->replaceMatches('/[^a-z0-9]+/', '');
-
-        return "{$firstToken}.{$lastToken}@marriott.edu";
     }
 }

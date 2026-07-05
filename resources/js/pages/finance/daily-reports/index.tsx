@@ -1,12 +1,20 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Download, Printer } from 'lucide-react';
-import { useState } from 'react';
+import { Download, ListFilter, Printer } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRangePicker } from '@/components/ui/date-picker';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
     Select,
     SelectContent,
@@ -167,6 +175,15 @@ export default function DailyReports({
         filters.payment_mode ?? 'mode-all',
     );
 
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (selectedSchoolYearId) count++;
+        if (cashierFilter !== 'cashier-all') count++;
+        if (paymentModeFilter !== 'mode-all') count++;
+        if (reportDateRange?.from || reportDateRange?.to) count++;
+        return count;
+    }, [selectedSchoolYearId, cashierFilter, paymentModeFilter, reportDateRange]);
+
     const applyFilters = () => {
         router.get(
             daily_reports.url({
@@ -220,8 +237,9 @@ export default function DailyReports({
         );
     };
 
-    const exportXlsx = () => {
+    const triggerExport = (formatType: 'xlsx' | 'csv' | 'pdf') => {
         const query = new URLSearchParams();
+        query.set('format', formatType);
 
         if (selectedSchoolYearId) {
             query.set('academic_year_id', selectedSchoolYearId);
@@ -254,106 +272,155 @@ export default function DailyReports({
                 <Card>
                     <CardHeader className="border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <CardTitle>Daily Collection Report</CardTitle>
+                            <div className="space-y-1">
+                                <CardTitle>Daily Collection Report</CardTitle>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                                        {summary.transaction_count} transactions
+                                    </Badge>
+                                </div>
+                            </div>
                             <div className="flex items-center gap-2">
                                 <Button
                                     variant="outline"
                                     type="button"
                                     onClick={() => window.print()}
+                                    className="hidden sm:flex"
                                 >
-                                    <Printer className="size-4" />
+                                    <Printer className="mr-2 size-4" />
                                     Print Z-Reading
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    type="button"
-                                    onClick={exportXlsx}
-                                >
-                                    <Download className="size-4" />
-                                    Export XLSX
-                                </Button>
+
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="gap-2">
+                                            <ListFilter className="size-4" />
+                                            Filters
+                                            {activeFilterCount > 0 && (
+                                                <Badge variant="secondary" className="ml-1 px-1 py-0 text-[10px]">
+                                                    {activeFilterCount}
+                                                </Badge>
+                                            )}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-80" align="end">
+                                        <div className="grid gap-4">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="font-medium leading-none">Report Filters</h4>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-auto p-0 text-xs text-muted-foreground"
+                                                    onClick={resetFilters}
+                                                >
+                                                    Reset
+                                                </Button>
+                                            </div>
+                                            <div className="grid gap-4">
+                                                <div className="grid gap-2">
+                                                    <Label>Date Range</Label>
+                                                    <DateRangePicker
+                                                        dateRange={reportDateRange}
+                                                        setDateRange={setReportDateRange}
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <Label>School Year</Label>
+                                                    <Select
+                                                        value={selectedSchoolYearId}
+                                                        onValueChange={setSelectedSchoolYearId}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {school_year_options.map((schoolYear) => (
+                                                                <SelectItem
+                                                                    key={schoolYear.id}
+                                                                    value={String(schoolYear.id)}
+                                                                >
+                                                                    {schoolYear.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <Label>Cashier</Label>
+                                                    <Select
+                                                        value={cashierFilter}
+                                                        onValueChange={setCashierFilter}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="cashier-all">
+                                                                All Cashiers
+                                                            </SelectItem>
+                                                            {cashiers.map((cashier) => (
+                                                                <SelectItem
+                                                                    key={cashier.id}
+                                                                    value={String(cashier.id)}
+                                                                >
+                                                                    {cashier.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <Label>Payment Mode</Label>
+                                                    <Select
+                                                        value={paymentModeFilter}
+                                                        onValueChange={setPaymentModeFilter}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="mode-all">
+                                                                All Payment Modes
+                                                            </SelectItem>
+                                                            <SelectItem value="cash">Cash</SelectItem>
+                                                            <SelectItem value="gcash">GCash</SelectItem>
+                                                            <SelectItem value="bank_transfer">
+                                                                Bank Transfer
+                                                            </SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <Button type="button" size="sm" onClick={applyFilters}>
+                                                    Apply Filters
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="gap-2">
+                                            <Download className="size-4" />
+                                            Export
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => triggerExport('xlsx')}>
+                                            Export as Excel (.xlsx)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => triggerExport('csv')}>
+                                            Export as CSV (.csv)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => triggerExport('pdf')}>
+                                            Export as PDF (.pdf)
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="border-b p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                            <DateRangePicker
-                                dateRange={reportDateRange}
-                                setDateRange={setReportDateRange}
-                                className="w-fit max-w-full"
-                            />
-                            <Select
-                                value={selectedSchoolYearId}
-                                onValueChange={setSelectedSchoolYearId}
-                            >
-                                <SelectTrigger className="w-full sm:w-44">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {school_year_options.map((schoolYear) => (
-                                        <SelectItem
-                                            key={schoolYear.id}
-                                            value={String(schoolYear.id)}
-                                        >
-                                            {schoolYear.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Select
-                                value={cashierFilter}
-                                onValueChange={setCashierFilter}
-                            >
-                                <SelectTrigger className="w-full sm:w-44">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="cashier-all">
-                                        All Cashiers
-                                    </SelectItem>
-                                    {cashiers.map((cashier) => (
-                                        <SelectItem
-                                            key={cashier.id}
-                                            value={String(cashier.id)}
-                                        >
-                                            {cashier.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Select
-                                value={paymentModeFilter}
-                                onValueChange={setPaymentModeFilter}
-                            >
-                                <SelectTrigger className="w-full sm:w-44">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="mode-all">
-                                        All Payment Modes
-                                    </SelectItem>
-                                    <SelectItem value="cash">Cash</SelectItem>
-                                    <SelectItem value="gcash">GCash</SelectItem>
-                                    <SelectItem value="bank_transfer">
-                                        Bank Transfer
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Button type="button" onClick={applyFilters}>
-                                Apply
-                            </Button>
-                            <Button
-                                variant="outline"
-                                type="button"
-                                onClick={resetFilters}
-                            >
-                                Reset
-                            </Button>
-                            <Badge variant="outline">
-                                {summary.transaction_count} transactions
-                            </Badge>
-                        </div>
-                    </CardContent>
 
                     <div className="grid gap-3 border-b p-4 sm:grid-cols-2 lg:grid-cols-4">
                         <div className="rounded-md border px-3 py-2">

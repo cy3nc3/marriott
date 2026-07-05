@@ -233,6 +233,26 @@ test('teacher schedule page is scoped to the active academic year', function () 
         'end_time' => '10:00:00',
     ]);
 
+    ClassSchedule::query()->create([
+        'section_id' => $ongoingSection->id,
+        'subject_assignment_id' => null,
+        'type' => 'break',
+        'label' => 'Recess Break',
+        'day' => 'Monday',
+        'start_time' => '10:00:00',
+        'end_time' => '10:30:00',
+    ]);
+
+    ClassSchedule::query()->create([
+        'section_id' => $ongoingSection->id,
+        'subject_assignment_id' => null,
+        'type' => 'break',
+        'label' => 'Lunch Break',
+        'day' => 'Monday',
+        'start_time' => '12:00:00',
+        'end_time' => '13:00:00',
+    ]);
+
     $this->get('/teacher/schedule')
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
@@ -1143,8 +1163,8 @@ test('teacher dashboard handles high-volume pending grade rows by class', functi
             ->where('quarter_grade_completion.total_classes', 6)
             ->where('quarter_grade_completion.finalized_classes', 0)
             ->where('quarter_grade_completion.unfinalized_classes', 6)
-            ->where('kpis.2.id', 'grade-rows-pending')
-            ->where('kpis.2.value', 12)
+            ->where('kpis.0.id', 'grade-rows-pending')
+            ->where('kpis.0.value', 12)
             ->where('trends.1.id', 'pending-grade-rows-by-class')
             ->where('trends.1.chart.rows', function ($rows): bool {
                 return count($rows) === 6

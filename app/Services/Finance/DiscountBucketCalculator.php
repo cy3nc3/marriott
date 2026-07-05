@@ -8,22 +8,24 @@ use App\Models\StudentDiscount;
 class DiscountBucketCalculator
 {
     /**
-     * @return array{bucket_totals: array<string, float>, total_discount_amount: float}
+     * @return array{bucket_totals: array<string, float>, total_discount_amount: float, applied_discounts: array<int, array{name: string, amount: float}>}
      */
     public function summarizeForStudent(int $studentId, int $academicYearId, float $assessmentFeeTotal): array
     {
         $bucketTotals = $this->emptyBucketTotals();
         $remainingAssessmentAmount = round(max($assessmentFeeTotal, 0), 2);
+        $appliedDiscounts = [];
 
         if ($studentId <= 0 || $academicYearId <= 0 || $remainingAssessmentAmount <= 0) {
             return [
                 'bucket_totals' => $bucketTotals,
                 'total_discount_amount' => 0.0,
+                'applied_discounts' => [],
             ];
         }
 
         $studentDiscounts = StudentDiscount::query()
-            ->with('discount:id,type,value,export_bucket')
+            ->with('discount:id,name,type,value,export_bucket')
             ->where('student_id', $studentId)
             ->where('academic_year_id', $academicYearId)
             ->orderBy('id')
@@ -47,6 +49,11 @@ class DiscountBucketCalculator
                 continue;
             }
 
+            $appliedDiscounts[] = [
+                'name' => $discount->name,
+                'amount' => $appliedAmount,
+            ];
+
             $bucket = array_key_exists((string) $discount->export_bucket, $bucketTotals)
                 ? (string) $discount->export_bucket
                 : Discount::DEFAULT_EXPORT_BUCKET;
@@ -58,6 +65,7 @@ class DiscountBucketCalculator
         return [
             'bucket_totals' => $bucketTotals,
             'total_discount_amount' => round($assessmentFeeTotal - $remainingAssessmentAmount, 2),
+            'applied_discounts' => $appliedDiscounts,
         ];
     }
 

@@ -5,14 +5,19 @@ namespace App\Http\Controllers\Registrar;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
+use App\Models\Section;
 use App\Models\Student;
-use App\Models\Transaction;
 use App\Services\DashboardCacheService;
+use App\Services\DashboardDecisionService;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        private readonly DashboardDecisionService $dashboardDecisionService,
+    ) {}
+
     public function index(): Response
     {
         $activeYear = AcademicYear::query()
@@ -47,87 +52,41 @@ class DashboardController extends Controller
                     });
 
                 $totalEnrolledStudents = (clone $studentScope)->count();
-                $lisSyncedStudents = (clone $studentScope)
-                    ->where('is_lis_synced', true)
-                    ->count();
-                $syncErrorBacklog = (clone $studentScope)
-                    ->where('sync_error_flag', true)
-                    ->count();
 
-                $lisSyncRate = $totalEnrolledStudents > 0
-                    ? round(($lisSyncedStudents / $totalEnrolledStudents) * 100, 2)
-                    : 0.0;
+                $sectionCapacityRows = Section::query()
+                    ->when($activeYear, fn ($query) => $query->where('academic_year_id', $activeYear->id))
+                    ->withCount(['enrollments' => fn ($query) => $query->where('status', 'enrolled')])
+                    ->get(['id', 'name'])
+                    ->map(function ($section) {
+                        $targetCapacity = 40;
+                        $count = (int) $section->enrollments_count;
+                        $utilization = $targetCapacity > 0 ? round(($count / $targetCapacity) * 100, 2) : 0;
 
-                $lisSyncDistributionPoints = [
-                    [
-                        'label' => 'Synced',
-                        'value' => $lisSyncedStudents,
-                    ],
-                    [
-                        'label' => 'Pending',
-                        'value' => max($totalEnrolledStudents - $lisSyncedStudents - $syncErrorBacklog, 0),
-                    ],
-                    [
-                        'label' => 'Errors',
-                        'value' => $syncErrorBacklog,
-                    ],
-                ];
-
-                $paymentMethodLabels = [
-                    'cash' => 'Cash',
-                    'e_wallet' => 'E-Wallet',
-                    'bank_transfer' => 'Bank Transfer',
-                    'check' => 'Check',
-                    'other' => 'Other',
-                ];
-
-                $paymentMethodCounts = Transaction::query()
-                    ->when($activeYear, function ($query) use ($activeYear) {
-                        $query->whereHas('student.enrollments', function ($enrollmentQuery) use ($activeYear) {
-                            $enrollmentQuery
-                                ->where('academic_year_id', $activeYear->id)
-                                ->where('status', '!=', 'dropped');
-                        });
-                    })
-                    ->get(['payment_mode'])
-                    ->map(function (Transaction $transaction): string {
-                        $rawMode = strtolower(trim((string) $transaction->payment_mode));
-
-                        return match ($rawMode) {
-                            'cash' => 'cash',
-                            'gcash',
-                            'ewallet',
-                            'e-wallet',
-                            'e_wallet',
-                            'wallet' => 'e_wallet',
-                            'bank_transfer',
-                            'bank transfer' => 'bank_transfer',
-                            'check',
-                            'cheque' => 'check',
-                            default => 'other',
-                        };
-                    })
-                    ->countBy();
-
-                $paymentMethodPoints = collect($paymentMethodLabels)
-                    ->map(function (string $label, string $methodKey) use ($paymentMethodCounts): array {
                         return [
-                            'label' => $label,
-                            'value' => (int) $paymentMethodCounts->get($methodKey, 0),
+                            'section' => $section->name,
+                            'enrolled' => $count,
+                            'capacity' => $targetCapacity,
+                            'utilization' => $utilization,
                         ];
                     })
+                    ->sortByDesc('utilization')
                     ->values()
                     ->all();
+
+                $bottleneckCount = collect($sectionCapacityRows)->where('utilization', '>=', 90)->count();
+                $waitingForSectionCount = (clone $enrollmentScope)
+                    ->whereIn('status', ['for_cashier_payment', 'enrolled'])
+                    ->whereNotNull('grade_level_id')
+                    ->whereNull('section_id')
+                    ->count();
 
                 return [
                     'intake_queue_pressure' => $intakeQueuePressure,
                     'for_cashier_pipeline' => $forCashierPipeline,
                     'total_enrolled_students' => $totalEnrolledStudents,
-                    'lis_synced_students' => $lisSyncedStudents,
-                    'sync_error_backlog' => $syncErrorBacklog,
-                    'lis_sync_rate' => $lisSyncRate,
-                    'lis_sync_distribution_points' => $lisSyncDistributionPoints,
-                    'payment_method_points' => $paymentMethodPoints,
+                    'section_capacity_rows' => $sectionCapacityRows,
+                    'bottleneck_count' => $bottleneckCount,
+                    'waiting_for_section_count' => $waitingForSectionCount,
                 ];
             }
         );
@@ -135,161 +94,171 @@ class DashboardController extends Controller
         $intakeQueuePressure = (int) $cachedSummary['intake_queue_pressure'];
         $forCashierPipeline = (int) $cachedSummary['for_cashier_pipeline'];
         $totalEnrolledStudents = (int) $cachedSummary['total_enrolled_students'];
-        $lisSyncedStudents = (int) $cachedSummary['lis_synced_students'];
-        $syncErrorBacklog = (int) $cachedSummary['sync_error_backlog'];
-        $lisSyncRate = (float) $cachedSummary['lis_sync_rate'];
-        $lisSyncDistributionPoints = $cachedSummary['lis_sync_distribution_points'];
-        $paymentMethodPoints = $cachedSummary['payment_method_points'];
 
-        $alerts = [];
+        $alerts = $this->dashboardDecisionService->registrarAlerts($intakeQueuePressure);
 
-        if ($intakeQueuePressure >= 60) {
-            $alerts[] = [
-                'id' => 'queue-pressure',
-                'title' => 'High intake queue pressure',
-                'message' => "{$intakeQueuePressure} intake records are waiting for registrar processing.",
-                'severity' => 'critical',
+        $decisionCards = [];
+
+        $enrollmentScope = Enrollment::query()
+            ->when($activeYear, fn ($query) => $query->where('academic_year_id', $activeYear->id));
+
+        $queueItems = (clone $enrollmentScope)
+            ->where('status', 'for_cashier_payment')
+            ->get(['id', 'created_at', 'section_id']);
+
+        $avgQueueAgeHours = $queueItems->count() > 0
+            ? round($queueItems->avg(fn (Enrollment $enrollment): float => (float) $enrollment->created_at?->diffInHours(now()) ?: 0), 1)
+            : 0.0;
+
+        $complianceBase = (clone $enrollmentScope)
+            ->whereIn('status', ['for_cashier_payment', 'enrolled'])
+            ->get(['id', 'report_card_submitted', 'birth_certificate_submitted', 'grade_level_id']);
+        $requirementsMissingCount = $complianceBase
+            ->filter(fn (Enrollment $enrollment): bool => ! $enrollment->report_card_submitted || ! $enrollment->birth_certificate_submitted)
+            ->count();
+        $requirementsCompleteCount = max($complianceBase->count() - $requirementsMissingCount, 0);
+        $requirementsComplianceRate = $complianceBase->count() > 0
+            ? round(($requirementsCompleteCount / $complianceBase->count()) * 100, 2)
+            : 0.0;
+
+        $sectionQueueRows = Enrollment::query()
+            ->with('section:id,name')
+            ->when($activeYear, fn ($query) => $query->where('academic_year_id', $activeYear->id))
+            ->where('status', 'for_cashier_payment')
+            ->get(['id', 'section_id'])
+            ->groupBy('section_id')
+            ->map(function ($records, $sectionId): array {
+                $sectionName = optional($records->first()?->section)->name ?: 'Unassigned';
+
+                return [
+                    'section' => $sectionName,
+                    'items' => $records->count(),
+                ];
+            })
+            ->sortByDesc('items')
+            ->take(8)
+            ->values()
+            ->all();
+
+        $recentAcademicYears = AcademicYear::query()
+            ->orderByDesc('start_date')
+            ->limit(4)
+            ->get(['id', 'name', 'start_date'])
+            ->sortBy('start_date')
+            ->values();
+
+        $continuityRows = [];
+        $returningContinuityRate = 0.0;
+        for ($index = 1; $index < $recentAcademicYears->count(); $index++) {
+            $previousYear = $recentAcademicYears[$index - 1];
+            $currentYear = $recentAcademicYears[$index];
+            $previousStudentIds = Enrollment::query()
+                ->where('academic_year_id', $previousYear->id)
+                ->whereIn('status', ['enrolled', 'for_cashier_payment'])
+                ->pluck('student_id')
+                ->unique();
+            $currentStudentIds = Enrollment::query()
+                ->where('academic_year_id', $currentYear->id)
+                ->whereIn('status', ['enrolled', 'for_cashier_payment'])
+                ->pluck('student_id')
+                ->unique();
+            $returningCount = $currentStudentIds->intersect($previousStudentIds)->count();
+            $nonReturningCount = max($previousStudentIds->diff($currentStudentIds)->count(), 0);
+            $newOrTransfereeCount = max($currentStudentIds->diff($previousStudentIds)->count(), 0);
+            $rate = $previousStudentIds->count() > 0
+                ? round(($returningCount / $previousStudentIds->count()) * 100, 2)
+                : 0.0;
+            $continuityRows[] = [
+                'transition' => "{$previousYear->name} -> {$currentYear->name}",
+                'rate' => $rate,
+                're_enrolled' => $returningCount,
+                'did_not_enroll' => $nonReturningCount,
+                'new_or_transferee' => $newOrTransfereeCount,
             ];
-        } elseif ($intakeQueuePressure >= 25) {
-            $alerts[] = [
-                'id' => 'queue-pressure',
-                'title' => 'Intake queue is rising',
-                'message' => "{$intakeQueuePressure} intake records are waiting for registrar processing.",
-                'severity' => 'warning',
-            ];
+            if ($activeYear && (int) $currentYear->id === (int) $activeYear->id) {
+                $returningContinuityRate = $rate;
+            }
         }
 
-        if ($lisSyncRate < 70) {
-            $alerts[] = [
-                'id' => 'lis-sync',
-                'title' => 'Low LIS sync coverage',
-                'message' => "Only {$lisSyncRate}% of enrolled students are marked as LIS synced.",
-                'severity' => 'critical',
-            ];
-        } elseif ($lisSyncRate < 90) {
-            $alerts[] = [
-                'id' => 'lis-sync',
-                'title' => 'LIS sync completion needs follow-up',
-                'message' => "Current LIS sync rate is {$lisSyncRate}%.",
-                'severity' => 'warning',
-            ];
-        }
+        $actionLinks = [
+            [
+                'id' => 'open-enrollment-queue',
+                'label' => 'Process Oldest Queue First',
+                'href' => route('registrar.enrollment', [
+                    'status' => 'for_cashier_payment',
+                    'sort' => 'oldest',
+                ]),
+            ],
+            [
+                'id' => 'open-missing-requirements',
+                'label' => 'Review Missing Requirements',
+                'href' => route('registrar.student_directory', [
+                    'status' => 'enrolled_with_missing_requirements',
+                    'sort' => 'a_z',
+                ]),
+            ],
+            [
+                'id' => 'open-conditional-records',
+                'label' => 'Review Conditional Records',
+                'href' => route('registrar.permanent_records', [
+                    'record_status' => 'conditional',
+                ]),
+            ],
+        ];
+        $actionLinks = $this->dashboardDecisionService->prioritizeRegistrarActionLinks(
+            $actionLinks,
+            $requirementsMissingCount,
+            $requirementsComplianceRate,
+            $intakeQueuePressure,
+        );
 
-        if ($syncErrorBacklog > 0) {
-            $alerts[] = [
-                'id' => 'sync-errors',
-                'title' => 'LIS sync errors need review',
-                'message' => "{$syncErrorBacklog} student records are flagged with sync errors.",
-                'severity' => $syncErrorBacklog >= 15 ? 'critical' : 'warning',
-            ];
-        }
+        $kpis = [
+            [
+                'id' => 'registrar-capacity-bottlenecks',
+                'label' => 'Students Waiting for Section',
+                'value' => (int) $cachedSummary['waiting_for_section_count'],
+                'meta' => 'Students with grade level but no section',
+            ],
+            [
+                'id' => 'requirements-compliance',
+                'label' => 'Students With Missing Requirements',
+                'value' => $requirementsMissingCount,
+                'meta' => "{$requirementsMissingCount} with missing requirements",
+            ],
+            [
+                'id' => 'for-cashier-pipeline',
+                'label' => 'Enrollment Queue',
+                'value' => $forCashierPipeline,
+                'meta' => 'Enrollments waiting for cashier payment',
+            ],
+            [
+                'id' => 'intake-queue-age',
+                'label' => 'Average Queue Wait',
+                'value' => $avgQueueAgeHours.'h',
+                'meta' => "{$intakeQueuePressure} records waiting",
+            ],
+        ];
 
-        if ($alerts === []) {
-            $alerts[] = [
-                'id' => 'registrar-stable',
-                'title' => 'Registrar dashboard is stable',
-                'message' => 'Intake, cashier handoff, and LIS synchronization are within target thresholds.',
-                'severity' => 'info',
-            ];
-        }
+        $kpis = $this->dashboardDecisionService->prioritizeRegistrarKpis(
+            $kpis,
+            $requirementsMissingCount,
+            $requirementsComplianceRate,
+            $intakeQueuePressure,
+        );
 
         return Inertia::render('registrar/dashboard', [
-            'kpis' => [
-                [
-                    'id' => 'intake-queue',
-                    'label' => 'Intake Queue Pressure',
-                    'value' => $intakeQueuePressure,
-                    'meta' => 'Ready for cashier handoff',
-                ],
-                [
-                    'id' => 'cashier-pipeline',
-                    'label' => 'For Cashier Pipeline',
-                    'value' => $forCashierPipeline,
-                    'meta' => 'Awaiting payment processing',
-                ],
-                [
-                    'id' => 'lis-sync-rate',
-                    'label' => 'LIS Sync Rate',
-                    'value' => number_format($lisSyncRate, 2).'%',
-                    'meta' => "{$lisSyncedStudents} / {$totalEnrolledStudents} students",
-                ],
-                [
-                    'id' => 'sync-error-backlog',
-                    'label' => 'Sync Error Backlog',
-                    'value' => $syncErrorBacklog,
-                    'meta' => 'Records requiring manual review',
-                ],
-            ],
+            'kpis' => $kpis,
             'alerts' => array_values($alerts),
-            'trends' => [
-                [
-                    'id' => 'lis-sync-distribution',
-                    'label' => 'LIS Sync Distribution',
-                    'summary' => 'Current student sync status mix',
-                    'display' => 'pie',
-                    'points' => $lisSyncDistributionPoints,
-                    'chart' => [
-                        'x_key' => 'status',
-                        'rows' => collect($lisSyncDistributionPoints)
-                            ->map(function (array $point): array {
-                                return [
-                                    'status' => $point['label'],
-                                    'students' => $point['value'],
-                                ];
-                            })
-                            ->values()
-                            ->all(),
-                        'series' => [
-                            [
-                                'key' => 'students',
-                                'label' => 'Students',
-                            ],
-                        ],
-                    ],
-                ],
-                [
-                    'id' => 'payment-method-mix',
-                    'label' => 'Payment Method Options Used',
-                    'summary' => 'Active-year transaction count by payment method',
-                    'display' => 'pie',
-                    'points' => $paymentMethodPoints,
-                    'chart' => [
-                        'x_key' => 'method',
-                        'rows' => collect($paymentMethodPoints)
-                            ->map(function (array $point): array {
-                                return [
-                                    'method' => $point['label'],
-                                    'transactions' => $point['value'],
-                                ];
-                            })
-                            ->values()
-                            ->all(),
-                        'series' => [
-                            [
-                                'key' => 'transactions',
-                                'label' => 'Transactions',
-                            ],
-                        ],
-                    ],
-                ],
-            ],
-            'action_links' => [
-                [
-                    'id' => 'open-enrollment-queue',
-                    'label' => 'Open Enrollment Queue',
-                    'href' => route('registrar.enrollment'),
-                ],
-                [
-                    'id' => 'open-student-directory',
-                    'label' => 'Open Student Directory',
-                    'href' => route('registrar.student_directory'),
-                ],
-                [
-                    'id' => 'open-remedial-entry',
-                    'label' => 'Open Remedial Entry',
-                    'href' => route('registrar.remedial_entry'),
-                ],
-            ],
+            'trends' => $this->dashboardDecisionService->registrarTrends(
+                $cachedSummary['section_capacity_rows'],
+                $sectionQueueRows,
+                $requirementsCompleteCount,
+                $requirementsMissingCount,
+                $continuityRows,
+            ),
+            'action_links' => $actionLinks,
+            'decision_cards' => $decisionCards,
+            'action_queue' => [],
         ]);
     }
 }

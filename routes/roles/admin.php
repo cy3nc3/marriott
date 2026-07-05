@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\GradeVerificationController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\SchoolYearController;
 use App\Http\Controllers\Admin\SectionController;
+use App\Http\Controllers\Admin\TeacherProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -35,6 +36,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::delete('/schedule-builder/{schedule}', [ScheduleController::class, 'destroy'])->middleware('desktop_only')->name('schedule_builder.destroy');
 
     Route::get('/class-lists', [ClassListController::class, 'index'])->middleware('desktop_only')->name('class_lists');
+    Route::get('/teacher-profiles', [TeacherProfileController::class, 'index'])->middleware('desktop_only')->name('teacher_profiles');
+    Route::patch('/teacher-profiles/{user}', [TeacherProfileController::class, 'upsert'])->middleware('desktop_only')->name('teacher_profiles.upsert');
+    Route::get('/teacher-profiles/{user}/documents/download', [TeacherProfileController::class, 'downloadDocument'])->middleware('desktop_only')->name('teacher_profiles.documents.download');
     Route::get('/grade-verification', [GradeVerificationController::class, 'index'])->name('grade_verification');
     Route::post('/grade-verification/deadline', [GradeVerificationController::class, 'updateDeadline'])->middleware('desktop_only')->name('grade_verification.update_deadline');
     Route::patch('/grade-verification/reminder-automation', [GradeVerificationController::class, 'updateReminderAutomation'])->middleware('desktop_only')->name('grade_verification.update_reminder_automation');

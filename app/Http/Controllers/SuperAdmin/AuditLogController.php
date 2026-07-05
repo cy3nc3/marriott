@@ -12,14 +12,18 @@ class AuditLogController extends Controller
 {
     public function index(Request $request): Response
     {
+        $search = trim((string) $request->input('search', ''));
+        $normalizedSearch = mb_strtolower($search);
+        $searchPattern = "%{$normalizedSearch}%";
+
         $logs = AuditLog::query()
             ->with('user:id,name')
-            ->when($request->input('search'), function ($query, $search) {
-                $query->where(function ($searchQuery) use ($search) {
-                    $searchQuery->where('action', 'like', "%{$search}%")
-                        ->orWhere('model_type', 'like', "%{$search}%")
-                        ->orWhereHas('user', function ($q) use ($search) {
-                            $q->where('name', 'like', "%{$search}%");
+            ->when($search !== '', function ($query) use ($searchPattern) {
+                $query->where(function ($searchQuery) use ($searchPattern) {
+                    $searchQuery->whereRaw('LOWER(action) LIKE ?', [$searchPattern])
+                        ->orWhereRaw('LOWER(model_type) LIKE ?', [$searchPattern])
+                        ->orWhereHas('user', function ($q) use ($searchPattern) {
+                            $q->whereRaw('LOWER(name) LIKE ?', [$searchPattern]);
                         });
                 });
             })
@@ -40,11 +44,16 @@ class AuditLogController extends Controller
             })
             ->latest()
             ->paginate(20)
+            ->through(fn (AuditLog $log) => $log->makeHidden('ip_address'))
             ->withQueryString();
 
         return Inertia::render('super_admin/audit-logs/index', [
             'logs' => $logs,
-            'filters' => $request->only(['search', 'date_from', 'date_to']),
+            'filters' => [
+                'search' => $search !== '' ? $search : null,
+                'date_from' => $request->input('date_from'),
+                'date_to' => $request->input('date_to'),
+            ],
         ]);
     }
 }

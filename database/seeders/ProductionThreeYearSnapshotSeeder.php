@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Enums\UserRole;
 use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\BillingSchedule;
+use App\Models\ClassSchedule;
 use App\Models\ConductRating;
 use App\Models\Enrollment;
 use App\Models\Fee;
@@ -21,7 +23,6 @@ use App\Models\StudentScore;
 use App\Models\SubjectAssignment;
 use App\Models\Transaction;
 use App\Models\User;
-use App\Enums\UserRole;
 use App\Services\Finance\BillingScheduleService;
 use Carbon\CarbonImmutable;
 use Database\Seeders\Support\SeedNameBank;
@@ -34,13 +35,21 @@ use Illuminate\Support\Str;
 class ProductionThreeYearSnapshotSeeder extends Seeder
 {
     private const COMPLETED_SCHOOL_YEARS = ['2023-2024', '2024-2025'];
+
     private const LATEST_HISTORICAL_YEAR = '2024-2025';
+
     private const CURRENT_YEAR = '2025-2026';
+
     private const COHORT_SCHOOL_YEARS = ['2023-2024', '2024-2025', '2025-2026'];
+
     private const STUDENTS_PER_MAIN_SECTION = 50;
+
     private const STUDENTS_PER_GRADE_TEN_SECTION = 25;
+
     private const CASHIER_QUEUE_SEED_COUNT = 5;
+
     private const MAX_EXTERNAL_PREVIOUS_SCHOOL_RECORDS = 25;
+
     private const EXTERNAL_SCHOOL_NAMES = [
         'St. Bernadette Academy',
         'Quezon City Learning Center',
@@ -68,6 +77,42 @@ class ProductionThreeYearSnapshotSeeder extends Seeder
         $this->enforceStudentIdentityAndEmailFormats();
         $this->enforceRequirementsSubmittedForAllEnrollments();
         $this->enforceSeededAccountPasswords();
+        $this->assertNoDuplicateAcademicScheduleSlots();
+    }
+
+    private function assertNoDuplicateAcademicScheduleSlots(): void
+    {
+        $duplicates = ClassSchedule::query()
+            ->selectRaw('section_id, day, start_time, end_time, count(*) as slot_count')
+            ->where('type', 'academic')
+            ->groupBy('section_id', 'day', 'start_time', 'end_time')
+            ->havingRaw('count(*) > 1')
+            ->orderByDesc('slot_count')
+            ->orderBy('section_id')
+            ->orderBy('day')
+            ->limit(20)
+            ->get();
+
+        if ($duplicates->isEmpty()) {
+            return;
+        }
+
+        $sample = $duplicates
+            ->map(function (ClassSchedule $row): string {
+                return sprintf(
+                    'section_id=%s day=%s %s-%s count=%s',
+                    (string) $row->section_id,
+                    (string) $row->day,
+                    (string) $row->start_time,
+                    (string) $row->end_time,
+                    (string) $row->slot_count,
+                );
+            })
+            ->implode('; ');
+
+        throw new \RuntimeException(
+            "Seeder validation failed: duplicate academic schedule slots found. {$sample}"
+        );
     }
 
     private function enforceRequirementsSubmittedForAllEnrollments(): void
@@ -493,25 +538,25 @@ class ProductionThreeYearSnapshotSeeder extends Seeder
                 ]
             );
 
-                GradeSubmission::withoutEvents(function () use ($academicYear, $assignment): void {
-                    GradeSubmission::query()->updateOrCreate(
-                        [
-                            'academic_year_id' => $academicYear->id,
-                            'subject_assignment_id' => $assignment->id,
-                            'quarter' => '1',
-                        ],
-                        [
-                            'status' => GradeSubmission::STATUS_SUBMITTED,
-                            'submitted_by' => null,
-                            'submitted_at' => CarbonImmutable::parse((string) $academicYear->start_date)->addDays(15),
-                            'verified_by' => null,
-                            'verified_at' => null,
-                            'returned_by' => null,
-                            'returned_at' => null,
-                            'return_notes' => null,
-                        ]
-                    );
-                });
+            GradeSubmission::withoutEvents(function () use ($academicYear, $assignment): void {
+                GradeSubmission::query()->updateOrCreate(
+                    [
+                        'academic_year_id' => $academicYear->id,
+                        'subject_assignment_id' => $assignment->id,
+                        'quarter' => '1',
+                    ],
+                    [
+                        'status' => GradeSubmission::STATUS_SUBMITTED,
+                        'submitted_by' => null,
+                        'submitted_at' => CarbonImmutable::parse((string) $academicYear->start_date)->addDays(15),
+                        'verified_by' => null,
+                        'verified_at' => null,
+                        'returned_by' => null,
+                        'returned_at' => null,
+                        'return_notes' => null,
+                    ]
+                );
+            });
         }
     }
 

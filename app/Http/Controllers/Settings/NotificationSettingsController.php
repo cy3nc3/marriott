@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\UpdateNotificationSettingsRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -23,11 +24,9 @@ class NotificationSettingsController extends Controller
     /**
      * Update the notification settings.
      */
-    public function update(Request $request): RedirectResponse
+    public function update(UpdateNotificationSettingsRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'settings' => 'required|array',
-        ]);
+        $validated = $request->validated();
 
         $request->user()->update([
             'notification_settings' => $validated['settings'],

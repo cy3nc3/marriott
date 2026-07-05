@@ -6,6 +6,7 @@ use App\Http\Controllers\Registrar\BatchPromotionController;
 use App\Http\Controllers\Registrar\DataImportController;
 use App\Http\Controllers\Registrar\EnrollmentController;
 use App\Http\Controllers\Registrar\PermanentRecordsController;
+use App\Http\Controllers\Registrar\PermanentRecordsExportController;
 use App\Http\Controllers\Registrar\RemedialEntryController;
 use App\Http\Controllers\Registrar\StudentDepartureController;
 use App\Http\Controllers\Registrar\StudentDirectoryController;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->name('registrar.')->group(function () {
     Route::get('/student-directory', [StudentDirectoryController::class, 'index'])->name('student_directory');
     Route::patch('/student-directory/{student}', [StudentDirectoryController::class, 'update'])->middleware('desktop_only')->name('student_directory.update');
+    Route::post('/student-directory/{student}/resend-claim-email', [StudentDirectoryController::class, 'resendClaimEmail'])->middleware('desktop_only')->name('student_directory.resend_claim_email');
     Route::post('/student-directory/sf1-upload', [StudentDirectoryController::class, 'uploadSf1'])->middleware('desktop_only')->name('student_directory.sf1_upload');
     Route::get('/student-directory/export-sf1-reference', [StudentDirectoryController::class, 'exportSf1Reference'])->middleware('desktop_only')->name('student_directory.export_sf1_reference');
 
@@ -26,6 +28,7 @@ Route::middleware(['auth', 'verified', 'role:registrar'])->prefix('registrar')->
     Route::delete('/enrollment/{enrollment}', [EnrollmentController::class, 'destroy'])->middleware('desktop_only')->name('enrollment.destroy');
 
     Route::get('/permanent-records', [PermanentRecordsController::class, 'index'])->middleware('desktop_only')->name('permanent_records');
+    Route::get('/permanent-records/export', PermanentRecordsExportController::class)->middleware('desktop_only')->name('permanent_records.export');
     Route::get('/data-import', [DataImportController::class, 'index'])->middleware('desktop_only')->name('data_import');
     Route::get('/data-import/permanent-records/template', [DataImportController::class, 'downloadWorkbookTemplate'])->middleware('desktop_only')->name('data_import.permanent_records.template');
     Route::post('/data-import/permanent-records/preview', [DataImportController::class, 'preview'])->middleware('desktop_only')->name('data_import.permanent_records.preview');

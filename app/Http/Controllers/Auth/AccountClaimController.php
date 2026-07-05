@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\SendAccountClaimOtpRequest;
 use App\Http\Requests\Auth\StoreAccountClaimPasswordRequest;
 use App\Http\Requests\Auth\VerifyAccountClaimOtpRequest;
+use App\Models\AccountClaimToken;
 use App\Services\Auth\AccountClaimPhoneOtpService;
 use App\Services\Auth\EnrollmentAccountClaimService;
 use App\Services\Auth\FirebasePhoneVerificationService;
@@ -30,7 +32,10 @@ class AccountClaimController extends Controller
                 ]);
         }
 
-        $phoneVerified = $this->isPhoneVerified($accountClaimToken->id);
+        $requiresPhoneVerification = $this->requiresPhoneVerification($accountClaimToken);
+        $phoneVerified = $requiresPhoneVerification
+            ? $this->isPhoneVerified($accountClaimToken->id)
+            : true;
         $phoneNumber = (string) ($accountClaimToken->enrollment?->student?->contact_number ?? '');
         $tokenAlreadyUsed = $accountClaimToken->isUsed();
 
@@ -38,6 +43,7 @@ class AccountClaimController extends Controller
             'token' => $token,
             'account_email' => (string) ($accountClaimToken->user?->email ?? ''),
             'phone_number_redacted' => $this->redactPhoneNumber($phoneNumber),
+            'phone_verification_required' => $requiresPhoneVerification,
             'phone_verified' => $tokenAlreadyUsed ? true : $phoneVerified,
             'is_expired' => $tokenAlreadyUsed ? false : ! $accountClaimToken->isUsable(),
             'claim_completed' => $tokenAlreadyUsed || (bool) session('claim_completed', false),
@@ -58,6 +64,15 @@ class AccountClaimController extends Controller
                 'message' => 'This claim link is invalid or has expired.',
                 'errors' => [
                     'token' => ['This claim link is invalid or has expired.'],
+                ],
+            ], 422);
+        }
+
+        if (! $this->requiresPhoneVerification($accountClaimToken)) {
+            return response()->json([
+                'message' => 'Phone verification is not required for this claim link.',
+                'errors' => [
+                    'token' => ['Phone verification is not required for this claim link.'],
                 ],
             ], 422);
         }
@@ -102,6 +117,12 @@ class AccountClaimController extends Controller
                 ->withErrors([
                     'token' => 'This claim link is invalid or has expired.',
                 ]);
+        }
+
+        if (! $this->requiresPhoneVerification($accountClaimToken)) {
+            return back()->withErrors([
+                'token' => 'Phone verification is not required for this claim link.',
+            ]);
         }
 
         if (! config('services.enrollment_claim_sms.enabled', false)) {
@@ -189,7 +210,7 @@ class AccountClaimController extends Controller
                 ]);
         }
 
-        if (! $this->isPhoneVerified($accountClaimToken->id)) {
+        if ($this->requiresPhoneVerification($accountClaimToken) && ! $this->isPhoneVerified($accountClaimToken->id)) {
             return back()->withErrors([
                 'token' => 'Verify your phone number first to continue.',
             ]);
@@ -214,6 +235,20 @@ class AccountClaimController extends Controller
     private function isPhoneVerified(int $claimTokenId): bool
     {
         return (bool) session()->get($this->phoneVerifiedSessionKey($claimTokenId), false);
+    }
+
+    private function requiresPhoneVerification(AccountClaimToken $accountClaimToken): bool
+    {
+        $accountClaimToken->loadMissing('user');
+
+        if (! $accountClaimToken->enrollment_id) {
+            return false;
+        }
+
+        $userRole = $accountClaimToken->user?->role;
+        $roleValue = $userRole instanceof UserRole ? $userRole->value : (string) $userRole;
+
+        return in_array($roleValue, [UserRole::STUDENT->value, UserRole::PARENT->value], true);
     }
 
     private function phoneVerifiedSessionKey(int $claimTokenId): string

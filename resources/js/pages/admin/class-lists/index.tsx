@@ -136,6 +136,12 @@ export default function ClassLists({ gradeLevels, activeYear }: Props) {
         };
     }, [currentSection]);
 
+    const totalStudents = useMemo(() => {
+        return gradeLevels.reduce((count, grade) => {
+            return count + grade.sections.reduce((sectionCount, section) => sectionCount + (section.enrollments?.length ?? 0), 0);
+        }, 0);
+    }, [gradeLevels]);
+
     const getStatusBadge = (status: string) => {
         switch (status.toLowerCase()) {
             case 'enrolled':
@@ -196,6 +202,12 @@ export default function ClassLists({ gradeLevels, activeYear }: Props) {
                                     ))}
                                 </TabsList>
                                 <div className="flex flex-wrap items-center gap-3">
+                                    <Badge variant="secondary" className="h-9 px-3 text-sm">
+                                        Total Students: {totalStudents}
+                                    </Badge>
+                                    <Badge variant="outline" className="h-9 px-3 text-sm">
+                                        Showing: {filteredEnrollments.length}
+                                    </Badge>
                                     <div className="flex items-center gap-2">
                                         <Label>Section</Label>
                                         <Select

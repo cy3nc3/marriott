@@ -2,7 +2,7 @@
 
 use App\Models\AccountClaimToken;
 use App\Models\User;
-use App\Notifications\EnrollmentAccountClaimNotification;
+use App\Notifications\EnrollmentSingleAccountClaimNotification;
 use App\Services\Auth\EnrollmentAccountClaimService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -30,12 +30,12 @@ test('claim account page can be rendered with a valid token', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('auth/claim-account')
             ->where('token', $plainToken)
-            ->where('phone_verified', false)
+            ->where('phone_verified', true)
         );
 });
 
 test('claim token can set password once', function () {
-    $user = User::factory()->create([
+    $user = User::factory()->student()->create([
         'must_change_password' => true,
     ]);
     $plainToken = 'claim-once-token-456';
@@ -128,6 +128,8 @@ test('claim otp can be requested for matching enrollment phone', function () {
         'used_at' => null,
     ]);
 
+    config(['services.enrollment_claim_sms.enabled' => true]);
+
     $this->postJson("/account/claim/{$plainToken}/otp/send", [
         'phone_number' => '09171234567',
     ])->assertOk();
@@ -144,7 +146,7 @@ test('expired claim token can be refreshed after successful otp verification', f
         ], 200),
     ]);
 
-    $user = User::factory()->create([
+    $user = User::factory()->student()->create([
         'must_change_password' => true,
     ]);
     $parentUser = User::factory()->parent()->create();
@@ -187,6 +189,9 @@ test('expired claim token can be refreshed after successful otp verification', f
         'expires_at' => now()->subMinute(),
         'used_at' => null,
     ]);
+
+    config(['services.enrollment_claim_sms.enabled' => true]);
+    config(['services.firebase.api_key' => 'fake-api-key']);
 
     $response = $this->post("/account/claim/{$plainToken}/otp/verify", [
         'id_token' => 'firebase-id-token-demo',
@@ -237,12 +242,10 @@ test('claim notification link uses configured claim base url', function () {
 
     app(EnrollmentAccountClaimService::class)->issueForEnrollment($enrollment);
 
-    Notification::assertSentOnDemand(EnrollmentAccountClaimNotification::class, function (EnrollmentAccountClaimNotification $notification): bool {
+    Notification::assertSentOnDemand(EnrollmentSingleAccountClaimNotification::class, function (EnrollmentSingleAccountClaimNotification $notification): bool {
         $payload = $notification->toArray(new stdClass);
 
-        return str_starts_with((string) $payload['student_claim_url'], 'https://msqc.tech/account/claim/')
-            && ($payload['parent_claim_url'] === null
-                || str_starts_with((string) $payload['parent_claim_url'], 'https://msqc.tech/account/claim/'));
+        return str_starts_with((string) $payload['claim_url'], 'https://msqc.tech/account/claim/');
     });
 });
 
@@ -253,6 +256,7 @@ test('claim tokens are issued for both student and parent accounts when enrollme
 
     $studentUser = User::factory()->student()->create([
         'email' => 'student.claim@example.com',
+        'personal_email' => 'student.personal@example.com',
     ]);
     $parentUser = User::factory()->parent()->create([
         'email' => 'parent.claim@example.com',
@@ -294,7 +298,35 @@ test('claim tokens are issued for both student and parent accounts when enrollme
     expect(AccountClaimToken::query()->where('enrollment_id', $enrollment->id)->where('user_id', $studentUser->id)->exists())->toBeTrue();
     expect(AccountClaimToken::query()->where('enrollment_id', $enrollment->id)->where('user_id', $parentUser->id)->exists())->toBeTrue();
 
-    Notification::assertSentOnDemandTimes(EnrollmentAccountClaimNotification::class, 1);
+    Notification::assertSentOnDemandTimes(EnrollmentSingleAccountClaimNotification::class, 2);
+    Notification::assertSentOnDemand(
+        EnrollmentSingleAccountClaimNotification::class,
+        function (EnrollmentSingleAccountClaimNotification $notification, array $channels, object $notifiable): bool {
+            $mailRoutes = $notifiable->routes['mail'] ?? [];
+
+            if (is_string($mailRoutes)) {
+                $mailRoutes = [$mailRoutes];
+            }
+
+            return in_array('mail', $channels, true)
+                && in_array('student.personal@example.com', $mailRoutes, true)
+                && $notification->toArray(new stdClass)['account_label'] === 'Student';
+        }
+    );
+    Notification::assertSentOnDemand(
+        EnrollmentSingleAccountClaimNotification::class,
+        function (EnrollmentSingleAccountClaimNotification $notification, array $channels, object $notifiable): bool {
+            $mailRoutes = $notifiable->routes['mail'] ?? [];
+
+            if (is_string($mailRoutes)) {
+                $mailRoutes = [$mailRoutes];
+            }
+
+            return in_array('mail', $channels, true)
+                && in_array('guardian.receiver@example.com', $mailRoutes, true)
+                && $notification->toArray(new stdClass)['account_label'] === 'Parent';
+        }
+    );
 });
 
 test('expired parent claim token refresh issues replacement for parent account', function () {
@@ -351,6 +383,9 @@ test('expired parent claim token refresh issues replacement for parent account',
         'expires_at' => now()->subMinute(),
         'used_at' => null,
     ]);
+
+    config(['services.enrollment_claim_sms.enabled' => true]);
+    config(['services.firebase.api_key' => 'fake-api-key']);
 
     $response = $this->post("/account/claim/{$plainToken}/otp/verify", [
         'id_token' => 'firebase-id-token-demo',

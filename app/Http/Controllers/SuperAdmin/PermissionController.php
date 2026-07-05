@@ -4,9 +4,9 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SuperAdmin\UpdatePermissionRequest;
 use App\Models\Permission;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,19 +23,16 @@ class PermissionController extends Controller
 
         return Inertia::render('super_admin/permissions/index', [
             'permissions' => $grouped,
-            'roles' => array_map(fn($role) => [
+            'roles' => array_map(fn ($role) => [
                 'value' => $role->value,
-                'label' => $role->label()
-            ], UserRole::cases())
+                'label' => $role->label(),
+            ], UserRole::cases()),
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(UpdatePermissionRequest $request): RedirectResponse
     {
-        $request->validate([
-            'matrix' => 'required|array',
-            'matrix.*.*.*' => 'required|integer|in:0,1,2',
-        ]);
+        $validated = $request->validated();
 
         foreach ($request->matrix as $category => $features) {
             foreach ($features as $feature => $roleLevels) {

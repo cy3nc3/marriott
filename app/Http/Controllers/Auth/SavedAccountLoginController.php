@@ -39,6 +39,9 @@ class SavedAccountLoginController extends Controller
         }
 
         $this->guard->login($user, true);
+        $user->forceFill([
+            'last_login_at' => now(),
+        ])->save();
         $request->session()->regenerate();
         $this->flashLoginWelcomeToast($request);
         $request->session()->flash(

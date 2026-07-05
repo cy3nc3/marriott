@@ -193,12 +193,12 @@ const roleGuides: Record<string, RoleGuide> = {
             {
                 title: 'Enrollment',
                 href: '/registrar/enrollment',
-                does: 'Handles enrollment intakes for new, returning, transferee, and remedial students.',
+                does: 'Handles enrollments for new, returning, transferee, and remedial students.',
                 use: [
-                    'Create an intake and encode student identity, guardian, contact, and academic details.',
+                    'Create an enrollment and encode student identity, guardian, contact, and academic details.',
                     'Mark submitted requirements such as report card and birth certificate.',
                     'Select payment term and target grade level or section when applicable.',
-                    'Save the intake for cashier payment when payment is required.',
+                    'Save the enrollment for cashier payment when payment is required.',
                     'Print the registration and assessment form when needed.',
                 ],
                 notes: [
@@ -298,13 +298,13 @@ const roleGuides: Record<string, RoleGuide> = {
                 href: '/finance/cashier-panel',
                 does: 'Processes enrollment payments, remedial payments, product purchases, and other cashier transactions.',
                 use: [
-                    'Select the correct payment context such as enrollment intake, remedial intake, or student account.',
+                    'Select the correct payment context such as enrollment, remedial enrollment, or student account.',
                     'Confirm student name, LRN, school year, and amount before posting.',
                     'Select payment method and encode the received amount.',
                     'Post the transaction and print or review the receipt if needed.',
                 ],
                 notes: [
-                    'Enrollment status updates should come from the correct intake payment.',
+                    'Enrollment status updates should come from the correct enrollment payment.',
                 ],
             },
             {
@@ -448,7 +448,7 @@ const roleGuides: Record<string, RoleGuide> = {
     student: {
         label: 'Student',
         summary:
-            'This guide explains the pages students use to view their class schedule and released grades.',
+            'This guide explains the pages students use to view schedule, attendance, and released grades.',
         pages: [
             {
                 title: 'Dashboard',
@@ -481,12 +481,22 @@ const roleGuides: Record<string, RoleGuide> = {
                     'Grades are not visible until the adviser releases them.',
                 ],
             },
+            {
+                title: 'Attendance',
+                href: '/student/attendance',
+                does: 'Shows your attendance entries for each subject.',
+                use: [
+                    'Select a school year to review attendance records.',
+                    'Review Present, Absent, and Tardy totals.',
+                    'Check subject-level entries and remarks for details.',
+                ],
+            },
         ],
     },
     parent: {
         label: 'Parent',
         summary:
-            'This guide explains the pages parents use to monitor schedule, released grades, and billing information.',
+            'This guide explains the pages parents use to monitor schedule, attendance, released grades, and billing information.',
         pages: [
             {
                 title: 'Dashboard',
@@ -516,6 +526,16 @@ const roleGuides: Record<string, RoleGuide> = {
                 ],
                 notes: [
                     'Grades are hidden until verified and released by the school.',
+                ],
+            },
+            {
+                title: 'Attendance',
+                href: '/parent/attendance',
+                does: 'Shows the student’s attendance entries for each subject.',
+                use: [
+                    'Select a school year to review attendance records.',
+                    'Check attendance totals for Present, Absent, and Tardy.',
+                    'Review subject-level attendance entries and remarks.',
                 ],
             },
             {
@@ -608,11 +628,13 @@ const screenshotByRoleHref: Record<string, Record<string, string>> = {
     student: {
         '/dashboard': 'student-dashboard.png',
         '/student/schedule': 'student-schedule.png',
+        '/student/attendance': 'student-attendance.png',
         '/student/grades': 'student-grades.png',
     },
     parent: {
         '/dashboard': 'parent-dashboard.png',
         '/parent/schedule': 'parent-schedule.png',
+        '/parent/attendance': 'parent-attendance.png',
         '/parent/grades': 'parent-grades.png',
         '/parent/billing-information': 'parent-billing-information.png',
     },

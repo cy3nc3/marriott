@@ -29,12 +29,12 @@ test('login screen keeps the right panel fixed while saved account items can scr
 
     expect($loginPageSource)
         ->toBeString()
-        ->toContain('items-start justify-center overflow-hidden')
-        ->not->toContain('items-start justify-center overflow-y-auto');
+        ->toContain('items-center justify-center overflow-hidden')
+        ->not->toContain('items-center justify-center overflow-y-auto');
 
     expect($loginFormSource)
         ->toBeString()
-        ->toContain('max-h-64 space-y-2 overflow-y-auto pr-1');
+        ->toContain('max-h-36 space-y-2 overflow-y-auto pr-1');
 });
 
 test('login screen saved account items include a hover remove action', function () {

@@ -1,11 +1,19 @@
 import { Head, router } from '@inertiajs/react';
-import { Printer, Save } from 'lucide-react';
+import { Download, ListFilter, Save } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
 import { MonthPicker } from '@/components/ui/month-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
     Select,
     SelectContent,
@@ -193,7 +201,7 @@ export default function TeacherAttendance({
         : 'class-none';
     const selectedAcademicYearValue = context.selected_academic_year_id
         ? String(context.selected_academic_year_id)
-        : undefined;
+        : '';
 
     const pendingChangesCount = useMemo(() => {
         let count = 0;
@@ -323,7 +331,7 @@ export default function TeacherAttendance({
         );
     };
 
-    const exportSf2 = () => {
+    const triggerExport = (format: 'xlsx' | 'csv' | 'xls') => {
         if (!hasSelectedClass) {
             return;
         }
@@ -331,6 +339,7 @@ export default function TeacherAttendance({
         const params = new URLSearchParams({
             subject_assignment_id: String(context.selected_subject_assignment_id),
             month: context.selected_month,
+            format,
         });
 
         window.location.assign(`/teacher/attendance/export-sf2?${params.toString()}`);
@@ -344,168 +353,150 @@ export default function TeacherAttendance({
                 <Card className="gap-2">
                     <CardHeader className="border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <CardTitle>Attendance Context</CardTitle>
-                            <Badge variant="outline">
-                                Active School Year:{' '}
-                                {context.active_school_year ??
-                                    'No active school year'}
-                            </Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <div className="flex flex-col gap-3 sm:flex-row">
-                                {context.academic_year_options.length > 0 && (
-                                    <Select
-                                        value={selectedAcademicYearValue}
-                                        onValueChange={handleAcademicYearChange}
-                                    >
-                                        <SelectTrigger className="w-full sm:w-44">
-                                            <SelectValue placeholder="School Year" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {context.academic_year_options.map((year) => (
-                                                <SelectItem
-                                                    key={year.id}
-                                                    value={String(year.id)}
-                                                >
-                                                    {year.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
-                                <Select
-                                    value={selectedClassValue}
-                                    onValueChange={handleClassChange}
-                                    disabled={!hasClasses || isFeatureLocked}
-                                >
-                                    <SelectTrigger className="w-full sm:w-64">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {hasClasses ? (
-                                            context.class_options.map(
-                                                (classOption) => (
-                                                    <SelectItem
-                                                        key={classOption.id}
-                                                        value={String(
-                                                            classOption.id,
-                                                        )}
+                            <div className="space-y-1">
+                                <CardTitle>Attendance Log</CardTitle>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="outline">
+                                        Active School Year:{' '}
+                                        {context.active_school_year ?? 'No active school year'}
+                                    </Badge>
+                                    <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                                        {context.class_options.find(c => String(c.id) === selectedClassValue)?.label ?? 'No Class Selected'}
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="gap-2">
+                                            <ListFilter className="size-4" />
+                                            Filters
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-80" align="end">
+                                        <div className="grid gap-4">
+                                            <h4 className="font-medium leading-none">Context Filters</h4>
+                                            <div className="grid gap-4">
+                                                <div className="grid gap-2">
+                                                    <Label>School Year</Label>
+                                                    <Select
+                                                        value={selectedAcademicYearValue}
+                                                        onValueChange={handleAcademicYearChange}
                                                     >
-                                                        {classOption.label}
-                                                    </SelectItem>
-                                                ),
-                                            )
-                                        ) : (
-                                            <SelectItem
-                                                value="class-none"
-                                                disabled
-                                            >
-                                                No assigned classes
-                                            </SelectItem>
-                                        )}
-                                    </SelectContent>
-                                </Select>
-                                <MonthPicker
-                                    value={context.selected_month}
-                                    onValueChange={handleMonthChange}
-                                    disabled={isFeatureLocked}
-                                    className="w-full sm:w-44"
-                                />
-                            </div>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="School Year" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {context.academic_year_options.map((year) => (
+                                                                <SelectItem key={year.id} value={String(year.id)}>
+                                                                    {year.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <Label>Assigned Class</Label>
+                                                    <Select
+                                                        value={selectedClassValue}
+                                                        onValueChange={handleClassChange}
+                                                        disabled={!hasClasses || isFeatureLocked}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {hasClasses ? (
+                                                                context.class_options.map((classOption) => (
+                                                                    <SelectItem key={classOption.id} value={String(classOption.id)}>
+                                                                        {classOption.label}
+                                                                    </SelectItem>
+                                                                ))
+                                                            ) : (
+                                                                <SelectItem value="class-none" disabled>
+                                                                    No assigned classes
+                                                                </SelectItem>
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <Label>Month</Label>
+                                                    <MonthPicker
+                                                        value={context.selected_month}
+                                                        onValueChange={handleMonthChange}
+                                                        disabled={isFeatureLocked}
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
 
-                            <div className="flex flex-col gap-2 sm:flex-row">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={exportSf2}
-                                    disabled={
-                                        !hasSelectedClass ||
-                                        rows.length === 0 ||
-                                        isFeatureLocked ||
-                                        isMonthOutOfScope
-                                    }
-                                >
-                                    <Printer className="size-4" />
-                                    Print SF2
-                                </Button>
-                                <Button
-                                    onClick={saveAttendance}
-                                    disabled={
-                                        !canEdit || pendingChangesCount < 1
-                                    }
-                                >
-                                    <Save className="size-4" />
-                                    Save Attendance
-                                </Button>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                {isFeatureLocked && feature_lock.message ? (
-                    <Alert>
-                        <AlertTitle>Attendance Unavailable</AlertTitle>
-                        <AlertDescription>
-                            {feature_lock.message}
-                        </AlertDescription>
-                    </Alert>
-                ) : null}
-                {isMonthOutOfScope && month_scope.message ? (
-                    <Alert>
-                        <AlertTitle>Selected Month Is Read Only</AlertTitle>
-                        <AlertDescription>
-                            {month_scope.message}
-                        </AlertDescription>
-                    </Alert>
-                ) : null}
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="gap-2" disabled={!hasSelectedClass || rows.length === 0}>
+                                            <Download className="size-4" />
+                                            Export SF2
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => triggerExport('xlsx')}>
+                                            Export as Excel (.xlsx)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => triggerExport('csv')}>
+                                            Export as CSV (.csv)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => triggerExport('xls')}>
+                                            Export as Excel 97-2003 (.xls)
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
 
-                <Card className="gap-2">
-                    <CardHeader className="border-b">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <CardTitle>Attendance Log</CardTitle>
-                            <div className="flex flex-wrap items-center gap-3 text-xs lg:justify-end">
-                                <span className="font-medium">Legend:</span>
-                                <div className="flex items-center gap-2">
-                                    <Sf2MarkCell
-                                        status="present"
-                                        onClick={() => {}}
-                                        disabled
-                                        sizeClassName="size-6"
-                                    />
-                                    <span>Present</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Sf2MarkCell
-                                        status="absent"
-                                        onClick={() => {}}
-                                        disabled
-                                        sizeClassName="size-6"
-                                    />
-                                    <span>Absent (X)</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Sf2MarkCell
-                                        status="tardy_late_comer"
-                                        onClick={() => {}}
-                                        disabled
-                                        sizeClassName="size-6"
-                                    />
-                                    <span>Tardy: Late Comer</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Sf2MarkCell
-                                        status="tardy_cutting_classes"
-                                        onClick={() => {}}
-                                        disabled
-                                        sizeClassName="size-6"
-                                    />
-                                    <span>Tardy: Cutting Classes</span>
-                                </div>
+                                {pendingChangesCount > 0 && (
+                                    <Button onClick={saveAttendance} className="gap-2">
+                                        <Save className="size-4" />
+                                        Save {pendingChangesCount} Change(s)
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="pt-6">
+                        {isFeatureLocked && feature_lock.message ? (
+                            <Alert className="mb-6">
+                                <AlertTitle>Attendance Unavailable</AlertTitle>
+                                <AlertDescription>{feature_lock.message}</AlertDescription>
+                            </Alert>
+                        ) : null}
+                        {isMonthOutOfScope && month_scope.message ? (
+                            <Alert className="mb-6">
+                                <AlertTitle>Selected Month Is Read Only</AlertTitle>
+                                <AlertDescription>{month_scope.message}</AlertDescription>
+                            </Alert>
+                        ) : null}
+
+                        <div className="mb-6 flex flex-wrap items-center gap-3 text-xs">
+                            <span className="font-medium text-muted-foreground">Legend:</span>
+                            <div className="flex items-center gap-2">
+                                <Sf2MarkCell status="present" onClick={() => {}} disabled sizeClassName="size-5" />
+                                <span>Present</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Sf2MarkCell status="absent" onClick={() => {}} disabled sizeClassName="size-5" />
+                                <span>Absent (X)</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Sf2MarkCell status="tardy_late_comer" onClick={() => {}} disabled sizeClassName="size-5" />
+                                <span>Tardy: Late Comer</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Sf2MarkCell status="tardy_cutting_classes" onClick={() => {}} disabled sizeClassName="size-5" />
+                                <span>Tardy: Cutting Classes</span>
+                            </div>
+                        </div>
+
                         <div className="overflow-x-auto rounded-md border">
                             <Table>
                                 <TableHeader>

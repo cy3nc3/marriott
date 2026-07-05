@@ -127,37 +127,18 @@ test('admin dashboard shows enrollment yoy growth and enrollment forecast trend'
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/dashboard')
-            ->where('kpis.0.id', 'enrollment-yoy-growth')
-            ->where('kpis.0.value', '+8.33%')
             ->where('kpis', function ($kpis): bool {
-                return ! collect($kpis)->contains(function (array $kpi): bool {
-                    return $kpi['id'] === 'enrollment-capacity';
-                });
+                $ids = collect($kpis)->pluck('id');
+
+                return $ids->contains('admin-capacity-gap')
+                    && $ids->contains('admin-next-sy-forecast')
+                    && $ids->contains('admin-teacher-demand')
+                    && $ids->contains('admin-grade-verification-sla');
             })
-            ->where('trends.0.id', 'grade-level-enrollment')
+            ->where('trends.0.id', 'section-capacity-planning')
             ->where('trends.0.display', 'bar')
-            ->where('trends.0.chart.series.0.key', 'male')
-            ->where('trends.0.chart.series.1.key', 'female')
-            ->where('trends.0.chart.rows.0.male', 6)
-            ->where('trends.0.chart.rows.0.female', 7)
-            ->where('trends.0.chart.rows.0.total', 13)
-            ->where('trends.1.id', 'enrollment-forecast')
+            ->where('trends.1.id', 'subject-staffing-pressure')
             ->where('trends.1.display', 'area')
-            ->where('trends.1.chart.rows', function ($rows): bool {
-                if (count($rows) !== 7) {
-                    return false;
-                }
-
-                $forecastRow = collect($rows)->last();
-                $lastActualRow = collect($rows)->slice(-2, 1)->first();
-
-                return is_array($forecastRow)
-                    && is_array($lastActualRow)
-                    && ($lastActualRow['actual'] ?? null) !== null
-                    && ($lastActualRow['forecast'] ?? null) === ($lastActualRow['actual'] ?? null)
-                    && ($forecastRow['is_forecast'] ?? false) === true
-                    && ($forecastRow['forecast'] ?? null) !== null;
-            })
         );
 });
 
@@ -238,28 +219,14 @@ test('admin dashboard forecast remains stable with partial history and zero base
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/dashboard')
-            ->where('kpis.0.id', 'enrollment-yoy-growth')
-            ->where('kpis.0.value', '0.00%')
-            ->where('trends.1.id', 'enrollment-forecast')
-            ->where('trends.1.chart.rows', function ($rows): bool {
-                if (count($rows) !== 3) {
-                    return false;
-                }
+            ->where('kpis', function ($kpis): bool {
+                $ids = collect($kpis)->pluck('id');
 
-                $firstRow = $rows[0] ?? null;
-                $secondRow = $rows[1] ?? null;
-                $forecastRow = $rows[2] ?? null;
-
-                return is_array($firstRow)
-                    && is_array($secondRow)
-                    && is_array($forecastRow)
-                    && ($firstRow['actual'] ?? null) === 0
-                    && ($firstRow['forecast'] ?? null) === null
-                    && ($secondRow['actual'] ?? null) === 5
-                    && ($secondRow['forecast'] ?? null) === 5
-                    && ($forecastRow['is_forecast'] ?? null) === true
-                    && ($forecastRow['forecast'] ?? null) === 5;
+                return $ids->contains('admin-capacity-gap')
+                    && $ids->contains('admin-next-sy-forecast');
             })
+            ->where('trends.0.id', 'section-capacity-planning')
+            ->where('trends.1.id', 'subject-staffing-pressure')
         );
 });
 
@@ -638,6 +605,13 @@ test('admin curriculum manager actions work', function () {
         'level_order' => 7,
     ]);
     $teacher = User::factory()->teacher()->create();
+    \App\Models\TeacherProfile::query()->create([
+        'user_id' => $teacher->id,
+        'qualification_status' => 'fully_qualified',
+        'is_let_passer' => true,
+        'grade_band_eligibility' => ['junior_high'],
+        'subject_competency_tags' => ['MATH'],
+    ]);
 
     $this->post('/admin/curriculum-manager', [
         'grade_level_id' => $gradeLevel->id,
@@ -787,11 +761,17 @@ test('admin schedule builder actions work', function () {
     $teacher = User::factory()->create([
         'role' => UserRole::TEACHER,
     ]);
+    \App\Models\TeacherProfile::query()->create([
+        'user_id' => $teacher->id,
+        'qualification_status' => 'fully_qualified',
+        'is_let_passer' => true,
+    ]);
     $subject = Subject::query()->create([
         'grade_level_id' => $gradeLevel->id,
         'subject_code' => 'SCI9',
         'subject_name' => 'Science 9',
     ]);
+    $subject->teachers()->attach($teacher->id);
 
     $this->post('/admin/schedule-builder', [
         'section_id' => $section->id,

@@ -1,12 +1,11 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    CalendarCheck2,
     Bell,
-    BookOpenCheck,
     CalendarDays,
     GraduationCap,
     LayoutGrid,
     Megaphone,
-    ReceiptText,
     UserRound,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
@@ -36,14 +35,14 @@ const teacherTabs: QuickNavItem[] = [
 const studentTabs: QuickNavItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutGrid },
     { label: 'Schedule', href: '/student/schedule', icon: CalendarDays },
-    { label: 'Grades', href: '/student/grades', icon: GraduationCap },
+    { label: 'Attendance', href: '/student/attendance', icon: CalendarCheck2 },
     { label: 'Notifications', href: '/notifications', icon: Bell },
 ];
 
 const parentTabs: QuickNavItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutGrid },
-    { label: 'Billing', href: '/parent/billing-information', icon: ReceiptText },
-    { label: 'Grades', href: '/parent/grades', icon: BookOpenCheck },
+    { label: 'Attendance', href: '/parent/attendance', icon: CalendarCheck2 },
+    { label: 'Grades', href: '/parent/grades', icon: GraduationCap },
     { label: 'Notifications', href: '/notifications', icon: Bell },
 ];
 

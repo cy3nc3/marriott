@@ -1,3 +1,38 @@
+# MarriottConnect Project Rules
+
+Welcome to the MarriottConnect project. This is a production/deployment environment for a role-based Laravel + Inertia school operations system. Proceed with care and follow the strict guidelines below.
+
+## 1. Core Mandates & What To Do
+
+- **Reference Documentation:** Always refer to `HANDOFF_SUMMARY.md`, `SYSTEM_FLOWCHART.md`, and the `docs/` folder for architectural decisions, workflow states, and historical context.
+- **Component Architecture:** We use a **Shadcn-first UI architecture**. Always reuse existing components from `resources/js/components/ui/` before creating new ones. Do not rewrite base component internals.
+- **Styling:** Strictly use **Tailwind CSS v4** utility classes for layouts, spacing, and styling.
+- **Mobile Access Policy:** Strict server-side enforcement. Use the `desktop_only` middleware (`app/Http/Middleware/EnsureDesktopOnlyRoute.php`) for routes that are prohibited on handheld devices.
+- **State & Data Contract:** Keep the dashboard payload contracts stable (`kpis`, `alerts`, `trends`, `action_links`). Dashboard layouts have a compact mobile pass that must be respected.
+- **Quality Checks & Formatting:** Before concluding any code modification, you MUST run the following validation scripts:
+  1. `vendor/bin/pint --dirty --format agent` (to fix PHP formatting)
+  2. `npm run types` (to check TypeScript types)
+  3. `php artisan test --compact <targeted_tests>` (Always write/update Pest tests for your changes).
+- **Environment & Scheduling:** If testing scheduled commands (reminders, due dates), note they run via `php artisan schedule:work` / `php artisan schedule:run` and are gated by system settings (e.g. `finance_due_reminder_auto_send_enabled`).
+
+## 2. What NOT To Do
+
+- **Do NOT** re-introduce DataTable wrappers unless explicitly requested. Rely on standard table layouts.
+- **Do NOT** rely on frontend hiding *alone* for mobile access restrictions. You must enforce restrictions via the server-side `desktop_only` middleware.
+- **Do NOT** bypass Eloquent/ORM (e.g., using `DB::` raw queries) unless strictly necessary for performance. Prefer `Model::query()` and proper Eloquent relations to prevent N+1 issues.
+- **Do NOT** create new base folders or alter the core `app/` architectural paradigm without explicit user approval.
+- **Do NOT** delete existing Pest tests without approval. Instead, update them to match the new system behavior.
+- **Do NOT** stage or commit your changes to version control unless explicitly instructed to do so.
+
+## 3. Domain-Specific Frameworks & Guidelines
+
+- **Decision Support Analytics Framework:** Dashboard cards must include `Decision`, `Metric`, `Status`, `Trigger`, `Rationale`, `Confidence`, `Basis Points`, and `Recommended Actions`. Avoid purely informational/vanity metrics.
+- **Teacher Qualification:** Enforce teacher assignments based on `TeacherEligibilityService` (strict vs. provisional) driven by `teacher_profiles`.
+- **Account Claim Flow:** Any new enrollment account claims must strictly follow the Firebase OTP + Resend Email integration (detailed in `account-claim-flow-smoke-test-checklist.md`).
+- **Backup & Restore Operations:** Backups are driven via `./scripts/ops/backup.sh` and `./scripts/ops/restore-db.sh`, integrated with systemd timers and DigitalOcean Spaces. Do not circumvent these automated operational safety mechanisms.
+
+---
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

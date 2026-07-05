@@ -1,5 +1,5 @@
-import { Head } from '@inertiajs/react';
-import { FilePlus2, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
+import { Head, router } from '@inertiajs/react';
+import { Download, FilePlus2, ListFilter, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
@@ -103,6 +110,7 @@ interface Props {
     records: PermanentRecord[];
     filters: {
         student_id: number | null;
+        record_status?: 'all' | PermanentRecordStatus;
     };
 }
 
@@ -197,10 +205,21 @@ function computeFailedSubjectCount(subjects: SubjectQuarterGrade[]): number {
 }
 
 export default function PermanentRecords({
+    students,
     records: initialRecords,
     selected_student: selectedStudent,
+    filters,
 }: Props) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [recordStatusFilter, setRecordStatusFilter] = useState<'all' | PermanentRecordStatus>(
+        filters.record_status === 'in_progress'
+            || filters.record_status === 'promoted'
+            || filters.record_status === 'conditional'
+            || filters.record_status === 'retained'
+            || filters.record_status === 'completed'
+            ? filters.record_status
+            : 'all',
+    );
     const [records, setRecords] = useState<PermanentRecord[]>(initialRecords);
     const [historicalSubjects, setHistoricalSubjects] = useState<
         HistoricalSubjectInput[]
@@ -432,19 +451,27 @@ export default function PermanentRecords({
         });
     }, [records, searchQuery]);
 
-    const searchSuggestions = useMemo(
-        () =>
-            records.map((record) => ({
-                id: record.id,
-                label: `${record.grade_level} • ${record.school_year}`,
-                value: `${record.grade_level} ${record.school_year}`,
-                description: record.school_name,
-                keywords: `${record.status} ${record.subjects
-                    .map((subject) => subject.subject)
-                    .join(' ')}`,
-            })),
-        [records],
-    );
+    const searchSuggestions = useMemo(() => {
+        const studentSuggestions = students.map((student) => ({
+            id: `student-${student.id}`,
+            label: `${student.name}`,
+            value: student.name,
+            description: `LRN: ${student.lrn}`,
+            keywords: `student ${student.lrn}`,
+        }));
+
+        const recordSuggestions = records.map((record) => ({
+            id: `record-${record.id}`,
+            label: `${record.grade_level} • ${record.school_year}`,
+            value: `${record.grade_level} ${record.school_year}`,
+            description: record.school_name,
+            keywords: `${record.status} ${record.subjects
+                .map((subject) => subject.subject)
+                .join(' ')}`,
+        }));
+
+        return [...studentSuggestions, ...recordSuggestions];
+    }, [records, students]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -458,21 +485,163 @@ export default function PermanentRecords({
                                 <CardTitle>Permanent Records</CardTitle>
                             </div>
 
-                            <Button variant="outline">
-                                <Printer className="size-4" />
-                                Print SF10
-                            </Button>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" disabled={!selectedStudent}>
+                                        <Download className="size-4" />
+                                        Export
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                        onClick={() => {
+                                            if (selectedStudent) {
+                                                window.location.assign(
+                                                    `/registrar/permanent-records/export?student_id=${selectedStudent.id}&format=excel`,
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        Excel
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => {
+                                            if (selectedStudent) {
+                                                window.location.assign(
+                                                    `/registrar/permanent-records/export?student_id=${selectedStudent.id}&format=csv`,
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        CSV
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => {
+                                            if (selectedStudent) {
+                                                window.location.assign(
+                                                    `/registrar/permanent-records/export?student_id=${selectedStudent.id}&format=pdf`,
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        PDF (SF10)
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </CardHeader>
                     <CardContent className="pt-6">
-                        <div>
-                            <SearchAutocompleteInput
-                                value={searchQuery}
-                                onValueChange={setSearchQuery}
-                                suggestions={searchSuggestions}
-                                showSuggestions
-                                placeholder="Search by school year, grade level, school, status, or subject"
-                            />
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                            <div className="flex-1">
+                                <SearchAutocompleteInput
+                                    value={searchQuery}
+                                    onValueChange={setSearchQuery}
+                                    suggestions={searchSuggestions}
+                                    onSelectSuggestion={(option) => {
+                                        const optionId = String(option.id);
+                                        if (!optionId.startsWith('student-')) {
+                                            return;
+                                        }
+
+                                        const studentId = Number(optionId.replace('student-', ''));
+                                        if (!Number.isFinite(studentId) || studentId <= 0) {
+                                            return;
+                                        }
+
+                                        router.get(
+                                            '/registrar/permanent-records',
+                                            {
+                                                student_id: studentId,
+                                                record_status: recordStatusFilter === 'all' ? undefined : recordStatusFilter,
+                                            },
+                                            {
+                                                preserveState: false,
+                                                preserveScroll: true,
+                                                replace:
+                                                    studentId ===
+                                                    Number(filters.student_id ?? 0),
+                                            },
+                                        );
+                                    }}
+                                    showSuggestions
+                                    placeholder="Search by school year, grade level, school, status, or subject"
+                                />
+                            </div>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="gap-2">
+                                        <ListFilter className="size-4" />
+                                        Filters
+                                        {recordStatusFilter !== 'all' && (
+                                            <Badge variant="secondary" className="ml-1 px-1.5 py-0">
+                                                1
+                                            </Badge>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80" align="end">
+                                    <div className="grid gap-4">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium leading-none">Filters</h4>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-auto p-0 text-muted-foreground"
+                                                onClick={() => {
+                                                    setRecordStatusFilter('all');
+                                                    router.get(
+                                                        '/registrar/permanent-records',
+                                                        {
+                                                            student_id: Number(filters.student_id ?? 0) || undefined,
+                                                        },
+                                                        {
+                                                            preserveState: false,
+                                                            preserveScroll: true,
+                                                            replace: true,
+                                                        },
+                                                    );
+                                                }}
+                                            >
+                                                Reset
+                                            </Button>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Record Status</Label>
+                                            <Select
+                                                value={recordStatusFilter}
+                                                onValueChange={(value) => {
+                                                    const nextValue = value as 'all' | PermanentRecordStatus;
+                                                    setRecordStatusFilter(nextValue);
+                                                    router.get(
+                                                        '/registrar/permanent-records',
+                                                        {
+                                                            student_id: Number(filters.student_id ?? 0) || undefined,
+                                                            record_status: nextValue === 'all' ? undefined : nextValue,
+                                                        },
+                                                        {
+                                                            preserveState: false,
+                                                            preserveScroll: true,
+                                                            replace: true,
+                                                        },
+                                                    );
+                                                }}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Record status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">All Record Statuses</SelectItem>
+                                                    <SelectItem value="in_progress">In Progress</SelectItem>
+                                                    <SelectItem value="promoted">Promoted</SelectItem>
+                                                    <SelectItem value="conditional">Conditional</SelectItem>
+                                                    <SelectItem value="retained">Retained</SelectItem>
+                                                    <SelectItem value="completed">Completed</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     </CardContent>
                 </Card>

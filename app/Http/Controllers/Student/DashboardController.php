@@ -303,6 +303,24 @@ class DashboardController extends Controller
             ? number_format($recentScoreAverage, 2, '.', '').'%'
             : '-';
 
+        $actionLinks = [
+            [
+                'id' => 'open-grades',
+                'label' => 'Open Grades',
+                'href' => route('student.grades'),
+            ],
+            [
+                'id' => 'open-schedule',
+                'label' => 'Open Schedule',
+                'href' => route('student.schedule'),
+            ],
+        ];
+        if (($recentScoreAverage !== null && $recentScoreAverage < 80) || ($currentQuarterAverage !== null && $currentQuarterAverage < 80)) {
+            $actionLinks = [$actionLinks[0], $actionLinks[1]];
+        } elseif (count($upcomingItems) === 0 || $happeningNow['schedule_state'] === 'none') {
+            $actionLinks = [$actionLinks[1], $actionLinks[0]];
+        }
+
         return Inertia::render('student/dashboard', [
             'kpis' => [
                 [
@@ -383,18 +401,7 @@ class DashboardController extends Controller
                     ],
                 ],
             ],
-            'action_links' => [
-                [
-                    'id' => 'open-grades',
-                    'label' => 'Open Grades',
-                    'href' => route('student.grades'),
-                ],
-                [
-                    'id' => 'open-schedule',
-                    'label' => 'Open Schedule',
-                    'href' => route('student.schedule'),
-                ],
-            ],
+            'action_links' => $actionLinks,
             'learning_summary' => [
                 'current_or_upcoming_class' => $happeningNow['title'],
                 'general_average' => $generalAverageLabel,

@@ -18,7 +18,9 @@ use App\Models\User;
 use App\Services\Auth\EnrollmentAccountClaimService;
 use App\Services\DashboardCacheService;
 use App\Services\Finance\TransactionHistoryWorkbookExporter;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -26,6 +28,7 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TransactionHistoryController extends Controller
 {
@@ -170,8 +173,9 @@ class TransactionHistoryController extends Controller
     public function export(
         IndexTransactionHistoryRequest $request,
         TransactionHistoryWorkbookExporter $exporter,
-    ): BinaryFileResponse {
+    ): BinaryFileResponse|StreamedResponse|HttpResponse {
         $validated = $request->validated();
+        $format = strtolower((string) $request->query('format', 'xlsx'));
 
         $selectedAcademicYearId = isset($validated['academic_year_id'])
             ? (int) $validated['academic_year_id']
@@ -275,6 +279,75 @@ class TransactionHistoryController extends Controller
                     ];
                 })
                 ->all();
+        }
+
+        if ($format === 'csv') {
+            $headers = ['Month', 'OR Number', 'Student', 'Payment Mode', 'Status', 'Posted At', 'Cashier', 'Amount', 'Corrected By', 'Correction Reason'];
+            $flatRows = [];
+            foreach ($monthlyDetails as $label => $rows) {
+                foreach ($rows as $row) {
+                    $flatRows[] = [
+                        $label,
+                        (string) ($row['or_number'] ?? ''),
+                        (string) ($row['student_name'] ?? ''),
+                        (string) ($row['payment_mode_label'] ?? ''),
+                        (string) ($row['status_label'] ?? ''),
+                        (string) ($row['posted_at'] ?? ''),
+                        (string) ($row['cashier_name'] ?? ''),
+                        (string) ($row['amount'] ?? ''),
+                        (string) ($row['corrected_by_name'] ?? ''),
+                        (string) ($row['correction_reason'] ?? ''),
+                    ];
+                }
+            }
+
+            return response()->streamDownload(function () use ($headers, $flatRows): void {
+                $handle = fopen('php://output', 'w');
+                if ($handle === false) {
+                    return;
+                }
+                fputcsv($handle, $headers);
+                foreach ($flatRows as $row) {
+                    fputcsv($handle, $row);
+                }
+                fclose($handle);
+            }, 'transaction-history-'.now()->format('Ymd-His').'.csv');
+        }
+
+        if ($format === 'pdf') {
+            $flatRows = [];
+            foreach ($monthlyDetails as $label => $rows) {
+                foreach ($rows as $row) {
+                    $flatRows[] = [
+                        'month' => $label,
+                        'or_number' => (string) ($row['or_number'] ?? ''),
+                        'student_name' => (string) ($row['student_name'] ?? ''),
+                        'payment_mode_label' => (string) ($row['payment_mode_label'] ?? ''),
+                        'status_label' => (string) ($row['status_label'] ?? ''),
+                        'posted_at' => (string) ($row['posted_at'] ?? ''),
+                        'cashier_name' => (string) ($row['cashier_name'] ?? ''),
+                        'amount' => (float) ($row['amount'] ?? 0),
+                    ];
+                }
+            }
+
+            $pdf = Pdf::loadView('exports.transaction-history-pdf', [
+                'metadata' => [
+                    'generated_at' => now()->format('F j, Y h:i A'),
+                    'school_year' => $selectedAcademicYear?->name ?? 'All School Years',
+                    'date_from' => $dateFrom ?? 'Any',
+                    'date_to' => $dateTo ?? 'Any',
+                ],
+                'summary' => [
+                    'count' => $totalCount,
+                    'posted_amount' => $postedAmount,
+                    'corrected_amount' => $correctedAmount,
+                    'net_amount' => $netAmount,
+                ],
+                'rows' => $flatRows,
+            ])->setPaper('a4', 'landscape');
+
+            return $pdf->download('transaction-history-'.now()->format('Ymd-His').'.pdf');
         }
 
         $outputPath = storage_path('app/temp/'.uniqid('transaction-history-', true).'.xlsx');
@@ -550,6 +623,8 @@ class TransactionHistoryController extends Controller
         ?string $dateFrom,
         ?string $dateTo,
     ): Builder {
+        $normalizedSearch = mb_strtolower($search);
+
         return Transaction::query()
             ->with([
                 'student:id,first_name,last_name,lrn',
@@ -560,15 +635,16 @@ class TransactionHistoryController extends Controller
                 'refundedBy:id,first_name,last_name,name',
                 'reissuedBy:id,first_name,last_name,name',
             ])
-            ->when($search !== '', function (Builder $query) use ($search) {
-                $query->where(function (Builder $searchQuery) use ($search) {
+            ->when($search !== '', function (Builder $query) use ($normalizedSearch) {
+                $pattern = "%{$normalizedSearch}%";
+                $query->where(function (Builder $searchQuery) use ($pattern) {
                     $searchQuery
-                        ->where('or_number', 'like', "%{$search}%")
-                        ->orWhereHas('student', function (Builder $studentQuery) use ($search) {
+                        ->whereRaw('LOWER(or_number) LIKE ?', [$pattern])
+                        ->orWhereHas('student', function (Builder $studentQuery) use ($pattern) {
                             $studentQuery
-                                ->where('lrn', 'like', "%{$search}%")
-                                ->orWhere('first_name', 'like', "%{$search}%")
-                                ->orWhere('last_name', 'like', "%{$search}%");
+                                ->whereRaw('LOWER(lrn) LIKE ?', [$pattern])
+                                ->orWhereRaw('LOWER(first_name) LIKE ?', [$pattern])
+                                ->orWhereRaw('LOWER(last_name) LIKE ?', [$pattern]);
                         });
                 });
             })

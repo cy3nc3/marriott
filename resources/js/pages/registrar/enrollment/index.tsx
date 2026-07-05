@@ -1,11 +1,12 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Download, Pencil, Printer, Trash2 } from 'lucide-react';
+import { Download, ListFilter, Pencil, Printer, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DateOfBirthPicker } from '@/components/ui/date-picker';
 import {
     Dialog,
@@ -14,8 +15,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
@@ -33,6 +41,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import registrar from '@/routes/registrar';
 import {
@@ -55,6 +65,7 @@ interface EnrollmentRow {
     id: number;
     lrn: string;
     email: string | null;
+    student_personal_email: string | null;
     first_name: string;
     middle_name: string | null;
     last_name: string;
@@ -70,6 +81,8 @@ interface EnrollmentRow {
     grade_level_id: number | null;
     section_id: number | null;
     section_label: string | null;
+    discount_id: number | null;
+    discount_name: string | null;
 }
 
 interface GradeLevelOption {
@@ -83,9 +96,21 @@ interface SectionOption {
     label: string;
 }
 
+interface Filters {
+    search?: string;
+    status?: 'for_cashier_payment' | 'enrolled';
+    sort?: 'newest' | 'oldest';
+    requirements?: 'all' | 'missing' | 'complete';
+}
+
 interface Props {
     enrollments: {
         data: EnrollmentRow[];
+        links: {
+            url: string | null;
+            label: string;
+            active: boolean;
+        }[];
         current_page: number;
         last_page: number;
         per_page: number;
@@ -95,6 +120,10 @@ interface Props {
     };
     grade_level_options: GradeLevelOption[];
     section_options: SectionOption[];
+    discount_options: {
+        id: number;
+        name: string;
+    }[];
     active_school_year: {
         id: number;
         name: string;
@@ -104,10 +133,7 @@ interface Props {
         for_cashier_payment: number;
         enrolled: number;
     };
-    filters: {
-        search?: string;
-        status?: 'for_cashier_payment' | 'enrolled';
-    };
+    filters: Filters;
 }
 
 interface EnrollmentLookupResponse {
@@ -122,6 +148,7 @@ interface EnrollmentLookupResponse {
         birthdate: string | null;
         guardian_name: string | null;
         guardian_contact_number: string | null;
+        student_personal_email: string | null;
         recommended_grade_level_id: number | null;
     } | null;
     grade_prefill_mode?: 'next_grade' | 'same_grade' | 'none';
@@ -175,6 +202,7 @@ export default function Enrollment({
     enrollments,
     grade_level_options,
     section_options,
+    discount_options,
     active_school_year,
     summary,
     filters,
@@ -185,6 +213,14 @@ export default function Enrollment({
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [statusTab, setStatusTab] = useState<'for_cashier_payment' | 'enrolled'>(
         filters.status === 'enrolled' ? 'enrolled' : 'for_cashier_payment',
+    );
+    const [sortFilter, setSortFilter] = useState<'newest' | 'oldest'>(
+        filters.sort === 'oldest' ? 'oldest' : 'newest',
+    );
+    const [requirementsFilter, setRequirementsFilter] = useState<'all' | 'missing' | 'complete'>(
+        filters.requirements === 'missing' || filters.requirements === 'complete'
+            ? filters.requirements
+            : 'all',
     );
     const [isStepOneExpanded, setIsStepOneExpanded] = useState(false);
     const [isLookupLoading, setIsLookupLoading] = useState(false);
@@ -217,6 +253,19 @@ export default function Enrollment({
     const openedAssessmentUrlRef = useRef<string | null>(null);
     const latestLookupLrnRef = useRef<string | null>(null);
 
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (sortFilter !== 'newest') count++;
+        if (requirementsFilter !== 'all') count++;
+        return count;
+    }, [sortFilter, requirementsFilter]);
+
+    const switchStatusTab = (val: string) => {
+        const nextStatus = val as 'for_cashier_payment' | 'enrolled';
+        setStatusTab(nextStatus);
+        applyFilters({ status: nextStatus });
+    };
+
     const createForm = useForm({
         academic_year_id: active_school_year
             ? String(active_school_year.id)
@@ -230,6 +279,7 @@ export default function Enrollment({
         guardian_name: '',
         guardian_contact_number: '',
         email: '',
+        student_personal_email: '',
         grade_level_id: '',
         section_id: '',
         payment_term: 'monthly',
@@ -240,6 +290,7 @@ export default function Enrollment({
         resolve_older_retained: false,
         conditional_resolution_notes: '',
         retained_resolution_notes: '',
+        discount_id: '',
     });
 
     const editForm = useForm({
@@ -251,12 +302,14 @@ export default function Enrollment({
         guardian_name: '',
         guardian_contact_number: '',
         email: '',
+        student_personal_email: '',
         grade_level_id: '',
         section_id: '',
         payment_term: 'monthly',
         downpayment: '',
         report_card_submitted: false,
         birth_certificate_submitted: false,
+        discount_id: '',
     });
 
     const createSectionOptions = useMemo(() => {
@@ -298,23 +351,27 @@ export default function Enrollment({
         );
     }, [editForm.data.grade_level_id, section_options]);
 
-    const applySearch = (value: string) => {
-        setSearchQuery(value);
-        router.get(
-            registrar.enrollment.url({
-                query: {
-                    status: statusTab,
-                    search: value || undefined,
-                    page: undefined,
-                },
-            }),
-            {},
-            {
-                preserveState: true,
-                replace: true,
-                preserveScroll: true,
-            },
-        );
+    const applyFilters = (overrides: Partial<Filters> = {}) => {
+        const query = {
+            status: overrides.status !== undefined ? overrides.status : statusTab,
+            search: overrides.search !== undefined ? overrides.search : (searchQuery || undefined),
+            sort: overrides.sort !== undefined ? overrides.sort : sortFilter,
+            requirements: overrides.requirements !== undefined ? overrides.requirements : requirementsFilter,
+            page: undefined,
+        };
+
+        router.get(registrar.enrollment.url({ query }), {}, {
+            preserveState: true,
+            replace: true,
+            preserveScroll: true,
+        });
+    };
+
+    const resetFilters = () => {
+        setSearchQuery('');
+        setSortFilter('newest');
+        setRequirementsFilter('all');
+        applyFilters({ search: '', sort: 'newest', requirements: 'all' });
     };
 
     const applyLookupResult = (payload: EnrollmentLookupResponse) => {
@@ -331,6 +388,7 @@ export default function Enrollment({
             createForm.setData('guardian_name', '');
             createForm.setData('guardian_contact_number', '');
             createForm.setData('email', '');
+            createForm.setData('student_personal_email', '');
             createForm.setData('grade_level_id', '');
             createForm.setData('section_id', '');
             setLookupGuardrail(null);
@@ -346,6 +404,10 @@ export default function Enrollment({
         createForm.setData('gender', payload.student.gender ?? '');
         createForm.setData('birthdate', payload.student.birthdate ?? '');
         createForm.setData('guardian_name', payload.student.guardian_name ?? '');
+        createForm.setData(
+            'student_personal_email',
+            payload.student.student_personal_email ?? '',
+        );
         createForm.setData(
             'guardian_contact_number',
             normalizeMobileSubscriberDigits(
@@ -479,6 +541,7 @@ export default function Enrollment({
                 createForm.setData('resolve_older_retained', false);
                 createForm.setData('conditional_resolution_notes', '');
                 createForm.setData('retained_resolution_notes', '');
+                createForm.setData('discount_id', '');
                 latestLookupLrnRef.current = null;
                 setLookupGuardrail(null);
                 setLookupStatusFlags(null);
@@ -511,6 +574,7 @@ export default function Enrollment({
                 item.guardian_contact_number || '',
             ),
             email: item.email || '',
+            student_personal_email: item.student_personal_email || '',
             grade_level_id: item.grade_level_id
                 ? String(item.grade_level_id)
                 : sectionGradeLevelId
@@ -521,6 +585,7 @@ export default function Enrollment({
             downpayment: String(item.downpayment ?? 0),
             report_card_submitted: item.report_card_submitted,
             birth_certificate_submitted: item.birth_certificate_submitted,
+            discount_id: item.discount_id ? String(item.discount_id) : '',
         });
     };
 
@@ -798,49 +863,10 @@ export default function Enrollment({
         }
     };
 
-    const switchStatusTab = (value: string) => {
-        if (value !== 'for_cashier_payment' && value !== 'enrolled') {
-            return;
-        }
-
-        setStatusTab(value);
-        router.get(
-            registrar.enrollment.url({
-                query: {
-                    status: value,
-                    search: searchQuery || undefined,
-                    page: undefined,
-                },
-            }),
-            {},
-            {
-                preserveState: true,
-                replace: true,
-                preserveScroll: true,
-            },
-        );
-    };
-
-    const goToQueuePage = (page: number) => {
-        router.get(
-            registrar.enrollment.url({
-                query: {
-                    status: statusTab,
-                    search: searchQuery || undefined,
-                    page: page > 1 ? page : undefined,
-                },
-            }),
-            {},
-            {
-                preserveState: true,
-                replace: true,
-                preserveScroll: true,
-            },
-        );
-    };
-
-    const exportEnrollmentWorkbook = () => {
-        window.location.assign('/registrar/enrollment/export');
+    const triggerExport = (formatType: 'xlsx' | 'csv' | 'pdf') => {
+        const params = new URLSearchParams();
+        params.set('format', formatType);
+        window.location.assign(`/registrar/enrollment/export?${params.toString()}`);
     };
 
     const searchSuggestions = useMemo(
@@ -911,12 +937,12 @@ export default function Enrollment({
         <>
             <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Enrollment" />
-
+            <TooltipProvider>
             <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
                     <Card className="h-[calc(100svh-7rem)] gap-2 overflow-hidden lg:sticky lg:top-6 lg:w-[25rem] lg:flex-none xl:w-[27rem]">
                         <CardHeader className="border-b">
-                            <CardTitle>New Enrollment Intake</CardTitle>
+                            <CardTitle>New Enrollment</CardTitle>
                         </CardHeader>
                         <CardContent className="flex h-full flex-col gap-4 overflow-y-auto pt-6">
                             <div className="space-y-2">
@@ -1272,6 +1298,35 @@ export default function Enrollment({
                                             </p>
                                         )}
                                     </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="student-personal-email">
+                                            Student Personal Email
+                                        </Label>
+                                        <Input
+                                            id="student-personal-email"
+                                            type="email"
+                                            placeholder="eg. student.personal@example.com"
+                                            value={createForm.data.student_personal_email}
+                                            onChange={(event) =>
+                                                createForm.setData(
+                                                    'student_personal_email',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Used for the student account claim link. If blank, the claim link will be sent to the contact email.
+                                        </p>
+                                        {createForm.errors
+                                            .student_personal_email && (
+                                            <p className="text-sm text-destructive">
+                                                {
+                                                    createForm.errors
+                                                        .student_personal_email
+                                                }
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
@@ -1290,9 +1345,9 @@ export default function Enrollment({
                                                     updateCreateGradeLevel
                                                 }
                                             >
-                                            <SelectTrigger className="w-full min-w-0">
-                                                <SelectValue placeholder="Select grade level" />
-                                            </SelectTrigger>
+                                                <SelectTrigger className="w-full min-w-0">
+                                                    <SelectValue placeholder="Select grade level" />
+                                                </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="unselected">
                                                         Select grade level
@@ -1431,6 +1486,34 @@ export default function Enrollment({
                                         </div>
 
                                         <div className="space-y-2">
+                                            <Label>Discount / Scholarship</Label>
+                                            <Select
+                                                value={createForm.data.discount_id || 'none'}
+                                                onValueChange={(value) =>
+                                                    createForm.setData(
+                                                        'discount_id',
+                                                        value === 'none' ? '' : value,
+                                                    )
+                                                }
+                                            >
+                                                <SelectTrigger className="w-full min-w-0">
+                                                    <SelectValue placeholder="Select discount (optional)" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">None</SelectItem>
+                                                    {discount_options.map((discount) => (
+                                                        <SelectItem
+                                                            key={discount.id}
+                                                            value={String(discount.id)}
+                                                        >
+                                                            {discount.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div className="space-y-2">
                                             <Label htmlFor="downpayment">
                                                 Downpayment
                                             </Label>
@@ -1456,37 +1539,35 @@ export default function Enrollment({
                                             />
                                         </div>
 
-                                        <div className="space-y-2 rounded-md border p-3">
+                                        <div className="space-y-2 rounded-md border p-3 text-muted-foreground">
                                             <p className="text-sm font-medium">
                                                 Submitted Requirements
                                             </p>
                                             <label className="flex items-center gap-2 text-sm">
-                                                <input
-                                                    type="checkbox"
+                                                <Checkbox
                                                     checked={createForm.data.report_card_submitted}
-                                                    onChange={(event) =>
+                                                    onCheckedChange={(checked) =>
                                                         createForm.setData(
                                                             'report_card_submitted',
-                                                            event.target.checked,
+                                                            checked === true,
                                                         )
                                                     }
                                                 />
                                                 Previous Grade Level Report Card
                                             </label>
                                             <label className="flex items-center gap-2 text-sm">
-                                                <input
-                                                    type="checkbox"
+                                                <Checkbox
                                                     checked={createForm.data.birth_certificate_submitted}
-                                                    onChange={(event) =>
+                                                    onCheckedChange={(checked) =>
                                                         createForm.setData(
                                                             'birth_certificate_submitted',
-                                                            event.target.checked,
+                                                            checked === true,
                                                         )
                                                     }
                                                 />
                                                 Birth Certificate
                                             </label>
-                                            <p className="text-xs text-muted-foreground">
+                                            <p className="text-xs">
                                                 Enrollment can proceed even if requirements are to-follow.
                                             </p>
                                         </div>
@@ -1497,7 +1578,7 @@ export default function Enrollment({
                             {createStep === 4 && (
                                 <div className="rounded-md border p-4">
                                     <h4 className="text-sm font-medium">
-                                        Enrollment Intake Summary
+                                        Enrollment Summary
                                     </h4>
                                     <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                                         <p className="text-muted-foreground">
@@ -1553,6 +1634,14 @@ export default function Enrollment({
                                         <p>{createForm.data.email || '-'}</p>
 
                                         <p className="text-muted-foreground">
+                                            Student Personal Email
+                                        </p>
+                                        <p>
+                                            {createForm.data
+                                                .student_personal_email || '-'}
+                                        </p>
+
+                                        <p className="text-muted-foreground">
                                             Grade Level
                                         </p>
                                         <p>{selectedGradeLevelLabel || '-'}</p>
@@ -1581,6 +1670,17 @@ export default function Enrollment({
                                                 : formatCurrency(
                                                       normalizedDownpayment,
                                                   )}
+                                        </p>
+
+                                        <p className="text-muted-foreground">
+                                            Discount / Scholarship
+                                        </p>
+                                        <p>
+                                            {discount_options.find(
+                                                (discount) =>
+                                                    String(discount.id) ===
+                                                    createForm.data.discount_id,
+                                            )?.name ?? '-'}
                                         </p>
 
                                         <p className="text-muted-foreground">
@@ -1668,14 +1768,14 @@ export default function Enrollment({
                                             intakeCreationDisabled
                                         }
                                     >
-                                        Save Enrollment Intake
+                                        Save Enrollment
                                     </Button>
                                 )}
                             </div>
 
                             {intakeCreationDisabled && (
-                                <p className="text-sm text-muted-foreground">
-                                    Intake creation is disabled for completed
+                                <p className="text-sm text-muted-foreground text-center">
+                                    Enrollment creation is disabled for completed
                                     school years.
                                 </p>
                             )}
@@ -1689,7 +1789,7 @@ export default function Enrollment({
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                                     <Tabs
                                         value={statusTab}
-                                        onValueChange={switchStatusTab}
+                                        onValueChange={(val) => switchStatusTab(val)}
                                     >
                                         <TabsList>
                                             <TabsTrigger value="for_cashier_payment">
@@ -1704,18 +1804,105 @@ export default function Enrollment({
                                         wrapperClassName="w-full sm:max-w-sm"
                                         placeholder="Search by LRN or name..."
                                         value={searchQuery}
-                                        onValueChange={applySearch}
+                                        onValueChange={(val) => {
+                                            setSearchQuery(val);
+                                            applyFilters({ search: val });
+                                        }}
                                         suggestions={searchSuggestions}
-                                        showSuggestions={false}
                                     />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={exportEnrollmentWorkbook}
-                                    >
-                                        <Download className="size-4" />
-                                        Export Enrollment Workbook
-                                    </Button>
+
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="gap-2">
+                                                <ListFilter className="size-4" />
+                                                Filters
+                                                {activeFilterCount > 0 && (
+                                                    <Badge variant="secondary" className="ml-1 px-1 py-0 text-[10px]">
+                                                        {activeFilterCount}
+                                                    </Badge>
+                                                )}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-80" align="end">
+                                            <div className="grid gap-4">
+                                                <div className="flex items-center justify-between">
+                                                    <h4 className="font-medium leading-none">Filters</h4>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-auto p-0 text-xs text-muted-foreground"
+                                                        onClick={resetFilters}
+                                                    >
+                                                        Reset
+                                                    </Button>
+                                                </div>
+                                                <div className="grid gap-4">
+                                                    <div className="grid gap-2">
+                                                        <Label>Requirements</Label>
+                                                        <Select
+                                                            value={requirementsFilter}
+                                                            onValueChange={(val) => {
+                                                                const next = val as Filters['requirements'];
+                                                                setRequirementsFilter(next);
+                                                                applyFilters({ requirements: next });
+                                                            }}
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="All Requirements" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">All Requirements</SelectItem>
+                                                                <SelectItem value="missing">Missing Requirements</SelectItem>
+                                                                <SelectItem value="complete">Complete Requirements</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Label>Sort By</Label>
+                                                        <Select
+                                                            value={sortFilter}
+                                                            onValueChange={(val) => {
+                                                                const next = val as Filters['sort'];
+                                                                setSortFilter(next);
+                                                                applyFilters({ sort: next });
+                                                            }}
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Newest First" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="newest">Newest First</SelectItem>
+                                                                <SelectItem value="oldest">Oldest First</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <Button size="sm" onClick={() => applyFilters()}>
+                                                        Apply Filters
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" className="gap-2">
+                                                <Download className="size-4" />
+                                                Export
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => triggerExport('xlsx')}>
+                                                Export as Excel (.xlsx)
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => triggerExport('csv')}>
+                                                Export as CSV (.csv)
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => triggerExport('pdf')}>
+                                                Export as PDF (.pdf)
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </div>
                         </CardHeader>
@@ -1765,6 +1952,11 @@ export default function Enrollment({
                                                             item.downpayment,
                                                         )}
                                                     </p>
+                                                    {item.discount_name && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {item.discount_name}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
@@ -1823,7 +2015,7 @@ export default function Enrollment({
                                                 colSpan={4}
                                                 className="h-24 text-center text-sm text-muted-foreground"
                                             >
-                                                No enrollment intakes in queue.
+                                                No enrollments in queue.
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -1832,397 +2024,463 @@ export default function Enrollment({
                             <div className="flex flex-col gap-3 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                                 <p className="text-sm text-muted-foreground">
                                     {enrollments.total === 0
-                                        ? 'No enrollment intakes found.'
-                                        : `Showing ${enrollments.from}-${enrollments.to} of ${enrollments.total} intakes`}
+                                        ? 'No enrollments found.'
+                                        : `Showing ${enrollments.from}-${enrollments.to} of ${enrollments.total} enrollments`}
                                 </p>
+                                {enrollments.links.length > 3 && (
                                 <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                            goToQueuePage(
-                                                enrollments.current_page - 1,
-                                            )
+                                    {enrollments.links.map((link, index) => {
+                                        let label = link.label;
+
+                                        if (label.includes('Previous')) {
+                                            label = 'Previous';
+                                        } else if (label.includes('Next')) {
+                                            label = 'Next';
+                                        } else {
+                                            label = label
+                                                .replace(/&[^;]+;/g, '')
+                                                .trim();
                                         }
-                                        disabled={
-                                            enrollments.current_page <= 1
-                                        }
-                                    >
-                                        Previous
-                                    </Button>
-                                    <span className="text-sm text-muted-foreground">
-                                        Page {enrollments.current_page} of{' '}
-                                        {enrollments.last_page}
-                                    </span>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                            goToQueuePage(
-                                                enrollments.current_page + 1,
-                                            )
-                                        }
-                                        disabled={
-                                            enrollments.current_page >=
-                                            enrollments.last_page
-                                        }
-                                    >
-                                        Next
-                                    </Button>
+
+                                        return (
+                                            <Button
+                                                key={`${link.label}-${index}`}
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={!link.url || link.active}
+                                                onClick={() => {
+                                                    if (link.url) {
+                                                        router.get(
+                                                            link.url,
+                                                            {},
+                                                            {
+                                                                preserveState: true,
+                                                                preserveScroll: true,
+                                                            },
+                                                        );
+                                                    }
+                                                }}
+                                            >
+                                                {label}
+                                            </Button>
+                                        );
+                                    })}
                                 </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
                 </div>
             </div>
+            </TooltipProvider>
 
             <Dialog
                 open={!!editingItem}
-                onOpenChange={() => setEditingItem(null)}
+                onOpenChange={(open) => !open && setEditingItem(null)}
             >
-                <DialogContent className="sm:max-w-[480px]">
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
                     <DialogHeader>
-                        <DialogTitle>Edit Enrollment Intake</DialogTitle>
+                        <DialogTitle>Edit Enrollment</DialogTitle>
                     </DialogHeader>
-                    <div className="grid gap-4 py-2">
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="space-y-2">
-                                <Label>First Name</Label>
-                                <Input
-                                    value={editForm.data.first_name}
-                                    onChange={(event) =>
-                                        editForm.setData(
-                                            'first_name',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Middle Name</Label>
-                                <Input
-                                    value={editForm.data.middle_name}
-                                    onChange={(event) =>
-                                        editForm.setData(
-                                            'middle_name',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Last Name</Label>
-                                <Input
-                                    value={editForm.data.last_name}
-                                    onChange={(event) =>
-                                        editForm.setData(
-                                            'last_name',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Gender</Label>
-                                <Select
-                                    value={editForm.data.gender || 'none'}
-                                    onValueChange={(value) =>
-                                        editForm.setData(
-                                            'gender',
-                                            value === 'none' ? '' : value,
-                                        )
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select gender" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">
-                                            Select gender
-                                        </SelectItem>
-                                        <SelectItem value="Male">
-                                            Male
-                                        </SelectItem>
-                                        <SelectItem value="Female">
-                                            Female
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Birthday</Label>
-                                <DateOfBirthPicker
-                                    date={
-                                        editForm.data.birthdate
-                                            ? new Date(editForm.data.birthdate)
-                                            : undefined
-                                    }
-                                    setDate={(date) =>
-                                        editForm.setData(
-                                            'birthdate',
-                                            date
-                                                ? format(date, 'yyyy-MM-dd')
-                                                : '',
-                                        )
-                                    }
-                                    className="w-full"
-                                    placeholder="Select date"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Guardian Name</Label>
-                                <Input
-                                    value={editForm.data.guardian_name}
-                                    onChange={(event) =>
-                                        editForm.setData(
-                                            'guardian_name',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Guardian Contact Number</Label>
-                                <div className="flex w-full min-w-0">
-                                    <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
-                                        +63
-                                    </span>
+                    {editingItem && (
+                        <div className="grid gap-6 py-4">
+                            <div className="grid gap-4 sm:grid-cols-3">
+                                <div className="space-y-2">
+                                    <Label>First Name</Label>
                                     <Input
-                                        className="rounded-l-none"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        maxLength={10}
-                                        placeholder="9XXXXXXXXX"
-                                        value={
-                                            editForm.data.guardian_contact_number
-                                        }
+                                        value={editForm.data.first_name}
                                         onChange={(event) =>
                                             editForm.setData(
-                                                'guardian_contact_number',
-                                                normalizeMobileSubscriberDigits(
-                                                    event.target.value,
-                                                ),
+                                                'first_name',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {editForm.errors.first_name && (
+                                        <p className="text-xs text-destructive">
+                                            {editForm.errors.first_name}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Middle Name</Label>
+                                    <Input
+                                        value={editForm.data.middle_name}
+                                        onChange={(event) =>
+                                            editForm.setData(
+                                                'middle_name',
+                                                event.target.value,
                                             )
                                         }
                                     />
                                 </div>
-                                {editForm.errors.guardian_contact_number && (
-                                    <p className="text-sm text-destructive">
-                                        {
-                                            editForm.errors
-                                                .guardian_contact_number
-                                        }
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>Contact Email</Label>
-                            <Input
-                                type="email"
-                                value={editForm.data.email}
-                                onChange={(event) =>
-                                    editForm.setData(
-                                        'email',
-                                        event.target.value,
-                                    )
-                                }
-                            />
-                            {editForm.errors.email && (
-                                <p className="text-sm text-destructive">
-                                    {editForm.errors.email}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Grade Level</Label>
-                                <Select
-                                    value={
-                                        editForm.data.grade_level_id ||
-                                        'unselected'
-                                    }
-                                    onValueChange={updateEditGradeLevel}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select grade level" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="unselected">
-                                            Select grade level
-                                        </SelectItem>
-                                        {grade_level_options.map(
-                                            (gradeLevel) => (
-                                                <SelectItem
-                                                    key={gradeLevel.id}
-                                                    value={String(
-                                                        gradeLevel.id,
-                                                    )}
-                                                >
-                                                    {gradeLevel.name}
-                                                </SelectItem>
-                                            ),
-                                        )}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Section Assignment</Label>
-                                <Select
-                                    value={
-                                        editForm.data.section_id || 'unassigned'
-                                    }
-                                    onValueChange={(value) => {
-                                        if (value === 'unassigned') {
-                                            editForm.setData('section_id', '');
-
-                                            return;
-                                        }
-
-                                        editForm.setData('section_id', value);
-
-                                        const selectedSection =
-                                            section_options.find(
-                                                (sectionOption) =>
-                                                    String(sectionOption.id) ===
-                                                    value,
-                                            );
-
-                                        if (selectedSection) {
+                                <div className="space-y-2">
+                                    <Label>Last Name</Label>
+                                    <Input
+                                        value={editForm.data.last_name}
+                                        onChange={(event) =>
                                             editForm.setData(
-                                                'grade_level_id',
-                                                String(
-                                                    selectedSection.grade_level_id,
-                                                ),
-                                            );
+                                                'last_name',
+                                                event.target.value,
+                                            )
                                         }
-                                    }}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue
-                                            placeholder={
-                                                editForm.data.grade_level_id
-                                                    ? 'Select section'
-                                                    : 'Select grade level first'
+                                    />
+                                    {editForm.errors.last_name && (
+                                        <p className="text-xs text-destructive">
+                                            {editForm.errors.last_name}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>Gender</Label>
+                                    <Select
+                                        value={editForm.data.gender || 'none'}
+                                        onValueChange={(value) =>
+                                            editForm.setData(
+                                                'gender',
+                                                value === 'none' ? '' : value,
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">
+                                                Select gender
+                                            </SelectItem>
+                                            <SelectItem value="Male">
+                                                Male
+                                            </SelectItem>
+                                            <SelectItem value="Female">
+                                                Female
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Birthday</Label>
+                                    <DateOfBirthPicker
+                                        date={
+                                            editForm.data.birthdate
+                                                ? new Date(editForm.data.birthdate)
+                                                : undefined
+                                        }
+                                        setDate={(date) =>
+                                            editForm.setData(
+                                                'birthdate',
+                                                date
+                                                    ? format(date, 'yyyy-MM-dd')
+                                                    : '',
+                                            )
+                                        }
+                                        className="w-full"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>Guardian Name</Label>
+                                    <Input
+                                        value={editForm.data.guardian_name}
+                                        onChange={(event) =>
+                                            editForm.setData(
+                                                'guardian_name',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {editForm.errors.guardian_name && (
+                                        <p className="text-xs text-destructive">
+                                            {editForm.errors.guardian_name}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Guardian Contact</Label>
+                                    <div className="flex w-full min-w-0">
+                                        <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                                            +63
+                                        </span>
+                                        <Input
+                                            className="rounded-l-none"
+                                            value={
+                                                editForm.data.guardian_contact_number
+                                            }
+                                            onChange={(event) =>
+                                                editForm.setData(
+                                                    'guardian_contact_number',
+                                                    normalizeMobileSubscriberDigits(
+                                                        event.target.value,
+                                                    ),
+                                                )
                                             }
                                         />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="unassigned">
-                                            Unassigned
-                                        </SelectItem>
-                                        {editSectionOptions.map(
-                                            (sectionOption) => (
-                                                <SelectItem
-                                                    key={sectionOption.id}
-                                                    value={String(
-                                                        sectionOption.id,
-                                                    )}
-                                                >
-                                                    {sectionOption.label}
-                                                </SelectItem>
-                                            ),
-                                        )}
-                                    </SelectContent>
-                                </Select>
+                                    </div>
+                                    {editForm.errors.guardian_contact_number && (
+                                        <p className="text-xs text-destructive">
+                                            {
+                                                editForm.errors
+                                                    .guardian_contact_number
+                                            }
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Payment Plan</Label>
-                                <Select
-                                    value={editForm.data.payment_term}
-                                    onValueChange={(value) => {
-                                        editForm.setData('payment_term', value);
-                                        if (value === 'cash') {
-                                            editForm.setData(
-                                                'downpayment',
-                                                '0',
-                                            );
-                                        }
-                                    }}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="cash">
-                                            Cash
-                                        </SelectItem>
-                                        <SelectItem value="monthly">
-                                            Monthly
-                                        </SelectItem>
-                                        <SelectItem value="quarterly">
-                                            Quarterly
-                                        </SelectItem>
-                                        <SelectItem value="semi-annual">
-                                            Semi-Annual
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Downpayment</Label>
+                                <Label>Contact Email</Label>
                                 <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={editForm.data.downpayment}
-                                    disabled={
-                                        editForm.data.payment_term === 'cash'
-                                    }
+                                    type="email"
+                                    value={editForm.data.email}
                                     onChange={(event) =>
                                         editForm.setData(
-                                            'downpayment',
+                                            'email',
                                             event.target.value,
                                         )
                                     }
                                 />
+                                {editForm.errors.email && (
+                                    <p className="text-xs text-destructive">
+                                        {editForm.errors.email}
+                                    </p>
+                                )}
                             </div>
 
-                            <div className="space-y-2 rounded-md border p-3">
-                                <p className="text-sm font-medium">
-                                    Submitted Requirements
+                            <div className="space-y-2">
+                                <Label>Student Personal Email</Label>
+                                <Input
+                                    type="email"
+                                    value={editForm.data.student_personal_email}
+                                    onChange={(event) =>
+                                        editForm.setData(
+                                            'student_personal_email',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Used for the student claim link. If blank,
+                                    the contact email is used.
                                 </p>
-                                <label className="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        checked={editForm.data.report_card_submitted}
+                                {editForm.errors.student_personal_email && (
+                                    <p className="text-xs text-destructive">
+                                        {
+                                            editForm.errors
+                                                .student_personal_email
+                                        }
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>Grade Level</Label>
+                                    <Select
+                                        value={
+                                            editForm.data.grade_level_id ||
+                                            'unselected'
+                                        }
+                                        onValueChange={updateEditGradeLevel}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="unselected">
+                                                Select grade level
+                                            </SelectItem>
+                                            {grade_level_options.map(
+                                                (gradeLevel) => (
+                                                    <SelectItem
+                                                        key={gradeLevel.id}
+                                                        value={String(
+                                                            gradeLevel.id,
+                                                        )}
+                                                    >
+                                                        {gradeLevel.name}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                    {editForm.errors.grade_level_id && (
+                                        <p className="text-xs text-destructive">
+                                            {editForm.errors.grade_level_id}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Section Assignment</Label>
+                                    <Select
+                                        value={
+                                            editForm.data.section_id ||
+                                            'unassigned'
+                                        }
+                                        onValueChange={(value) =>
+                                            editForm.setData(
+                                                'section_id',
+                                                value === 'unassigned'
+                                                    ? ''
+                                                    : value,
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue
+                                                placeholder={
+                                                    editForm.data.grade_level_id
+                                                        ? 'Select section'
+                                                        : 'Select grade level first'
+                                                }
+                                            />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="unassigned">
+                                                Unassigned
+                                            </SelectItem>
+                                            {editSectionOptions.map(
+                                                (sectionOption) => (
+                                                    <SelectItem
+                                                        key={sectionOption.id}
+                                                        value={String(
+                                                            sectionOption.id,
+                                                        )}
+                                                    >
+                                                        {sectionOption.label}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                    {editForm.errors.section_id && (
+                                        <p className="text-xs text-destructive">
+                                            {editForm.errors.section_id}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>Payment Plan</Label>
+                                    <Select
+                                        value={editForm.data.payment_term}
+                                        onValueChange={(value) => {
+                                            editForm.setData(
+                                                'payment_term',
+                                                value,
+                                            );
+                                            if (value === 'cash') {
+                                                editForm.setData(
+                                                    'downpayment',
+                                                    '0',
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="cash">
+                                                Cash
+                                            </SelectItem>
+                                            <SelectItem value="monthly">
+                                                Monthly
+                                            </SelectItem>
+                                            <SelectItem value="quarterly">
+                                                Quarterly
+                                            </SelectItem>
+                                            <SelectItem value="semi-annual">
+                                                Semi-Annual
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Downpayment</Label>
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        value={editForm.data.downpayment}
+                                        disabled={
+                                            editForm.data.payment_term ===
+                                            'cash'
+                                        }
                                         onChange={(event) =>
                                             editForm.setData(
-                                                'report_card_submitted',
-                                                event.target.checked,
+                                                'downpayment',
+                                                event.target.value,
                                             )
                                         }
                                     />
-                                    Previous Grade Level Report Card
-                                </label>
-                                <label className="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        checked={editForm.data.birth_certificate_submitted}
-                                        onChange={(event) =>
-                                            editForm.setData(
-                                                'birth_certificate_submitted',
-                                                event.target.checked,
-                                            )
-                                        }
-                                    />
-                                    Birth Certificate
-                                </label>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Discount / Scholarship</Label>
+                                <Select
+                                    value={editForm.data.discount_id || 'none'}
+                                    onValueChange={(value) =>
+                                        editForm.setData(
+                                            'discount_id',
+                                            value === 'none' ? '' : value,
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select discount (optional)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">None</SelectItem>
+                                        {discount_options.map((discount) => (
+                                            <SelectItem
+                                                key={discount.id}
+                                                value={String(discount.id)}
+                                            >
+                                                {discount.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-4 rounded-md border p-4">
+                                <p className="text-sm font-medium">Requirements Checklist</p>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Checkbox
+                                            checked={editForm.data.report_card_submitted}
+                                            onCheckedChange={(checked) =>
+                                                editForm.setData(
+                                                    'report_card_submitted',
+                                                    checked === true,
+                                                )
+                                            }
+                                        />
+                                        Report Card Submitted
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Checkbox
+                                            checked={editForm.data.birth_certificate_submitted}
+                                            onCheckedChange={(checked) =>
+                                                editForm.setData(
+                                                    'birth_certificate_submitted',
+                                                    checked === true,
+                                                )
+                                            }
+                                        />
+                                        Birth Certificate Submitted
+                                    </label>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                     <DialogFooter>
                         <Button
                             variant="outline"
@@ -2239,22 +2497,25 @@ export default function Enrollment({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </AppLayout>
 
             <ActionConfirmDialog
                 open={isSaveConfirmOpen}
                 onOpenChange={setIsSaveConfirmOpen}
-                title="Save Enrollment Intake"
-                description={
-                    lookupStatusFlags?.has_previous_year_conditional
-                        ? `Previous-year conditional status detected (${lookupSourceContext?.academic_year_name ?? 'latest year'} - ${lookupSourceContext?.grade_level_label ?? 'grade'}). Proceeding will not auto-resolve the conditional record. Continue saving ${formatStudentName(createForm.data.first_name, createForm.data.middle_name || null, createForm.data.last_name)}?`
-                        : lookupStatusFlags?.has_previous_year_retained
-                          ? `Previous-year retained status detected (${lookupSourceContext?.academic_year_name ?? 'latest year'} - ${lookupSourceContext?.grade_level_label ?? 'grade'}). Grade level is locked to the retained grade for this intake. Continue saving ${formatStudentName(createForm.data.first_name, createForm.data.middle_name || null, createForm.data.last_name)}?`
-                          : `Are you sure you want to save the enrollment intake for ${formatStudentName(createForm.data.first_name, createForm.data.middle_name || null, createForm.data.last_name)}? This will add them to the queue for cashier payment.`
-                }
+                title="Confirm New Enrollment"
+                description={`Are you sure you want to enroll Juan Dela Cruz to Grade 7 - St. Paul? This will generate their financial ledger and billing schedule.`}
                 confirmLabel="Confirm Enrollment"
                 loading={createForm.processing}
                 onConfirm={submitCreate}
+            />
+
+            <ActionConfirmDialog
+                open={!!itemToRemove}
+                onOpenChange={(open) => !open && setItemToRemove(null)}
+                title="Remove Enrollment Record"
+                description="This will permanently delete this enrollment record and all associated financial data. This action cannot be undone."
+                variant="destructive"
+                confirmLabel="Delete Record"
+                onConfirm={submitRemove}
             />
 
             <Dialog
@@ -2263,40 +2524,35 @@ export default function Enrollment({
             >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Older Conditional Record</DialogTitle>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Trash2 className="size-5 text-amber-500" />
+                            Unresolved Conditional Status
+                        </DialogTitle>
                     </DialogHeader>
-                    <p className="text-sm text-muted-foreground">
-                        Older unresolved conditional records were found. Was the conditional status already resolved?
-                    </p>
+                    <div className="space-y-4 py-2">
+                        <p className="text-sm text-muted-foreground">
+                            This student has an unresolved **Conditional** status from a previous year (
+                            <span className="font-semibold text-foreground">{lookupSourceContext?.academic_year_name}</span>).
+                        </p>
+                        <div className="rounded-md border bg-amber-500/5 p-4 text-sm">
+                            <p>To proceed with enrollment for the current year, you must acknowledge that this condition will be resolved via remedial instructions.</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Resolution Acknowledgment Notes</Label>
+                            <Textarea
+                                placeholder="State how the previous condition is being handled..."
+                                value={createForm.data.conditional_resolution_notes}
+                                onChange={(e) => createForm.setData('conditional_resolution_notes', e.target.value)}
+                            />
+                        </div>
+                    </div>
                     <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                createForm.setData('resolve_older_conditional', false);
-                                setIsOlderConditionalDialogOpen(false);
-                                if (lookupStatusFlags?.has_older_unresolved_retained) {
-                                    setIsOlderRetainedDialogOpen(true);
-                                    return;
-                                }
-                                setIsSaveConfirmOpen(true);
-                            }}
-                        >
-                            No, Keep Unresolved
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                createForm.setData('resolve_older_conditional', true);
-                                createForm.setData('conditional_resolution_notes', 'Resolved during enrollment intake confirmation.');
-                                setIsOlderConditionalDialogOpen(false);
-                                if (lookupStatusFlags?.has_older_unresolved_retained) {
-                                    setIsOlderRetainedDialogOpen(true);
-                                    return;
-                                }
-                                setIsSaveConfirmOpen(true);
-                            }}
-                        >
-                            Yes, Mark Resolved
-                        </Button>
+                        <Button variant="outline" onClick={() => setIsOlderConditionalDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={() => {
+                            createForm.setData('resolve_older_conditional', true);
+                            setIsOlderConditionalDialogOpen(false);
+                            setIsSaveConfirmOpen(true);
+                        }}>I Acknowledge</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -2307,45 +2563,38 @@ export default function Enrollment({
             >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Older Retained Record</DialogTitle>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Trash2 className="size-5 text-red-500" />
+                            Unresolved Retained Status
+                        </DialogTitle>
                     </DialogHeader>
-                    <p className="text-sm text-muted-foreground">
-                        Older unresolved retained records were found. Was the retained status already resolved?
-                    </p>
+                    <div className="space-y-4 py-2">
+                        <p className="text-sm text-muted-foreground">
+                            This student was **Retained** in <span className="font-semibold text-foreground">{lookupSourceContext?.grade_level_label}</span> during <span className="font-semibold text-foreground">{lookupSourceContext?.academic_year_name}</span>.
+                        </p>
+                        <div className="rounded-md border bg-red-500/5 p-4 text-sm">
+                            <p>The student is being re-enrolled in the same grade level. Please provide a brief note to resolve the historical retention flag.</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Retention Resolution Notes</Label>
+                            <Textarea
+                                placeholder="State reason for re-enrollment..."
+                                value={createForm.data.retained_resolution_notes}
+                                onChange={(e) => createForm.setData('retained_resolution_notes', e.target.value)}
+                            />
+                        </div>
+                    </div>
                     <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                createForm.setData('resolve_older_retained', false);
-                                setIsOlderRetainedDialogOpen(false);
-                                setIsSaveConfirmOpen(true);
-                            }}
-                        >
-                            No, Keep Unresolved
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                createForm.setData('resolve_older_retained', true);
-                                createForm.setData('retained_resolution_notes', 'Resolved during enrollment intake confirmation.');
-                                setIsOlderRetainedDialogOpen(false);
-                                setIsSaveConfirmOpen(true);
-                            }}
-                        >
-                            Yes, Mark Resolved
-                        </Button>
+                        <Button variant="outline" onClick={() => setIsOlderRetainedDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={() => {
+                            createForm.setData('resolve_older_retained', true);
+                            setIsOlderRetainedDialogOpen(false);
+                            setIsSaveConfirmOpen(true);
+                        }}>Resolve & Proceed</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
-            <ActionConfirmDialog
-                open={!!itemToRemove}
-                onOpenChange={(open) => !open && setItemToRemove(null)}
-                title="Remove from Queue"
-                description={`Are you sure you want to remove ${itemToRemove ? formatStudentName(itemToRemove.first_name, itemToRemove.middle_name, itemToRemove.last_name) : ''} from the enrollment queue? This action cannot be undone.`}
-                variant="destructive"
-                confirmLabel="Remove Entry"
-                onConfirm={submitRemove}
-            />
+        </AppLayout>
         </>
     );
 }

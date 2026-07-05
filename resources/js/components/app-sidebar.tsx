@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
     Banknote,
     BarChart3,
@@ -37,6 +37,13 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { dashboard } from '@/routes';
 import type { NavItem, SharedData } from '@/types';
 import AppLogo from './app-logo';
@@ -99,6 +106,10 @@ const roleNavItems: Record<string, NavItem[]> = {
                 {
                     title: 'Section Manager',
                     href: '/admin/section-manager',
+                },
+                {
+                    title: 'Teacher Profiles',
+                    href: '/admin/teacher-profiles',
                 },
                 {
                     title: 'Schedule Builder',
@@ -233,10 +244,12 @@ const roleNavItems: Record<string, NavItem[]> = {
     ],
     student: [
         { title: 'Schedule', href: '/student/schedule', icon: Calendar },
+        { title: 'Attendance', href: '/student/attendance', icon: CheckSquare },
         { title: 'Grades', href: '/student/grades', icon: GraduationCap },
     ],
     parent: [
         { title: 'Schedule', href: '/parent/schedule', icon: Calendar },
+        { title: 'Attendance', href: '/parent/attendance', icon: CheckSquare },
         { title: 'Grades', href: '/parent/grades', icon: GraduationCap },
         {
             title: 'Billing Information',
@@ -264,9 +277,10 @@ const handheldAllowedHrefMap: Record<string, string[]> = {
         '/teacher/remedial-encoding',
         '/teacher/advisory-board',
     ],
-    student: ['/student/schedule', '/student/grades'],
+    student: ['/student/schedule', '/student/attendance', '/student/grades'],
     parent: [
         '/parent/schedule',
+        '/parent/attendance',
         '/parent/grades',
         '/parent/billing-information',
     ],
@@ -277,6 +291,7 @@ const permissionFeatureByHref: Record<string, string> = {
     '/super-admin/user-manager': 'User Manager',
     '/super-admin/audit-logs': 'Audit Logs',
     '/super-admin/system-settings': 'System Configuration',
+    '/admin/teacher-profiles': 'Section Manager',
     '/admin/class-lists': 'Class Lists',
     '/admin/grade-verification': 'Grade Verification',
     '/teacher/schedule': 'My Schedule',
@@ -335,9 +350,12 @@ const formatRoleLabel = (roleValue: string): string => {
 export function AppSidebar() {
     const page = usePage<SharedData>();
     const { auth } = page.props;
-    const role = (auth.user.role as string) || '';
+    const role = ((auth.effective_role as string) || (auth.user.role as string) || '');
+    const authenticatedRole = (auth.user.role as string) || '';
+    const viewAsRole = (auth.view_as_role as string | null) ?? null;
     const roleLabel = formatRoleLabel(role);
     const isHandheld = Boolean(page.props.ui?.is_handheld);
+    const canSwitchRole = authenticatedRole === 'super_admin';
 
 
     const roleItems = roleNavItems[role] || [];
@@ -415,6 +433,53 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
+                {canSwitchRole ? (
+                    <div className="mt-2 space-y-2 px-2">
+                        <label className="block text-xs font-medium text-muted-foreground">
+                            View As
+                        </label>
+                        <Select
+                            value={viewAsRole ?? 'super_admin'}
+                            onValueChange={(selectedRole) => {
+                                if (selectedRole === 'super_admin') {
+                                    router.delete('/super-admin/view-as-role', {
+                                        preserveScroll: true,
+                                        preserveState: true,
+                                    });
+
+                                    return;
+                                }
+
+                                router.put(
+                                    '/super-admin/view-as-role',
+                                    { role: selectedRole },
+                                    {
+                                        preserveScroll: true,
+                                        preserveState: true,
+                                    },
+                                );
+                            }}
+                        >
+                            <SelectTrigger className="w-full text-xs" size="sm">
+                                <SelectValue placeholder="Super Admin" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="super_admin">Super Admin</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="registrar">Registrar</SelectItem>
+                                <SelectItem value="finance">Finance</SelectItem>
+                                <SelectItem value="teacher">Teacher</SelectItem>
+                                <SelectItem value="student">Student</SelectItem>
+                                <SelectItem value="parent">Parent</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {viewAsRole ? (
+                            <p className="text-[11px] text-muted-foreground">
+                                Viewing as {formatRoleLabel(viewAsRole)}
+                            </p>
+                        ) : null}
+                    </div>
+                ) : null}
             </SidebarHeader>
 
             <SidebarContent>

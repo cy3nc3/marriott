@@ -96,6 +96,20 @@ class SeedNameBank
         ];
     }
 
+    /**
+     * @return array{first_name: string, last_name: string}
+     */
+    public static function teacherIdentity(int $index): array
+    {
+        $firstName = self::GUARDIAN_FIRST_NAMES[$index % count(self::GUARDIAN_FIRST_NAMES)];
+        $lastName = self::STUDENT_LAST_NAMES[self::permutedIndex($index, count(self::STUDENT_LAST_NAMES), 17, 3)];
+
+        return [
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+        ];
+    }
+
     private static function permutedIndex(int $index, int $size, int $multiplier, int $offset): int
     {
         return (($index * $multiplier) + $offset) % $size;

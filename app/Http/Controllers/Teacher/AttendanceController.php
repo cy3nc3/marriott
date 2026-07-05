@@ -13,10 +13,12 @@ use App\Models\SubjectAssignment;
 use App\Services\SchoolForms\Sf2ExportBuilder;
 use App\Services\SchoolForms\Sf2TemplateAdapter;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController extends Controller
 {
@@ -26,8 +28,9 @@ class AttendanceController extends Controller
         IndexAttendanceRequest $request,
         Sf2ExportBuilder $builder,
         Sf2TemplateAdapter $adapter,
-    ): BinaryFileResponse|RedirectResponse {
+    ): BinaryFileResponse|RedirectResponse|StreamedResponse|HttpResponse {
         $validated = $request->validated();
+        $format = strtolower((string) $request->query('format', 'xlsx'));
         $teacherId = (int) auth()->id();
         $selectedMonth = (string) ($validated['month'] ?? now()->format('Y-m'));
         $assignment = SubjectAssignment::query()
@@ -58,25 +61,65 @@ class AttendanceController extends Controller
             return back()->with('error', $this->resolveMonthScopeLockMessage($academicYear));
         }
 
-        $outputPath = storage_path('app/temp/'.uniqid('sf2-', true).'.xls');
-        if (! is_dir(dirname($outputPath))) {
-            mkdir(dirname($outputPath), 0777, true);
-        }
+        $metadata = $builder->buildMetadata($assignment, $selectedMonth);
+        $rows = $builder->buildRows($assignment, $selectedMonth);
+        $headers = ['Gender', 'Name', 'Total Absent', 'Total Present', 'Remarks'];
+        $rowsData = collect($rows)->map(fn (array $row): array => [
+            (string) ($row['gender'] ?? ''),
+            (string) ($row['name'] ?? ''),
+            (string) ($row['total_absent'] ?? ''),
+            (string) ($row['total_present'] ?? ''),
+            (string) ($row['remarks'] ?? ''),
+        ])->all();
 
-        $adapter->exportRows(
-            base_path('templates/SF2_2025.xls'),
-            $outputPath,
-            $builder->buildMetadata($assignment, $selectedMonth),
-            $builder->buildRows($assignment, $selectedMonth),
-        );
-
-        $downloadName = sprintf(
-            'sf2-%s-%s.xls',
+        $downloadBase = sprintf(
+            'sf2-%s-%s',
             $selectedMonth,
             strtolower((string) $assignment->section->name)
         );
 
-        return response()->download($outputPath, $downloadName)->deleteFileAfterSend(true);
+        if ($format === 'csv') {
+            return response()->streamDownload(function () use ($headers, $rowsData): void {
+                $handle = fopen('php://output', 'w');
+                if ($handle === false) {
+                    return;
+                }
+                fputcsv($handle, $headers);
+                foreach ($rowsData as $row) {
+                    fputcsv($handle, $row);
+                }
+                fclose($handle);
+            }, "{$downloadBase}.csv");
+        }
+
+        if ($format === 'xlsx') {
+            $outputPath = storage_path('app/temp/'.uniqid('sf2-', true).'.xlsx');
+            if (! is_dir(dirname($outputPath))) {
+                mkdir(dirname($outputPath), 0777, true);
+            }
+
+            $adapter->exportRows(
+                base_path('templates/SF2_2025.xls'),
+                $outputPath,
+                $metadata,
+                $rows,
+            );
+
+            return response()->download($outputPath, "{$downloadBase}.xlsx")->deleteFileAfterSend(true);
+        }
+
+        $outputPath = storage_path('app/temp/'.uniqid('sf2-', true).'.xls');
+        if (! is_dir(dirname($outputPath))) {
+            mkdir(dirname($outputPath), 0777, true);
+        }
+        $adapter->exportRows(
+            base_path('templates/SF2_2025.xls'),
+            $outputPath,
+            $metadata,
+            $rows,
+        );
+
+        return response()->download($outputPath, "{$downloadBase}.xls")->deleteFileAfterSend(true);
     }
 
     public function index(IndexAttendanceRequest $request): Response

@@ -4,6 +4,7 @@ use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\GradeLevel;
 use App\Models\PermanentRecord;
+use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
 
@@ -28,6 +29,21 @@ test('lookup returns matched student with promoted grade level for returning lea
     $gradeEight = GradeLevel::query()->create([
         'name' => 'Grade 8',
         'level_order' => 8,
+    ]);
+    $section = Section::query()->create([
+        'academic_year_id' => $this->ongoingYear->id,
+        'grade_level_id' => $gradeEight->id,
+        'name' => 'Rizal',
+    ]);
+    $section = Section::query()->create([
+        'academic_year_id' => $this->ongoingYear->id,
+        'grade_level_id' => $gradeEight->id,
+        'name' => 'Rizal',
+    ]);
+    $section = Section::query()->create([
+        'academic_year_id' => $this->ongoingYear->id,
+        'grade_level_id' => $gradeEight->id,
+        'name' => 'Rizal',
     ]);
 
     $student = Student::query()->create([
@@ -217,6 +233,11 @@ test('enrollment store defaults returning students to promoted grade level', fun
         'name' => 'Grade 8',
         'level_order' => 8,
     ]);
+    $section = Section::query()->create([
+        'academic_year_id' => $this->ongoingYear->id,
+        'grade_level_id' => $gradeEight->id,
+        'name' => 'Rizal',
+    ]);
 
     $student = Student::query()->create([
         'lrn' => '234567890123',
@@ -259,6 +280,8 @@ test('enrollment store defaults returning students to promoted grade level', fun
         'guardian_contact_number' => '09171234567',
         'payment_term' => 'monthly',
         'downpayment' => 1000,
+        'grade_level_id' => $gradeEight->id,
+        'section_id' => $section->id,
     ])->assertRedirect();
 
     $intake = Enrollment::query()
@@ -274,6 +297,11 @@ test('enrollment store rejects grade level that violates strict previous-year gu
     $gradeSeven = GradeLevel::query()->create(['name' => 'Grade 7', 'level_order' => 7]);
     $gradeEight = GradeLevel::query()->create(['name' => 'Grade 8', 'level_order' => 8]);
     GradeLevel::query()->create(['name' => 'Grade 9', 'level_order' => 9]);
+    $section = Section::query()->create([
+        'academic_year_id' => $this->ongoingYear->id,
+        'grade_level_id' => $gradeSeven->id,
+        'name' => 'Bonifacio',
+    ]);
     $student = Student::query()->create([
         'lrn' => '678901234567',
         'first_name' => 'Guard',
@@ -314,6 +342,7 @@ test('enrollment store rejects grade level that violates strict previous-year gu
         'payment_term' => 'monthly',
         'downpayment' => 1000,
         'grade_level_id' => $gradeSeven->id,
+        'section_id' => $section->id,
     ])->assertRedirect('/registrar/enrollment')
         ->assertSessionHasErrors(['grade_level_id']);
 
@@ -326,6 +355,11 @@ test('enrollment store rejects grade level that violates strict previous-year gu
 test('enrollment store can resolve older conditional and retained records when confirmed', function () {
     $gradeSeven = GradeLevel::query()->create(['name' => 'Grade 7', 'level_order' => 7]);
     $gradeEight = GradeLevel::query()->create(['name' => 'Grade 8', 'level_order' => 8]);
+    $section = Section::query()->create([
+        'academic_year_id' => $this->ongoingYear->id,
+        'grade_level_id' => $gradeEight->id,
+        'name' => 'Mabini',
+    ]);
     $student = Student::query()->create([
         'lrn' => '789012345678',
         'first_name' => 'Legacy',
@@ -382,6 +416,7 @@ test('enrollment store can resolve older conditional and retained records when c
         'payment_term' => 'monthly',
         'downpayment' => 1000,
         'grade_level_id' => $gradeEight->id,
+        'section_id' => $section->id,
         'resolve_older_conditional' => true,
         'resolve_older_retained' => true,
     ])->assertRedirect();

@@ -194,6 +194,7 @@ export default function GradeVerification({
     const [returnPromptOpen, setReturnPromptOpen] = useState(false);
     const [deadlineDialogOpen, setDeadlineDialogOpen] = useState(false);
     const [coverageDialogOpen, setCoverageDialogOpen] = useState(false);
+    const [coverageSearchQuery, setCoverageSearchQuery] = useState('');
     const [selectedSubmission, setSelectedSubmission] =
         useState<SubmissionRow | null>(null);
 
@@ -242,6 +243,32 @@ export default function GradeVerification({
             (submission) => submission.status === 'verified',
         );
     }, [submissions]);
+
+    const filteredCoverage = useMemo(() => {
+        const query = coverageSearchQuery.trim().toLowerCase();
+
+        const matches = (row: CoverageRow) => {
+            if (query === '') {
+                return true;
+            }
+
+            const haystack = [
+                row.class_label,
+                row.subject_code,
+                row.subject_name,
+                row.teacher_name,
+            ]
+                .join(' ')
+                .toLowerCase();
+
+            return haystack.includes(query);
+        };
+
+        return {
+            submitted: coverage.submitted.filter(matches),
+            not_submitted: coverage.not_submitted.filter(matches),
+        };
+    }, [coverage.not_submitted, coverage.submitted, coverageSearchQuery]);
 
     const openDetailsDialog = (submission: SubmissionRow) => {
         setSelectedSubmission(submission);
@@ -698,12 +725,28 @@ export default function GradeVerification({
 
             <Dialog
                 open={coverageDialogOpen}
-                onOpenChange={setCoverageDialogOpen}
+                onOpenChange={(open) => {
+                    setCoverageDialogOpen(open);
+                    if (!open) {
+                        setCoverageSearchQuery('');
+                    }
+                }}
             >
                 <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
                     <DialogHeader>
                         <DialogTitle>Class Submission Status</DialogTitle>
                     </DialogHeader>
+                    <div className="space-y-1">
+                        <Label htmlFor="coverage-search">Search</Label>
+                        <Input
+                            id="coverage-search"
+                            value={coverageSearchQuery}
+                            onChange={(event) =>
+                                setCoverageSearchQuery(event.target.value)
+                            }
+                            placeholder="Search class, subject, or teacher"
+                        />
+                    </div>
                     <Tabs defaultValue="submitted" className="space-y-4">
                         <TabsList>
                             <TabsTrigger value="submitted">
@@ -715,14 +758,14 @@ export default function GradeVerification({
                         </TabsList>
                         <TabsContent value="submitted" className="m-0">
                             {renderCoverageRows(
-                                coverage.submitted,
+                                filteredCoverage.submitted,
                                 'No submitted classes yet.',
                                 'submitted',
                             )}
                         </TabsContent>
                         <TabsContent value="not_submitted" className="m-0">
                             {renderCoverageRows(
-                                coverage.not_submitted,
+                                filteredCoverage.not_submitted,
                                 'All classes are submitted.',
                                 'not_submitted',
                             )}

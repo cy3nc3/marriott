@@ -314,10 +314,17 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>Discounts / Scholarships</td>
-                                <td class="align-right">(PHP {{ number_format((float) $assessment['assessment']['adjustments']['discounts_scholarships'], 2) }})</td>
-                            </tr>
+                            @forelse ($assessment['assessment']['adjustments']['applied_discounts'] ?? [] as $discount)
+                                <tr>
+                                    <td>Discount: {{ $discount['name'] }}</td>
+                                    <td class="align-right">(PHP {{ number_format((float) $discount['amount'], 2) }})</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td>Discounts / Scholarships</td>
+                                    <td class="align-right">(PHP {{ number_format((float) $assessment['assessment']['adjustments']['discounts_scholarships'], 2) }})</td>
+                                </tr>
+                            @endforelse
                             <tr>
                                 <td>Other Charges</td>
                                 <td class="align-right">PHP {{ number_format((float) $assessment['assessment']['adjustments']['other_charges'], 2) }}</td>
@@ -327,7 +334,7 @@
                                 <td class="align-right">(PHP {{ number_format((float) $assessment['assessment']['adjustments']['credit_adjustment'], 2) }})</td>
                             </tr>
                             <tr>
-                                <td><strong>Net Assessment</strong></td>
+                                <td><strong>Remaining Dues (Net Assessment)</strong></td>
                                 <td class="align-right"><strong>PHP {{ number_format((float) $assessment['assessment']['net_assessment'], 2) }}</strong></td>
                             </tr>
                         </tbody>
@@ -349,7 +356,13 @@
                             @forelse ($assessment['dues']['rows'] as $due)
                                 <tr>
                                     <td>{{ $due['due_date_label'] }}</td>
-                                    <td class="align-right">PHP {{ number_format((float) $due['amount_due'], 2) }}</td>
+                                    <td class="align-right">
+                                        @if ((float) $due['amount_due'] < 0)
+                                            -PHP {{ number_format(abs((float) $due['amount_due']), 2) }}
+                                        @else
+                                            PHP {{ number_format((float) $due['amount_due'], 2) }}
+                                        @endif
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
@@ -360,7 +373,13 @@
                         <tfoot>
                             <tr>
                                 <th>Total Due</th>
-                                <th class="align-right">PHP {{ number_format((float) $assessment['dues']['total_due'], 2) }}</th>
+                                <th class="align-right">
+                                    @if ((float) $assessment['dues']['total_due'] < 0)
+                                        -PHP {{ number_format(abs((float) $assessment['dues']['total_due']), 2) }}
+                                    @else
+                                        PHP {{ number_format((float) $assessment['dues']['total_due'], 2) }}
+                                    @endif
+                                </th>
                             </tr>
                         </tfoot>
                     </table>

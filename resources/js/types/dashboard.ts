@@ -48,3 +48,30 @@ export type DashboardActionLink = {
     label: string;
     href: string;
 };
+
+export type DashboardDecisionCard = {
+    id: string;
+    title: string;
+    decision?: string | null;
+    metric: string;
+    status: 'on_track' | 'watch' | 'at_risk';
+    confidence?: 'high' | 'medium' | 'low';
+    trigger?: string | null;
+    rationale: string;
+    recommended_actions: string[];
+    basis_points?: Array<{
+        label: string;
+        value: string | number;
+        explanation?: string | null;
+    }>;
+};
+
+export type DashboardActionQueueItem = {
+    id: string;
+    title: string;
+    impact: string;
+    urgency: string;
+    priority_score: number;
+    reason: string;
+    href?: string | null;
+};

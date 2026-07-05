@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\UserRole;
 use App\Models\AcademicYear;
 use App\Models\Permission;
 use App\Models\User;
@@ -47,12 +48,17 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+        $effectiveRole = $this->resolveEffectiveRole($request, $user);
 
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
                 'user' => $user,
+                'effective_role' => $effectiveRole,
+                'view_as_role' => $user instanceof User && $user->role === UserRole::SUPER_ADMIN
+                    ? ($effectiveRole !== UserRole::SUPER_ADMIN->value ? $effectiveRole : null)
+                    : null,
             ],
             'active_academic_year' => fn () => $this->resolveActiveAcademicYear(),
             'flash' => [
@@ -68,10 +74,10 @@ class HandleInertiaRequests extends Middleware
                 ],
             'permissions' => $user instanceof User
                 ? fn () => Cache::remember(
-                    sprintf('permissions:%s', $user->role->value),
+                    sprintf('permissions:%s', $effectiveRole),
                     now()->addMinutes(5),
                     fn (): array => Permission::query()
-                        ->where('role', $user->role->value)
+                        ->where('role', $effectiveRole)
                         ->pluck('access_level', 'feature')
                         ->toArray()
                 )
@@ -81,6 +87,34 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
+    }
+
+    private function resolveEffectiveRole(Request $request, ?User $user): ?string
+    {
+        if (! $user instanceof User) {
+            return null;
+        }
+
+        $authenticatedRole = $user->role->value;
+        if ($authenticatedRole !== UserRole::SUPER_ADMIN->value) {
+            return $authenticatedRole;
+        }
+
+        $viewAsRole = (string) ($request->session()->get('view_as_role') ?? '');
+        $allowed = [
+            UserRole::ADMIN->value,
+            UserRole::REGISTRAR->value,
+            UserRole::FINANCE->value,
+            UserRole::TEACHER->value,
+            UserRole::STUDENT->value,
+            UserRole::PARENT->value,
+        ];
+
+        if (in_array($viewAsRole, $allowed, true)) {
+            return $viewAsRole;
+        }
+
+        return $authenticatedRole;
     }
 
     /**

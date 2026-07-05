@@ -9,12 +9,13 @@ use App\Http\Requests\Admin\UpdateScheduleRequest;
 use App\Models\AcademicYear;
 use App\Models\ClassSchedule;
 use App\Models\GradeLevel;
-use App\Models\Section;
+use App\Models\Setting;
 use App\Models\Subject;
 use App\Models\SubjectAssignment;
 use App\Models\TeacherSubject;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -39,14 +40,15 @@ class ScheduleController extends Controller
             'gradeLevels' => GradeLevel::with(['sections' => function ($q) use ($activeYear) {
                 $q->where('academic_year_id', $activeYear->id);
             }])->orderBy('level_order')->get(),
-            'subjects' => Subject::with(['teachers'])->get()->map(fn ($s) => [
+            'subjects' => Subject::with([
+                'teachers' => fn ($query) => $query->where('is_active', true),
+            ])->get()->map(fn ($s) => [
                 'id' => $s->id,
                 'name' => $s->subject_name,
                 'code' => $s->subject_code,
                 'qualifiedTeachers' => $s->teachers->pluck('id'),
             ]),
-            'teachers' => User::query()
-                ->where('role', UserRole::TEACHER)
+            'teachers' => $this->eligibleTeachersQuery()
                 ->orderBy('last_name')
                 ->orderBy('first_name')
                 ->orderBy('name')
@@ -79,15 +81,13 @@ class ScheduleController extends Controller
         $data = $request->validated();
 
         if ($request->type === 'academic' && $request->filled(['subject_id', 'teacher_id'])) {
-            // Find or create TeacherSubject link
-            $teacherSubject = TeacherSubject::firstOrCreate([
-                'teacher_id' => $request->teacher_id,
-                'subject_id' => $request->subject_id,
-            ]);
+            $teacherSubject = $this->resolveEligibleTeacherSubject(
+                (int) $request->subject_id,
+                (int) $request->teacher_id
+            );
 
-            // Find or create SubjectAssignment for this section
             $assignment = SubjectAssignment::firstOrCreate([
-                'section_id' => $request->section_id,
+                'section_id' => (int) $request->section_id,
                 'teacher_subject_id' => $teacherSubject->id,
             ]);
 
@@ -104,10 +104,10 @@ class ScheduleController extends Controller
         $data = $request->validated();
 
         if ($request->type === 'academic' && $request->filled(['subject_id', 'teacher_id'])) {
-            $teacherSubject = TeacherSubject::firstOrCreate([
-                'teacher_id' => $request->teacher_id,
-                'subject_id' => $request->subject_id,
-            ]);
+            $teacherSubject = $this->resolveEligibleTeacherSubject(
+                (int) $request->subject_id,
+                (int) $request->teacher_id
+            );
 
             $assignment = SubjectAssignment::firstOrCreate([
                 'section_id' => $schedule->section_id,
@@ -144,5 +144,73 @@ class ScheduleController extends Controller
                 ->where('status', '!=', 'completed')
                 ->orderBy('start_date')
                 ->first();
+    }
+
+    private function resolveEligibleTeacherSubject(int $subjectId, int $teacherId): TeacherSubject
+    {
+        $subject = Subject::query()
+            ->with('teachers:id')
+            ->find($subjectId);
+
+        if (! $subject) {
+            throw ValidationException::withMessages([
+                'subject_id' => 'Selected subject is invalid.',
+            ]);
+        }
+
+        $teacher = User::query()
+            ->where('role', UserRole::TEACHER->value)
+            ->where('is_active', true)
+            ->with('teacherProfile')
+            ->find($teacherId);
+
+        if (! $teacher) {
+            throw ValidationException::withMessages([
+                'teacher_id' => 'Selected teacher is invalid.',
+            ]);
+        }
+
+        $isCurriculumCertified = $subject->teachers->pluck('id')->contains($teacher->id);
+        if (! $isCurriculumCertified) {
+            throw ValidationException::withMessages([
+                'teacher_id' => 'Selected teacher is not certified for this subject in Curriculum Manager.',
+            ]);
+        }
+
+        $allowedStatuses = ['fully_qualified'];
+        $policyMode = (string) Setting::get('teacher_assignment_policy_mode', 'strict');
+        $allowProvisional = Setting::enabled('teacher_assignment_allow_provisional', false);
+        if ($policyMode === 'transitional' && $allowProvisional) {
+            $allowedStatuses[] = 'provisionally_qualified';
+        }
+
+        $teacherStatus = (string) ($teacher->teacherProfile?->qualification_status ?? 'not_qualified');
+        if (! in_array($teacherStatus, $allowedStatuses, true)) {
+            throw ValidationException::withMessages([
+                'teacher_id' => 'Selected teacher is not eligible under the current teacher qualification policy.',
+            ]);
+        }
+
+        return TeacherSubject::firstOrCreate([
+            'teacher_id' => $teacher->id,
+            'subject_id' => $subject->id,
+        ]);
+    }
+
+    private function eligibleTeachersQuery()
+    {
+        $allowedStatuses = ['fully_qualified'];
+        $policyMode = (string) Setting::get('teacher_assignment_policy_mode', 'strict');
+        $allowProvisional = Setting::enabled('teacher_assignment_allow_provisional', false);
+        if ($policyMode === 'transitional' && $allowProvisional) {
+            $allowedStatuses[] = 'provisionally_qualified';
+        }
+
+        return User::query()
+            ->where('role', UserRole::TEACHER)
+            ->where('is_active', true)
+            ->whereHas('teacherProfile', function ($query) use ($allowedStatuses): void {
+                $query->whereIn('qualification_status', $allowedStatuses);
+            });
     }
 }

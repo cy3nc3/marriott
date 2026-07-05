@@ -12,10 +12,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Subject extends Model
 {
     use Auditable;
+
     protected $fillable = [
         'grade_level_id',
         'subject_code',
         'subject_name',
+        'required_weekly_minutes',
     ];
 
     public function gradeLevel(): BelongsTo
@@ -25,7 +27,9 @@ class Subject extends Model
 
     public function teachers(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'teacher_subjects', 'subject_id', 'teacher_id');
+        return $this->belongsToMany(User::class, 'teacher_subjects', 'subject_id', 'teacher_id')
+            ->withPivot(['id', 'qualification_status', 'eligibility_documents'])
+            ->withTimestamps();
     }
 
     public function gradingRubric(): HasOne

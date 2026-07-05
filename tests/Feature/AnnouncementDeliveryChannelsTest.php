@@ -12,6 +12,7 @@ it('stores selected delivery channels and sends announcement email via resend ch
     $admin = User::factory()->admin()->create();
     $teacher = User::factory()->teacher()->create([
         'email' => 'teacher-recipient@example.test',
+        'personal_email' => 'teacher-personal@example.test',
     ]);
 
     $this->actingAs($admin)
@@ -30,14 +31,24 @@ it('stores selected delivery channels and sends announcement email via resend ch
         ->toContain('in_app')
         ->toContain('email');
 
-    Notification::assertSentOnDemand(
-        AnnouncementDeliveryNotification::class,
-        function (AnnouncementDeliveryNotification $notification, array $channels, object $notifiable) use ($announcement, $teacher): bool {
-            return in_array('mail', $channels, true)
-                && ($notifiable->routes['mail'] ?? null) === $teacher->email
-                && $notification->toArray($notifiable)['announcement_id'] === $announcement->id;
-        }
-    );
+    Notification::assertSentOnDemandTimes(AnnouncementDeliveryNotification::class, 2);
+
+    foreach ([$teacher->email, $teacher->personal_email] as $expectedEmail) {
+        Notification::assertSentOnDemand(
+            AnnouncementDeliveryNotification::class,
+            function (AnnouncementDeliveryNotification $notification, array $channels, object $notifiable) use ($announcement, $expectedEmail): bool {
+                $mailRoutes = $notifiable->routes['mail'] ?? [];
+
+                if (is_string($mailRoutes)) {
+                    $mailRoutes = [$mailRoutes];
+                }
+
+                return in_array('mail', $channels, true)
+                    && in_array($expectedEmail, $mailRoutes, true)
+                    && $notification->toArray($notifiable)['announcement_id'] === $announcement->id;
+            }
+        );
+    }
 });
 
 it('shows warning when sms is selected but firebase backend is in auth verification mode', function (): void {

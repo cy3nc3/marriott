@@ -601,3 +601,34 @@ test('finance daily reports can export xlsx workbook with structured summary and
     expect((string) $noelSheet?->getCell('A5')->getCalculatedValue())->toBe('OR-EXP-0002');
     expect((string) $noelSheet?->getCell('A6')->getCalculatedValue())->toBe('OR-EXP-0002');
 });
+
+test('finance daily reports can export pdf', function () {
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '1',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '977788889991',
+        'first_name' => 'Kara',
+        'last_name' => 'Lim',
+    ]);
+
+    Transaction::query()->create([
+        'or_number' => 'OR-PDF-DR-001',
+        'student_id' => $student->id,
+        'cashier_id' => $this->finance->id,
+        'total_amount' => 1200,
+        'payment_mode' => 'cash',
+        'status' => 'posted',
+    ]);
+
+    $response = $this->get("/finance/daily-reports/export?academic_year_id={$schoolYear->id}&format=pdf");
+
+    $response->assertSuccessful();
+    expect((string) $response->headers->get('content-disposition'))->toContain('.pdf');
+    expect((string) $response->headers->get('content-type'))->toContain('application/pdf');
+});

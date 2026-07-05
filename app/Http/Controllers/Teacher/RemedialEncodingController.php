@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Teacher\StoreRemedialEncodingRequest;
 use App\Models\AcademicYear;
 use App\Models\PermanentRecord;
 use App\Models\RemedialCaseSubject;
@@ -79,12 +80,9 @@ class RemedialEncodingController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreRemedialEncodingRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'case_subject_id' => 'required|exists:remedial_case_subjects,id',
-            'remedial_class_mark' => 'required|numeric|min:0|max:100',
-        ]);
+        $validated = $request->validated();
 
         /** @var RemedialCaseSubject|null $caseSubject */
         $caseSubject = RemedialCaseSubject::query()

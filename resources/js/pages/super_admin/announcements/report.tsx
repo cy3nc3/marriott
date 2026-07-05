@@ -467,7 +467,6 @@ export default function AnnouncementReport({
                                     onValueChange={handleSearch}
                                     placeholder="Search name or email"
                                     suggestions={searchSuggestions}
-                                    showSuggestions={false}
                                 />
                                 <Select
                                     value={status}

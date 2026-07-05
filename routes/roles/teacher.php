@@ -5,6 +5,7 @@ use App\Http\Controllers\Teacher\AttendanceController;
 use App\Http\Controllers\Teacher\GradingSheetController;
 use App\Http\Controllers\Teacher\HistoricalRecordsController;
 use App\Http\Controllers\Teacher\RemedialEncodingController;
+use App\Http\Controllers\Teacher\ReportCardExportController;
 use App\Http\Controllers\Teacher\ScheduleController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +27,7 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
     Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
 
     Route::get('/advisory-board', [AdvisoryBoardController::class, 'index'])->name('advisory_board');
+    Route::get('/advisory-board/export-sf9', ReportCardExportController::class)->name('advisory_board.export_sf9');
     Route::post('/advisory-board/conduct', [AdvisoryBoardController::class, 'storeConduct'])->name('advisory_board.store_conduct');
     Route::post('/advisory-board/release-grades', [AdvisoryBoardController::class, 'releaseGrades'])->name('advisory_board.release_grades');
 });

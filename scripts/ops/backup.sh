@@ -43,6 +43,12 @@ SPACES_REGION="${BACKUP_SPACES_REGION:-${AWS_DEFAULT_REGION:-}}"
 SPACES_ENDPOINT="${BACKUP_SPACES_ENDPOINT:-${AWS_ENDPOINT:-}}"
 SPACES_BUCKET="${BACKUP_SPACES_BUCKET:-}"
 SPACES_PREFIX="${BACKUP_SPACES_PREFIX:-marriott/backups}"
+SECONDARY_ACCESS_KEY_ID="${BACKUP_SECONDARY_ACCESS_KEY_ID:-}"
+SECONDARY_SECRET_ACCESS_KEY="${BACKUP_SECONDARY_SECRET_ACCESS_KEY:-}"
+SECONDARY_REGION="${BACKUP_SECONDARY_REGION:-}"
+SECONDARY_ENDPOINT="${BACKUP_SECONDARY_ENDPOINT:-}"
+SECONDARY_BUCKET="${BACKUP_SECONDARY_BUCKET:-}"
+SECONDARY_PREFIX="${BACKUP_SECONDARY_PREFIX:-marriott/backups}"
 
 if [[ -z "$SPACES_ENDPOINT" && -n "$SPACES_REGION" ]]; then
   SPACES_ENDPOINT="https://${SPACES_REGION}.digitaloceanspaces.com"
@@ -53,9 +59,10 @@ DB_DUMP_TMP="$(mktemp "$BACKUP_ROOT/.db-${TIMESTAMP}.XXXXXX.sql.gz")"
 FILES_DUMP_TMP="$(mktemp "$BACKUP_ROOT/.storage-${TIMESTAMP}.XXXXXX.tar.gz")"
 MANIFEST_TMP="$(mktemp "$BACKUP_ROOT/.manifest-${TIMESTAMP}.XXXXXX.txt")"
 S3CFG_TMP="$(mktemp "$BACKUP_ROOT/.s3cfg-${TIMESTAMP}.XXXXXX")"
+S3CFG_SECONDARY_TMP="$(mktemp "$BACKUP_ROOT/.s3cfg-secondary-${TIMESTAMP}.XXXXXX")"
 
 cleanup() {
-  rm -f "$DB_DUMP_TMP" "$FILES_DUMP_TMP" "$MANIFEST_TMP" "$S3CFG_TMP"
+  rm -f "$DB_DUMP_TMP" "$FILES_DUMP_TMP" "$MANIFEST_TMP" "$S3CFG_TMP" "$S3CFG_SECONDARY_TMP"
 }
 trap cleanup EXIT
 
@@ -88,49 +95,85 @@ find "$BACKUP_ROOT" -type f -name "db-*.sql.gz" -mtime "+${RETENTION_DAYS}" -del
 find "$BACKUP_ROOT" -type f -name "storage-*.tar.gz" -mtime "+${RETENTION_DAYS}" -delete
 find "$BACKUP_ROOT" -type f -name "manifest-*.txt" -mtime "+${RETENTION_DAYS}" -delete
 
-if [[ -n "$SPACES_BUCKET" ]]; then
-  if [[ -z "$SPACES_ACCESS_KEY_ID" || -z "$SPACES_SECRET_ACCESS_KEY" || -z "$SPACES_ENDPOINT" ]]; then
-    echo "Spaces upload requested but credentials/endpoint are incomplete."
+upload_to_s3_target() {
+  local access_key_id="$1"
+  local secret_access_key="$2"
+  local endpoint="$3"
+  local bucket="$4"
+  local prefix="$5"
+  local cfg_file="$6"
+  local label="$7"
+
+  if [[ -z "$bucket" ]]; then
+    return 0
+  fi
+
+  if [[ -z "$access_key_id" || -z "$secret_access_key" || -z "$endpoint" ]]; then
+    echo "${label} upload requested but credentials/endpoint are incomplete."
     exit 1
   fi
+
   if ! command -v s3cmd >/dev/null 2>&1; then
     echo "s3cmd is not available. Install s3cmd first."
     exit 1
   fi
 
-  SPACES_HOST="${SPACES_ENDPOINT#https://}"
-  SPACES_HOST="${SPACES_HOST#http://}"
-  SPACES_PREFIX="${SPACES_PREFIX#/}"
-  SPACES_PREFIX="${SPACES_PREFIX%/}"
+  local host="${endpoint#https://}"
+  host="${host#http://}"
+  prefix="${prefix#/}"
+  prefix="${prefix%/}"
 
-  cat > "$S3CFG_TMP" <<EOF
+  cat > "$cfg_file" <<EOF
 [default]
-access_key = $SPACES_ACCESS_KEY_ID
-secret_key = $SPACES_SECRET_ACCESS_KEY
-host_base = $SPACES_HOST
-host_bucket = %(bucket)s.$SPACES_HOST
+access_key = $access_key_id
+secret_key = $secret_access_key
+host_base = $host
+host_bucket = %(bucket)s.$host
 use_https = True
 signature_v2 = False
 EOF
-  chmod 600 "$S3CFG_TMP"
+  chmod 600 "$cfg_file"
 
   for artifact in "$DB_DUMP_FILE" "$FILES_DUMP_FILE" "$MANIFEST_FILE"; do
+    local artifact_name
     artifact_name="$(basename "$artifact")"
-    artifact_key="$artifact_name"
-    if [[ -n "$SPACES_PREFIX" ]]; then
-      artifact_key="${SPACES_PREFIX}/${artifact_name}"
+    local artifact_key="$artifact_name"
+    if [[ -n "$prefix" ]]; then
+      artifact_key="${prefix}/${artifact_name}"
     fi
-    echo "Uploading $artifact_name to s3://${SPACES_BUCKET}/${artifact_key}..."
-    s3cmd -c "$S3CFG_TMP" put "$artifact" "s3://${SPACES_BUCKET}/${artifact_key}"
+    echo "Uploading $artifact_name to ${label} s3://${bucket}/${artifact_key}..."
+    s3cmd -c "$cfg_file" put "$artifact" "s3://${bucket}/${artifact_key}"
   done
+}
+
+upload_to_s3_target \
+  "$SPACES_ACCESS_KEY_ID" \
+  "$SPACES_SECRET_ACCESS_KEY" \
+  "$SPACES_ENDPOINT" \
+  "$SPACES_BUCKET" \
+  "$SPACES_PREFIX" \
+  "$S3CFG_TMP" \
+  "primary"
+
+upload_to_s3_target \
+  "$SECONDARY_ACCESS_KEY_ID" \
+  "$SECONDARY_SECRET_ACCESS_KEY" \
+  "$SECONDARY_ENDPOINT" \
+  "$SECONDARY_BUCKET" \
+  "$SECONDARY_PREFIX" \
+  "$S3CFG_SECONDARY_TMP" \
+  "secondary"
+
+if [[ -n "$SPACES_BUCKET" ]]; then
+  echo "Primary target: s3://${SPACES_BUCKET}/${SPACES_PREFIX}"
+fi
+if [[ -n "$SECONDARY_BUCKET" ]]; then
+  echo "Secondary target: s3://${SECONDARY_BUCKET}/${SECONDARY_PREFIX}"
 fi
 
 echo "Backup complete:"
 echo "  DB:      $DB_DUMP_FILE"
 echo "  Storage: $FILES_DUMP_FILE"
 echo "  Manifest:$MANIFEST_FILE"
-if [[ -n "$SPACES_BUCKET" ]]; then
-  echo "  Spaces:  s3://${SPACES_BUCKET}/${SPACES_PREFIX}"
-fi
 
 trap - EXIT

@@ -101,12 +101,12 @@ export default function FinanceDataImport({ imports }: Props) {
                                     htmlFor="finance-import-file"
                                     className="sr-only"
                                 >
-                                    Import CSV File
+                                    Import Workbook File
                                 </Label>
                                 <Input
                                     id="finance-import-file"
                                     type="file"
-                                    accept=".csv,text/csv,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                    accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                     onChange={(event) =>
                                         importForm.setData(
                                             'import_file',

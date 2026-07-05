@@ -29,7 +29,7 @@ test('finance planner creates one pending job per active rule and unpaid schedul
         'updated_by' => $finance->id,
     ]);
     $schedule = createFinanceReminderBillingSchedule([
-        'due_date' => '2026-05-10',
+        'due_date' => '2026-06-10',
         'amount_due' => 2500,
         'amount_paid' => 0,
         'status' => 'unpaid',
@@ -43,8 +43,8 @@ test('finance planner creates one pending job per active rule and unpaid schedul
 
     expect($job)->not->toBeNull()
         ->and($job?->status)->toBe(ScheduledNotificationJobStatus::Pending)
-        ->and($job?->run_at?->format('Y-m-d H:i'))->toBe('2026-05-07 07:30')
-        ->and($job?->dedupe_key)->toBe("finance:rule-{$rule->id}:schedule-{$schedule->id}:202605070730")
+        ->and($job?->run_at?->format('Y-m-d H:i'))->toBe('2026-06-07 07:30')
+        ->and($job?->dedupe_key)->toBe("finance:rule-{$rule->id}:schedule-{$schedule->id}:202606070730")
         ->and($job?->group_key)->toBe("finance:rule-{$rule->id}")
         ->and($job?->subject_type)->toBe(BillingSchedule::class)
         ->and($job?->subject_id)->toBe($schedule->id)
@@ -63,7 +63,7 @@ test('finance planner supersedes pending jobs when the configured send time chan
         'days_before_due' => 1,
         'is_active' => true,
     ]);
-    createFinanceReminderBillingSchedule(['due_date' => '2026-05-10']);
+    createFinanceReminderBillingSchedule(['due_date' => '2026-06-10']);
 
     $planner = app(FinanceDueReminderPlanner::class);
     $planner->reconcileRule($rule);
@@ -76,7 +76,7 @@ test('finance planner supersedes pending jobs when the configured send time chan
         ->first();
 
     expect(ScheduledNotificationJob::query()->where('status', ScheduledNotificationJobStatus::Superseded)->count())->toBe(1)
-        ->and($pendingJob?->run_at?->format('Y-m-d H:i'))->toBe('2026-05-09 09:45');
+        ->and($pendingJob?->run_at?->format('Y-m-d H:i'))->toBe('2026-06-09 09:45');
 });
 
 test('finance planner does not create pending jobs for past reminder times', function () {

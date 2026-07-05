@@ -8,15 +8,22 @@ use App\Models\AuditLog;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\DashboardCacheService;
+use App\Services\DashboardDecisionService;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        private readonly DashboardDecisionService $dashboardDecisionService,
+    ) {}
+
     public function index(): Response
     {
-        $payload = DashboardCacheService::remember('super_admin:dashboard:'.now()->toDateString(), function (): array {
+        $decisionService = $this->dashboardDecisionService;
+
+        $payload = DashboardCacheService::remember('super_admin:dashboard:'.now()->toDateString(), function () use ($decisionService): array {
             $roleTotals = User::query()
                 ->selectRaw('role, count(*) as total')
                 ->groupBy('role')
@@ -31,10 +38,6 @@ class DashboardController extends Controller
                 })
                 ->values()
                 ->all();
-
-            $totalUsers = (int) User::query()->count();
-            $activeUsers = (int) User::query()->where('is_active', true)->count();
-            $inactiveUsers = max($totalUsers - $activeUsers, 0);
 
             $today = now()->toDateString();
             $auditLogsToday = (int) AuditLog::query()->whereDate('created_at', $today)->count();
@@ -61,68 +64,12 @@ class DashboardController extends Controller
                 }
             }
 
-            $alerts = [];
-
-            if ($backupAgeHours === null || $backupAgeHours >= 72) {
-                $alerts[] = [
-                    'id' => 'backup-stale',
-                    'title' => 'Backup freshness is critical',
-                    'message' => $backupAgeHours === null
-                        ? 'No valid backup timestamp was found in system settings.'
-                        : "Last backup is {$backupAgeHours} hours old.",
-                    'severity' => 'critical',
-                ];
-            } elseif ($backupAgeHours >= 24) {
-                $alerts[] = [
-                    'id' => 'backup-warning',
-                    'title' => 'Backup freshness requires attention',
-                    'message' => "Last backup is {$backupAgeHours} hours old.",
-                    'severity' => 'warning',
-                ];
-            }
-
-            if ($riskAuditLogsToday >= 10) {
-                $alerts[] = [
-                    'id' => 'audit-risk',
-                    'title' => 'High audit risk activity today',
-                    'message' => "{$riskAuditLogsToday} high-risk audit events were detected.",
-                    'severity' => 'critical',
-                ];
-            } elseif ($riskAuditLogsToday >= 4) {
-                $alerts[] = [
-                    'id' => 'audit-risk',
-                    'title' => 'Audit risk activity needs review',
-                    'message' => "{$riskAuditLogsToday} high-risk audit events were detected.",
-                    'severity' => 'warning',
-                ];
-            }
-
-            if ($inactiveUsers >= 20) {
-                $alerts[] = [
-                    'id' => 'inactive-users',
-                    'title' => 'Inactive account backlog is high',
-                    'message' => "{$inactiveUsers} accounts are currently inactive.",
-                    'severity' => 'warning',
-                ];
-            }
-
-            if ($maintenanceMode) {
-                $alerts[] = [
-                    'id' => 'maintenance',
-                    'title' => 'System is currently in maintenance mode',
-                    'message' => 'Only authorized users should be making configuration changes.',
-                    'severity' => 'warning',
-                ];
-            }
-
-            if ($alerts === []) {
-                $alerts[] = [
-                    'id' => 'super-admin-stable',
-                    'title' => 'System governance is stable',
-                    'message' => 'Backups, account governance, and audit risk are within target thresholds.',
-                    'severity' => 'info',
-                ];
-            }
+            $alerts = $decisionService->superAdminAlerts(
+                $backupAgeHours,
+                $riskAuditLogsToday,
+                $maintenanceMode,
+                $parentPortalEnabled,
+            );
 
             $auditTrendByDay = AuditLog::query()
                 ->whereDate('created_at', '>=', now()->subDays(6)->toDateString())
@@ -143,108 +90,75 @@ class DashboardController extends Controller
                 ->values()
                 ->all();
 
+            $decisionCards = [];
+
+            $highRiskEventRatio = $auditLogsToday > 0
+                ? round(($riskAuditLogsToday / $auditLogsToday) * 100, 2)
+                : 0.0;
+            $recoveryReadinessScore = min(100, max(0, (int) round(
+                (($backupAgeHours === null ? 0 : max(100 - min($backupAgeHours, 100), 0)) * 0.7)
+                + (($maintenanceMode ? 60 : 100) * 0.3)
+            )));
+            $auditRiskPatternRows = [
+                ['type' => 'Important Actions', 'events' => $riskAuditLogsToday],
+                ['type' => 'Other', 'events' => max($auditLogsToday - $riskAuditLogsToday, 0)],
+            ];
+
+            $kpis = [
+                [
+                    'id' => 'super-recovery-readiness',
+                    'label' => 'Latest Backup',
+                    'value' => $backupAgeHours === null ? 'Unknown' : number_format($backupAgeHours, 1).'h old',
+                    'meta' => $latestBackupAt
+                        ? 'Last backup: '.Carbon::parse((string) $latestBackupAt)->format('M d, Y h:i A')
+                        : 'Backup timestamp missing',
+                ],
+                [
+                    'id' => 'super-high-risk-ratio',
+                    'label' => 'Important Actions Today',
+                    'value' => $riskAuditLogsToday,
+                    'meta' => "{$auditLogsToday} total action(s) logged today",
+                ],
+                [
+                    'id' => 'super-high-risk-events-today',
+                    'label' => 'Settings Changes Today',
+                    'value' => AuditLog::query()
+                        ->whereDate('created_at', $today)
+                        ->where(function ($query) {
+                            $query
+                                ->whereRaw('LOWER(action) like ?', ['%setting%'])
+                                ->orWhereRaw('LOWER(action) like ?', ['%permission%'])
+                                ->orWhereRaw('LOWER(action) like ?', ['%role%']);
+                        })
+                        ->count(),
+                    'meta' => 'Settings, permissions, or role changes',
+                ],
+            ];
+            $kpis = $decisionService->prioritizeSuperAdminKpis($kpis, $backupAgeHours);
+
+            $actionLinks = [
+                [
+                    'id' => 'view-audit-logs',
+                    'label' => 'Review Important Actions',
+                    'href' => route('super_admin.audit_logs'),
+                ],
+            ];
+            $actionLinks = $decisionService->prioritizeSuperAdminActionLinks(
+                $actionLinks,
+                $backupAgeHours,
+                $riskAuditLogsToday,
+            );
+
             return [
-                'kpis' => [
-                    [
-                        'id' => 'system-health',
-                        'label' => 'System Health',
-                        'value' => $maintenanceMode ? 'Maintenance Mode' : 'Operational',
-                        'meta' => $parentPortalEnabled ? 'Parent portal enabled' : 'Parent portal disabled',
-                    ],
-                    [
-                        'id' => 'account-governance',
-                        'label' => 'Account Governance',
-                        'value' => "{$activeUsers} / {$totalUsers}",
-                        'meta' => 'Active user accounts',
-                    ],
-                    [
-                        'id' => 'audit-risk',
-                        'label' => 'Audit Risk (Today)',
-                        'value' => $riskAuditLogsToday,
-                        'meta' => "{$auditLogsToday} total audit events",
-                    ],
-                    [
-                        'id' => 'backup-freshness',
-                        'label' => 'Backup Freshness',
-                        'value' => $backupAgeHours === null ? 'Unknown' : "{$backupAgeHours}h",
-                        'meta' => $latestBackupAt ? (string) $latestBackupAt : 'No backup timestamp',
-                    ],
-                ],
+                'kpis' => $kpis,
                 'alerts' => array_values($alerts),
-                'trends' => [
-                    [
-                        'id' => 'role-distribution',
-                        'label' => 'Role Distribution',
-                        'summary' => 'Current user count by role',
-                        'display' => 'bar',
-                        'points' => array_map(function (array $point): array {
-                            return [
-                                'label' => $point['label'],
-                                'value' => $point['count'],
-                            ];
-                        }, $roleDistributionPoints),
-                        'chart' => [
-                            'x_key' => 'role',
-                            'rows' => collect($roleDistributionPoints)
-                                ->map(function (array $point): array {
-                                    return [
-                                        'role' => $point['label'],
-                                        'users' => $point['count'],
-                                    ];
-                                })
-                                ->values()
-                                ->all(),
-                            'series' => [
-                                [
-                                    'key' => 'users',
-                                    'label' => 'Users',
-                                ],
-                            ],
-                        ],
-                    ],
-                    [
-                        'id' => 'audit-activity',
-                        'label' => 'Audit Activity (Last 7 Days)',
-                        'summary' => 'Daily volume of recorded audit events',
-                        'display' => 'line',
-                        'points' => $auditTrendPoints,
-                        'chart' => [
-                            'x_key' => 'day',
-                            'rows' => collect($auditTrendPoints)
-                                ->map(function (array $point): array {
-                                    return [
-                                        'day' => $point['label'],
-                                        'events' => $point['value'],
-                                    ];
-                                })
-                                ->values()
-                                ->all(),
-                            'series' => [
-                                [
-                                    'key' => 'events',
-                                    'label' => 'Events',
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
-                'action_links' => [
-                    [
-                        'id' => 'manage-users',
-                        'label' => 'Open User Manager',
-                        'href' => route('super_admin.user_manager'),
-                    ],
-                    [
-                        'id' => 'view-audit-logs',
-                        'label' => 'Review Audit Logs',
-                        'href' => route('super_admin.audit_logs'),
-                    ],
-                    [
-                        'id' => 'open-system-settings',
-                        'label' => 'Open System Settings',
-                        'href' => route('super_admin.system_settings'),
-                    ],
-                ],
+                'trends' => $decisionService->superAdminTrends(
+                    $auditTrendPoints,
+                    $auditRiskPatternRows,
+                ),
+                'action_links' => $actionLinks,
+            'decision_cards' => $decisionCards,
+                'action_queue' => [],
             ];
         });
 

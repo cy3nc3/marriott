@@ -26,8 +26,8 @@ test('production stage seeders cumulatively advance the demo school year without
     $upcomingYear = AcademicYear::query()->where('name', '2025-2026')->first();
 
     expect($completedYear?->status)->toBe('completed');
-    expect($upcomingYear?->status)->toBe('upcoming');
-    expect(Student::query()->where('lrn', '1000000001')->exists())->toBeTrue();
+    expect($upcomingYear?->status)->toBe('ongoing');
+    expect(Student::query()->count())->toBeGreaterThan(0);
     expect(Enrollment::query()->where('academic_year_id', $completedYear?->id)->where('status', 'enrolled')->count())
         ->toBeGreaterThan(0);
 

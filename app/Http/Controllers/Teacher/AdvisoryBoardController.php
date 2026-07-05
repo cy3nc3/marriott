@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Teacher;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Teacher\Concerns\ResolvesTeacherAcademicYearAccess;
 use App\Http\Requests\Teacher\IndexAdvisoryBoardRequest;
+use App\Http\Requests\Teacher\ReleaseGradesRequest;
 use App\Http\Requests\Teacher\StoreAdvisoryConductRequest;
 use App\Models\AcademicYear;
 use App\Models\ConductRating;
@@ -16,9 +17,8 @@ use App\Models\Section;
 use App\Models\SubjectAssignment;
 use App\Services\Registrar\PermanentRecordPopulationService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -262,12 +262,9 @@ class AdvisoryBoardController extends Controller
         ]);
     }
 
-    public function releaseGrades(Request $request, PermanentRecordPopulationService $permanentRecordPopulationService): RedirectResponse
+    public function releaseGrades(ReleaseGradesRequest $request, PermanentRecordPopulationService $permanentRecordPopulationService): RedirectResponse
     {
-        $validated = $request->validate([
-            'section_id' => ['required', 'integer', 'exists:sections,id'],
-            'quarter' => ['required', 'string', 'in:1,2,3,4'],
-        ]);
+        $validated = $request->validated();
 
         $section = Section::query()
             ->whereKey($validated['section_id'])

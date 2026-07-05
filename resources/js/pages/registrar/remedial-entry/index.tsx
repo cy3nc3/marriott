@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { Eye, ListChecks, Users } from 'lucide-react';
+import { Download, Eye, ListChecks, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -26,6 +32,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import registrar from '@/routes/registrar';
 import type { BreadcrumbItem } from '@/types';
@@ -251,11 +258,29 @@ export default function RemedialEntry({
                 <div className="flex flex-col gap-6">
                     <Card className="gap-2">
                         <CardHeader className="border-b">
-                            <div className="flex items-center justify-between gap-3">
-                                <CardTitle>Selected Student</CardTitle>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="gap-2">
+                                            <Download className="size-4" />
+                                            Export
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => window.location.assign(`/registrar/remedial-entry/export?format=xlsx&academic_year_id=${academicYearId}&student_id=${studentId}`)}>
+                                            Export as Excel (.xlsx)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => window.location.assign(`/registrar/remedial-entry/export?format=csv&academic_year_id=${academicYearId}&student_id=${studentId}`)}>
+                                            Export as CSV (.csv)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => window.location.assign(`/registrar/remedial-entry/export?format=pdf&academic_year_id=${academicYearId}&student_id=${studentId}`)}>
+                                            Export as PDF (.pdf)
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                                 <Button
                                     variant="outline"
-                                    className="justify-start"
+                                    className="justify-start gap-2"
                                     onClick={() => setIsStudentModalOpen(true)}
                                 >
                                     <Users className="size-4" />
@@ -305,7 +330,7 @@ export default function RemedialEntry({
                                                 Assigned Teacher
                                             </TableHead>
                                             <TableHead className="border-l text-center">
-                                                Intake
+                                                Enrollment
                                             </TableHead>
                                             <TableHead className="border-l text-center">
                                                 Encoding
@@ -407,7 +432,7 @@ export default function RemedialEntry({
                                                                     )
                                                                 }
                                                             >
-                                                                Add to Intake
+                                                                Add to Enrollment
                                                             </Button>
                                                         )}
                                                     </TableCell>
@@ -491,7 +516,7 @@ export default function RemedialEntry({
                                         <TableHead className="w-[17%]">LRN</TableHead>
                                         <TableHead className="w-[20%]">Grade</TableHead>
                                         <TableHead className="w-[10%]">Failed</TableHead>
-                                        <TableHead className="w-[13%]">Intake</TableHead>
+                                        <TableHead className="w-[13%]">Enrollment</TableHead>
                                         <TableHead className="w-[10%] pr-4 text-right">
                                             Action
                                         </TableHead>

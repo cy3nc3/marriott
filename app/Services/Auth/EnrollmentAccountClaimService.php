@@ -6,7 +6,8 @@ use App\Enums\UserRole;
 use App\Models\AccountClaimToken;
 use App\Models\Enrollment;
 use App\Models\User;
-use App\Notifications\EnrollmentAccountClaimNotification;
+use App\Notifications\EnrollmentSingleAccountClaimNotification;
+use App\Notifications\StaffAccountClaimNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -16,10 +17,22 @@ use RuntimeException;
 class EnrollmentAccountClaimService
 {
     private const CLAIM_LINK_EXPIRATION_HOURS = 24 * 30;
+    private const CLAIM_EMAIL_TIMEZONE = 'Asia/Manila';
 
     public function issueForEnrollment(Enrollment $enrollment): ?AccountClaimToken
     {
         $tokenPayload = $this->issueTokenPayloadForEnrollment($enrollment, sendNotification: true);
+
+        return $tokenPayload['token'] ?? null;
+    }
+
+    public function issueForEnrollmentUser(Enrollment $enrollment, User $user): ?AccountClaimToken
+    {
+        $tokenPayload = $this->issueTokenPayloadForEnrollment(
+            $enrollment,
+            sendNotification: true,
+            targetUserId: (int) $user->id
+        );
 
         return $tokenPayload['token'] ?? null;
     }
@@ -42,6 +55,49 @@ class EnrollmentAccountClaimService
         return $tokenPayload['plain_token'] ?? null;
     }
 
+    public function issueForStaffUser(User $user, string $recipientEmail): ?AccountClaimToken
+    {
+        $normalizedRecipientEmail = trim(Str::lower($recipientEmail));
+
+        if ($normalizedRecipientEmail === '') {
+            return null;
+        }
+
+        AccountClaimToken::query()
+            ->where('user_id', $user->id)
+            ->usable()
+            ->update(['used_at' => now()]);
+
+        $plainToken = Str::random(64);
+        $claimToken = AccountClaimToken::query()->create([
+            'user_id' => $user->id,
+            'enrollment_id' => null,
+            'email' => $normalizedRecipientEmail,
+            'token_hash' => hash('sha256', $plainToken),
+            'expires_at' => now()->addHours(self::CLAIM_LINK_EXPIRATION_HOURS),
+            'used_at' => null,
+        ]);
+
+        if (! config('services.enrollment_claim_mail.enabled', false)) {
+            Log::info('Staff account claim mail is in draft mode; skipping dispatch.', [
+                'user_id' => $user->id,
+                'recipient_email' => $normalizedRecipientEmail,
+            ]);
+
+            return $claimToken;
+        }
+
+        Notification::route('mail', $normalizedRecipientEmail)
+            ->notify(new StaffAccountClaimNotification(
+                accountName: (string) $user->name,
+                accountEmail: (string) $user->email,
+                claimUrl: $this->claimUrl($plainToken),
+                expiresAtLabel: $this->formatClaimExpiresAt($claimToken),
+            ));
+
+        return $claimToken;
+    }
+
     /**
      * @return array{token: AccountClaimToken, plain_token: string}|null
      */
@@ -51,11 +107,6 @@ class EnrollmentAccountClaimService
         ?int $targetUserId = null,
     ): ?array {
         if ((string) $enrollment->status !== 'enrolled') {
-            return null;
-        }
-
-        $recipientEmail = trim((string) $enrollment->email);
-        if ($recipientEmail === '') {
             return null;
         }
 
@@ -87,7 +138,7 @@ class EnrollmentAccountClaimService
                 'enrollment_id' => $enrollment->id,
                 'student_user_id' => $studentUser?->id,
                 'parent_user_id' => $parentUser?->id,
-                'recipient_email' => $recipientEmail,
+                'guardian_contact_email' => $enrollment->email,
             ]);
 
             return null;
@@ -107,6 +158,11 @@ class EnrollmentAccountClaimService
 
         /** @var User $user */
         foreach ($users as $user) {
+            $recipientEmail = $this->resolveEnrollmentClaimRecipientEmail($user, $enrollment);
+            if ($recipientEmail === null) {
+                continue;
+            }
+
             AccountClaimToken::query()
                 ->where('user_id', $user->id)
                 ->usable()
@@ -126,14 +182,24 @@ class EnrollmentAccountClaimService
                 'token' => $claimToken,
                 'plain_token' => $plainToken,
                 'user' => $user,
+                'recipient_email' => $recipientEmail,
             ];
+        }
+
+        if ($tokenPayloads === []) {
+            Log::warning('Enrollment claim tokens were not issued because no claim recipient email was available.', [
+                'enrollment_id' => $enrollment->id,
+                'guardian_contact_email' => $enrollment->email,
+            ]);
+
+            return null;
         }
 
         if (! $sendNotification || ! config('services.enrollment_claim_mail.enabled', false)) {
             Log::info('Enrollment claim mail is in draft mode; skipping dispatch.', [
                 'enrollment_id' => $enrollment->id,
                 'user_ids' => $users->pluck('id')->all(),
-                'recipient_email' => $recipientEmail,
+                'recipient_emails' => collect($tokenPayloads)->pluck('recipient_email')->unique()->values()->all(),
             ]);
 
             $selectedPayload = $this->selectPrimaryPayload($tokenPayloads);
@@ -144,27 +210,19 @@ class EnrollmentAccountClaimService
             ] : null;
         }
 
-        $studentPayload = $this->findFirstPayloadByRole($tokenPayloads, UserRole::STUDENT->value);
-        $parentPayload = $this->findFirstPayloadByRole($tokenPayloads, UserRole::PARENT->value);
-
-        if (! $studentPayload || ! $parentPayload) {
-            Log::warning('Enrollment claim mail was skipped because both student and parent claim links are required.', [
-                'enrollment_id' => $enrollment->id,
-                'recipient_email' => $recipientEmail,
-            ]);
-
-            return null;
-        }
-
         $fallbackPayload = $this->selectPrimaryPayload($tokenPayloads);
-        $expiresAtLabel = ($fallbackPayload['token'] ?? null)?->expires_at?->format('M d, Y h:i A T') ?? '30 days';
+        $expiresAtLabel = isset($fallbackPayload['token'])
+            ? $this->formatClaimExpiresAt($fallbackPayload['token'])
+            : '30 days';
 
-        Notification::route('mail', $recipientEmail)
-            ->notify(new EnrollmentAccountClaimNotification(
-                studentClaimUrl: $this->claimUrl($studentPayload['plain_token']),
-                parentClaimUrl: $this->claimUrl($parentPayload['plain_token']),
-                expiresAtLabel: $expiresAtLabel,
-            ));
+        foreach ($tokenPayloads as $payload) {
+            Notification::route('mail', $payload['recipient_email'])
+                ->notify(new EnrollmentSingleAccountClaimNotification(
+                    accountLabel: $this->claimAccountLabel($payload['user']),
+                    claimUrl: $this->claimUrl($payload['plain_token']),
+                    expiresAtLabel: $expiresAtLabel,
+                ));
+        }
 
         $selectedPayload = $this->selectPrimaryPayload($tokenPayloads);
 
@@ -247,6 +305,18 @@ class EnrollmentAccountClaimService
         return rtrim($claimBaseUrl, '/').'/'.ltrim($relativePath, '/');
     }
 
+    private function formatClaimExpiresAt(AccountClaimToken $claimToken): string
+    {
+        if (! $claimToken->expires_at) {
+            return '30 days';
+        }
+
+        return $claimToken->expires_at
+            ->copy()
+            ->timezone(self::CLAIM_EMAIL_TIMEZONE)
+            ->format('M d, Y h:i A').' PHT';
+    }
+
     /**
      * @param  list<array{token: AccountClaimToken, plain_token: string, user: User}>  $tokenPayloads
      * @return array{token: AccountClaimToken, plain_token: string, user: User}|null
@@ -285,5 +355,39 @@ class EnrollmentAccountClaimService
         }
 
         return null;
+    }
+
+    private function resolveEnrollmentClaimRecipientEmail(User $user, Enrollment $enrollment): ?string
+    {
+        $role = $user->role instanceof UserRole
+            ? $user->role->value
+            : (string) $user->role;
+        $guardianContactEmail = $this->normalizeEmail($enrollment->email);
+
+        if ($role === UserRole::STUDENT->value) {
+            return $this->normalizeEmail($user->personal_email) ?? $guardianContactEmail;
+        }
+
+        if ($role === UserRole::PARENT->value) {
+            return $guardianContactEmail;
+        }
+
+        return null;
+    }
+
+    private function claimAccountLabel(User $user): string
+    {
+        $role = $user->role instanceof UserRole
+            ? $user->role->value
+            : (string) $user->role;
+
+        return $role === UserRole::PARENT->value ? 'Parent' : 'Student';
+    }
+
+    private function normalizeEmail(mixed $email): ?string
+    {
+        $normalizedEmail = Str::lower(trim((string) $email));
+
+        return $normalizedEmail !== '' ? $normalizedEmail : null;
     }
 }

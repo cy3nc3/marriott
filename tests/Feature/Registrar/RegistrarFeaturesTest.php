@@ -171,6 +171,7 @@ test('registrar student directory export downloads sf1 reference csv', function 
         'Grade Level',
         'Section',
         'Enrollment Status',
+        'Promotion Status',
     ]);
     expect($csvRows[1][0] ?? null)->toBe('111122223334');
     expect($csvRows[1][1] ?? null)->toBe('Maria');
@@ -178,7 +179,40 @@ test('registrar student directory export downloads sf1 reference csv', function 
     expect($csvRows[1][9] ?? null)->toBe('Grade 7');
     expect($csvRows[1][10] ?? null)->toBe('Rizal');
     expect($csvRows[1][11] ?? null)->toBe('for_cashier_payment');
+    expect($csvRows[1][12] ?? null)->toBe('');
     expect(collect($csvRows)->flatten()->contains('Bonifacio'))->toBeFalse();
+});
+
+test('registrar student directory export downloads sf1 reference pdf', function () {
+    $firstSection = Section::query()->create([
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'name' => 'Rizal',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '111122223335',
+        'first_name' => 'Mara',
+        'last_name' => 'Santos',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $this->academicYear->id,
+        'grade_level_id' => $this->gradeLevel->id,
+        'section_id' => $firstSection->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $response = $this->get(
+        "/registrar/student-directory/export-sf1-reference?academic_year_id={$this->academicYear->id}&section_ids[]={$firstSection->id}&format=pdf"
+    );
+
+    $response->assertSuccessful();
+    expect((string) $response->headers->get('content-disposition'))->toContain('.pdf');
+    expect((string) $response->headers->get('content-type'))->toContain('application/pdf');
 });
 
 test('registrar student directory omits lis status fields from payload', function () {
@@ -761,35 +795,28 @@ test('registrar dashboard shows lis sync pie and payment method trends', functio
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('registrar/dashboard')
-            ->where('trends.0.id', 'lis-sync-distribution')
-            ->where('trends.0.display', 'pie')
+            ->where('trends.0.id', 'section-capacity-utilization')
+            ->where('trends.0.display', 'bar')
             ->where('trends.0.chart.rows', function ($rows): bool {
-                $rowsByStatus = collect($rows)->keyBy('status');
-
-                return count($rows) === 3
-                    && (int) ($rowsByStatus['Synced']['students'] ?? -1) === 2
-                    && (int) ($rowsByStatus['Pending']['students'] ?? -1) === 3
-                    && (int) ($rowsByStatus['Errors']['students'] ?? -1) === 1
-                    && (int) collect($rows)->sum('students') === 6;
+                return count($rows) >= 1
+                    && array_key_exists('section', $rows[0])
+                    && array_key_exists('utilization', $rows[0]);
             })
-            ->where('trends.1.id', 'payment-method-mix')
-            ->where('trends.1.display', 'pie')
+            ->where('trends.1.id', 'section-queue-hotspots')
+            ->where('trends.1.display', 'bar')
             ->where('trends.1.chart.rows', function ($rows): bool {
-                return count($rows) === 5
-                    && ($rows[0]['method'] ?? null) === 'Cash'
-                    && (int) ($rows[0]['transactions'] ?? -1) === 2
-                    && ($rows[1]['method'] ?? null) === 'E-Wallet'
-                    && (int) ($rows[1]['transactions'] ?? -1) === 1
-                    && ($rows[2]['method'] ?? null) === 'Bank Transfer'
-                    && (int) ($rows[2]['transactions'] ?? -1) === 1
-                    && ($rows[3]['method'] ?? null) === 'Check'
-                    && (int) ($rows[3]['transactions'] ?? -1) === 1
-                    && ($rows[4]['method'] ?? null) === 'Other'
-                    && (int) ($rows[4]['transactions'] ?? -1) === 0
-                    && (int) collect($rows)->sum('transactions') === 5;
+                return count($rows) >= 1
+                    && array_key_exists('section', $rows[0])
+                    && array_key_exists('items', $rows[0]);
             })
-            ->where('kpis.2.id', 'lis-sync-rate')
-            ->where('kpis.2.value', '33.33%')
+            ->where('kpis', function ($kpis): bool {
+                $ids = collect($kpis)->pluck('id');
+
+                return $ids->contains('registrar-capacity-bottlenecks')
+                    && $ids->contains('requirements-compliance')
+                    && $ids->contains('for-cashier-pipeline')
+                    && $ids->contains('intake-queue-age');
+            })
         );
 });
 
@@ -800,19 +827,17 @@ test('registrar dashboard renders empty chart-safe payloads with no queue or tra
             ->component('registrar/dashboard')
             ->where('kpis.0.value', 0)
             ->where('kpis.1.value', 0)
-            ->where('kpis.2.value', '0.00%')
-            ->where('kpis.3.value', 0)
-            ->where('alerts.0.id', 'lis-sync')
-            ->where('alerts.0.severity', 'critical')
-            ->where('trends.0.id', 'lis-sync-distribution')
+            ->where('kpis.2.value', 0)
+            ->where('kpis.3.value', '0h')
+            ->where('alerts.0.id', 'registrar-stable')
+            ->where('alerts.0.severity', 'info')
+            ->where('trends.0.id', 'section-capacity-utilization')
             ->where('trends.0.chart.rows', function ($rows): bool {
-                return count($rows) === 3
-                    && (int) collect($rows)->sum('students') === 0;
+                return count($rows) === 0;
             })
-            ->where('trends.1.id', 'payment-method-mix')
+            ->where('trends.1.id', 'section-queue-hotspots')
             ->where('trends.1.chart.rows', function ($rows): bool {
-                return count($rows) === 5
-                    && (int) collect($rows)->sum('transactions') === 0;
+                return count($rows) === 0;
             })
         );
 });

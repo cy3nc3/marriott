@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { Info, Lock, Send, Save } from 'lucide-react';
+import { Download, Info, Lock, Send, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -507,6 +507,9 @@ export default function AdvisoryBoard({
                                             <TableHead className="border-l pr-6 text-right whitespace-nowrap">
                                                 General Average
                                             </TableHead>
+                                            <TableHead className="border-l pr-6 text-center whitespace-nowrap">
+                                                Action
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -550,6 +553,17 @@ export default function AdvisoryBoard({
                                                     <TableCell className="border-l pr-6 text-right font-medium">
                                                         {gradeRow.general_average ??
                                                             '-'}
+                                                    </TableCell>
+                                                    <TableCell className="border-l pr-6 text-center">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 gap-1.5"
+                                                            onClick={() => window.location.assign(`/teacher/advisory-board/export-sf9?enrollment_id=${gradeRow.enrollment_id}`)}
+                                                        >
+                                                            <Download className="size-3.5" />
+                                                            SF9
+                                                        </Button>
                                                     </TableCell>
                                                 </TableRow>
                                             ))

@@ -82,90 +82,24 @@ class DataImportController extends Controller
         $file = $validated['import_file'];
         $extension = strtolower((string) $file->getClientOriginalExtension());
 
-        if (in_array($extension, ['xls', 'xlsx'], true)) {
-            $workbook = $this->parseWorkbookImport($file);
-            if ($workbook === null) {
-                return back()->with('error', 'Unable to read workbook.');
-            }
-
-            if (($workbook['supported_sheets'] ?? []) === []) {
-                return back()->with('error', 'Workbook must contain at least one supported sheet: transactions or dues.');
-            }
-
-            if (($workbook['invalid_sheets'] ?? []) !== []) {
-                return back()->with('error', 'Workbook has invalid required columns for sheets: '.implode(', ', $workbook['invalid_sheets']).'.');
-            }
-
-            $summary = $this->importWorkbook($workbook['sheets'], (int) auth()->id());
-
-            Setting::set('finance_transactions_last_import_at', now()->toDateTimeString(), 'finance');
-            Setting::set('finance_transactions_last_import_name', $file->getClientOriginalName(), 'finance');
-            Setting::set('finance_transactions_last_import_summary', json_encode($summary), 'finance');
-
-            $auditLogService->log('finance.transactions.imported', Transaction::class, null, [
-                ...$summary,
-                'file_name' => $file->getClientOriginalName(),
-                'mode' => 'workbook',
-            ]);
-
-            DashboardCacheService::bust();
-
-            return back()->with(
-                'success',
-                "Workbook import complete. Imported {$summary['imported_rows']} of {$summary['processed_rows']} rows ({$summary['skipped_rows']} skipped)."
-            );
+        if (! in_array($extension, ['xls', 'xlsx'], true)) {
+            return back()->with('error', 'Only official Excel workbook templates (.xlsx/.xls) are supported.');
         }
 
-        $handle = fopen($file->getRealPath(), 'r');
-
-        if ($handle === false) {
-            return back()->with('error', 'Unable to read import file.');
+        $workbook = $this->parseWorkbookImport($file);
+        if ($workbook === null) {
+            return back()->with('error', 'Unable to read workbook.');
         }
 
-        $headerRow = fgetcsv($handle);
-        if ($headerRow === false) {
-            fclose($handle);
-
-            return back()->with('error', 'Import file is empty.');
+        if (($workbook['supported_sheets'] ?? []) === []) {
+            return back()->with('error', 'Workbook must match an official template: transactions OR dues + students_master.');
         }
 
-        $headers = $this->normalizeCsvHeaders($headerRow);
-        $rows = [];
-
-        while (($row = fgetcsv($handle)) !== false) {
-            if ($this->isCsvRowEmpty($row)) {
-                continue;
-            }
-
-            $rows[] = $this->mapCsvRow($headers, $row);
+        if (($workbook['invalid_sheets'] ?? []) !== []) {
+            return back()->with('error', 'Workbook headers do not match official template for sheets: '.implode(', ', $workbook['invalid_sheets']).'.');
         }
 
-        fclose($handle);
-
-        usort($rows, function (array $leftRow, array $rightRow): int {
-            return $this->resolveRowSortTimestamp($leftRow) <=> $this->resolveRowSortTimestamp($rightRow);
-        });
-
-        $summary = [
-            'processed_rows' => 0,
-            'imported_rows' => 0,
-            'created_transactions' => 0,
-            'updated_transactions' => 0,
-            'created_students' => 0,
-            'created_academic_years' => 0,
-            'created_grade_levels' => 0,
-            'created_sections' => 0,
-            'created_enrollments' => 0,
-            'created_ledger_entries' => 0,
-            'skipped_rows' => 0,
-        ];
-
-        foreach ($rows as $rowData) {
-            $summary['processed_rows']++;
-            if (! $this->importFinanceRow($rowData, $summary, (int) auth()->id())) {
-                $summary['skipped_rows']++;
-            }
-        }
+        $summary = $this->importWorkbook($workbook['sheets'], (int) auth()->id());
 
         Setting::set('finance_transactions_last_import_at', now()->toDateTimeString(), 'finance');
         Setting::set('finance_transactions_last_import_name', $file->getClientOriginalName(), 'finance');
@@ -638,7 +572,27 @@ class DataImportController extends Controller
     {
         return [
             'transactions' => ['or_number', 'student', 'payment_mode', 'status', 'posted_on', 'cashier', 'amount', 'corrected_by', 'correction_reason'],
-            'dues' => ['lrn', 'school_year'],
+            'students_master' => ['student_key', 'lrn', 'last_name', 'first_name', 'middle_name'],
+            'dues' => [
+                'student_key',
+                'lrn',
+                'last_name',
+                'first_name',
+                'middle_name',
+                'school_year',
+                'due_1_date',
+                'due_1_amount',
+                'due_1_description',
+                'due_2_date',
+                'due_2_amount',
+                'due_2_description',
+                'due_3_date',
+                'due_3_amount',
+                'due_3_description',
+                'due_4_date',
+                'due_4_amount',
+                'due_4_description',
+            ],
         ];
     }
 
@@ -655,6 +609,11 @@ class DataImportController extends Controller
             $spreadsheet = IOFactory::load($file->getRealPath());
         } catch (\Throwable) {
             return null;
+        }
+
+        $transactionExportCompatibility = $this->parseTransactionExportWorkbook($spreadsheet);
+        if ($transactionExportCompatibility !== null) {
+            return $transactionExportCompatibility;
         }
 
         $supportedSheets = array_keys($this->requiredHeadersBySheet());
@@ -691,36 +650,142 @@ class DataImportController extends Controller
 
             $headers = $sheetMap[$sheetName]['headers'];
             $requiredHeaders = $this->requiredHeadersBySheet()[$sheetName];
-            $missingHeaders = collect($requiredHeaders)
-                ->reject(fn (string $header): bool => in_array($header, $headers, true))
-                ->values()
-                ->all();
-
-            if ($sheetName === 'dues' && $missingHeaders === []) {
-                $hasSimple = in_array('due_date', $headers, true) && in_array('due_amount', $headers, true);
-                $hasGrouped = collect(range(1, 12))->contains(function (int $index) use ($headers): bool {
-                    return in_array("due_{$index}_date", $headers, true) && in_array("due_{$index}_amount", $headers, true);
-                });
-
-                if (! $hasSimple && ! $hasGrouped) {
-                    $missingHeaders = ['due_date+due_amount OR due_n_date+due_n_amount'];
-                }
-            }
-
-            if ($missingHeaders !== []) {
+            if ($headers !== $requiredHeaders) {
                 $invalidSheets[] = $sheetName;
             }
         }
 
-        $presentSupportedSheets = collect($supportedSheets)
-            ->filter(fn (string $sheet): bool => array_key_exists($sheet, $sheetMap))
-            ->values()
-            ->all();
+        $hasTransactionsTemplate = isset($sheetMap['transactions']);
+        $hasDuesTemplate = isset($sheetMap['dues']) && isset($sheetMap['students_master']);
+        $presentSupportedSheets = [];
+        if ($hasTransactionsTemplate) {
+            $presentSupportedSheets[] = 'transactions';
+        }
+        if ($hasDuesTemplate) {
+            $presentSupportedSheets[] = 'dues';
+            $presentSupportedSheets[] = 'students_master';
+        }
 
         return [
             'sheets' => $sheetMap,
             'supported_sheets' => $presentSupportedSheets,
             'invalid_sheets' => $invalidSheets,
+        ];
+    }
+
+    /**
+     * @return array{
+     *   sheets: array<string, array{headers: array<int, string>, rows: array<int, array<int, string>>}>,
+     *   supported_sheets: array<int, string>,
+     *   invalid_sheets: array<int, string>
+     * }|null
+     */
+    private function parseTransactionExportWorkbook(\PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet): ?array
+    {
+        $rows = [];
+        $foundCompatibleSheet = false;
+
+        foreach ($spreadsheet->getWorksheetIterator() as $worksheet) {
+            $title = strtolower(trim((string) $worksheet->getTitle()));
+            $headerValues = [];
+            for ($col = 1; $col <= 9; $col++) {
+                $columnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                $headerValues[] = strtolower(trim((string) $worksheet->getCell("{$columnLetter}3")->getCalculatedValue()));
+            }
+
+            $isTransactionHistoryDetail = $headerValues === [
+                'or number',
+                'student',
+                'payment mode',
+                'status',
+                'posted on',
+                'cashier',
+                'amount',
+                'corrected by',
+                'correction reason',
+            ];
+
+            $isDailyReportTransactions = $headerValues === [
+                'or number',
+                'student',
+                'payment type',
+                'payment mode',
+                'status',
+                'amount',
+                'cashier',
+                'posted at',
+                '',
+            ];
+
+            if (! $isTransactionHistoryDetail && ! $isDailyReportTransactions) {
+                continue;
+            }
+
+            if ($title === 'summary' || $title === 'monthly overview') {
+                continue;
+            }
+
+            $foundCompatibleSheet = true;
+            for ($row = 4; $row <= 5000; $row++) {
+                $orNumber = trim((string) $worksheet->getCell("A{$row}")->getFormattedValue());
+                $student = trim((string) $worksheet->getCell("B{$row}")->getFormattedValue());
+                $paymentMode = $isDailyReportTransactions
+                    ? trim((string) $worksheet->getCell("D{$row}")->getFormattedValue())
+                    : trim((string) $worksheet->getCell("C{$row}")->getFormattedValue());
+                $status = $isDailyReportTransactions
+                    ? trim((string) $worksheet->getCell("E{$row}")->getFormattedValue())
+                    : trim((string) $worksheet->getCell("D{$row}")->getFormattedValue());
+                $postedOn = $isDailyReportTransactions
+                    ? trim((string) $worksheet->getCell("H{$row}")->getFormattedValue())
+                    : trim((string) $worksheet->getCell("E{$row}")->getFormattedValue());
+                $cashier = $isDailyReportTransactions
+                    ? trim((string) $worksheet->getCell("G{$row}")->getFormattedValue())
+                    : trim((string) $worksheet->getCell("F{$row}")->getFormattedValue());
+                $amount = $isDailyReportTransactions
+                    ? trim((string) $worksheet->getCell("F{$row}")->getFormattedValue())
+                    : trim((string) $worksheet->getCell("G{$row}")->getFormattedValue());
+                $correctedBy = $isDailyReportTransactions
+                    ? ''
+                    : trim((string) $worksheet->getCell("H{$row}")->getFormattedValue());
+                $correctionReason = $isDailyReportTransactions
+                    ? ''
+                    : trim((string) $worksheet->getCell("I{$row}")->getFormattedValue());
+
+                if ($orNumber === '' && $student === '' && $amount === '') {
+                    continue;
+                }
+
+                if ($orNumber === '' || $amount === '') {
+                    continue;
+                }
+
+                $rows[] = [
+                    $orNumber,
+                    $student,
+                    $paymentMode,
+                    $status,
+                    $postedOn,
+                    $cashier,
+                    $amount,
+                    $correctedBy,
+                    $correctionReason,
+                ];
+            }
+        }
+
+        if (! $foundCompatibleSheet) {
+            return null;
+        }
+
+        return [
+            'sheets' => [
+                'transactions' => [
+                    'headers' => $this->requiredHeadersBySheet()['transactions'],
+                    'rows' => $rows,
+                ],
+            ],
+            'supported_sheets' => ['transactions'],
+            'invalid_sheets' => [],
         ];
     }
 

@@ -9,6 +9,9 @@ import {
     UserCheck,
     MoreHorizontal,
     Users,
+    Filter,
+    Download,
+    X,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
@@ -33,6 +36,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
@@ -50,6 +54,9 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import {
     store,
@@ -82,9 +89,15 @@ interface User {
     last_name: string | null;
     name: string;
     email: string;
+    personal_email: string | null;
     birthday: string | null;
     role: string;
     is_active: boolean;
+}
+
+interface RoleLimit {
+    limit: number;
+    count: number;
 }
 
 interface Props {
@@ -99,30 +112,78 @@ interface Props {
         to: number | null;
         total: number;
     };
-    filters: {
+    filters?: {
         search?: string;
         role?: string;
+        sort?: string;
+        claim_status?: string;
+        login_activity?: string;
+    };
+    role_limits?: {
+        super_admin: RoleLimit;
+        admin: RoleLimit;
     };
 }
 
-export default function UserManager({ users, filters }: Props) {
+export default function UserManager({ users, filters, role_limits }: Props) {
+    const normalizedFilters = useMemo(() => {
+        if (!filters || Array.isArray(filters)) {
+            return {
+                search: '',
+                role: 'all',
+                sort: 'newest',
+                claim_status: 'all',
+                login_activity: 'all',
+            };
+        }
+
+        return {
+            search: filters.search || '',
+            role: filters.role || 'all',
+            sort: filters.sort || 'newest',
+            claim_status: filters.claim_status || 'all',
+            login_activity: filters.login_activity || 'all',
+        };
+    }, [filters]);
+
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [searchQuery, setSearchQuery] = useState(filters.search || '');
-    const [roleFilter, setRoleFilter] = useState(filters.role || 'all');
+    const [searchQuery, setSearchQuery] = useState(normalizedFilters.search);
+    const [roleFilter, setRoleFilter] = useState(normalizedFilters.role);
+    const [sortFilter, setSortFilter] = useState(normalizedFilters.sort);
+    const [claimStatusFilter, setClaimStatusFilter] = useState(normalizedFilters.claim_status);
+    const [loginActivityFilter, setLoginActivityFilter] = useState(normalizedFilters.login_activity);
     const [confirmResetUser, setConfirmResetUser] = useState<User | null>(null);
     const [confirmToggleUser, setConfirmToggleUser] = useState<User | null>(null);
+
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (roleFilter !== 'all') count++;
+        if (sortFilter !== 'newest') count++;
+        if (claimStatusFilter !== 'all') count++;
+        if (loginActivityFilter !== 'all') count++;
+        return count;
+    }, [roleFilter, sortFilter, claimStatusFilter, loginActivityFilter]);
+
+    const handleResetFilters = () => {
+        setRoleFilter('all');
+        setSortFilter('newest');
+        setClaimStatusFilter('all');
+        setLoginActivityFilter('all');
+        applyFilters(searchQuery, 'all', 'newest', 'all', 'all');
+    };
 
     const createForm = useForm({
         first_name: '',
         last_name: '',
-        birthday: '',
+        personal_email: '',
         role: '',
     });
 
     const editForm = useForm({
         first_name: '',
         last_name: '',
+        personal_email: '',
         birthday: '',
         role: '',
     });
@@ -158,20 +219,44 @@ export default function UserManager({ users, filters }: Props) {
 
     const handleSearch = (val: string) => {
         setSearchQuery(val);
-        applyFilters(val, roleFilter);
+        applyFilters(val, roleFilter, sortFilter, claimStatusFilter, loginActivityFilter);
     };
 
     const handleRoleFilter = (val: string) => {
         setRoleFilter(val);
-        applyFilters(searchQuery, val);
+        applyFilters(searchQuery, val, sortFilter, claimStatusFilter, loginActivityFilter);
     };
 
-    const applyFilters = (search: string, role: string) => {
+    const handleSortFilter = (val: string) => {
+        setSortFilter(val);
+        applyFilters(searchQuery, roleFilter, val, claimStatusFilter, loginActivityFilter);
+    };
+
+    const handleClaimStatusFilter = (val: string) => {
+        setClaimStatusFilter(val);
+        applyFilters(searchQuery, roleFilter, sortFilter, val, loginActivityFilter);
+    };
+
+    const handleLoginActivityFilter = (val: string) => {
+        setLoginActivityFilter(val);
+        applyFilters(searchQuery, roleFilter, sortFilter, claimStatusFilter, val);
+    };
+
+    const applyFilters = (
+        search: string,
+        role: string,
+        sort: string,
+        claimStatus: string,
+        loginActivity: string,
+    ) => {
         router.get(
             '/super-admin/user-manager',
             {
                 search: search || undefined,
                 role: role === 'all' ? undefined : role,
+                sort: sort === 'newest' ? undefined : sort,
+                claim_status: claimStatus === 'all' ? undefined : claimStatus,
+                login_activity: loginActivity === 'all' ? undefined : loginActivity,
             },
             {
                 preserveState: true,
@@ -228,15 +313,52 @@ export default function UserManager({ users, filters }: Props) {
         editForm.setData({
             first_name: user.first_name || '',
             last_name: user.last_name || '',
+            personal_email: user.personal_email || '',
             birthday: user.birthday || '',
             role: user.role,
         });
     };
 
+    const isStaffRole = (role?: string | null) =>
+        ['super_admin', 'admin', 'registrar', 'finance', 'teacher'].includes(
+            role || '',
+        );
+
+    const getLimitedRoleStatus = (
+        role?: string | null,
+        currentUser?: User | null,
+    ) => {
+        if (role !== 'super_admin' && role !== 'admin') {
+            return { isLimited: false, isReached: false };
+        }
+
+        const roleLimit = role_limits?.[role];
+        const currentUserHasRole = currentUser?.role === role;
+        const usedCount = Math.max(
+            0,
+            (roleLimit?.count ?? 0) - (currentUserHasRole ? 1 : 0),
+        );
+
+        return {
+            isLimited: true,
+            isReached: usedCount >= (roleLimit?.limit ?? 1),
+        };
+    };
+
+    const getRoleLabel = (role: string) =>
+        roleOptions.find((option) => option.value === role)?.label ||
+        role.replace('_', ' ');
+
+    const getLimitedRoleLabel = (role: string, currentUser?: User | null) => {
+        const label = getRoleLabel(role);
+
+        return getLimitedRoleStatus(role, currentUser).isReached
+            ? `${label} (limit reached)`
+            : label;
+    };
+
     const getRoleBadge = (role: string) => {
-        const label =
-            roleOptions.find((option) => option.value === role)?.label ||
-            role.replace('_', ' ');
+        const label = getRoleLabel(role);
 
         return <Badge variant="outline">{label}</Badge>;
     };
@@ -249,37 +371,219 @@ export default function UserManager({ users, filters }: Props) {
                     <CardContent className="p-0">
                         <div className="flex flex-col gap-4 border-b p-6 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex flex-wrap items-center gap-3">
+                                <Badge variant="secondary" className="h-9 px-3 text-sm">
+                                    Total Users: {users.total}
+                                </Badge>
                                 <SearchAutocompleteInput
                                     placeholder="Search users..."
                                     wrapperClassName="w-[260px]"
                                     value={searchQuery}
                                     onValueChange={handleSearch}
                                     suggestions={searchSuggestions}
-                                    showSuggestions={false}
                                 />
 
                                 <div className="flex items-center gap-2">
-                                    <Select
-                                        value={roleFilter}
-                                        onValueChange={handleRoleFilter}
-                                    >
-                                        <SelectTrigger className="w-[160px]">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">
-                                                All Roles
-                                            </SelectItem>
-                                            {roleOptions.map((roleOption) => (
-                                                <SelectItem
-                                                    key={roleOption.value}
-                                                    value={roleOption.value}
-                                                >
-                                                    {roleOption.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-9 gap-2"
+                                            >
+                                                <Filter className="size-4" />
+                                                Filters
+                                                {activeFilterCount > 0 && (
+                                                    <>
+                                                        <Separator
+                                                            orientation="vertical"
+                                                            className="mx-1 h-4"
+                                                        />
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className="rounded-sm px-1 font-normal"
+                                                        >
+                                                            {activeFilterCount}
+                                                        </Badge>
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent
+                                            className="w-[280px] p-4"
+                                            align="start"
+                                        >
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <h4 className="font-medium leading-none">
+                                                        Filters
+                                                    </h4>
+                                                    {activeFilterCount > 0 && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={
+                                                                handleResetFilters
+                                                            }
+                                                            className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                                                        >
+                                                            Reset
+                                                            <X className="ml-1 size-3" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                                <Separator />
+                                                <div className="grid gap-4">
+                                                    <div className="space-y-2">
+                                                        <Label>Role</Label>
+                                                        <Select
+                                                            value={roleFilter}
+                                                            onValueChange={
+                                                                handleRoleFilter
+                                                            }
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">
+                                                                    All Roles
+                                                                </SelectItem>
+                                                                {roleOptions.map(
+                                                                    (
+                                                                        roleOption,
+                                                                    ) => (
+                                                                        <SelectItem
+                                                                            key={
+                                                                                roleOption.value
+                                                                            }
+                                                                            value={
+                                                                                roleOption.value
+                                                                            }
+                                                                        >
+                                                                            {
+                                                                                roleOption.label
+                                                                            }
+                                                                        </SelectItem>
+                                                                    ),
+                                                                )}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label>Sort By</Label>
+                                                        <Select
+                                                            value={sortFilter}
+                                                            onValueChange={
+                                                                handleSortFilter
+                                                            }
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="newest">
+                                                                    Newest First
+                                                                </SelectItem>
+                                                                <SelectItem value="oldest">
+                                                                    Oldest First
+                                                                </SelectItem>
+                                                                <SelectItem value="az">
+                                                                    Name (A-Z)
+                                                                </SelectItem>
+                                                                <SelectItem value="za">
+                                                                    Name (Z-A)
+                                                                </SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label>
+                                                            Claim Status
+                                                        </Label>
+                                                        <Select
+                                                            value={
+                                                                claimStatusFilter
+                                                            }
+                                                            onValueChange={
+                                                                handleClaimStatusFilter
+                                                            }
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">
+                                                                    All Claim
+                                                                    Status
+                                                                </SelectItem>
+                                                                <SelectItem value="claimed">
+                                                                    Claimed
+                                                                </SelectItem>
+                                                                <SelectItem value="unclaimed">
+                                                                    Unclaimed
+                                                                </SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label>
+                                                            Login Activity
+                                                        </Label>
+                                                        <Select
+                                                            value={
+                                                                loginActivityFilter
+                                                            }
+                                                            onValueChange={
+                                                                handleLoginActivityFilter
+                                                            }
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">
+                                                                    All Login
+                                                                    Activity
+                                                                </SelectItem>
+                                                                <SelectItem value="never">
+                                                                    Never Logged
+                                                                    In
+                                                                </SelectItem>
+                                                                <SelectItem value="stale_90">
+                                                                    Stale (90+
+                                                                    days)
+                                                                </SelectItem>
+                                                                <SelectItem value="recent_30">
+                                                                    Active (30
+                                                                    days)
+                                                                </SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" size="sm">
+                                                <Download className="mr-2 size-4" />
+                                                Export
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem>
+                                                Export as Excel (.xlsx)
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem>
+                                                Export as CSV (.csv)
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem>
+                                                Export as PDF (.pdf)
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </div>
 
@@ -296,7 +600,10 @@ export default function UserManager({ users, filters }: Props) {
                                 <TableRow>
                                     <TableHead className="pl-6">Name</TableHead>
                                     <TableHead className="border-l">
-                                        Email
+                                        Account Email
+                                    </TableHead>
+                                    <TableHead className="border-l">
+                                        Personal Email
                                     </TableHead>
                                     <TableHead className="border-l">
                                         Role
@@ -312,7 +619,7 @@ export default function UserManager({ users, filters }: Props) {
                             <TableBody>
                                 {users.data.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="h-24">
+                                        <TableCell colSpan={6} className="h-24">
                                             <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                                                 <Users className="size-8 opacity-40" />
                                                 <p className="text-sm">
@@ -329,6 +636,9 @@ export default function UserManager({ users, filters }: Props) {
                                             </TableCell>
                                             <TableCell className="border-l text-muted-foreground">
                                                 {user.email}
+                                            </TableCell>
+                                            <TableCell className="border-l text-muted-foreground">
+                                                {user.personal_email || '—'}
                                             </TableCell>
                                             <TableCell className="border-l">
                                                 {getRoleBadge(user.role)}
@@ -385,7 +695,11 @@ export default function UserManager({ users, filters }: Props) {
                                                         >
                                                             <KeyRound className="size-3.5" />
                                                             <span>
-                                                                Reset Password
+                                                                {isStaffRole(
+                                                                    user.role,
+                                                                )
+                                                                    ? 'Send Claim Email'
+                                                                    : 'Reset Password'}
                                                             </span>
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
@@ -480,7 +794,8 @@ export default function UserManager({ users, filters }: Props) {
                     <DialogHeader>
                         <DialogTitle>Create Staff Account</DialogTitle>
                         <DialogDescription>
-                            Add a new member to the school administration.
+                            Add a new staff account and send a claim link to
+                            their personal email.
                         </DialogDescription>
                     </DialogHeader>
                     <form
@@ -540,28 +855,30 @@ export default function UserManager({ users, filters }: Props) {
                             )}
 
                             <div className="grid gap-2">
-                                <Label htmlFor="birthday">Birthday</Label>
-                                <DateOfBirthPicker
-                                    date={
-                                        createForm.data.birthday
-                                            ? new Date(createForm.data.birthday)
-                                            : undefined
-                                    }
-                                    setDate={(date) =>
+                                <Label htmlFor="personal_email">
+                                    Personal Email
+                                </Label>
+                                <Input
+                                    id="personal_email"
+                                    type="email"
+                                    placeholder="staff.personal@gmail.com"
+                                    value={createForm.data.personal_email}
+                                    onChange={(e) =>
                                         createForm.setData(
-                                            'birthday',
-                                            date
-                                                ? format(date, 'yyyy-MM-dd')
-                                                : '',
+                                            'personal_email',
+                                            e.target.value,
                                         )
                                     }
-                                    className="w-full"
-                                    placeholder="Select date of birth"
+                                    required
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    Password will be auto-generated from this
-                                    format: [first-name-token]@MMDDYYYY.
+                                    The claim email will be sent here. The
+                                    staff member will set their own password
+                                    through the claim link.
                                 </p>
+                                <InputError
+                                    message={createForm.errors.personal_email}
+                                />
                             </div>
 
                             <div className="grid gap-2">
@@ -586,11 +903,22 @@ export default function UserManager({ users, filters }: Props) {
                                         <SelectItem value="teacher">
                                             Teacher
                                         </SelectItem>
-                                        <SelectItem value="admin">
-                                            Admin
+                                        <SelectItem
+                                            value="admin"
+                                            disabled={
+                                                getLimitedRoleStatus('admin')
+                                                    .isReached
+                                            }
+                                        >
+                                            {getLimitedRoleLabel('admin')}
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <p className="text-xs text-muted-foreground">
+                                    Admin and Super Admin accounts are limited
+                                    to one account each.
+                                </p>
+                                <InputError message={createForm.errors.role} />
                             </div>
                         </div>
                         <DialogFooter>
@@ -605,7 +933,7 @@ export default function UserManager({ users, filters }: Props) {
                                 type="submit"
                                 disabled={createForm.processing}
                             >
-                                Create Account
+                                Create Account & Send Claim Email
                             </Button>
                         </DialogFooter>
                     </form>
@@ -671,6 +999,31 @@ export default function UserManager({ users, filters }: Props) {
                             </div>
 
                             <div className="grid gap-2">
+                                <Label htmlFor="edit_personal_email">
+                                    Personal Email
+                                </Label>
+                                <Input
+                                    id="edit_personal_email"
+                                    type="email"
+                                    value={editForm.data.personal_email}
+                                    onChange={(e) =>
+                                        editForm.setData(
+                                            'personal_email',
+                                            e.target.value,
+                                        )
+                                    }
+                                    required={isStaffRole(editForm.data.role)}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Required for staff claim emails and password
+                                    reset claim links.
+                                </p>
+                                <InputError
+                                    message={editForm.errors.personal_email}
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
                                 <Label htmlFor="edit_birthday">Birthday</Label>
                                 <DateOfBirthPicker
                                     date={
@@ -687,7 +1040,7 @@ export default function UserManager({ users, filters }: Props) {
                                         )
                                     }
                                     className="w-full"
-                                    placeholder="Select date of birth"
+                                    placeholder="Optional date of birth"
                                 />
                             </div>
 
@@ -704,8 +1057,19 @@ export default function UserManager({ users, filters }: Props) {
                                         <SelectValue placeholder="Select Role" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="super_admin">
-                                            Super Admin
+                                        <SelectItem
+                                            value="super_admin"
+                                            disabled={
+                                                getLimitedRoleStatus(
+                                                    'super_admin',
+                                                    editingUser,
+                                                ).isReached
+                                            }
+                                        >
+                                            {getLimitedRoleLabel(
+                                                'super_admin',
+                                                editingUser,
+                                            )}
                                         </SelectItem>
                                         <SelectItem value="registrar">
                                             Registrar
@@ -716,8 +1080,19 @@ export default function UserManager({ users, filters }: Props) {
                                         <SelectItem value="teacher">
                                             Teacher
                                         </SelectItem>
-                                        <SelectItem value="admin">
-                                            Admin
+                                        <SelectItem
+                                            value="admin"
+                                            disabled={
+                                                getLimitedRoleStatus(
+                                                    'admin',
+                                                    editingUser,
+                                                ).isReached
+                                            }
+                                        >
+                                            {getLimitedRoleLabel(
+                                                'admin',
+                                                editingUser,
+                                            )}
                                         </SelectItem>
                                         <SelectItem value="student">
                                             Student
@@ -727,6 +1102,11 @@ export default function UserManager({ users, filters }: Props) {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <p className="text-xs text-muted-foreground">
+                                    Admin and Super Admin accounts are limited
+                                    to one account each.
+                                </p>
+                                <InputError message={editForm.errors.role} />
                             </div>
                         </div>
                         <DialogFooter>
@@ -751,9 +1131,21 @@ export default function UserManager({ users, filters }: Props) {
             <ActionConfirmDialog
                 open={!!confirmResetUser}
                 onOpenChange={(open) => !open && setConfirmResetUser(null)}
-                title="Reset Password"
-                description={`Are you sure you want to reset ${confirmResetUser?.name}'s password? It will be set back to the default format ([first-name-token]@MMDDYYYY).`}
-                confirmLabel="Reset Password"
+                title={
+                    isStaffRole(confirmResetUser?.role)
+                        ? 'Send Claim Email'
+                        : 'Reset Password'
+                }
+                description={
+                    isStaffRole(confirmResetUser?.role)
+                        ? `Send a new account-claim email to ${confirmResetUser?.personal_email || 'the staff personal email'}? Their current password will be disabled until they set a new one.`
+                        : `Are you sure you want to reset ${confirmResetUser?.name}'s password? It will be set back to the default format ([first-name-token]@MMDDYYYY).`
+                }
+                confirmLabel={
+                    isStaffRole(confirmResetUser?.role)
+                        ? 'Send Claim Email'
+                        : 'Reset Password'
+                }
                 variant="warning"
                 onConfirm={submitUpdatePassword}
             />

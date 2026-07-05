@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Registrar;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Registrar\StoreRemedialIntakeRequest;
+use App\Http\Requests\Registrar\StoreRemedialIntakeSubjectRequest;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
@@ -349,7 +350,7 @@ class RemedialEntryController extends Controller
         $failedSubjectCount = $failedSubjectIds->count();
 
         if ($failedSubjectCount <= 0) {
-            return back()->with('error', 'No failed subjects found for remedial intake.');
+            return back()->with('error', 'No failed subjects found for remedial enrollment.');
         }
 
         $feeSummary = $this->resolveRemedialFeeSummary(
@@ -392,17 +393,12 @@ class RemedialEntryController extends Controller
                 'is_for_remedial' => true,
             ]);
 
-        return back()->with('success', 'Remedial intake created and queued for cashier payment.');
+        return back()->with('success', 'Remedial enrollment created and queued for cashier payment.');
     }
 
-    public function storeIntakeSubject(Request $request): RedirectResponse
+    public function storeIntakeSubject(StoreRemedialIntakeSubjectRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'academic_year_id' => 'required|exists:academic_years,id',
-            'student_id' => 'required|exists:students,id',
-            'subject_id' => 'required|exists:subjects,id',
-            'assigned_teacher_id' => 'required|exists:users,id',
-        ]);
+        $validated = $request->validated();
 
         $studentId = (int) $validated['student_id'];
         $academicYearId = (int) $validated['academic_year_id'];
@@ -494,7 +490,7 @@ class RemedialEntryController extends Controller
                 'is_for_remedial' => true,
             ]);
 
-        return back()->with('success', 'Failed subject added to remedial intake and queued for cashier payment.');
+        return back()->with('success', 'Failed subject added to remedial enrollment and queued for cashier payment.');
     }
 
     public function store(Request $request): RedirectResponse
@@ -724,7 +720,7 @@ class RemedialEntryController extends Controller
         int $remedialCaseId,
         float $amount
     ): void {
-        $description = "Remedial Intake Fee (Case {$remedialCaseId})";
+        $description = "Remedial Enrollment Fee (Case {$remedialCaseId})";
         $previousDebit = (float) (LedgerEntry::query()
             ->where('student_id', $studentId)
             ->where('academic_year_id', $academicYearId)

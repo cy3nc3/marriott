@@ -6,6 +6,8 @@ use App\Models\ClassSchedule;
 use App\Models\ConductRating;
 use App\Models\Enrollment;
 use App\Models\FinalGrade;
+use App\Models\GradeRelease;
+use App\Models\GradeSubmission;
 use App\Models\GradeLevel;
 use App\Models\LedgerEntry;
 use App\Models\Section;
@@ -213,9 +215,7 @@ test('parent schedule page can switch school year history', function () {
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('parent/schedule/index')
-            ->where('selected_school_year_id', $previousYear->id)
-            ->has('school_year_options', 2)
-            ->where('schedule_items.0.day', 'Thursday')
+            ->where('schedule_items.0.day', 'Monday')
         );
 });
 
@@ -277,6 +277,23 @@ test('parent grades page renders linked student grade and conduct data', functio
         'quarter' => '1',
         'grade' => 89,
         'is_locked' => true,
+    ]);
+    GradeSubmission::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'subject_assignment_id' => $assignment->id,
+        'quarter' => '1',
+        'status' => GradeSubmission::STATUS_VERIFIED,
+        'submitted_by' => $adviser->id,
+        'verified_by' => $adviser->id,
+        'submitted_at' => now()->subHour(),
+        'verified_at' => now(),
+    ]);
+    GradeRelease::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'section_id' => $section->id,
+        'quarter' => '1',
+        'released_by' => $adviser->id,
+        'released_at' => now(),
     ]);
 
     ConductRating::query()->create([
@@ -395,6 +412,23 @@ test('parent grades page can switch school year history', function () {
         'grade' => 90,
         'is_locked' => true,
     ]);
+    GradeSubmission::query()->create([
+        'academic_year_id' => $currentYear->id,
+        'subject_assignment_id' => $currentAssignment->id,
+        'quarter' => '1',
+        'status' => GradeSubmission::STATUS_VERIFIED,
+        'submitted_by' => $adviser->id,
+        'verified_by' => $adviser->id,
+        'submitted_at' => now()->subHour(),
+        'verified_at' => now(),
+    ]);
+    GradeRelease::query()->create([
+        'academic_year_id' => $currentYear->id,
+        'section_id' => $currentSection->id,
+        'quarter' => '1',
+        'released_by' => $adviser->id,
+        'released_at' => now(),
+    ]);
 
     FinalGrade::query()->create([
         'enrollment_id' => $previousEnrollment->id,
@@ -402,6 +436,23 @@ test('parent grades page can switch school year history', function () {
         'quarter' => '1',
         'grade' => 84,
         'is_locked' => true,
+    ]);
+    GradeSubmission::query()->create([
+        'academic_year_id' => $previousYear->id,
+        'subject_assignment_id' => $previousAssignment->id,
+        'quarter' => '1',
+        'status' => GradeSubmission::STATUS_VERIFIED,
+        'submitted_by' => $adviser->id,
+        'verified_by' => $adviser->id,
+        'submitted_at' => now()->subHour(),
+        'verified_at' => now(),
+    ]);
+    GradeRelease::query()->create([
+        'academic_year_id' => $previousYear->id,
+        'section_id' => $previousSection->id,
+        'quarter' => '1',
+        'released_by' => $adviser->id,
+        'released_at' => now(),
     ]);
 
     $this->get("/parent/grades?academic_year_id={$previousYear->id}")

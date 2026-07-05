@@ -17,8 +17,6 @@ use Illuminate\Support\Facades\DB;
 
 class CohortFinanceHistorySeeder extends Seeder
 {
-    private const CURRENT_YEAR = '2025-2026';
-
     public function run(): void
     {
         $cashier = User::query()
@@ -30,23 +28,36 @@ class CohortFinanceHistorySeeder extends Seeder
             return;
         }
 
-        $this->clearFinanceTables();
-        $this->seedFees();
+        $hasExisting = LedgerEntry::query()->exists();
+        if (! $hasExisting) {
+            $this->clearFinanceTables();
+            $this->seedFees();
+        } else {
+            // Ensure fees exist even if we didn't clear
+            $this->seedFees();
+        }
+
         $inventoryItems = $this->seedInventoryItems();
 
         Enrollment::query()
             ->with(['academicYear', 'gradeLevel'])
             ->where('status', 'enrolled')
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('ledger_entries')
+                    ->whereColumn('ledger_entries.student_id', 'enrollments.student_id')
+                    ->whereColumn('ledger_entries.academic_year_id', 'enrollments.academic_year_id');
+            })
             ->orderBy('academic_year_id')
             ->orderBy('student_id')
-            ->get()
-            ->values()
-            ->each(function (Enrollment $enrollment, int $index) use ($cashier, $inventoryItems): void {
-                if (! $enrollment->academicYear) {
-                    return;
-                }
+            ->chunk(500, function ($enrollments) use ($cashier, $inventoryItems): void {
+                foreach ($enrollments as $index => $enrollment) {
+                    if (! $enrollment->academicYear) {
+                        continue;
+                    }
 
-                $this->seedEnrollmentFinanceHistory($enrollment, $cashier, $inventoryItems, $index);
+                    $this->seedEnrollmentFinanceHistory($enrollment, $cashier, $inventoryItems, $index);
+                }
             });
     }
 
@@ -147,9 +158,7 @@ class CohortFinanceHistorySeeder extends Seeder
         ]);
 
         $schedules = $this->createSchedules($enrollment, $assessmentTotal);
-        $schedulesToPay = (string) $academicYear->name === self::CURRENT_YEAR
-            ? array_filter($schedules, fn (BillingSchedule $schedule): bool => $schedule->description === 'Upon enrollment')
-            : $schedules;
+        $schedulesToPay = $this->determineSchedulesToPay($enrollment, $academicYear, $schedules);
 
         foreach (array_values($schedulesToPay) as $paymentIndex => $schedule) {
             $runningBalance = $this->postPayment(
@@ -314,7 +323,7 @@ class CohortFinanceHistorySeeder extends Seeder
             return;
         }
 
-        $itemsToBuy = (string) $academicYear->name === self::CURRENT_YEAR
+        $itemsToBuy = (string) $academicYear->status === 'ongoing'
             ? array_slice($inventoryItems, 0, 1)
             : array_slice($inventoryItems, 0, 3);
 
@@ -375,5 +384,65 @@ class CohortFinanceHistorySeeder extends Seeder
         $year = str_replace('-', '', (string) $academicYear->name);
 
         return sprintf('OR-%s-%05d-%02d', substr($year, 0, 4), $studentId, $sequence);
+    }
+
+    /**
+     * @param  array<int, BillingSchedule>  $schedules
+     * @return array<int, BillingSchedule>
+     */
+    private function determineSchedulesToPay(
+        Enrollment $enrollment,
+        AcademicYear $academicYear,
+        array $schedules
+    ): array {
+        if ((string) $academicYear->status !== 'ongoing') {
+            return $schedules;
+        }
+
+        $today = CarbonImmutable::today();
+        $overdueCandidates = collect($schedules)
+            ->filter(function (BillingSchedule $schedule) use ($today): bool {
+                if ($schedule->description === 'Upon enrollment') {
+                    return false;
+                }
+
+                if (! $schedule->due_date) {
+                    return false;
+                }
+
+                return CarbonImmutable::parse((string) $schedule->due_date)->lt($today);
+            })
+            ->sortByDesc(fn (BillingSchedule $schedule): string => (string) $schedule->due_date)
+            ->values();
+
+        $leaveUnpaidCount = 0;
+        if ($overdueCandidates->isNotEmpty() && ((int) $enrollment->student_id % 8 === 0)) {
+            $leaveUnpaidCount = ((int) $enrollment->student_id % 24 === 0) ? 2 : 1;
+        }
+
+        $leaveUnpaidIds = $overdueCandidates
+            ->take($leaveUnpaidCount)
+            ->pluck('id')
+            ->all();
+
+        return array_values(array_filter(
+            $schedules,
+            function (BillingSchedule $schedule) use ($today, $leaveUnpaidIds): bool {
+                if ($schedule->description === 'Upon enrollment') {
+                    return true;
+                }
+
+                if (! $schedule->due_date) {
+                    return false;
+                }
+
+                $isDueOrPastDue = CarbonImmutable::parse((string) $schedule->due_date)->lessThanOrEqualTo($today);
+                if (! $isDueOrPastDue) {
+                    return false;
+                }
+
+                return ! in_array((int) $schedule->id, $leaveUnpaidIds, true);
+            }
+        ));
     }
 }

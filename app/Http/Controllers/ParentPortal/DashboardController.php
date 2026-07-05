@@ -152,7 +152,7 @@ class DashboardController extends Controller
                 : 0.0;
 
             if ($dueRiskRate >= 60) {
-                $dueRiskLevel = 'Critical';
+                $dueRiskLevel = 'Overdue';
             } elseif ($dueRiskRate >= 30) {
                 $dueRiskLevel = 'Warning';
             }
@@ -185,7 +185,7 @@ class DashboardController extends Controller
 
         $alerts = [];
 
-        if ($dueRiskLevel === 'Critical') {
+        if ($dueRiskLevel === 'Overdue') {
             $alerts[] = [
                 'id' => 'due-risk',
                 'title' => 'Outstanding balance has high due risk',
@@ -224,6 +224,29 @@ class DashboardController extends Controller
                 'message' => 'Academic, balance, and due timeline indicators are within expected thresholds.',
                 'severity' => 'info',
             ];
+        }
+
+        $actionLinks = [
+            [
+                'id' => 'open-parent-grades',
+                'label' => 'Open Child Grades',
+                'href' => route('parent.grades'),
+            ],
+            [
+                'id' => 'open-parent-schedule',
+                'label' => 'Open Child Schedule',
+                'href' => route('parent.schedule'),
+            ],
+            [
+                'id' => 'open-parent-billing',
+                'label' => 'Open Billing Information',
+                'href' => route('parent.billing_information'),
+            ],
+        ];
+        if ($dueRiskLevel === 'Overdue' || $dueRiskRate >= 30) {
+            $actionLinks = [$actionLinks[2], $actionLinks[0], $actionLinks[1]];
+        } elseif ($generalAverage !== null && $generalAverage < 80) {
+            $actionLinks = [$actionLinks[0], $actionLinks[2], $actionLinks[1]];
         }
 
         return Inertia::render('parent/dashboard', [
@@ -312,23 +335,7 @@ class DashboardController extends Controller
                     ],
                 ],
             ],
-            'action_links' => [
-                [
-                    'id' => 'open-parent-grades',
-                    'label' => 'Open Child Grades',
-                    'href' => route('parent.grades'),
-                ],
-                [
-                    'id' => 'open-parent-schedule',
-                    'label' => 'Open Child Schedule',
-                    'href' => route('parent.schedule'),
-                ],
-                [
-                    'id' => 'open-parent-billing',
-                    'label' => 'Open Billing Information',
-                    'href' => route('parent.billing_information'),
-                ],
-            ],
+            'action_links' => $actionLinks,
             'child_context' => [
                 'student_name' => $student ? trim("{$student->first_name} {$student->last_name}") : null,
                 'section_label' => $sectionLabel,

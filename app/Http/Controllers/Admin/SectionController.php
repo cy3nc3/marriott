@@ -19,13 +19,27 @@ class SectionController extends Controller
     public function index(): Response
     {
         $currentYear = $this->resolveActiveYear();
+        $sectionAdviserHistory = $this->resolveSectionAdviserHistory($currentYear);
 
         return Inertia::render('admin/section-manager/index', [
             'gradeLevels' => GradeLevel::with(['sections' => function ($query) use ($currentYear) {
                 $query->where('academic_year_id', $currentYear?->id)
-                    ->with('adviser');
-            }])->orderBy('level_order')->get(),
+                    ->with('adviser')
+                    ->withCount('enrollments as students_count');
+            }])->orderBy('level_order')->get()->map(function (GradeLevel $gradeLevel) use ($sectionAdviserHistory) {
+                $gradeLevel->sections = $gradeLevel->sections->map(function (Section $section) use ($sectionAdviserHistory) {
+                    $section->setAttribute(
+                        'adviser_history',
+                        $sectionAdviserHistory[$this->sectionHistoryKey($section->grade_level_id, $section->name)] ?? []
+                    );
+
+                    return $section;
+                });
+
+                return $gradeLevel;
+            }),
             'teachers' => User::where('role', UserRole::TEACHER)
+                ->where('is_active', true)
                 ->get(['id', 'name'])
                 ->map(fn ($user) => [
                     'id' => $user->id,
@@ -70,5 +84,67 @@ class SectionController extends Controller
                 ->where('status', '!=', 'completed')
                 ->orderBy('start_date')
                 ->first();
+    }
+
+    /**
+     * @return array<string, list<array{id: int, adviser_id: int, adviser_name: string, academic_year_id: int, academic_year_name: string}>>
+     */
+    private function resolveSectionAdviserHistory(?AcademicYear $currentYear): array
+    {
+        if (! $currentYear) {
+            return [];
+        }
+
+        $currentSections = Section::query()
+            ->where('academic_year_id', $currentYear->id)
+            ->get(['id', 'grade_level_id', 'name']);
+
+        if ($currentSections->isEmpty()) {
+            return [];
+        }
+
+        $gradeLevelIds = $currentSections->pluck('grade_level_id')->unique()->values();
+        $sectionNames = $currentSections->pluck('name')->filter()->unique()->values();
+
+        if ($gradeLevelIds->isEmpty() || $sectionNames->isEmpty()) {
+            return [];
+        }
+
+        $historyRows = Section::query()
+            ->with(['adviser:id,name', 'academicYear:id,name,start_date'])
+            ->whereIn('grade_level_id', $gradeLevelIds)
+            ->whereIn('name', $sectionNames)
+            ->whereNotNull('adviser_id')
+            ->orderByDesc('academic_year_id')
+            ->get(['id', 'grade_level_id', 'name', 'adviser_id', 'academic_year_id']);
+
+        return $currentSections
+            ->mapWithKeys(function (Section $section) use ($historyRows): array {
+                $key = $this->sectionHistoryKey($section->grade_level_id, $section->name);
+
+                $history = $historyRows
+                    ->filter(fn (Section $historySection): bool => $this->sectionHistoryKey(
+                        $historySection->grade_level_id,
+                        $historySection->name
+                    ) === $key && $historySection->id !== $section->id)
+                    ->sortByDesc(fn (Section $historySection): string => (string) ($historySection->academicYear?->start_date ?? ''))
+                    ->values()
+                    ->map(fn (Section $historySection): array => [
+                        'id' => (int) $historySection->id,
+                        'adviser_id' => (int) $historySection->adviser_id,
+                        'adviser_name' => (string) ($historySection->adviser?->name ?? 'Unknown Adviser'),
+                        'academic_year_id' => (int) $historySection->academic_year_id,
+                        'academic_year_name' => (string) ($historySection->academicYear?->name ?? 'Unknown School Year'),
+                    ])
+                    ->all();
+
+                return [$key => $history];
+            })
+            ->all();
+    }
+
+    private function sectionHistoryKey(int $gradeLevelId, string $name): string
+    {
+        return $gradeLevelId.'|'.mb_strtolower(trim($name));
     }
 }

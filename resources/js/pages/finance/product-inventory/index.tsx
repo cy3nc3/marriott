@@ -1,7 +1,8 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2, Filter, Download, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -11,8 +12,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
@@ -21,6 +29,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import {
     Table,
     TableBody,
@@ -87,6 +96,16 @@ export default function ProductInventory({ product_items }: Props) {
         'all-categories' | ItemType
     >('all-categories');
     const [itemToRemove, setItemToRemove] = useState<ProductItemRow | null>(null);
+
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (categoryFilter !== 'all-categories') count++;
+        return count;
+    }, [categoryFilter]);
+
+    const handleResetFilters = () => {
+        setCategoryFilter('all-categories');
+    };
 
     const createForm = useForm({
         name: '',
@@ -194,31 +213,128 @@ export default function ProductInventory({ product_items }: Props) {
                                     value={searchQuery}
                                     onValueChange={setSearchQuery}
                                     suggestions={searchSuggestions}
-                                    showSuggestions={false}
                                 />
-                                <Select
-                                    value={categoryFilter}
-                                    onValueChange={(
-                                        value: 'all-categories' | ItemType,
-                                    ) => setCategoryFilter(value)}
-                                >
-                                    <SelectTrigger className="w-full sm:w-40">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all-categories">
-                                            All Categories
-                                        </SelectItem>
-                                        {itemTypeOptions.map((option) => (
-                                            <SelectItem
-                                                key={option.value}
-                                                value={option.value}
+                                <div className="flex items-center gap-2">
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-9 gap-2"
                                             >
-                                                {option.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                                <Filter className="size-4" />
+                                                Filters
+                                                {activeFilterCount > 0 && (
+                                                    <>
+                                                        <Separator
+                                                            orientation="vertical"
+                                                            className="mx-1 h-4"
+                                                        />
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className="rounded-sm px-1 font-normal"
+                                                        >
+                                                            {activeFilterCount}
+                                                        </Badge>
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent
+                                            className="w-[200px] p-4"
+                                            align="start"
+                                        >
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <h4 className="font-medium leading-none">
+                                                        Filters
+                                                    </h4>
+                                                    {activeFilterCount > 0 && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={
+                                                                handleResetFilters
+                                                            }
+                                                            className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                                                        >
+                                                            Reset
+                                                            <X className="ml-1 size-3" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                                <Separator />
+                                                <div className="grid gap-4">
+                                                    <div className="space-y-2">
+                                                        <Label>Category</Label>
+                                                        <Select
+                                                            value={
+                                                                categoryFilter
+                                                            }
+                                                            onValueChange={(
+                                                                value:
+                                                                    | 'all-categories'
+                                                                    | ItemType,
+                                                            ) =>
+                                                                setCategoryFilter(
+                                                                    value,
+                                                                )
+                                                            }
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all-categories">
+                                                                    All
+                                                                    Categories
+                                                                </SelectItem>
+                                                                {itemTypeOptions.map(
+                                                                    (
+                                                                        option,
+                                                                    ) => (
+                                                                        <SelectItem
+                                                                            key={
+                                                                                option.value
+                                                                            }
+                                                                            value={
+                                                                                option.value
+                                                                            }
+                                                                        >
+                                                                            {
+                                                                                option.label
+                                                                            }
+                                                                        </SelectItem>
+                                                                    ),
+                                                                )}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" size="sm">
+                                                <Download className="mr-2 size-4" />
+                                                Export
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem>
+                                                Export as Excel (.xlsx)
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem>
+                                                Export as CSV (.csv)
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem>
+                                                Export as PDF (.pdf)
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                                 <Button onClick={openAddDialog}>
                                     <Plus className="size-4" />
                                     Add Item

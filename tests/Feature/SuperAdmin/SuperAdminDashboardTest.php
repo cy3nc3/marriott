@@ -27,27 +27,27 @@ test('super admin dashboard keeps role and audit charts safe when logs are empty
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('super_admin/dashboard')
-            ->where('kpis.3.id', 'backup-freshness')
-            ->where('kpis.3.value', 'Unknown')
+            ->where('kpis', function ($kpis): bool {
+                $byId = collect($kpis)->keyBy('id');
+
+                return ($byId['super-recovery-readiness']['meta'] ?? null) === 'Backup timestamp missing'
+                    && isset($byId['super-high-risk-ratio'])
+                    && isset($byId['super-high-risk-events-today']);
+            })
             ->where('alerts.0.id', 'backup-stale')
             ->where('alerts.0.severity', 'critical')
-            ->where('trends.0.id', 'role-distribution')
+            ->where('trends.0.id', 'admin-actions-last-7-days')
             ->where('trends.0.chart.rows', function ($rows): bool {
-                $labels = collect($rows)->pluck('role')->all();
-
                 return count($rows) === 7
-                    && in_array('Super Admin', $labels, true)
-                    && in_array('Admin', $labels, true)
-                    && in_array('Registrar', $labels, true)
-                    && in_array('Finance', $labels, true)
-                    && in_array('Teacher', $labels, true)
-                    && in_array('Student', $labels, true)
-                    && in_array('Parent', $labels, true)
-                    && (int) collect($rows)->sum('users') === User::query()->count();
+                    && (int) collect($rows)->sum('actions') === 0;
             })
-            ->where('trends.1.id', 'audit-activity')
+            ->where('trends.1.id', 'audit-risk-pattern')
             ->where('trends.1.chart.rows', function ($rows): bool {
-                return count($rows) === 7
+                $labels = collect($rows)->pluck('type')->all();
+
+                return count($rows) === 2
+                    && in_array('Important Actions', $labels, true)
+                    && in_array('Other', $labels, true)
                     && (int) collect($rows)->sum('events') === 0;
             })
         );
@@ -97,14 +97,26 @@ test('super admin dashboard reports high-volume audit risk and chart totals', fu
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('super_admin/dashboard')
-            ->where('kpis.2.id', 'audit-risk')
-            ->where('kpis.2.value', 12)
+            ->where('kpis', function ($kpis): bool {
+                $byId = collect($kpis)->keyBy('id');
+
+                return ($byId['super-high-risk-ratio']['value'] ?? null) === 12
+                    && isset($byId['super-high-risk-events-today'])
+                    && isset($byId['super-recovery-readiness']);
+            })
             ->where('alerts.0.id', 'audit-risk')
             ->where('alerts.0.severity', 'critical')
-            ->where('trends.1.id', 'audit-activity')
+            ->where('trends.1.id', 'audit-risk-pattern')
             ->where('trends.1.chart.rows', function ($rows): bool {
+                $byType = collect($rows)->keyBy('type');
+
+                return (int) ($byType['Important Actions']['events'] ?? -1) === 12
+                    && (int) ($byType['Other']['events'] ?? -1) === 0;
+            })
+            ->where('trends.0.id', 'admin-actions-last-7-days')
+            ->where('trends.0.chart.rows', function ($rows): bool {
                 return count($rows) === 7
-                    && (int) collect($rows)->sum('events') === 15;
+                    && (int) collect($rows)->sum('actions') >= 12;
             })
         );
 });

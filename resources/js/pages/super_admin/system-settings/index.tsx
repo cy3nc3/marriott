@@ -52,7 +52,7 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
-import { store } from '@/routes/super_admin/system_settings';
+import { update } from '@/routes/super_admin/system_settings';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -85,12 +85,29 @@ export default function SystemSettings({ settings, backups }: Props) {
         school_name: settings.school_name || 'Marriott School System',
         school_id: settings.school_id || '',
         address: settings.address || '',
+        division: settings.division || '',
+        district: settings.district || '',
+        principal_name: settings.principal_name || '',
         maintenance_mode: isEnabled(settings.maintenance_mode),
         parent_portal: isEnabled(settings.parent_portal),
         backup_interval: settings.backup_interval || 'week',
         backup_interval_days: settings.backup_interval_days || '15',
         backup_on_quarter: isEnabled(settings.backup_on_quarter, true),
         backup_on_year_end: isEnabled(settings.backup_on_year_end, true),
+        teacher_assignment_policy_mode:
+            settings.teacher_assignment_policy_mode || 'strict',
+        teacher_assignment_allow_provisional: isEnabled(
+            settings.teacher_assignment_allow_provisional,
+            false,
+        ),
+        teacher_assignment_allow_admin_override: isEnabled(
+            settings.teacher_assignment_allow_admin_override,
+            false,
+        ),
+        teacher_assignment_require_override_reason: isEnabled(
+            settings.teacher_assignment_require_override_reason,
+            true,
+        ),
         latest_backup_at: settings.latest_backup_at || '',
         logo: null as File | null,
         header: null as File | null,
@@ -104,8 +121,19 @@ export default function SystemSettings({ settings, backups }: Props) {
     );
     const [isBackupConfigOpen, setIsBackupConfigOpen] = useState(false);
     const [isRestoreOpen, setIsRestoreOpen] = useState(false);
-    const [fileNameToRestore, setFileNameToRestore] = useState<string | null>(null);
-    const [pendingMaintenanceMode, setPendingMaintenanceMode] = useState<boolean | null>(null);
+    const [fileNameToRestore, setFileNameToRestore] = useState<string | null>(
+        null,
+    );
+    const [backupPreview, setBackupPreview] = useState<{
+        generated_at: string;
+        reason: string;
+        table_counts: Record<string, number>;
+    } | null>(null);
+    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+    const [pendingMaintenanceMode, setPendingMaintenanceMode] = useState<
+        boolean | null
+    >(null);
     const [pendingParentPortal, setPendingParentPortal] = useState<boolean | null>(null);
 
     const handleFileChange = (
@@ -124,8 +152,25 @@ export default function SystemSettings({ settings, backups }: Props) {
         }
     };
 
+    const handleViewBackup = async (fileName: string) => {
+        setIsPreviewLoading(true);
+        try {
+            const response = await fetch(
+                `/super-admin/system-settings/preview-backup?file=${fileName}`,
+            );
+            if (response.ok) {
+                const data = await response.json();
+                setBackupPreview(data);
+            }
+        } catch (error) {
+            console.error('Failed to load backup preview', error);
+        } finally {
+            setIsPreviewLoading(false);
+        }
+    };
+
     const handleSave = () => {
-        post(store.url(), {
+        post(update.url(), {
             preserveScroll: true,
             forceFormData: true,
         });
@@ -133,7 +178,7 @@ export default function SystemSettings({ settings, backups }: Props) {
 
     const handleRunBackup = () => {
         router.post(
-            store.url(),
+            update.url(),
             {
                 run_backup: true,
             },
@@ -151,7 +196,7 @@ export default function SystemSettings({ settings, backups }: Props) {
         if (!fileNameToRestore) return;
 
         router.post(
-            store.url(),
+            update.url(),
             {
                 restore_file: fileNameToRestore,
             },
@@ -249,6 +294,58 @@ export default function SystemSettings({ settings, backups }: Props) {
                                     {errors.address && (
                                         <p className="text-sm text-destructive">
                                             {errors.address}
+                                        </p>
+                                    )}
+                                </Field>
+
+                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                                    <Field>
+                                        <FieldLabel>Division</FieldLabel>
+                                        <Input
+                                            id="division"
+                                            placeholder="Quezon City"
+                                            value={data.division}
+                                            onChange={(e) =>
+                                                setData('division', e.target.value)
+                                            }
+                                        />
+                                        {errors.division && (
+                                            <p className="text-sm text-destructive">
+                                                {errors.division}
+                                            </p>
+                                        )}
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel>District</FieldLabel>
+                                        <Input
+                                            id="district"
+                                            placeholder="District 1"
+                                            value={data.district}
+                                            onChange={(e) =>
+                                                setData('district', e.target.value)
+                                            }
+                                        />
+                                        {errors.district && (
+                                            <p className="text-sm text-destructive">
+                                                {errors.district}
+                                            </p>
+                                        )}
+                                    </Field>
+                                </div>
+
+                                <Field>
+                                    <FieldLabel>School Principal (SF9/SF10 Signatory)</FieldLabel>
+                                    <Input
+                                        id="principal-name"
+                                        placeholder="Dr. Maria Santos"
+                                        value={data.principal_name}
+                                        onChange={(e) =>
+                                            setData('principal_name', e.target.value)
+                                        }
+                                    />
+                                    {errors.principal_name && (
+                                        <p className="text-sm text-destructive">
+                                            {errors.principal_name}
                                         </p>
                                     )}
                                 </Field>
@@ -393,6 +490,127 @@ export default function SystemSettings({ settings, backups }: Props) {
                         </CardContent>
                     </Card>
 
+                    {/* Teacher Qualification Policy */}
+                    <Card className="gap-2">
+                        <CardHeader className="border-b">
+                            <div className="flex items-center gap-2">
+                                <Settings2 className="size-4 text-muted-foreground" />
+                                <CardTitle>
+                                    Teacher Qualification Policy
+                                </CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                            <FieldGroup className="gap-4">
+                                <Field>
+                                    <FieldLabel>Policy Mode</FieldLabel>
+                                    <Select
+                                        value={
+                                            data.teacher_assignment_policy_mode
+                                        }
+                                        onValueChange={(value) =>
+                                            setData(
+                                                'teacher_assignment_policy_mode',
+                                                value,
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="strict">
+                                                Strict (licensed/qualified only)
+                                            </SelectItem>
+                                            <SelectItem value="transitional">
+                                                Transitional (allows
+                                                provisional logic)
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {errors.teacher_assignment_policy_mode && (
+                                        <p className="text-sm text-destructive">
+                                            {
+                                                errors.teacher_assignment_policy_mode
+                                            }
+                                        </p>
+                                    )}
+                                </Field>
+
+                                <div className="flex items-center justify-between rounded-xl border p-4">
+                                    <div className="space-y-0.5">
+                                        <p className="text-sm font-medium">
+                                            Allow Provisional Assignment
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Permit assignment of provisionally
+                                            qualified teachers based on policy
+                                            exceptions.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={
+                                            data.teacher_assignment_allow_provisional
+                                        }
+                                        onCheckedChange={(value) =>
+                                            setData(
+                                                'teacher_assignment_allow_provisional',
+                                                value,
+                                            )
+                                        }
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between rounded-xl border p-4">
+                                    <div className="space-y-0.5">
+                                        <p className="text-sm font-medium">
+                                            Allow Admin Override
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Allow Admin users to override
+                                            eligibility blocks during teacher
+                                            assignment.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={
+                                            data.teacher_assignment_allow_admin_override
+                                        }
+                                        onCheckedChange={(value) =>
+                                            setData(
+                                                'teacher_assignment_allow_admin_override',
+                                                value,
+                                            )
+                                        }
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between rounded-xl border p-4">
+                                    <div className="space-y-0.5">
+                                        <p className="text-sm font-medium">
+                                            Require Override Reason
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Require written justification for
+                                            every override action.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={
+                                            data.teacher_assignment_require_override_reason
+                                        }
+                                        onCheckedChange={(value) =>
+                                            setData(
+                                                'teacher_assignment_require_override_reason',
+                                                value,
+                                            )
+                                        }
+                                    />
+                                </div>
+                            </FieldGroup>
+                        </CardContent>
+                    </Card>
+
                     {/* System Backup */}
                     <Card className="gap-2">
                         <CardHeader className="border-b">
@@ -451,7 +669,7 @@ export default function SystemSettings({ settings, backups }: Props) {
                                                                     Size
                                                                 </TableHead>
                                                                 <TableHead className="text-right">
-                                                                    Action
+                                                                    Actions
                                                                 </TableHead>
                                                             </TableRow>
                                                         </TableHeader>
@@ -473,7 +691,22 @@ export default function SystemSettings({ settings, backups }: Props) {
                                                                                 backup.size
                                                                             }
                                                                         </TableCell>
-                                                                        <TableCell className="text-right">
+                                                                        <TableCell className="flex justify-end gap-2 text-right">
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                                onClick={() =>
+                                                                                    handleViewBackup(
+                                                                                        backup.file_name,
+                                                                                    )
+                                                                                }
+                                                                                disabled={
+                                                                                    isPreviewLoading
+                                                                                }
+                                                                            >
+                                                                                View
+                                                                                Content
+                                                                            </Button>
                                                                             <Button
                                                                                 size="sm"
                                                                                 onClick={() =>
@@ -483,7 +716,6 @@ export default function SystemSettings({ settings, backups }: Props) {
                                                                                 }
                                                                             >
                                                                                 Restore
-                                                                                this
                                                                             </Button>
                                                                         </TableCell>
                                                                     </TableRow>
@@ -737,11 +969,85 @@ export default function SystemSettings({ settings, backups }: Props) {
                 open={!!fileNameToRestore}
                 onOpenChange={(open) => !open && setFileNameToRestore(null)}
                 title="Restore Database"
-                description={`Are you sure you want to restore the backup "${fileNameToRestore}"? This will overwrite all current system data and is irreversible.`}
+                description={`Are you sure you want to restore the backup "${fileNameToRestore}"? This will perform a clean restoration (overwriting current data) to prevent any duplicate records or data corruption.`}
                 variant="destructive"
                 confirmLabel="Restore Database"
                 onConfirm={submitRestoreBackup}
             />
+
+            <Dialog
+                open={!!backupPreview}
+                onOpenChange={(open) => !open && setBackupPreview(null)}
+            >
+                <DialogContent className="flex max-h-[80vh] flex-col overflow-hidden sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle>Backup Content Preview</DialogTitle>
+                        <DialogDescription>
+                            Detailed breakdown of records contained in this
+                            snapshot.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-auto py-4">
+                        {backupPreview && (
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/30 p-3 text-sm">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                            Generated At
+                                        </p>
+                                        <p className="font-medium">
+                                            {new Date(
+                                                backupPreview.generated_at,
+                                            ).toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                            Trigger / Reason
+                                        </p>
+                                        <p className="font-medium capitalize">
+                                            {backupPreview.reason}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <p className="text-sm font-semibold">
+                                        Table Record Counts
+                                    </p>
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        {Object.entries(
+                                            backupPreview.table_counts,
+                                        )
+                                            .filter(([_, count]) => count > 0)
+                                            .sort((a, b) => b[1] - a[1])
+                                            .map(([table, count]) => (
+                                                <div
+                                                    key={table}
+                                                    className="flex justify-between rounded border px-3 py-1.5 text-xs"
+                                                >
+                                                    <span className="font-mono text-muted-foreground">
+                                                        {table}
+                                                    </span>
+                                                    <span className="font-bold">
+                                                        {count.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setBackupPreview(null)}
+                        >
+                            Close
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <ActionConfirmDialog
                 open={pendingMaintenanceMode !== null}

@@ -111,6 +111,71 @@ test('teacher can download live sf2 workbook for the selected class and month', 
     expect(count($sheet->getDrawingCollection()))->toBeGreaterThanOrEqual(2);
 });
 
+test('teacher can download sf2 export as pdf', function () {
+    $teacher = User::factory()->teacher()->create();
+    $this->actingAs($teacher);
+
+    Setting::set('school_name', 'Marriott School', 'system');
+    Setting::set('school_id', '482518', 'system');
+
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '3',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => null,
+    ]);
+
+    $subject = Subject::query()->create([
+        'grade_level_id' => $gradeLevel->id,
+        'subject_code' => 'MATH7',
+        'subject_name' => 'Mathematics 7',
+    ]);
+
+    $teacherSubject = TeacherSubject::query()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+    ]);
+
+    $assignment = SubjectAssignment::query()->create([
+        'section_id' => $section->id,
+        'teacher_subject_id' => $teacherSubject->id,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '983456789013',
+        'first_name' => 'Nina',
+        'last_name' => 'Santos',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'enrolled',
+    ]);
+
+    $response = $this->get("/teacher/attendance/export-sf2?subject_assignment_id={$assignment->id}&month=2026-03&format=pdf");
+
+    $response->assertRedirect();
+    $response->assertSessionHasErrors('format');
+});
+
 test('registrar can download live enrollment workbook for the selected school year', function () {
     $registrar = User::factory()->registrar()->create();
     $this->actingAs($registrar);
@@ -223,4 +288,51 @@ test('registrar can download live enrollment workbook for the selected school ye
     expect((float) $sheet->getCell('L6')->getCalculatedValue())->toBe(7000.0);
     expect((float) $sheet->getCell('R6')->getCalculatedValue())->toBe(500.0);
     expect(trim((string) $sheet->getCell('V6')->getCalculatedValue()))->toBe('R');
+});
+
+test('registrar can download enrollment export as pdf', function () {
+    $registrar = User::factory()->registrar()->create();
+    $this->actingAs($registrar);
+
+    $schoolYear = AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '3',
+    ]);
+
+    $gradeLevel = GradeLevel::query()->create([
+        'name' => 'Grade 7',
+        'level_order' => 7,
+    ]);
+
+    $section = Section::query()->create([
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'name' => 'Rizal',
+        'adviser_id' => null,
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '123456789013',
+        'first_name' => 'Pia',
+        'last_name' => 'Dela Cruz',
+    ]);
+
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'academic_year_id' => $schoolYear->id,
+        'grade_level_id' => $gradeLevel->id,
+        'section_id' => $section->id,
+        'payment_term' => 'cash',
+        'downpayment' => 0,
+        'status' => 'for_cashier_payment',
+    ]);
+
+    $response = $this->get("/registrar/enrollment/export?academic_year_id={$schoolYear->id}&format=pdf");
+
+    $response->assertSuccessful();
+    expect((string) $response->headers->get('content-disposition'))->toContain('.pdf');
+    expect((string) $response->headers->get('content-type'))->toContain('application/pdf');
 });

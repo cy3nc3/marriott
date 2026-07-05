@@ -815,14 +815,14 @@ export default function CashierPanel({
                                 variant="outline"
                                 onClick={() => setIsIntakesDialogOpen(true)}
                             >
-                                Enrollment Intakes ({pending_intakes_count})
+                                Enrollments ({pending_intakes_count})
                             </Button>
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => setIsRemedialDialogOpen(true)}
                             >
-                                Remedial Intakes ({pending_remedial_cases_count}
+                                Remedial Enrollments ({pending_remedial_cases_count}
                                 )
                             </Button>
                         </div>
@@ -1028,7 +1028,7 @@ export default function CashierPanel({
             >
                 <DialogContent className="sm:max-w-4xl">
                     <DialogHeader>
-                        <DialogTitle>Enrollment Intakes Queue</DialogTitle>
+                        <DialogTitle>Enrollment Queue</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
                         <Input
@@ -1071,8 +1071,8 @@ export default function CashierPanel({
                                             className="py-8 text-center text-sm text-muted-foreground"
                                         >
                                             {pending_intakes.length === 0
-                                                ? 'No intakes pending cashier payment.'
-                                                : 'No intake matches your search.'}
+                                                ? 'No enrollments pending cashier payment.'
+                                                : 'No enrollment matches your search.'}
                                         </TableCell>
                                     </TableRow>
                                 ) : (
@@ -1164,7 +1164,7 @@ export default function CashierPanel({
             >
                 <DialogContent className="sm:max-w-4xl">
                     <DialogHeader>
-                        <DialogTitle>Remedial Intakes Queue</DialogTitle>
+                        <DialogTitle>Remedial Enrollments Queue</DialogTitle>
                     </DialogHeader>
                     <div className="rounded-md border">
                         <Table>
@@ -1200,7 +1200,7 @@ export default function CashierPanel({
                                             colSpan={7}
                                             className="py-8 text-center text-sm text-muted-foreground"
                                         >
-                                            No remedial intakes pending payment.
+                                            No remedial enrollments pending payment.
                                         </TableCell>
                                     </TableRow>
                                 ) : (

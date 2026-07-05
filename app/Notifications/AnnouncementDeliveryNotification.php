@@ -29,9 +29,12 @@ class AnnouncementDeliveryNotification extends Notification implements ShouldQue
         return (new MailMessage)
             ->subject("{$typeLabel}: {$this->announcement->title}")
             ->greeting('Hello!')
+            ->line("Marriott School has posted a new {$typeLabel}.")
+            ->line("Title: {$this->announcement->title}")
             ->line($this->announcement->content)
-            ->action('View Announcement', url("/notifications/announcements/{$this->announcement->id}"))
-            ->line('You are receiving this because you are part of the target audience.');
+            ->action("View {$typeLabel}", url("/notifications/announcements/{$this->announcement->id}"))
+            ->line('Please open MarriottConnect for the complete details and any required response.')
+            ->salutation('Marriott School');
     }
 
     /**

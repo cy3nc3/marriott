@@ -51,7 +51,7 @@ test('production quarter one day fifteen seeder creates a production-like snapsh
     expect($sectionCounts)->toHaveCount(5);
     expect($sectionCounts->unique()->values()->all())->toBe([25]);
 
-    expect(User::query()->where('email', 'finance@marriott.edu')->exists())->toBeTrue();
+    expect(User::query()->where('email', 'corrine.avellanosa@marriott.edu')->exists())->toBeTrue();
     expect(User::query()->where('email', 'rowell.almonte@marriott.edu')->exists())->toBeTrue();
 
     $sectionIds = $sections->pluck('id');

@@ -10,12 +10,15 @@ use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\User;
 use App\Services\Finance\DailyReportsWorkbookExporter;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DailyReportsController extends Controller
 {
@@ -73,8 +76,9 @@ class DailyReportsController extends Controller
     public function export(
         IndexDailyReportsRequest $request,
         DailyReportsWorkbookExporter $exporter,
-    ): BinaryFileResponse {
+    ): BinaryFileResponse|StreamedResponse|HttpResponse {
         $validated = $request->validated();
+        $format = strtolower((string) $request->query('format', 'xlsx'));
         $schoolYearOptions = $this->schoolYearOptions();
         $selectedAcademicYear = $this->resolveSelectedAcademicYear($schoolYearOptions, $validated);
         [$cashierId, $paymentMode, $dateFrom, $dateTo] = $this->resolveFilterValues($validated);
@@ -116,6 +120,46 @@ class DailyReportsController extends Controller
             })
             ->values()
             ->all();
+
+        if ($format === 'csv') {
+            $headers = ['OR Number', 'Student', 'Payment Type', 'Payment Mode', 'Status', 'Amount', 'Cashier', 'Posted At'];
+
+            return response()->streamDownload(function () use ($headers, $transactionRows): void {
+                $handle = fopen('php://output', 'w');
+                if ($handle === false) {
+                    return;
+                }
+                fputcsv($handle, $headers);
+                foreach ($transactionRows as $row) {
+                    fputcsv($handle, [
+                        $row['or_number'] ?? '',
+                        $row['student_name'] ?? '',
+                        $row['payment_type'] ?? '',
+                        $row['payment_mode_label'] ?? '',
+                        $row['status'] ?? '',
+                        $row['amount'] ?? '',
+                        $row['cashier_name'] ?? '',
+                        $row['posted_at'] ?? '',
+                    ]);
+                }
+                fclose($handle);
+            }, 'daily-reports-'.now()->format('Ymd-His').'.csv');
+        }
+
+        if ($format === 'pdf') {
+            $pdf = Pdf::loadView('exports.daily-reports-pdf', [
+                'metadata' => [
+                    'generated_at' => now()->format('F j, Y h:i A'),
+                    'school_year' => $selectedAcademicYear?->name ?? 'All School Years',
+                    'cashier' => $this->resolveCashierLabel($cashierId),
+                    'payment_mode' => $paymentMode ? $this->formatPaymentMode($paymentMode) : 'All Payment Modes',
+                ],
+                'summary' => $summary,
+                'rows' => $transactionRows,
+            ])->setPaper('a4', 'landscape');
+
+            return $pdf->download('daily-reports-'.now()->format('Ymd-His').'.pdf');
+        }
 
         $outputPath = storage_path('app/temp/'.uniqid('daily-reports-', true).'.xlsx');
         if (! is_dir(dirname($outputPath))) {

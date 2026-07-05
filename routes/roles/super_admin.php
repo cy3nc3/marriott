@@ -5,6 +5,7 @@ use App\Http\Controllers\SuperAdmin\AuditLogController;
 use App\Http\Controllers\SuperAdmin\PermissionController;
 use App\Http\Controllers\SuperAdmin\SettingController;
 use App\Http\Controllers\SuperAdmin\UserManagerController;
+use App\Http\Controllers\SuperAdmin\ViewAsRoleController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'role:super_admin'])->prefix('super-admin')->name('super_admin.')->group(function () {
@@ -31,5 +32,9 @@ Route::middleware(['auth', 'verified', 'role:super_admin'])->prefix('super-admin
 
     // System Settings
     Route::get('/system-settings', [SettingController::class, 'index'])->middleware('desktop_only')->name('system_settings');
-    Route::post('/system-settings', [SettingController::class, 'store'])->middleware('desktop_only')->name('system_settings.store');
+    Route::post('/system-settings', [SettingController::class, 'update'])->middleware('desktop_only')->name('system_settings.update');
+    Route::get('/system-settings/preview-backup', [SettingController::class, 'previewBackup'])->middleware('desktop_only')->name('system_settings.preview_backup');
+
+    Route::put('/view-as-role', [ViewAsRoleController::class, 'update'])->name('view_as_role.update');
+    Route::delete('/view-as-role', [ViewAsRoleController::class, 'destroy'])->name('view_as_role.destroy');
 });

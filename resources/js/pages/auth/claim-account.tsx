@@ -15,6 +15,7 @@ type Props = {
     token: string;
     account_email: string;
     phone_number_redacted: string;
+    phone_verification_required: boolean;
     phone_verified: boolean;
     is_expired: boolean;
     claim_completed: boolean;
@@ -25,6 +26,7 @@ export default function ClaimAccount({
     token,
     account_email,
     phone_number_redacted,
+    phone_verification_required,
     phone_verified,
     is_expired,
     claim_completed,
@@ -64,7 +66,7 @@ export default function ClaimAccount({
     const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
     const confirmationResultRef = useRef<ConfirmationResult | null>(null);
 
-    const canSetPassword = phone_verified && !is_expired;
+    const canSetPassword = (!phone_verification_required || phone_verified) && !is_expired;
     const claimCompletionMessage =
         (typeof flash.status === 'string' && flash.status.trim() !== ''
             ? flash.status
@@ -97,14 +99,24 @@ export default function ClaimAccount({
         return recaptchaVerifierRef.current;
     };
 
+    const getCsrfToken = (): string =>
+        document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content')
+            ?.trim() ?? '';
+
     useEffect(() => {
+        if (!phone_verification_required) {
+            return;
+        }
+
         resetRecaptchaVerifier();
 
         return () => {
             recaptchaVerifierRef.current?.clear();
             recaptchaVerifierRef.current = null;
         };
-    }, []);
+    }, [phone_verification_required]);
 
     const handleSendOtp = async (): Promise<void> => {
         setOtpError(null);
@@ -272,6 +284,9 @@ export default function ClaimAccount({
                 `/account/claim/${token}/otp/verify`,
                 { id_token: idToken },
                 {
+                    headers: getCsrfToken()
+                        ? { 'X-CSRF-TOKEN': getCsrfToken() }
+                        : undefined,
                     preserveScroll: true,
                     onError: () => {
                         setOtpError('OTP verification failed. Please retry.');
@@ -303,6 +318,9 @@ export default function ClaimAccount({
                 password_confirmation: passwordConfirmation,
             },
             {
+                headers: getCsrfToken()
+                    ? { 'X-CSRF-TOKEN': getCsrfToken() }
+                    : undefined,
                 preserveScroll: true,
                 onError: (errors) => {
                     setPasswordError(
@@ -320,7 +338,11 @@ export default function ClaimAccount({
     return (
         <AuthLayout
             title="Claim your account"
-            description="Verify your phone and create a password to activate your MarriottConnect access."
+            description={
+                phone_verification_required
+                    ? 'Verify your phone and create a password to activate your MarriottConnect access.'
+                    : 'Create a password to activate your MarriottConnect access.'
+            }
         >
             <div className="grid gap-6">
                 <div id="claim-recaptcha" className="hidden" />
@@ -352,14 +374,14 @@ export default function ClaimAccount({
                     </div>
                 )}
 
-                {!claim_completed && !canSetPassword && (
+                {!claim_completed && phone_verification_required && !canSetPassword && (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p className="text-sm font-medium text-slate-700">Mobile Number:</p>
                         <p className="mt-1 text-base text-slate-900">{phone_number_redacted}</p>
                     </div>
                 )}
 
-                {!claim_completed && !phone_verified && !otpSent && (
+                {!claim_completed && phone_verification_required && !phone_verified && !otpSent && (
                     <div className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p className="text-sm text-slate-600">
                             Enter the full phone number used during enrollment. We will verify it
@@ -398,7 +420,7 @@ export default function ClaimAccount({
                     </div>
                 )}
 
-                {!claim_completed && !phone_verified && otpSent && (
+                {!claim_completed && phone_verification_required && !phone_verified && otpSent && (
                     <div className="grid gap-4 rounded-xl border border-slate-200 p-4">
                         <p className="text-sm text-slate-700">
                             Phone number verified! Check the phone number for the one-time password
@@ -469,7 +491,13 @@ export default function ClaimAccount({
                     </div>
                 )}
 
-                {!claim_completed && is_expired && !phone_verified && (
+                {!claim_completed && is_expired && !phone_verification_required && (
+                    <p className="text-sm text-amber-700">
+                        This claim link has expired. Contact the school administrator to send a new claim email.
+                    </p>
+                )}
+
+                {!claim_completed && is_expired && phone_verification_required && !phone_verified && (
                     <p className="text-sm text-amber-700">
                         This claim link has expired. Verify OTP to generate a new claim link.
                     </p>

@@ -19,6 +19,7 @@ class FortifyLoginResponse implements LoginResponseContract
 
     public function toResponse($request): Response
     {
+        $this->touchLastLogin($request);
         $this->flashLoginWelcomeToast($request);
         $this->flashSavedAccountLogin($request);
 
@@ -54,5 +55,17 @@ class FortifyLoginResponse implements LoginResponseContract
                 $deviceId,
             ),
         );
+    }
+
+    private function touchLastLogin($request): void
+    {
+        $user = $request->user();
+        if (! $user instanceof User) {
+            return;
+        }
+
+        $user->forceFill([
+            'last_login_at' => now(),
+        ])->save();
     }
 }

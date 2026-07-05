@@ -6,6 +6,7 @@ use App\Models\AcademicYear;
 use App\Models\Announcement;
 use App\Models\Setting;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -14,6 +15,8 @@ use Throwable;
 
 class SystemBackupService
 {
+    private const RESTORE_LOCK_KEY = 'system-backup-restore-lock';
+
     public function createBackup(string $reason = 'manual', array $context = []): array
     {
         $timestamp = now();
@@ -93,6 +96,15 @@ class SystemBackupService
      */
     public function restoreBackup(string $fileName): array
     {
+        $lock = Cache::lock(self::RESTORE_LOCK_KEY, 600);
+        if (! $lock->get()) {
+            return [
+                'success' => false,
+                'message' => 'Another restore operation is already in progress.',
+            ];
+        }
+
+        try {
         $safeFileName = basename($fileName);
         $path = "backups/{$safeFileName}";
         $disk = Storage::disk('local');
@@ -125,12 +137,14 @@ class SystemBackupService
             DB::beginTransaction();
             Schema::disableForeignKeyConstraints();
 
+            // We use delete() instead of truncate() to ensure full compatibility within transactions
+            // and explicitly prevent adding duplicates by ensuring a clean slate before restoration.
             foreach ($this->managedTables() as $table) {
                 if (! Schema::hasTable($table)) {
                     continue;
                 }
 
-                DB::table($table)->truncate();
+                DB::table($table)->delete();
             }
 
             foreach ($tables as $table => $rows) {
@@ -143,6 +157,7 @@ class SystemBackupService
                 }
             }
 
+            $this->assertRestoreIntegrity();
             $this->restoreFiles(is_array($files) ? $files : []);
 
             Schema::enableForeignKeyConstraints();
@@ -153,7 +168,7 @@ class SystemBackupService
 
             return [
                 'success' => true,
-                'message' => 'Backup restored successfully.',
+                'message' => 'Backup restored successfully. Clean slate ensured; no duplicates created.',
                 'file_name' => $safeFileName,
             ];
         } catch (Throwable $e) {
@@ -165,6 +180,9 @@ class SystemBackupService
                 'success' => false,
                 'message' => 'Restore failed. Please check backup integrity.',
             ];
+        }
+        } finally {
+            optional($lock)->release();
         }
     }
 
@@ -197,6 +215,7 @@ class SystemBackupService
     {
         return [
             'users',
+            'teacher_profiles',
             'academic_years',
             'grade_levels',
             'subjects',
@@ -226,6 +245,7 @@ class SystemBackupService
             'remedial_case_subjects',
             'remedial_subject_fees',
             'final_grades',
+            'grade_releases',
             'student_departures',
             'announcements',
             'announcement_reads',
@@ -237,6 +257,13 @@ class SystemBackupService
             'conduct_ratings',
             'finance_due_reminder_rules',
             'finance_due_reminder_dispatches',
+            'account_activation_codes',
+            'account_claim_phone_otps',
+            'account_claim_tokens',
+            'import_mapping_profiles',
+            'or_number_sequences',
+            'saved_account_logins',
+            'scheduled_notification_jobs',
             'settings',
             'audit_logs',
         ];
@@ -248,7 +275,10 @@ class SystemBackupService
     private function managedFileDirectories(): array
     {
         return [
-            'announcements',
+            'local:announcements',
+            'local:teacher-documents',
+            'public:settings',
+            'public:avatars',
         ];
     }
 
@@ -257,10 +287,11 @@ class SystemBackupService
      */
     private function snapshotFiles(): array
     {
-        $disk = Storage::disk('local');
         $files = [];
 
-        foreach ($this->managedFileDirectories() as $directory) {
+        foreach ($this->managedFileDirectories() as $configuredDirectory) {
+            [$diskName, $directory] = $this->parseManagedDirectoryConfig($configuredDirectory);
+            $disk = Storage::disk($diskName);
             if (! $disk->exists($directory)) {
                 continue;
             }
@@ -268,6 +299,7 @@ class SystemBackupService
             foreach ($disk->allFiles($directory) as $filePath) {
                 $content = $disk->get($filePath);
                 $files[] = [
+                    'disk' => $diskName,
                     'path' => $filePath,
                     'content_base64' => base64_encode($content),
                 ];
@@ -278,23 +310,24 @@ class SystemBackupService
     }
 
     /**
-     * @param  array<int, array{path?: mixed, content_base64?: mixed}>  $files
+     * @param  array<int, array{disk?: mixed, path?: mixed, content_base64?: mixed}>  $files
      */
     private function restoreFiles(array $files): void
     {
-        $disk = Storage::disk('local');
-
-        foreach ($this->managedFileDirectories() as $directory) {
+        foreach ($this->managedFileDirectories() as $configuredDirectory) {
+            [$diskName, $directory] = $this->parseManagedDirectoryConfig($configuredDirectory);
+            $disk = Storage::disk($diskName);
             if ($disk->exists($directory)) {
                 $disk->deleteDirectory($directory);
             }
         }
 
         foreach ($files as $fileRow) {
+            $diskName = (string) ($fileRow['disk'] ?? 'local');
             $path = (string) ($fileRow['path'] ?? '');
             $encodedContent = (string) ($fileRow['content_base64'] ?? '');
 
-            if (! $this->isManagedFilePath($path) || $encodedContent === '') {
+            if (! $this->isManagedFilePath($diskName, $path) || $encodedContent === '') {
                 continue;
             }
 
@@ -303,19 +336,37 @@ class SystemBackupService
                 continue;
             }
 
-            $disk->put($path, $decoded);
+            Storage::disk($diskName)->put($path, $decoded);
         }
     }
 
-    private function isManagedFilePath(string $path): bool
+    private function isManagedFilePath(string $diskName, string $path): bool
     {
-        foreach ($this->managedFileDirectories() as $directory) {
-            if ($path === $directory || str_starts_with($path, "{$directory}/")) {
+        foreach ($this->managedFileDirectories() as $configuredDirectory) {
+            [$configuredDisk, $directory] = $this->parseManagedDirectoryConfig($configuredDirectory);
+            if (
+                $configuredDisk === $diskName
+                && ($path === $directory || str_starts_with($path, "{$directory}/"))
+            ) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function parseManagedDirectoryConfig(string $configuredDirectory): array
+    {
+        if (! str_contains($configuredDirectory, ':')) {
+            return ['local', $configuredDirectory];
+        }
+
+        [$diskName, $directory] = explode(':', $configuredDirectory, 2);
+
+        return [$diskName !== '' ? $diskName : 'local', $directory];
     }
 
     /**
@@ -344,6 +395,46 @@ class SystemBackupService
         ];
     }
 
+    /**
+     * @return array{
+     *     generated_at: string,
+     *     reason: string,
+     *     summary: array<string, int>,
+     *     table_counts: array<string, int>
+     * }|null
+     */
+    public function getBackupPreview(string $fileName): ?array
+    {
+        $safeFileName = basename($fileName);
+        $path = "backups/{$safeFileName}";
+        $disk = Storage::disk('local');
+
+        if (! $disk->exists($path)) {
+            return null;
+        }
+
+        $raw = $disk->get($path);
+        $decoded = json_decode($raw, true);
+
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        $tableCounts = [];
+        if (isset($decoded['tables']) && is_array($decoded['tables'])) {
+            foreach ($decoded['tables'] as $table => $rows) {
+                $tableCounts[$table] = is_array($rows) ? count($rows) : 0;
+            }
+        }
+
+        return [
+            'generated_at' => $decoded['generated_at'] ?? '',
+            'reason' => $decoded['reason'] ?? 'manual',
+            'summary' => $decoded['summary'] ?? [],
+            'table_counts' => $tableCounts,
+        ];
+    }
+
     private function formatBytes(int $bytes): string
     {
         if ($bytes < 1024) {
@@ -355,5 +446,29 @@ class SystemBackupService
         }
 
         return round($bytes / 1048576, 2).' MB';
+    }
+
+    private function assertRestoreIntegrity(): void
+    {
+        $duplicateEnrollments = DB::table('enrollments')
+            ->select('student_id', 'academic_year_id', DB::raw('count(*) as total'))
+            ->groupBy('student_id', 'academic_year_id')
+            ->havingRaw('count(*) > 1')
+            ->count();
+
+        $duplicateScores = DB::table('student_scores')
+            ->select('student_id', 'graded_activity_id', DB::raw('count(*) as total'))
+            ->groupBy('student_id', 'graded_activity_id')
+            ->havingRaw('count(*) > 1')
+            ->count();
+
+        $orphanEnrollments = DB::table('enrollments as e')
+            ->leftJoin('students as s', 's.id', '=', 'e.student_id')
+            ->whereNull('s.id')
+            ->count();
+
+        if ($duplicateEnrollments > 0 || $duplicateScores > 0 || $orphanEnrollments > 0) {
+            throw new \RuntimeException('Post-restore integrity validation failed.');
+        }
     }
 }

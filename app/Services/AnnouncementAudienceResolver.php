@@ -95,7 +95,7 @@ class AnnouncementAudienceResolver
 
             return $this->baseActiveUsersQuery()
                 ->whereIn('id', $teacherScopeUserIds->all())
-                ->get(['id', 'name', 'email', 'role']);
+                ->get($this->recipientColumns());
         }
 
         if ($roleValue === UserRole::REGISTRAR->value) {
@@ -107,7 +107,7 @@ class AnnouncementAudienceResolver
 
             return $this->baseActiveUsersQuery()
                 ->whereIn('id', $registrarScopeUserIds->all())
-                ->get(['id', 'name', 'email', 'role']);
+                ->get($this->recipientColumns());
         }
 
         if ($roleValue === UserRole::FINANCE->value) {
@@ -119,12 +119,20 @@ class AnnouncementAudienceResolver
 
             return $this->baseActiveUsersQuery()
                 ->whereIn('id', $financeScopeUserIds->all())
-                ->get(['id', 'name', 'email', 'role']);
+                ->get($this->recipientColumns());
         }
 
         return $this->baseActiveUsersQuery()
             ->whereIn('role', $this->allowedRoleValuesForPublisher($organizer))
-            ->get(['id', 'name', 'email', 'role']);
+            ->get($this->recipientColumns());
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function recipientColumns(): array
+    {
+        return ['id', 'name', 'email', 'personal_email', 'role'];
     }
 
     /**

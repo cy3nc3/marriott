@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ParentPortal\AttendanceController;
 use App\Http\Controllers\ParentPortal\BillingInformationController;
 use App\Http\Controllers\ParentPortal\GradesController;
 use App\Http\Controllers\ParentPortal\ScheduleController;
@@ -9,6 +10,8 @@ Route::middleware(['auth', 'verified', 'role:parent'])->prefix('parent')->name('
     Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule');
 
     Route::get('/grades', [GradesController::class, 'index'])->name('grades');
+
+    Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance');
 
     Route::get('/billing-information', [BillingInformationController::class, 'index'])->name('billing_information');
 });

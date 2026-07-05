@@ -4,19 +4,25 @@ namespace App\Http\Controllers\Registrar;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Registrar\ExportSf1ReferenceRequest;
+use App\Http\Requests\Registrar\UpdateStudentDirectoryRequest;
 use App\Models\AcademicYear;
 use App\Models\Enrollment;
+use App\Models\PermanentRecord;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\Auth\EnrollmentAccountClaimService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class StudentDirectoryController extends Controller
@@ -32,8 +38,36 @@ class StudentDirectoryController extends Controller
             ->first();
         $search = trim((string) $request->input('search', ''));
         $normalizedSearch = mb_strtolower($search);
+        $selectedStatus = (string) $request->input('status', 'all');
+        $allowedStatuses = [
+            'all',
+            'enrolled',
+            'enrolled_with_missing_requirements',
+            'not_enrolled',
+            'not_currently_enrolled',
+            'transferred_out',
+            'dropped',
+        ];
+        if (! in_array($selectedStatus, $allowedStatuses, true)) {
+            $selectedStatus = 'all';
+        }
+        $selectedSort = (string) $request->input('sort', 'a_z');
+        if (! in_array($selectedSort, ['a_z', 'z_a', 'newest', 'oldest'], true)) {
+            $selectedSort = 'a_z';
+        }
+        $selectedSectionIds = collect($request->input('section_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->values();
 
         $studentBaseQuery = Student::query()
+            ->when($selectedSectionIds->isNotEmpty(), function ($query) use ($ongoingAcademicYear, $selectedSectionIds) {
+                $query->whereHas('enrollments', function ($enrollmentQuery) use ($ongoingAcademicYear, $selectedSectionIds): void {
+                    $enrollmentQuery
+                        ->when($ongoingAcademicYear, fn ($q) => $q->where('academic_year_id', $ongoingAcademicYear->id))
+                        ->whereIn('section_id', $selectedSectionIds->all());
+                });
+            })
             ->when($ongoingAcademicYear, function ($query) use ($ongoingAcademicYear) {
                 $query->whereDoesntHave('enrollments', function ($enrollmentQuery) use ($ongoingAcademicYear): void {
                     $enrollmentQuery
@@ -50,13 +84,69 @@ class StudentDirectoryController extends Controller
                         ->orWhereRaw('LOWER(first_name) LIKE ?', [$searchPattern])
                         ->orWhereRaw('LOWER(last_name) LIKE ?', [$searchPattern]);
                 });
+            })
+            ->when($ongoingAcademicYear && $selectedStatus !== 'all', function ($query) use ($ongoingAcademicYear, $selectedStatus) {
+                if ($selectedStatus === 'enrolled') {
+                    $query->whereHas('enrollments', function ($enrollmentQuery) use ($ongoingAcademicYear): void {
+                        $enrollmentQuery
+                            ->where('academic_year_id', $ongoingAcademicYear->id)
+                            ->where('status', 'enrolled')
+                            ->where('report_card_submitted', true)
+                            ->where('birth_certificate_submitted', true);
+                    });
+
+                    return;
+                }
+
+                if ($selectedStatus === 'enrolled_with_missing_requirements') {
+                    $query->whereHas('enrollments', function ($enrollmentQuery) use ($ongoingAcademicYear): void {
+                        $enrollmentQuery
+                            ->where('academic_year_id', $ongoingAcademicYear->id)
+                            ->where('status', 'enrolled')
+                            ->where(function ($requirementsQuery): void {
+                                $requirementsQuery
+                                    ->where('report_card_submitted', false)
+                                    ->orWhere('birth_certificate_submitted', false);
+                            });
+                    });
+
+                    return;
+                }
+
+                if ($selectedStatus === 'not_enrolled') {
+                    $query->whereHas('enrollments', function ($enrollmentQuery) use ($ongoingAcademicYear): void {
+                        $enrollmentQuery
+                            ->where('academic_year_id', $ongoingAcademicYear->id)
+                            ->where('status', 'for_cashier_payment');
+                    });
+
+                    return;
+                }
+
+                if ($selectedStatus === 'transferred_out' || $selectedStatus === 'dropped') {
+                    $query->whereHas('enrollments', function ($enrollmentQuery) use ($ongoingAcademicYear, $selectedStatus): void {
+                        $enrollmentQuery
+                            ->where('academic_year_id', $ongoingAcademicYear->id)
+                            ->where('status', $selectedStatus);
+                    });
+
+                    return;
+                }
+
+                if ($selectedStatus === 'not_currently_enrolled') {
+                    $query->whereDoesntHave('enrollments', function ($enrollmentQuery) use ($ongoingAcademicYear): void {
+                        $enrollmentQuery
+                            ->where('academic_year_id', $ongoingAcademicYear->id)
+                            ->whereIn('status', ['for_cashier_payment', 'enrolled', 'transferred_out', 'dropped']);
+                    });
+                }
             });
 
         $students = (clone $studentBaseQuery)
             ->with([
                 'user:id,email,role,must_change_password,password_updated_at',
                 'parents:id,email,role,must_change_password,password_updated_at',
-                'enrollments' => function ($query) use ($ongoingAcademicYear) {
+                'enrollments' => function ($query) {
                     $query
                         ->with(['academicYear:id,name,start_date,status', 'gradeLevel:id,name', 'section:id,name'])
                         ->orderByDesc(
@@ -68,8 +158,19 @@ class StudentDirectoryController extends Controller
                         ->latest('id');
                 },
             ])
-            ->orderBy('last_name')
-            ->orderBy('first_name')
+            ->when(
+                $selectedSort === 'newest',
+                fn ($query) => $query->orderByDesc('created_at')->orderByDesc('id'),
+                fn ($query) => $query->when(
+                    $selectedSort === 'oldest',
+                    fn ($oldestQuery) => $oldestQuery->orderBy('created_at')->orderBy('id'),
+                    fn ($nameQuery) => $nameQuery->when(
+                        $selectedSort === 'z_a',
+                        fn ($zQuery) => $zQuery->orderByDesc('last_name')->orderByDesc('first_name'),
+                        fn ($aQuery) => $aQuery->orderBy('last_name')->orderBy('first_name')
+                    )
+                )
+            )
             ->paginate(15)
             ->withQueryString()
             ->through(function (Student $student) use ($ongoingAcademicYear) {
@@ -162,25 +263,16 @@ class StudentDirectoryController extends Controller
             'ongoing_academic_year_id' => $ongoingAcademicYear?->id,
             'filters' => [
                 'search' => $search,
+                'status' => $selectedStatus,
+                'sort' => $selectedSort,
+                'section_ids' => $selectedSectionIds->all(),
             ],
         ]);
     }
 
-    public function update(Request $request, Student $student): RedirectResponse
+    public function update(UpdateStudentDirectoryRequest $request, Student $student): RedirectResponse
     {
-        $validated = $request->validate([
-            'first_name' => ['required', 'string', 'max:255'],
-            'middle_name' => ['nullable', 'string', 'max:255'],
-            'last_name' => ['required', 'string', 'max:255'],
-            'gender' => ['required', 'string', 'in:Male,Female'],
-            'birthdate' => ['required', 'date', 'before_or_equal:today'],
-            'guardian_name' => ['required', 'string', 'max:255'],
-            'guardian_contact_number' => ['required', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'report_card_submitted' => ['nullable', 'boolean'],
-            'birth_certificate_submitted' => ['nullable', 'boolean'],
-            'send_claim_email_confirmation' => ['nullable', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $normalizedGuardianContactNumber = $this->normalizeGuardianContactNumber(
             (string) $validated['guardian_contact_number']
@@ -247,6 +339,20 @@ class StudentDirectoryController extends Controller
                     'birth_certificate_submitted' => (bool) ($validated['birth_certificate_submitted'] ?? false),
                 ]);
             }
+
+            $parentContactEmail = Str::lower(trim((string) ($validated['email'] ?? ''))) ?: null;
+            $student->loadMissing('parents');
+            $student->parents
+                ->filter(function (User $parent): bool {
+                    $role = $parent->role instanceof UserRole
+                        ? $parent->role->value
+                        : (string) $parent->role;
+
+                    return $role === UserRole::PARENT->value;
+                })
+                ->each(function (User $parent) use ($parentContactEmail): void {
+                    $parent->forceFill(['personal_email' => $parentContactEmail])->save();
+                });
         });
 
         if ($requiresClaimEmailConfirmation && $claimEmailConfirmed && $syncableEnrollment instanceof Enrollment) {
@@ -257,6 +363,67 @@ class StudentDirectoryController extends Controller
         }
 
         return back()->with('success', 'Student details updated.');
+    }
+
+    public function resendClaimEmail(Student $student): RedirectResponse
+    {
+        $activeAcademicYear = AcademicYear::query()
+            ->where('status', 'ongoing')
+            ->first() ?? AcademicYear::query()
+            ->latest('start_date')
+            ->first();
+
+        $enrollment = Enrollment::query()
+            ->where('student_id', $student->id)
+            ->where('status', 'enrolled')
+            ->when(
+                $activeAcademicYear,
+                fn ($query) => $query->where('academic_year_id', $activeAcademicYear->id)
+            )
+            ->latest('id')
+            ->first();
+
+        if (! $enrollment instanceof Enrollment) {
+            return back()->with('error', 'Account-claim email can only be resent for currently enrolled students.');
+        }
+
+        $student->loadMissing([
+            'user:id,role,email,personal_email,must_change_password,password_updated_at',
+            'parents:id,role,email,personal_email,must_change_password,password_updated_at',
+        ]);
+
+        $studentUser = $student->user instanceof User ? $student->user : null;
+        $parentUser = $student->parents->first(function (User $parent): bool {
+            $role = $parent->role instanceof UserRole
+                ? $parent->role->value
+                : (string) $parent->role;
+
+            return $role === UserRole::PARENT->value;
+        }) ?? $student->parents->first();
+
+        $issuedCount = 0;
+        if ($studentUser instanceof User && ! $this->isAccountClaimed($studentUser)) {
+            $issuedCount += $this->enrollmentAccountClaimService->issueForEnrollmentUser($enrollment, $studentUser) ? 1 : 0;
+        }
+
+        if ($parentUser instanceof User && ! $this->isAccountClaimed($parentUser)) {
+            $issuedCount += $this->enrollmentAccountClaimService->issueForEnrollmentUser($enrollment, $parentUser) ? 1 : 0;
+        }
+
+        if ($issuedCount === 0) {
+            if ($this->isAccountClaimed($studentUser) && $this->isAccountClaimed($parentUser instanceof User ? $parentUser : null)) {
+                return back()->with('error', 'Student and parent accounts are already claimed.');
+            }
+
+            return back()->with('error', 'Unable to resend account-claim email. Check the student personal email or guardian contact email.');
+        }
+
+        return back()->with(
+            'success',
+            $issuedCount === 1
+                ? 'Account-claim email resent.'
+                : 'Account-claim emails resent.'
+        );
     }
 
     private function areStudentAndParentAccountsUnclaimed(Student $student): bool
@@ -298,13 +465,9 @@ class StudentDirectoryController extends Controller
         );
     }
 
-    public function exportSf1Reference(Request $request): BinaryFileResponse|RedirectResponse
+    public function exportSf1Reference(ExportSf1ReferenceRequest $request): BinaryFileResponse|RedirectResponse|HttpResponse
     {
-        $validated = $request->validate([
-            'academic_year_id' => ['nullable', 'integer', 'exists:academic_years,id'],
-            'section_ids' => ['nullable', 'array'],
-            'section_ids.*' => ['integer', 'exists:sections,id'],
-        ]);
+        $validated = $request->validated();
 
         $selectedAcademicYearId = (int) ($validated['academic_year_id'] ?? 0);
         $selectedSectionIds = collect($validated['section_ids'] ?? [])
@@ -321,12 +484,23 @@ class StudentDirectoryController extends Controller
             return back()->with('error', 'No academic year found for SF1 reference export.');
         }
 
-        $outputPath = storage_path('app/temp/'.uniqid('sf1-reference-', true).'.csv');
-        if (! is_dir(dirname($outputPath))) {
-            mkdir(dirname($outputPath), 0777, true);
-        }
+        $headers = [
+            'LRN',
+            'First Name',
+            'Middle Name',
+            'Last Name',
+            'Gender',
+            'Birthdate',
+            'Address',
+            'Guardian Name',
+            'Guardian Contact Number',
+            'Grade Level',
+            'Section',
+            'Enrollment Status',
+            'Promotion Status',
+        ];
 
-        $rows = Enrollment::query()
+        $enrollments = Enrollment::query()
             ->with([
                 'student:id,lrn,first_name,middle_name,last_name,gender,birthdate,address,guardian_name,contact_number',
                 'gradeLevel:id,name',
@@ -344,28 +518,36 @@ class StudentDirectoryController extends Controller
             })
             ->values();
 
-        $handle = fopen($outputPath, 'w');
-        if ($handle === false) {
-            return back()->with('error', 'Unable to generate SF1 reference export.');
+        $studentIds = $enrollments
+            ->pluck('student_id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values();
+        $promotionStatusByStudentId = collect();
+        $isFinalizedYear = $academicYear->status === 'completed';
+
+        if ($isFinalizedYear && $studentIds->isNotEmpty()) {
+            $promotionStatusByStudentId = PermanentRecord::query()
+                ->where('academic_year_id', $academicYear->id)
+                ->whereIn('student_id', $studentIds->all())
+                ->orderByDesc('id')
+                ->get(['student_id', 'status'])
+                ->groupBy('student_id')
+                ->map(function ($records): string {
+                    $status = (string) ($records->first()->status ?? '');
+
+                    return match ($status) {
+                        'promoted' => 'Promoted',
+                        'conditional' => 'Conditional',
+                        'retained' => 'Retained',
+                        'completed' => 'Completed',
+                        default => '',
+                    };
+                });
         }
 
-        fputcsv($handle, [
-            'LRN',
-            'First Name',
-            'Middle Name',
-            'Last Name',
-            'Gender',
-            'Birthdate',
-            'Address',
-            'Guardian Name',
-            'Guardian Contact Number',
-            'Grade Level',
-            'Section',
-            'Enrollment Status',
-        ]);
-
-        foreach ($rows as $enrollment) {
-            fputcsv($handle, [
+        $rowsData = $enrollments
+            ->map(fn (Enrollment $enrollment): array => [
                 (string) ($enrollment->student?->lrn ?? ''),
                 (string) ($enrollment->student?->first_name ?? ''),
                 (string) ($enrollment->student?->middle_name ?? ''),
@@ -378,12 +560,41 @@ class StudentDirectoryController extends Controller
                 (string) ($enrollment->gradeLevel?->name ?? ''),
                 (string) ($enrollment->section?->name ?? ''),
                 (string) $enrollment->status,
-            ]);
+                (string) ($promotionStatusByStudentId->get((int) $enrollment->student_id, '')),
+            ])
+            ->all();
+
+        $format = strtolower((string) ($validated['format'] ?? 'csv'));
+        $sanitizedYear = strtolower((string) preg_replace('/[^A-Za-z0-9]+/', '-', $academicYear->name));
+
+        if ($format === 'xlsx') {
+            $outputPath = storage_path('app/temp/'.uniqid('sf1-reference-', true).'.xlsx');
+            if (! is_dir(dirname($outputPath))) {
+                mkdir(dirname($outputPath), 0777, true);
+            }
+            $spreadsheet = new Spreadsheet;
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->fromArray($headers, null, 'A1');
+            $sheet->fromArray($rowsData, null, 'A2');
+            (new Xlsx($spreadsheet))->save($outputPath);
+            $spreadsheet->disconnectWorksheets();
+
+            return response()->download($outputPath, "sf1-reference-{$sanitizedYear}.xlsx")->deleteFileAfterSend(true);
         }
 
+        $outputPath = storage_path('app/temp/'.uniqid('sf1-reference-', true).'.csv');
+        if (! is_dir(dirname($outputPath))) {
+            mkdir(dirname($outputPath), 0777, true);
+        }
+        $handle = fopen($outputPath, 'w');
+        if ($handle === false) {
+            return back()->with('error', 'Unable to generate SF1 reference export.');
+        }
+        fputcsv($handle, $headers);
+        foreach ($rowsData as $row) {
+            fputcsv($handle, $row);
+        }
         fclose($handle);
-
-        $sanitizedYear = strtolower((string) preg_replace('/[^A-Za-z0-9]+/', '-', $academicYear->name));
 
         return response()
             ->download($outputPath, "sf1-reference-{$sanitizedYear}.csv")
@@ -394,8 +605,7 @@ class StudentDirectoryController extends Controller
         ?string $enrollmentStatus,
         bool $reportCardSubmitted = false,
         bool $birthCertificateSubmitted = false,
-    ): string
-    {
+    ): string {
         $hasMissingRequirements = ! $reportCardSubmitted || ! $birthCertificateSubmitted;
 
         return match ($enrollmentStatus) {

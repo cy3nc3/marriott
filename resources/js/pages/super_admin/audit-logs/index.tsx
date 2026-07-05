@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Eye, History, ShieldAlert } from 'lucide-react';
+import { Eye, History, ListFilter, ShieldAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Table,
@@ -42,7 +44,6 @@ interface Log {
     old_values: Record<string, unknown> | null;
     new_values: Record<string, unknown> | null;
     user: { name: string } | null;
-    ip_address: string;
     user_agent: string | null;
     created_at: string;
 }
@@ -72,6 +73,13 @@ export default function AuditLogs({ logs, filters }: Props) {
         to: filters.date_to ? new Date(filters.date_to) : undefined,
     });
     const [selectedLog, setSelectedLog] = useState<Log | null>(null);
+
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (dateRange?.from || dateRange?.to) count++;
+        return count;
+    }, [dateRange]);
+
     const formatValue = (value: unknown) => {
         if (value === null || value === undefined) return '--';
         if (typeof value === 'string' || typeof value === 'number') {
@@ -95,35 +103,28 @@ export default function AuditLogs({ logs, filters }: Props) {
                 label: log.action,
                 value: log.action,
                 description: `${log.user?.name || 'System'} • ${targetLabel(log)}`,
-                keywords: `${log.ip_address} ${log.model_type ?? ''}`,
+                keywords: log.model_type ?? '',
             })),
         [logs.data],
     );
 
-    const handleSearch = (val: string) => {
-        setSearchQuery(val);
-        updateParams(val, dateRange);
+    const applyFilters = (overrides: { search?: string; date_from?: string; date_to?: string } = {}) => {
+        const query = {
+            search: overrides.search !== undefined ? overrides.search : (searchQuery || undefined),
+            date_from: overrides.date_from !== undefined ? overrides.date_from : (dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined),
+            date_to: overrides.date_to !== undefined ? overrides.date_to : (dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined),
+        };
+
+        router.get('/super-admin/audit-logs', query, {
+            preserveState: true,
+            replace: true,
+        });
     };
 
-    const handleDateChange = (newRange: DateRange | undefined) => {
-        setDateRange(newRange);
-        updateParams(searchQuery, newRange);
-    };
-
-    const updateParams = (search: string, dateParam: DateRange | undefined) => {
-        router.get(
-            '/super-admin/audit-logs',
-            {
-                search: search || undefined,
-                date_from: dateParam?.from
-                    ? format(dateParam.from, 'yyyy-MM-dd')
-                    : undefined,
-                date_to: dateParam?.to
-                    ? format(dateParam.to, 'yyyy-MM-dd')
-                    : undefined,
-            },
-            { preserveState: true, replace: true },
-        );
+    const resetFilters = () => {
+        setSearchQuery('');
+        setDateRange(undefined);
+        router.get('/super-admin/audit-logs', {}, { preserveState: true, replace: true });
     };
 
     return (
@@ -133,32 +134,60 @@ export default function AuditLogs({ logs, filters }: Props) {
                 <Card>
                     <CardContent className="p-0">
                         <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
-                            <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <SearchAutocompleteInput
-                                    placeholder="Search logs (action, user, model)..."
-                                    wrapperClassName="w-full sm:w-72"
+                                    placeholder="Search logs..."
+                                    wrapperClassName="w-full sm:w-[18rem]"
                                     value={searchQuery}
-                                    onValueChange={handleSearch}
+                                    onValueChange={(val) => {
+                                        setSearchQuery(val);
+                                        applyFilters({ search: val });
+                                    }}
                                     suggestions={searchSuggestions}
-                                    showSuggestions={false}
                                 />
-                                <DateRangePicker
-                                    dateRange={dateRange}
-                                    setDateRange={handleDateChange}
-                                    className="w-[260px]"
-                                    placeholder="Filter by date range"
-                                />
-                                {dateRange?.from && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                            handleDateChange(undefined)
-                                        }
-                                    >
-                                        Clear
-                                    </Button>
-                                )}
+
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="gap-2">
+                                            <ListFilter className="size-4" />
+                                            Filters
+                                            {activeFilterCount > 0 && (
+                                                <Badge variant="secondary" className="ml-1 px-1 py-0 text-[10px]">
+                                                    {activeFilterCount}
+                                                </Badge>
+                                            )}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-80" align="end">
+                                        <div className="grid gap-4">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="font-medium leading-none">Log Filters</h4>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-auto p-0 text-xs text-muted-foreground"
+                                                    onClick={resetFilters}
+                                                >
+                                                    Reset
+                                                </Button>
+                                            </div>
+                                            <div className="grid gap-4">
+                                                <div className="grid gap-2">
+                                                    <Label>Date Range</Label>
+                                                    <DateRangePicker
+                                                        dateRange={dateRange}
+                                                        setDateRange={setDateRange}
+                                                        className="w-full"
+                                                        placeholder="Select range"
+                                                    />
+                                                </div>
+                                                <Button size="sm" onClick={() => applyFilters()}>
+                                                    Apply Filters
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
 
                             <div className="flex items-center gap-2 text-xs">
@@ -209,9 +238,6 @@ export default function AuditLogs({ logs, filters }: Props) {
                                             <p className="text-xs text-muted-foreground">
                                                 {targetLabel(log)}
                                             </p>
-                                            <p className="font-mono text-xs">
-                                                {log.ip_address}
-                                            </p>
                                         </div>
                                     ))
                                 )}
@@ -232,9 +258,6 @@ export default function AuditLogs({ logs, filters }: Props) {
                                         <TableHead className="border-l">
                                             Target
                                         </TableHead>
-                                        <TableHead className="border-l">
-                                            IP Address
-                                        </TableHead>
                                         <TableHead className="border-l pr-6 text-right">
                                             Details
                                         </TableHead>
@@ -244,7 +267,7 @@ export default function AuditLogs({ logs, filters }: Props) {
                                     {logs.data.length === 0 ? (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={6}
+                                                colSpan={5}
                                                 className="h-24"
                                             >
                                                 <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
@@ -280,11 +303,6 @@ export default function AuditLogs({ logs, filters }: Props) {
                                                 <TableCell className="border-l">
                                                     <span className="text-xs text-muted-foreground italic">
                                                         {targetLabel(log)}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="border-l">
-                                                    <span className="font-mono text-xs">
-                                                        {log.ip_address}
                                                     </span>
                                                 </TableCell>
                                                 <TableCell className="border-l pr-6 text-right">
@@ -391,14 +409,6 @@ export default function AuditLogs({ logs, filters }: Props) {
                                 </p>
                                 <p className="text-sm font-medium">
                                     {targetLabel(selectedLog)}
-                                </p>
-                            </div>
-                            <div className="grid gap-1">
-                                <p className="text-xs text-muted-foreground">
-                                    IP Address
-                                </p>
-                                <p className="text-sm font-medium">
-                                    {selectedLog.ip_address}
                                 </p>
                             </div>
                             <div className="grid gap-1">

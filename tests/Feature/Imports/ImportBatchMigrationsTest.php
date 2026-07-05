@@ -1,9 +1,6 @@
 <?php
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
-
-uses(Tests\TestCase::class, RefreshDatabase::class);
 
 test('import batch tables exist after migrations', function (): void {
     expect(Schema::hasTable('import_batches'))->toBeTrue();

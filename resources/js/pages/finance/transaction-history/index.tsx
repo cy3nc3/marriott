@@ -1,7 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns';
-import { Download, Eye, MoreVertical, RefreshCcw, RotateCcw, Undo2 } from 'lucide-react';
-import { useState } from 'react';
+import { Download, Eye, ListFilter, MoreVertical, RefreshCcw, RotateCcw, Undo2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,8 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
@@ -104,26 +106,6 @@ type Filters = {
     date_to: string | null;
 };
 
-type ExportRangePreset = 'this_week' | 'this_month' | 'all_time';
-
-interface Props {
-    school_year_options: SchoolYearOption[];
-    selected_school_year_id: number | null;
-    transactions: {
-        data: TransactionRow[];
-        links: {
-            url: string | null;
-            label: string;
-            active: boolean;
-        }[];
-        from: number | null;
-        to: number | null;
-        total: number;
-    };
-    summary: Summary;
-    filters: Filters;
-}
-
 const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-PH', {
         style: 'currency',
@@ -193,12 +175,7 @@ export default function TransactionHistory({
         useState<TransactionRow | null>(null);
     const [detailTransaction, setDetailTransaction] =
         useState<TransactionRow | null>(null);
-    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-    const [exportRangePreset, setExportRangePreset] =
-        useState<ExportRangePreset>('this_month');
-    const [exportDateRange, setExportDateRange] = useState<
-        DateRange | undefined
-    >(initialDateRange);
+
     const voidForm = useForm({
         reason: '',
     });
@@ -213,43 +190,46 @@ export default function TransactionHistory({
         remarks: '',
     });
 
-    const applyFilters = () => {
-        router.get(
-            transaction_history.url({
-                query: {
-                    search: searchQuery || undefined,
-                    academic_year_id: selectedSchoolYearId || undefined,
-                    payment_mode:
-                        paymentModeFilter === 'all-modes'
-                            ? undefined
-                            : paymentModeFilter,
-                    date_from: dateRange?.from
-                        ? format(dateRange.from, 'yyyy-MM-dd')
-                        : undefined,
-                    date_to: dateRange?.to
-                        ? format(dateRange.to, 'yyyy-MM-dd')
-                        : undefined,
-                },
-            }),
-            {},
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            },
-        );
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (selectedSchoolYearId) count++;
+        if (paymentModeFilter !== 'all-modes') count++;
+        if (dateRange?.from || dateRange?.to) count++;
+        return count;
+    }, [selectedSchoolYearId, paymentModeFilter, dateRange]);
+
+    const applyFilters = (overrides: {
+        search?: string;
+        academic_year_id?: string;
+        payment_mode?: string;
+        date_from?: string;
+        date_to?: string;
+    } = {}) => {
+        const query = {
+            search: overrides.search !== undefined ? overrides.search : (searchQuery || undefined),
+            academic_year_id: overrides.academic_year_id !== undefined ? overrides.academic_year_id : (selectedSchoolYearId || undefined),
+            payment_mode: overrides.payment_mode !== undefined ? (overrides.payment_mode === 'all-modes' ? undefined : overrides.payment_mode) : (paymentModeFilter === 'all-modes' ? undefined : paymentModeFilter),
+            date_from: overrides.date_from !== undefined ? overrides.date_from : (dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined),
+            date_to: overrides.date_to !== undefined ? overrides.date_to : (dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined),
+            page: undefined,
+        };
+
+        router.get(transaction_history.url({ query }), {}, {
+            preserveState: true,
+            replace: true,
+            preserveScroll: true,
+        });
     };
 
     const resetFilters = () => {
         setSearchQuery('');
         setPaymentModeFilter('all-modes');
         setDateRange(undefined);
+        setSelectedSchoolYearId('');
 
         router.get(
             transaction_history.url({
-                query: {
-                    academic_year_id: selectedSchoolYearId || undefined,
-                },
+                query: { page: undefined },
             }),
             {},
             {
@@ -365,9 +345,9 @@ export default function TransactionHistory({
         return '';
     };
 
-    const triggerExport = () => {
+    const triggerExport = (formatType: 'xlsx' | 'csv' | 'pdf') => {
         const queryParams = new URLSearchParams();
-        queryParams.set('export_range', exportRangePreset);
+        queryParams.set('format', formatType);
 
         if (searchQuery.trim() !== '') {
             queryParams.set('search', searchQuery.trim());
@@ -381,53 +361,20 @@ export default function TransactionHistory({
             queryParams.set('payment_mode', paymentModeFilter);
         }
 
-        if (exportDateRange?.from) {
+        if (dateRange?.from) {
             queryParams.set(
                 'date_from',
-                format(exportDateRange.from, 'yyyy-MM-dd'),
+                format(dateRange.from, 'yyyy-MM-dd'),
             );
         }
 
-        if (exportDateRange?.to) {
-            queryParams.set('date_to', format(exportDateRange.to, 'yyyy-MM-dd'));
+        if (dateRange?.to) {
+            queryParams.set('date_to', format(dateRange.to, 'yyyy-MM-dd'));
         }
 
         window.location.assign(
             `/finance/transaction-history/export?${queryParams.toString()}`,
         );
-        setIsExportDialogOpen(false);
-    };
-
-    const applyExportPreset = (preset: ExportRangePreset) => {
-        setExportRangePreset(preset);
-
-        const now = new Date();
-        if (preset === 'this_week') {
-            setExportDateRange({
-                from: startOfWeek(now),
-                to: endOfWeek(now),
-            });
-
-            return;
-        }
-
-        if (preset === 'this_month') {
-            setExportDateRange({
-                from: startOfMonth(now),
-                to: endOfMonth(now),
-            });
-
-            return;
-        }
-
-        if (preset === 'all_time') {
-            setExportDateRange(undefined);
-        }
-    };
-
-    const openExportDialog = () => {
-        setIsExportDialogOpen(true);
-        setExportDateRange(dateRange);
     };
 
     const searchSuggestions = transactions.data.map((transaction) => ({
@@ -445,174 +392,122 @@ export default function TransactionHistory({
             <div className="flex flex-col gap-6">
                 <Card>
                     <CardHeader className="border-b">
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <CardTitle>Transaction History</CardTitle>
-                            <Badge variant="outline">
-                                {summary.count} results
-                            </Badge>
-                        </div>
-                    </CardHeader>
-
-                    <CardContent className="border-b p-4">
-                        <div className="flex flex-col gap-3">
-                            <div className="flex flex-col gap-3 sm:flex-row">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <SearchAutocompleteInput
                                     placeholder="OR number or student"
-                                    wrapperClassName="w-full sm:flex-1"
+                                    wrapperClassName="w-full sm:w-[18rem]"
                                     value={searchQuery}
                                     onValueChange={setSearchQuery}
                                     suggestions={searchSuggestions}
-                                    showSuggestions={false}
-                                    onEnterPress={applyFilters}
+                                    onEnterPress={() => applyFilters()}
                                     onSelectSuggestion={(option) => {
-                                        const selectedSearch =
-                                            option.value ?? option.label;
+                                        const selectedSearch = option.value ?? option.label;
                                         setSearchQuery(selectedSearch);
+                                        applyFilters({ search: selectedSearch });
+                                    }}
+                                />
 
-                                        router.get(
-                                            transaction_history.url({
-                                                query: {
-                                                    search: selectedSearch,
-                                                    academic_year_id:
-                                                        selectedSchoolYearId ||
-                                                        undefined,
-                                                    payment_mode:
-                                                        paymentModeFilter ===
-                                                        'all-modes'
-                                                            ? undefined
-                                                            : paymentModeFilter,
-                                                    date_from: dateRange?.from
-                                                        ? format(
-                                                              dateRange.from,
-                                                              'yyyy-MM-dd',
-                                                          )
-                                                        : undefined,
-                                                    date_to: dateRange?.to
-                                                        ? format(
-                                                              dateRange.to,
-                                                              'yyyy-MM-dd',
-                                                          )
-                                                        : undefined,
-                                                },
-                                            }),
-                                            {},
-                                            {
-                                                preserveState: true,
-                                                preserveScroll: true,
-                                                replace: true,
-                                            },
-                                        );
-                                    }}
-                                />
-                                <Button type="button" onClick={applyFilters}>
-                                    Apply
-                                </Button>
-                            </div>
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                                <DateRangePicker
-                                    dateRange={dateRange}
-                                    setDateRange={setDateRange}
-                                    className="w-fit max-w-full"
-                                />
-                                <Select
-                                    value={selectedSchoolYearId}
-                                    onValueChange={(value) => {
-                                        setSelectedSchoolYearId(value);
-                                        router.get(
-                                            transaction_history.url({
-                                                query: {
-                                                    academic_year_id:
-                                                        value || undefined,
-                                                    search:
-                                                        searchQuery ||
-                                                        undefined,
-                                                    payment_mode:
-                                                        paymentModeFilter ===
-                                                        'all-modes'
-                                                            ? undefined
-                                                            : paymentModeFilter,
-                                                    date_from: dateRange?.from
-                                                        ? format(
-                                                              dateRange.from,
-                                                              'yyyy-MM-dd',
-                                                          )
-                                                        : undefined,
-                                                    date_to: dateRange?.to
-                                                        ? format(
-                                                              dateRange.to,
-                                                              'yyyy-MM-dd',
-                                                          )
-                                                        : undefined,
-                                                },
-                                            }),
-                                            {},
-                                            {
-                                                preserveState: true,
-                                                preserveScroll: true,
-                                                replace: true,
-                                            },
-                                        );
-                                    }}
-                                >
-                                    <SelectTrigger className="w-full sm:w-44">
-                                        <SelectValue placeholder="School Year" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {school_year_options.map(
-                                            (schoolYear) => (
-                                                <SelectItem
-                                                    key={schoolYear.id}
-                                                    value={String(
-                                                        schoolYear.id,
-                                                    )}
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="gap-2">
+                                            <ListFilter className="size-4" />
+                                            Filters
+                                            {activeFilterCount > 0 && (
+                                                <Badge variant="secondary" className="ml-1 px-1 py-0 text-[10px]">
+                                                    {activeFilterCount}
+                                                </Badge>
+                                            )}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-80" align="end">
+                                        <div className="grid gap-4">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="font-medium leading-none">Filters</h4>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-auto p-0 text-xs text-muted-foreground"
+                                                    onClick={resetFilters}
                                                 >
-                                                    {schoolYear.name}
-                                                </SelectItem>
-                                            ),
-                                        )}
-                                    </SelectContent>
-                                </Select>
-                                <Select
-                                    value={paymentModeFilter}
-                                    onValueChange={(value) =>
-                                        setPaymentModeFilter(value)
-                                    }
-                                >
-                                    <SelectTrigger className="w-full sm:w-44">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all-modes">
-                                            All Modes
-                                        </SelectItem>
-                                        <SelectItem value="cash">
-                                            Cash
-                                        </SelectItem>
-                                        <SelectItem value="gcash">
-                                            GCash
-                                        </SelectItem>
-                                        <SelectItem value="bank_transfer">
-                                            Bank Transfer
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Button
-                                    variant="outline"
-                                    type="button"
-                                    onClick={resetFilters}
-                                >
-                                    Reset
-                                </Button>
-                                <Button
-                                    type="button"
-                                    onClick={openExportDialog}
-                                >
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Export
-                                </Button>
+                                                    Reset
+                                                </Button>
+                                            </div>
+                                            <div className="grid gap-4">
+                                                <div className="grid gap-2">
+                                                    <Label>Date Range</Label>
+                                                    <DateRangePicker
+                                                        dateRange={dateRange}
+                                                        setDateRange={setDateRange}
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <Label>School Year</Label>
+                                                    <Select
+                                                        value={selectedSchoolYearId}
+                                                        onValueChange={setSelectedSchoolYearId}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="All School Years" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {school_year_options.map((schoolYear) => (
+                                                                <SelectItem key={schoolYear.id} value={String(schoolYear.id)}>
+                                                                    {schoolYear.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <Label>Payment Mode</Label>
+                                                    <Select
+                                                        value={paymentModeFilter}
+                                                        onValueChange={setPaymentModeFilter}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="all-modes">All Modes</SelectItem>
+                                                            <SelectItem value="cash">Cash</SelectItem>
+                                                            <SelectItem value="gcash">GCash</SelectItem>
+                                                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <Button size="sm" onClick={() => applyFilters()}>
+                                                    Apply Filters
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="gap-2">
+                                            <Download className="size-4" />
+                                            Export
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => triggerExport('xlsx')}>
+                                            Export as Excel (.xlsx)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => triggerExport('csv')}>
+                                            Export as CSV (.csv)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => triggerExport('pdf')}>
+                                            Export as PDF (.pdf)
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </div>
-                    </CardContent>
+                    </CardHeader>
 
                     <CardContent className="p-0">
                         <Table>
@@ -851,80 +746,6 @@ export default function TransactionHistory({
                     </div>
                 </Card>
             </div>
-
-            <Dialog
-                open={isExportDialogOpen}
-                onOpenChange={setIsExportDialogOpen}
-            >
-                <DialogContent className="sm:max-w-[420px]">
-                    <DialogHeader>
-                        <DialogTitle>Export Transaction History</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-2">
-                        <div className="space-y-2">
-                            <p className="text-sm font-medium">Date Range</p>
-                            <DateRangePicker
-                                dateRange={exportDateRange}
-                                setDateRange={setExportDateRange}
-                                className="w-full"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <p className="text-sm font-medium">
-                                Quick Range Presets
-                            </p>
-                        </div>
-                        <Button
-                            type="button"
-                            variant={
-                                exportRangePreset === 'this_week'
-                                    ? 'default'
-                                    : 'outline'
-                            }
-                            className="w-full justify-start"
-                            onClick={() => applyExportPreset('this_week')}
-                        >
-                            This Week
-                        </Button>
-                        <Button
-                            type="button"
-                            variant={
-                                exportRangePreset === 'this_month'
-                                    ? 'default'
-                                    : 'outline'
-                            }
-                            className="w-full justify-start"
-                            onClick={() => applyExportPreset('this_month')}
-                        >
-                            This Month
-                        </Button>
-                        <Button
-                            type="button"
-                            variant={
-                                exportRangePreset === 'all_time'
-                                    ? 'default'
-                                    : 'outline'
-                            }
-                            className="w-full justify-start"
-                            onClick={() => applyExportPreset('all_time')}
-                        >
-                            All Time
-                        </Button>
-                    </div>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            type="button"
-                            onClick={() => setIsExportDialogOpen(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="button" onClick={triggerExport}>
-                            Export XLSX
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
             <Dialog
                 open={!!voidingTransaction}

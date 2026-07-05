@@ -532,6 +532,40 @@ test('finance export uses explicitly selected date range over preset', function 
     $this->travelBack();
 });
 
+test('finance can export transaction history as pdf', function () {
+    AcademicYear::query()->create([
+        'name' => '2025-2026',
+        'start_date' => '2025-06-01',
+        'end_date' => '2026-03-31',
+        'status' => 'ongoing',
+        'current_quarter' => '4',
+    ]);
+
+    $student = Student::query()->create([
+        'lrn' => '955566667780',
+        'first_name' => 'Lina',
+        'last_name' => 'Morales',
+    ]);
+
+    Transaction::query()->create([
+        'or_number' => 'OR-PDF-TH-001',
+        'student_id' => $student->id,
+        'cashier_id' => $this->finance->id,
+        'total_amount' => 600,
+        'payment_mode' => 'cash',
+        'status' => 'posted',
+    ])->items()->create([
+        'description' => 'Assessment Fee',
+        'amount' => 600,
+    ]);
+
+    $response = $this->get('/finance/transaction-history/export?export_range=all_time&format=pdf');
+
+    $response->assertSuccessful();
+    expect((string) $response->headers->get('content-disposition'))->toContain('.pdf');
+    expect((string) $response->headers->get('content-type'))->toContain('application/pdf');
+});
+
 test('finance can void a transaction and rollback dues and ledger entries', function () {
     $academicYear = AcademicYear::query()->create([
         'name' => '2025-2026',

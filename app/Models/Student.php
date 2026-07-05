@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Student extends Model
 {
     use Auditable;
+
     protected $fillable = [
         'user_id',
         'lrn',
@@ -93,5 +94,10 @@ class Student extends Model
     public function departures(): HasMany
     {
         return $this->hasMany(StudentDeparture::class);
+    }
+
+    public function permanentRecords(): HasMany
+    {
+        return $this->hasMany(PermanentRecord::class);
     }
 }

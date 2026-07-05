@@ -53,7 +53,10 @@ export type SavedAccountLoginFlashPayload =
 
 export type SharedData = {
     name: string;
-    auth: Auth;
+    auth: Auth & {
+        effective_role?: string | null;
+        view_as_role?: string | null;
+    };
     active_academic_year: {
         id: number;
         name: string;
@@ -67,6 +70,7 @@ export type SharedData = {
         } | null;
         saved_account_login: SavedAccountLoginFlashPayload | null;
         assessment_print_url: string | null;
+        status?: string;
     };
     notifications: NotificationPayload;
     ui: {

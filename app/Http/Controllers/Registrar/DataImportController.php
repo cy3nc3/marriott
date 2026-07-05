@@ -17,7 +17,6 @@ use App\Models\StudentDiscount;
 use App\Services\AuditLogService;
 use App\Services\DashboardCacheService;
 use Carbon\Carbon;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +25,7 @@ use Inertia\Response;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DataImportController extends Controller
 {
@@ -76,79 +76,34 @@ class DataImportController extends Controller
         $file = $validated['import_file'];
         $extension = strtolower((string) $file->getClientOriginalExtension());
 
-        if (in_array($extension, ['xls', 'xlsx'], true)) {
-            $workbook = $this->parseWorkbookImport($file);
-            if ($workbook === null) {
-                return back()->with('error', 'Unable to read workbook.');
-            }
-
-            if (($workbook['missing_sheets'] ?? []) !== []) {
-                return back()->with('error', 'Workbook is missing required sheets: '.implode(', ', $workbook['missing_sheets']).'.');
-            }
-
-            if (($workbook['invalid_sheets'] ?? []) !== []) {
-                return back()->with('error', 'Workbook has invalid required columns for sheets: '.implode(', ', $workbook['invalid_sheets']).'.');
-            }
-
-            $summary = $this->importWorkbook($workbook['sheets']);
-
-            Setting::set('registrar_permanent_records_last_import_at', now()->toDateTimeString(), 'registrar');
-            Setting::set('registrar_permanent_records_last_import_name', $file->getClientOriginalName(), 'registrar');
-            Setting::set('registrar_permanent_records_last_import_summary', json_encode($summary), 'registrar');
-
-            $auditLogService->log('registrar.permanent_records.imported', PermanentRecord::class, null, [
-                ...$summary,
-                'file_name' => $file->getClientOriginalName(),
-                'mode' => 'workbook',
-            ]);
-
-            DashboardCacheService::bust();
-
-            return back()->with(
-                'success',
-                "Workbook import complete. Imported {$summary['imported_rows']} of {$summary['processed_rows']} rows ({$summary['skipped_rows']} skipped)."
-            );
+        if (! in_array($extension, ['xls', 'xlsx'], true)) {
+            return back()->with('error', 'Only official Excel workbook templates (.xlsx/.xls) are supported.');
         }
 
-        $parsedData = $this->parseImportRows($file);
-        if ($parsedData === null) {
-            return back()->with('error', 'Unable to read import file.');
+        $workbook = $this->parseWorkbookImport($file);
+        if ($workbook === null) {
+            return back()->with('error', 'Unable to read workbook.');
         }
 
-        $headers = $parsedData['headers'];
-        $rows = $parsedData['rows'];
-        if ($rows === []) {
-            return back()->with('error', 'Import file is empty.');
+        if (($workbook['missing_sheets'] ?? []) !== []) {
+            return back()->with('error', 'Workbook is missing required sheets: '.implode(', ', $workbook['missing_sheets']).'.');
         }
-        $missingHeaders = $this->missingRequiredHeaders($headers);
-        if ($missingHeaders !== []) {
+
+        if (($workbook['invalid_sheets'] ?? []) !== []) {
+            if (in_array('enrollment_export_missing_lrn_key', $workbook['invalid_sheets'], true)) {
+                return back()->with(
+                    'error',
+                    'Enrollment workbook export cannot be imported directly because it does not include unique LRN keys per row.'
+                );
+            }
+
             return back()->with(
                 'error',
-                'Missing required columns: '.implode(', ', $missingHeaders).'.'
+                'Workbook headers do not match official template for sheets: '.implode(', ', $workbook['invalid_sheets']).'.'
             );
         }
 
-        $summary = [
-            'processed_rows' => 0,
-            'imported_rows' => 0,
-            'created_records' => 0,
-            'updated_records' => 0,
-            'created_students' => 0,
-            'created_academic_years' => 0,
-            'created_grade_levels' => 0,
-            'created_sections' => 0,
-            'created_enrollments' => 0,
-            'skipped_rows' => 0,
-        ];
-
-        foreach ($rows as $row) {
-            $summary['processed_rows']++;
-            $rowData = $this->mapCsvRow($headers, $row);
-
-            if (! $this->importPermanentRecordRow($rowData, $summary)) {
-                $summary['skipped_rows']++;
-            }
-        }
+        $summary = $this->importWorkbook($workbook['sheets']);
 
         Setting::set('registrar_permanent_records_last_import_at', now()->toDateTimeString(), 'registrar');
         Setting::set('registrar_permanent_records_last_import_name', $file->getClientOriginalName(), 'registrar');
@@ -173,77 +128,38 @@ class DataImportController extends Controller
         $file = $validated['import_file'];
         $extension = strtolower((string) $file->getClientOriginalExtension());
 
-        if (in_array($extension, ['xls', 'xlsx'], true)) {
-            $workbook = $this->parseWorkbookImport($file);
-            if ($workbook === null) {
-                return back()->with('error', 'Unable to read workbook.');
-            }
-
-            $sheetPreview = collect($workbook['sheets'])
-                ->map(function (array $sheetData, string $sheetName): array {
-                    $headers = $sheetData['headers'] ?? [];
-                    $rows = $sheetData['rows'] ?? [];
-                    $requiredHeaders = $this->requiredHeadersBySheet()[$sheetName] ?? [];
-                    $missingHeaders = collect($requiredHeaders)
-                        ->reject(fn (string $header): bool => in_array($header, $headers, true))
-                        ->values()
-                        ->all();
-
-                    return [
-                        'sheet' => $sheetName,
-                        'processed_rows' => count($rows),
-                        'missing_required_headers' => $missingHeaders,
-                        'headers' => $headers,
-                    ];
-                })
-                ->values()
-                ->all();
-
-            return back()->with('import_preview', [
-                'file_name' => $file->getClientOriginalName(),
-                'detected_format' => strtoupper((string) $file->getClientOriginalExtension()),
-                'mode' => 'workbook',
-                'missing_sheets' => $workbook['missing_sheets'],
-                'invalid_sheets' => $workbook['invalid_sheets'],
-                'sheets' => $sheetPreview,
-            ]);
+        if (! in_array($extension, ['xls', 'xlsx'], true)) {
+            return back()->with('error', 'Only official Excel workbook templates (.xlsx/.xls) are supported.');
         }
 
-        $parsedData = $this->parseImportRows($file);
-
-        if ($parsedData === null) {
+        $workbook = $this->parseWorkbookImport($file);
+        if ($workbook === null) {
             return back()->with('error', 'Unable to read import file.');
         }
 
-        $headers = $parsedData['headers'];
-        $rows = $parsedData['rows'];
-        $missingHeaders = $this->missingRequiredHeaders($headers);
-        $processedRows = count($rows);
-        $readyRows = 0;
-        $invalidRows = 0;
+        $sheetPreview = collect($workbook['sheets'])
+            ->map(function (array $sheetData, string $sheetName): array {
+                $headers = $sheetData['headers'] ?? [];
+                $rows = $sheetData['rows'] ?? [];
+                $expectedHeaders = $this->requiredHeadersBySheet()[$sheetName] ?? [];
 
-        foreach ($rows as $row) {
-            $rowData = $this->mapCsvRow($headers, $row);
-            $lrn = preg_replace('/\D/', '', (string) ($rowData['lrn'] ?? ''));
-            $schoolYear = $this->parseSchoolYear($rowData['school_year'] ?? null);
-            $gradeLevel = $this->normalizeGradeLevelName($rowData['grade_level'] ?? null);
-
-            if ($lrn !== '' && $schoolYear !== null && $gradeLevel !== null) {
-                $readyRows++;
-            } else {
-                $invalidRows++;
-            }
-        }
+                return [
+                    'sheet' => $sheetName,
+                    'processed_rows' => count($rows),
+                    'missing_required_headers' => $expectedHeaders === $headers ? [] : $expectedHeaders,
+                    'headers' => $headers,
+                ];
+            })
+            ->values()
+            ->all();
 
         return back()->with('import_preview', [
             'file_name' => $file->getClientOriginalName(),
             'detected_format' => strtoupper((string) $file->getClientOriginalExtension()),
-            'mode' => 'single_sheet',
-            'headers' => $headers,
-            'missing_required_headers' => $missingHeaders,
-            'processed_rows' => $processedRows,
-            'ready_rows' => $readyRows,
-            'invalid_rows' => $invalidRows,
+            'mode' => 'workbook',
+            'missing_sheets' => $workbook['missing_sheets'],
+            'invalid_sheets' => $workbook['invalid_sheets'],
+            'sheets' => $sheetPreview,
         ]);
     }
 
@@ -265,6 +181,17 @@ class DataImportController extends Controller
                 'guardian_contact_number',
                 'guardian_email',
                 'contact_email',
+            ],
+            'enrollment_history' => [
+                'lrn',
+                'school_year',
+                'grade_level',
+                'section',
+                'status',
+                'school_name',
+                'general_average',
+                'failed_subject_count',
+                'remarks',
             ],
         ];
 
@@ -462,7 +389,30 @@ class DataImportController extends Controller
     private function requiredHeadersBySheet(): array
     {
         return [
-            'students' => ['lrn', 'first_name', 'last_name'],
+            'students' => [
+                'lrn',
+                'last_name',
+                'first_name',
+                'middle_name',
+                'gender',
+                'birthdate',
+                'student_email',
+                'guardian_name',
+                'guardian_contact_number',
+                'guardian_email',
+                'contact_email',
+            ],
+            'enrollment_history' => [
+                'lrn',
+                'school_year',
+                'grade_level',
+                'section',
+                'status',
+                'school_name',
+                'general_average',
+                'failed_subject_count',
+                'remarks',
+            ],
         ];
     }
 
@@ -479,6 +429,19 @@ class DataImportController extends Controller
             $spreadsheet = IOFactory::load($file->getRealPath());
         } catch (\Throwable) {
             return null;
+        }
+
+        $sf1Compatibility = $this->parseSf1ExportWorkbook($spreadsheet);
+        if ($sf1Compatibility !== null) {
+            return $sf1Compatibility;
+        }
+
+        if ($this->isEnrollmentExportWorkbook($spreadsheet)) {
+            return [
+                'sheets' => [],
+                'missing_sheets' => ['students', 'enrollment_history'],
+                'invalid_sheets' => ['enrollment_export_missing_lrn_key'],
+            ];
         }
 
         $requiredSheets = array_keys($this->requiredHeadersBySheet());
@@ -520,12 +483,7 @@ class DataImportController extends Controller
 
             $headers = $sheetMap[$sheetName]['headers'];
             $requiredHeaders = $this->requiredHeadersBySheet()[$sheetName];
-            $missingHeaders = collect($requiredHeaders)
-                ->reject(fn (string $header): bool => in_array($header, $headers, true))
-                ->values()
-                ->all();
-
-            if ($missingHeaders !== []) {
+            if ($headers !== $requiredHeaders) {
                 $invalidSheets[] = $sheetName;
             }
         }
@@ -535,6 +493,120 @@ class DataImportController extends Controller
             'missing_sheets' => $missingSheets,
             'invalid_sheets' => $invalidSheets,
         ];
+    }
+
+    private function isEnrollmentExportWorkbook(\PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet): bool
+    {
+        foreach ($spreadsheet->getWorksheetIterator() as $worksheet) {
+            $title = strtolower(trim((string) $worksheet->getTitle()));
+            if (! in_array($title, ['sy26-27', 'counter', 'per section'], true)) {
+                continue;
+            }
+
+            $header = strtolower(trim((string) $worksheet->getCell('A5')->getCalculatedValue()));
+            $nameHeader = strtolower(trim((string) $worksheet->getCell('B5')->getCalculatedValue()));
+            if ($header === 'no.' && $nameHeader === 'name') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{
+     *   sheets: array<string, array{headers: array<int, string>, rows: array<int, array<int, string>>}>,
+     *   missing_sheets: array<int, string>,
+     *   invalid_sheets: array<int, string>
+     * }|null
+     */
+    private function parseSf1ExportWorkbook(\PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet): ?array
+    {
+        $sf1Sheet = null;
+        foreach ($spreadsheet->getWorksheetIterator() as $worksheet) {
+            $title = strtolower(trim((string) $worksheet->getTitle()));
+            if (str_contains($title, 'school_form_1')) {
+                $sf1Sheet = $worksheet;
+                break;
+            }
+        }
+
+        if ($sf1Sheet === null) {
+            return null;
+        }
+
+        $studentRows = [];
+        for ($row = 7; $row <= 2000; $row++) {
+            $lrn = preg_replace('/\D/', '', (string) $sf1Sheet->getCell("A{$row}")->getFormattedValue());
+            $nameCell = trim((string) $sf1Sheet->getCell("C{$row}")->getFormattedValue());
+            $sex = trim((string) $sf1Sheet->getCell("G{$row}")->getFormattedValue());
+            $birthdate = trim((string) $sf1Sheet->getCell("H{$row}")->getFormattedValue());
+            $addressStreet = trim((string) $sf1Sheet->getCell("P{$row}")->getFormattedValue());
+            $addressBarangay = trim((string) $sf1Sheet->getCell("R{$row}")->getFormattedValue());
+            $addressCity = trim((string) $sf1Sheet->getCell("U{$row}")->getFormattedValue());
+            $addressProvince = trim((string) $sf1Sheet->getCell("W{$row}")->getFormattedValue());
+            $father = trim((string) $sf1Sheet->getCell("AB{$row}")->getFormattedValue());
+            $mother = trim((string) $sf1Sheet->getCell("AF{$row}")->getFormattedValue());
+
+            if ($lrn === '' && $nameCell === '') {
+                continue;
+            }
+
+            if ($lrn === '' || $nameCell === '') {
+                continue;
+            }
+
+            [$lastName, $firstName, $middleName] = $this->parseSf1NameCell($nameCell);
+            $guardianName = $father !== '' ? $father : $mother;
+            $address = trim(implode(', ', array_filter([
+                $addressStreet,
+                $addressBarangay,
+                $addressCity,
+                $addressProvince,
+            ])));
+
+            $studentRows[] = [
+                $lrn,
+                $lastName,
+                $firstName,
+                $middleName,
+                $sex,
+                $birthdate,
+                '',
+                $guardianName,
+                '',
+                '',
+                '',
+            ];
+        }
+
+        return [
+            'sheets' => [
+                'students' => [
+                    'headers' => $this->requiredHeadersBySheet()['students'],
+                    'rows' => $studentRows,
+                ],
+                'enrollment_history' => [
+                    'headers' => $this->requiredHeadersBySheet()['enrollment_history'],
+                    'rows' => [],
+                ],
+            ],
+            'missing_sheets' => [],
+            'invalid_sheets' => [],
+        ];
+    }
+
+    /**
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function parseSf1NameCell(string $name): array
+    {
+        $parts = array_map('trim', explode(',', $name));
+        $lastName = $parts[0] ?? '';
+        $firstName = $parts[1] ?? '';
+        $middleName = $parts[2] ?? '';
+
+        return [$lastName, $firstName, $middleName];
     }
 
     /**
@@ -686,10 +758,6 @@ class DataImportController extends Controller
         return true;
     }
 
-    /**
-     * @param  array<int, string>  $headerRow
-     * @return array<int, string>
-     */
     private function missingRequiredHeaders(array $headers): array
     {
         $requiredHeaders = ['lrn', 'school_year', 'grade_level'];

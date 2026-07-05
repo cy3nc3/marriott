@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\AcademicYear;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreSectionRequest extends FormRequest
 {
@@ -14,6 +15,12 @@ class StoreSectionRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        if ($this->has('name')) {
+            $this->merge([
+                'name' => trim((string) $this->input('name')),
+            ]);
+        }
+
         if ($this->filled('academic_year_id')) {
             return;
         }
@@ -48,7 +55,16 @@ class StoreSectionRequest extends FormRequest
         return [
             'academic_year_id' => ['required', 'exists:academic_years,id'],
             'grade_level_id' => ['required', 'exists:grade_levels,id'],
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('sections', 'name')->where(function ($query) {
+                    return $query
+                        ->where('academic_year_id', (int) $this->input('academic_year_id'))
+                        ->where('grade_level_id', (int) $this->input('grade_level_id'));
+                }),
+            ],
             'adviser_id' => ['nullable', 'exists:users,id'],
         ];
     }

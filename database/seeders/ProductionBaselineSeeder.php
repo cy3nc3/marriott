@@ -3,17 +3,20 @@
 namespace Database\Seeders;
 
 use App\Enums\UserRole;
-use Database\Seeders\Support\SeedNameBank;
 use App\Models\AcademicYear;
 use App\Models\ClassSchedule;
 use App\Models\Enrollment;
+use App\Models\Fee;
+use App\Models\GradeLevel;
 use App\Models\PermanentRecord;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\SubjectAssignment;
+use App\Models\TeacherProfile;
 use App\Models\TeacherSubject;
 use App\Models\User;
+use Database\Seeders\Support\SeedNameBank;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -21,6 +24,23 @@ use Illuminate\Support\Str;
 
 class ProductionBaselineSeeder extends Seeder
 {
+    /**
+     * Historical baseline schedule slots used when this seeder creates legacy schedules.
+     * Keep slots distinct so seeded subjects do not collapse into one time block.
+     *
+     * @var array<int, array{day: string, start_time: string, end_time: string}>
+     */
+    private const BASELINE_SCHEDULE_SLOTS = [
+        ['day' => 'Monday', 'start_time' => '07:30:00', 'end_time' => '08:30:00'],
+        ['day' => 'Monday', 'start_time' => '08:45:00', 'end_time' => '09:45:00'],
+        ['day' => 'Tuesday', 'start_time' => '07:30:00', 'end_time' => '08:30:00'],
+        ['day' => 'Tuesday', 'start_time' => '08:45:00', 'end_time' => '09:45:00'],
+        ['day' => 'Wednesday', 'start_time' => '07:30:00', 'end_time' => '08:30:00'],
+        ['day' => 'Wednesday', 'start_time' => '08:45:00', 'end_time' => '09:45:00'],
+        ['day' => 'Thursday', 'start_time' => '07:30:00', 'end_time' => '08:30:00'],
+        ['day' => 'Friday', 'start_time' => '07:30:00', 'end_time' => '08:30:00'],
+    ];
+
     public function run(): void
     {
         $this->seedAcademicYears();
@@ -30,19 +50,45 @@ class ProductionBaselineSeeder extends Seeder
             SubjectSeeder::class,
             TeacherSeeder::class,
             SectionSeeder::class,
+            PermissionSeeder::class,
         ]);
 
+        $this->seedFees();
         $this->seedRoleAccounts();
+        $this->seedTeacherProfiles();
         $this->seedTeacherAssignments();
         $this->seedHistoricalStudents();
+    }
+
+    private function seedFees(): void
+    {
+        $academicYears = AcademicYear::all();
+        $gradeLevels = GradeLevel::all();
+
+        foreach ($academicYears as $year) {
+            foreach ($gradeLevels as $grade) {
+                // Tuition Fee
+                DB::table('fees')->updateOrInsert(
+                    ['academic_year_id' => $year->id, 'grade_level_id' => $grade->id, 'type' => 'tuition'],
+                    ['name' => 'Tuition Fee', 'amount' => 25000.00, 'created_at' => now(), 'updated_at' => now()]
+                );
+
+                // Miscellaneous Fee
+                DB::table('fees')->updateOrInsert(
+                    ['academic_year_id' => $year->id, 'grade_level_id' => $grade->id, 'type' => 'miscellaneous'],
+                    ['name' => 'Miscellaneous Fee', 'amount' => 10000.00, 'created_at' => now(), 'updated_at' => now()]
+                );
+            }
+        }
     }
 
     private function seedAcademicYears(): void
     {
         foreach ([
+            ['name' => '2022-2023', 'start_date' => '2022-06-06', 'end_date' => '2023-03-31', 'status' => 'completed', 'current_quarter' => '4'],
             ['name' => '2023-2024', 'start_date' => '2023-06-05', 'end_date' => '2024-03-29', 'status' => 'completed', 'current_quarter' => '4'],
             ['name' => '2024-2025', 'start_date' => '2024-06-03', 'end_date' => '2025-03-28', 'status' => 'completed', 'current_quarter' => '4'],
-            ['name' => '2025-2026', 'start_date' => '2025-06-02', 'end_date' => '2026-03-27', 'status' => 'upcoming', 'current_quarter' => '1'],
+            ['name' => '2025-2026', 'start_date' => '2025-06-02', 'end_date' => '2026-03-27', 'status' => 'ongoing', 'current_quarter' => '1'],
         ] as $academicYear) {
             AcademicYear::query()->updateOrCreate(
                 ['name' => $academicYear['name']],
@@ -54,21 +100,20 @@ class ProductionBaselineSeeder extends Seeder
     private function seedRoleAccounts(): void
     {
         $staffBlueprint = [
-            ['role' => UserRole::SUPER_ADMIN, 'first_name' => 'Super', 'last_name' => 'Admin'],
-            ['role' => UserRole::ADMIN, 'first_name' => 'Alex', 'last_name' => 'Avellanosa'],
-            ['role' => UserRole::REGISTRAR, 'first_name' => 'Jocelyn', 'last_name' => 'Cleofe'],
-            ['role' => UserRole::FINANCE, 'first_name' => 'Corrine', 'last_name' => 'Avellanosa'],
+            ['role' => UserRole::SUPER_ADMIN, 'email' => 'superadmin@marriott.edu', 'first_name' => 'Super', 'last_name' => 'Admin'],
+            ['role' => UserRole::ADMIN, 'email' => 'alex.avellanosa@marriott.edu', 'first_name' => 'Alex', 'last_name' => 'Avellanosa'],
+            ['role' => UserRole::REGISTRAR, 'email' => 'jocelyn.cleofe@marriott.edu', 'first_name' => 'Jocelyn', 'last_name' => 'Cleofe'],
+            ['role' => UserRole::FINANCE, 'email' => 'corrine.avellanosa@marriott.edu', 'first_name' => 'Corrine', 'last_name' => 'Avellanosa'],
         ];
 
         foreach ($staffBlueprint as $staff) {
-            $email = $this->staffEmail($staff['first_name'], $staff['last_name']);
-
             User::query()->updateOrCreate(
-                ['email' => $email],
+                ['email' => $staff['email']],
                 [
                     'first_name' => $staff['first_name'],
                     'last_name' => $staff['last_name'],
                     'name' => "{$staff['first_name']} {$staff['last_name']}",
+                    'personal_email' => strtolower($staff['first_name']).'.'.strtolower($staff['last_name']).'@test.com',
                     'password' => Hash::make('password'),
                     'birthday' => '1990-01-01',
                     'role' => $staff['role'],
@@ -83,18 +128,42 @@ class ProductionBaselineSeeder extends Seeder
         $teachers = User::query()
             ->where('role', UserRole::TEACHER)
             ->orderBy('email')
-            ->get();
+            ->with('teacherProfile')
+            ->get()
+            ->keyBy('email');
 
         if ($teachers->isEmpty()) {
             return;
         }
 
+        $subjectOwnerByCode = [
+            'MATH' => 'rowell.almonte@marriott.edu',
+            'SCI' => 'rocelle.delacruz@marriott.edu',
+            'AP' => 'elenor.cendana@marriott.edu',
+            'ESP' => 'manimfa.guinacaran@marriott.edu',
+            'FIL' => 'racquel.vergara@marriott.edu',
+            'ENG' => 'fe.cavitt@marriott.edu',
+            'MAPEH' => 'beronica.renton@marriott.edu',
+            'TLE' => 'mary.guira@marriott.edu',
+        ];
+
+        $fallbackTeachers = $teachers->values();
+
         Subject::query()
             ->orderBy('grade_level_id')
             ->orderBy('subject_code')
             ->get()
-            ->each(function (Subject $subject, int $index) use ($teachers): void {
-                $teacher = $teachers[$index % $teachers->count()];
+            ->each(function (Subject $subject, int $index) use ($teachers, $subjectOwnerByCode, $fallbackTeachers): void {
+                $baseCode = strtoupper((string) preg_replace('/\d+$/', '', $subject->subject_code));
+                $preferredTeacherEmail = $subjectOwnerByCode[$baseCode] ?? null;
+
+                $teacher = $preferredTeacherEmail
+                    ? $teachers->get($preferredTeacherEmail)
+                    : null;
+
+                if (! $teacher instanceof User) {
+                    $teacher = $fallbackTeachers[$index % $fallbackTeachers->count()];
+                }
 
                 $teacherSubject = TeacherSubject::query()->firstOrCreate([
                     'teacher_id' => $teacher->id,
@@ -103,8 +172,10 @@ class ProductionBaselineSeeder extends Seeder
 
                 Section::query()
                     ->where('grade_level_id', $subject->grade_level_id)
+                    ->orderBy('id')
                     ->get()
-                    ->each(function (Section $section) use ($teacherSubject): void {
+                    ->values()
+                    ->each(function (Section $section, int $sectionIndex) use ($teacherSubject, $index): void {
                         $subjectAssignment = SubjectAssignment::query()->updateOrCreate(
                             [
                                 'section_id' => $section->id,
@@ -113,17 +184,20 @@ class ProductionBaselineSeeder extends Seeder
                             []
                         );
 
+                        $slotCount = count(self::BASELINE_SCHEDULE_SLOTS);
+                        $slot = self::BASELINE_SCHEDULE_SLOTS[($index + $sectionIndex) % $slotCount];
+
                         ClassSchedule::query()->updateOrCreate(
                             [
                                 'section_id' => $section->id,
                                 'subject_assignment_id' => $subjectAssignment->id,
-                                'day' => 'Monday',
+                                'day' => $slot['day'],
                             ],
                             [
                                 'type' => 'academic',
                                 'label' => null,
-                                'start_time' => '08:00:00',
-                                'end_time' => '09:00:00',
+                                'start_time' => $slot['start_time'],
+                                'end_time' => $slot['end_time'],
                             ]
                         );
                     });
@@ -136,7 +210,7 @@ class ProductionBaselineSeeder extends Seeder
             ->get(['id', 'academic_year_id', 'grade_level_id', 'name', 'adviser_id']);
 
         foreach ($sections as $index => $section) {
-            $teacher = $teachers[$index % $teachers->count()];
+            $teacher = $fallbackTeachers[$index % $fallbackTeachers->count()];
             if (! $teacher instanceof User) {
                 continue;
             }
@@ -144,6 +218,81 @@ class ProductionBaselineSeeder extends Seeder
             $section->update([
                 'adviser_id' => $teacher->id,
             ]);
+        }
+    }
+
+    private function seedTeacherProfiles(): void
+    {
+        $profiles = [
+            'rowell.almonte@marriott.edu' => [
+                'degree' => 'Bachelor of Secondary Education',
+                'major' => 'Mathematics',
+                'subject_competency_tags' => ['MATH'],
+            ],
+            'rocelle.delacruz@marriott.edu' => [
+                'degree' => 'Bachelor of Secondary Education',
+                'major' => 'Science',
+                'subject_competency_tags' => ['SCI'],
+            ],
+            'fe.cavitt@marriott.edu' => [
+                'degree' => 'Bachelor of Secondary Education',
+                'major' => 'English',
+                'subject_competency_tags' => ['ENG'],
+            ],
+            'elenor.cendana@marriott.edu' => [
+                'degree' => 'Bachelor of Secondary Education',
+                'major' => 'Social Studies',
+                'subject_competency_tags' => ['AP'],
+            ],
+            'ma.guinacaran@marriott.edu' => [
+                'degree' => 'Bachelor of Secondary Education',
+                'major' => 'Values Education',
+                'subject_competency_tags' => ['ESP'],
+            ],
+            'mary.guira@marriott.edu' => [
+                'degree' => 'Bachelor of Technology and Livelihood Education',
+                'major' => 'Technology and Livelihood Education',
+                'subject_competency_tags' => ['TLE'],
+            ],
+            'racquel.vergara@marriott.edu' => [
+                'degree' => 'Bachelor of Secondary Education',
+                'major' => 'Filipino',
+                'subject_competency_tags' => ['FIL'],
+            ],
+            'beronica.renton@marriott.edu' => [
+                'degree' => 'Bachelor of Physical Education',
+                'major' => 'MAPEH',
+                'subject_competency_tags' => ['MAPEH'],
+            ],
+        ];
+
+        foreach ($profiles as $email => $profile) {
+            $teacher = User::query()
+                ->where('role', UserRole::TEACHER)
+                ->where('email', $email)
+                ->first();
+
+            if (! $teacher) {
+                continue;
+            }
+
+            TeacherProfile::query()->updateOrCreate(
+                ['user_id' => $teacher->id],
+                [
+                    'qualification_status' => 'fully_qualified',
+                    'is_let_passer' => true,
+                    'prc_license_no' => 'PRC-'.str_pad((string) $teacher->id, 6, '0', STR_PAD_LEFT),
+                    'license_valid_until' => '2029-12-31',
+                    'degree' => $profile['degree'],
+                    'major' => $profile['major'],
+                    'professional_education_units' => 18,
+                    'exception_basis' => null,
+                    'provisional_until' => null,
+                    'grade_band_eligibility' => ['junior_high'],
+                    'subject_competency_tags' => $profile['subject_competency_tags'],
+                    'notes' => 'Seeded profile aligned with assigned curriculum subjects.',
+                ]
+            );
         }
     }
 
@@ -266,24 +415,5 @@ class ProductionBaselineSeeder extends Seeder
     private function nameSetForIndex(int $index): array
     {
         return SeedNameBank::studentIdentity($index);
-    }
-
-    private function staffEmail(string $firstName, string $lastName): string
-    {
-        $firstToken = Str::of($firstName)
-            ->ascii()
-            ->lower()
-            ->replaceMatches('/[^a-z0-9 ]+/', '')
-            ->squish()
-            ->explode(' ')
-            ->filter()
-            ->first();
-
-        $lastToken = Str::of($lastName)
-            ->ascii()
-            ->lower()
-            ->replaceMatches('/[^a-z0-9]+/', '');
-
-        return "{$firstToken}.{$lastToken}@marriott.edu";
     }
 }

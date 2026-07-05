@@ -21,6 +21,7 @@ interface MultiSelectProps {
   onChange: (selected: string[]) => void
   placeholder?: string
   className?: string
+  selectAllLabel?: string
 }
 
 export function RolesCombobox({
@@ -29,9 +30,12 @@ export function RolesCombobox({
   onChange,
   placeholder = "Select roles...",
   className,
+  selectAllLabel = "Select All",
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
+  const allOptionValues = options.map((option) => option.value)
+  const allSelected = options.length > 0 && allOptionValues.every((value) => selected.includes(value))
 
   const handleUnselect = (item: string) => {
     onChange(selected.filter((i) => i !== item))
@@ -102,6 +106,27 @@ export function RolesCombobox({
           />
         </div>
         <div className="max-h-60 overflow-y-auto p-1">
+          {options.length > 0 && (
+            <div
+              className={cn(
+                "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-xs font-black uppercase outline-none hover:bg-accent hover:text-accent-foreground",
+                allSelected && "bg-accent/50"
+              )}
+              onClick={() => onChange(allOptionValues)}
+            >
+              <div
+                className={cn(
+                  "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                  allSelected
+                    ? "bg-primary text-primary-foreground"
+                    : "opacity-50 [&_svg]:invisible"
+                )}
+              >
+                <Check className="h-3 w-3" />
+              </div>
+              <span className="tracking-tight">{selectAllLabel}</span>
+            </div>
+          )}
           {filteredOptions.length === 0 && (
             <div className="py-6 text-center text-sm text-muted-foreground">
               No results found.

@@ -122,6 +122,20 @@ flowchart TB
         V4["Release verified grades to portals"]
         V5["Return grades to teacher for revision"]
   end
+ subgraph AccountClaim["Firebase Account Claim"]
+    direction TB
+        AC1["System generates claim token"]
+        AC2["Send claim email via Resend"]
+        AC3["User opens claim link"]
+        AC4["Verify identity via Firebase OTP"]
+        AC5["User sets password and completes claim"]
+  end
+ subgraph ReportExport["School Form Exports"]
+    direction TB
+        EX1["Adviser exports SF9 Report Card"]
+        EX2["Registrar exports SF10 Permanent Record"]
+        EX3["Teacher exports SF2 Attendance"]
+  end
  subgraph YearEnd["End of School Year"]
     direction TB
         Y1["Admin closes school year"]
@@ -237,8 +251,13 @@ flowchart TB
     D19 --> D22
     D19 --> D20
     D20 --> D21
-    C4 --> S1
-    C5 --> P1
+    C4 --> AC1
+    C5 --> AC1
+    AC1 --> AC2
+    AC2 --> AC3
+    AC3 --> AC4
+    AC4 --> AC5
+    AC5 --> S1 & P1
     S1 --> S2 & S3 & S5
     P1 --> P2 & P3 & P7
     A15 --> S3 & P3
@@ -252,9 +271,11 @@ flowchart TB
     T6 --> T7
     T7 --> T8
     T8 --> T9
-    T10 --> T11 & T12 & T13
+    T10 --> T11 & T12 & T13 & EX3
     T13 --> E1
     V4 --> T14
+    T14 --> EX1
+    C14 --> EX2
     T9 --> V1
     V0 --> V01
     V01 --> V1

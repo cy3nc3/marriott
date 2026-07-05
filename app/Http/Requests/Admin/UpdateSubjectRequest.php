@@ -12,6 +12,13 @@ class UpdateSubjectRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if (! $this->has('required_weekly_minutes')) {
+            $this->merge(['required_weekly_minutes' => 200]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -22,6 +29,7 @@ class UpdateSubjectRequest extends FormRequest
                 Rule::unique('subjects', 'subject_code')->ignore($this->subject),
             ],
             'subject_name' => ['required', 'string', 'max:255'],
+            'required_weekly_minutes' => ['required', 'integer', 'min:1', 'max:1200'],
         ];
     }
 }

@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
     AlertCircle,
     AlertTriangle,
@@ -14,6 +14,7 @@ import {
     HardDrive,
     LayoutDashboard,
     ListChecks,
+    Megaphone,
     Percent,
     PiggyBank,
     RefreshCw,
@@ -24,7 +25,7 @@ import {
     Wallet,
     type LucideIcon,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Area,
     AreaChart,
@@ -54,7 +55,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import type {
     DashboardActionLink,
+    DashboardActionQueueItem,
     DashboardAlert,
+    DashboardDecisionCard,
     DashboardTrend,
     DashboardTrendPoint,
     DashboardKpi,
@@ -66,6 +69,8 @@ interface DashboardAnalyticsPanelProps {
     alerts: DashboardAlert[];
     trends: DashboardTrend[];
     actionLinks: DashboardActionLink[];
+    actionQueue?: DashboardActionQueueItem[];
+    decisionCards?: DashboardDecisionCard[];
     children?: React.ReactNode;
 }
 
@@ -87,11 +92,31 @@ const KPI_ICON_MAP: Record<string, KpiIconConfig> = {
     'outstanding-receivables':  { icon: Wallet,            color: 'text-amber-500' },
     'overdue-concentration':    { icon: TrendingDown,      color: 'text-red-500' },
     'next-month-forecast':      { icon: PiggyBank,         color: 'text-sky-500' },
+    'collection-risk-index':    { icon: ShieldAlert,       color: 'text-red-500' },
+    'overdue-recovery-target':  { icon: Wallet,            color: 'text-amber-500' },
+    'finance-this-month-collection': { icon: PiggyBank,    color: 'text-emerald-500' },
+    'next-14-day-exposure':     { icon: TrendingDown,      color: 'text-orange-500' },
+    'intervention-workload':    { icon: ListChecks,        color: 'text-violet-500' },
     // Registrar
     'intake-queue':             { icon: ClipboardList,     color: 'text-sky-500' },
     'cashier-pipeline':         { icon: ListChecks,        color: 'text-violet-500' },
     'lis-sync-rate':            { icon: RefreshCw,         color: 'text-emerald-500' },
     'sync-error-backlog':       { icon: CloudOff,          color: 'text-red-500' },
+    'registrar-operations-risk': { icon: ShieldAlert,      color: 'text-red-500' },
+    'intake-queue-age':         { icon: Clock,             color: 'text-amber-500' },
+    'requirements-compliance':  { icon: CheckCircle2,      color: 'text-emerald-500' },
+    'super-governance-risk':    { icon: ShieldAlert,       color: 'text-red-500' },
+    'super-recovery-readiness': { icon: DatabaseBackup,    color: 'text-sky-500' },
+    'super-high-risk-ratio':    { icon: AlertTriangle,     color: 'text-orange-500' },
+    'super-account-activation': { icon: Users,             color: 'text-emerald-500' },
+    'finance-revenue-stability': { icon: TrendingUp,       color: 'text-sky-500' },
+    'registrar-returning-continuity': { icon: RefreshCw,   color: 'text-sky-500' },
+    'teacher-attendance-risk':   { icon: AlertTriangle,    color: 'text-red-500' },
+    'teacher-grade-sla':         { icon: CheckCircle2,     color: 'text-emerald-500' },
+    'admin-capacity-gap':        { icon: Users,            color: 'text-orange-500' },
+    'admin-next-sy-forecast':    { icon: TrendingUp,       color: 'text-sky-500' },
+    'admin-teacher-demand':      { icon: BookOpen,         color: 'text-amber-500' },
+    'admin-grade-verification-sla': { icon: CheckCircle2,  color: 'text-emerald-500' },
     // Super Admin
     'system-health':            { icon: HardDrive,         color: 'text-emerald-500' },
     'account-governance':       { icon: Users,             color: 'text-sky-500' },
@@ -135,8 +160,17 @@ const resolveAlertBadgeClass = (severity: DashboardAlert['severity']) => {
     return 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
 };
 
-const capitalize = (str: string) =>
-    str.charAt(0).toUpperCase() + str.slice(1);
+const resolveAlertLabel = (severity: DashboardAlert['severity']) => {
+    if (severity === 'critical') {
+        return 'Critical';
+    }
+
+    if (severity === 'warning') {
+        return 'Warning';
+    }
+
+    return 'Info';
+};
 
 const CHART_COLORS = [
     '#6366f1', // Indigo 500
@@ -213,6 +247,12 @@ const resolveTrendDisplay = (
     trend: DashboardTrend,
 ): 'list' | 'line' | 'bar' | 'area' | 'pie' => {
     return trend.display ?? 'list';
+};
+
+const formatCompactXAxisLabel = (value: unknown, maxLength = 14): string => {
+    const raw = String(value ?? '').trim();
+    if (raw.length <= maxLength) return raw;
+    return `${raw.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
 };
 
 const hasChartData = (trend: DashboardTrend): boolean => {
@@ -432,6 +472,8 @@ const renderAreaTrend = (
 
     const chartConfig = buildTrendChartConfig(trend);
 
+    const useWrappedSubjectTicks = trend.id === 'subject-staffing-pressure';
+
     return (
         <div className={cn('w-full', isHandheld ? 'h-44' : 'h-48')}>
             <ChartContainer
@@ -441,7 +483,12 @@ const renderAreaTrend = (
                 <AreaChart
                     accessibilityLayer
                     data={trend.chart.rows}
-                    margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+                    margin={{
+                        top: 8,
+                        right: 8,
+                        bottom: useWrappedSubjectTicks ? 8 : 0,
+                        left: useWrappedSubjectTicks ? 10 : 0,
+                    }}
                 >
                     <defs>
                         {trend.chart.series.map((series) => {
@@ -480,7 +527,21 @@ const renderAreaTrend = (
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
-                        tickMargin={8}
+                        tickMargin={useWrappedSubjectTicks ? 12 : 8}
+                        interval={useWrappedSubjectTicks ? 'preserveStartEnd' : 0}
+                        minTickGap={useWrappedSubjectTicks ? 24 : 8}
+                        height={useWrappedSubjectTicks ? 36 : undefined}
+                        padding={useWrappedSubjectTicks ? { left: 14, right: 14 } : undefined}
+                        tickFormatter={(value) =>
+                            useWrappedSubjectTicks
+                                ? formatCompactXAxisLabel(value, 14)
+                                : String(value)
+                        }
+                        tick={
+                            useWrappedSubjectTicks
+                                ? { textAnchor: 'middle' as const }
+                                : undefined
+                        }
                     />
                     <YAxis
                         width={36}
@@ -617,6 +678,8 @@ export function DashboardAnalyticsPanel({
     alerts,
     trends,
     actionLinks,
+    actionQueue = [],
+    decisionCards = [],
     children,
 }: DashboardAnalyticsPanelProps) {
     const page = usePage<SharedData>();
@@ -628,6 +691,31 @@ export function DashboardAnalyticsPanel({
         Record<string, boolean>
     >({});
 
+    useEffect(() => {
+        const intervalId = window.setInterval(() => {
+            router.reload();
+        }, 120000);
+
+        return () => window.clearInterval(intervalId);
+    }, []);
+
+    useEffect(() => {
+        const echo = (window as typeof window & { Echo?: any }).Echo;
+        if (!echo) {
+            return;
+        }
+
+        const channel = echo.private('system-updates');
+        const refreshDashboard = () => {
+            router.reload();
+        };
+
+        channel.listen('.system.data.updated', refreshDashboard);
+
+        return () => {
+            echo.leave('private-system-updates');
+        };
+    }, []);
     const toggleTrendExpansion = (trendId: string) => {
         setExpandedTrendIds((previous) => ({
             ...previous,
@@ -649,12 +737,63 @@ export function DashboardAnalyticsPanel({
                 <div className="mb-1.5 flex items-center justify-between gap-2">
                     <p className="text-sm font-medium">{alert.title}</p>
                     <Badge variant="outline" className={resolveAlertBadgeClass(alert.severity)}>
-                        {capitalize(alert.severity)}
+                        {resolveAlertLabel(alert.severity)}
                     </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">{alert.message}</p>
             </div>
         ));
+    };
+
+    const renderDecisionPanel = () => {
+        if (decisionCards.length === 0) {
+            return null;
+        }
+
+        const statusClass: Record<string, string> = {
+            on_track:
+                'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+            watch:
+                'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+            at_risk:
+                'bg-red-500/15 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800',
+        };
+
+        return (
+            <Card>
+                <CardHeader className="border-b py-3">
+                    <CardTitle className="text-base">Decision Support</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-2.5 pt-3 md:grid-cols-2">
+                    {decisionCards.slice(0, 6).map((card) => (
+                        <div key={card.id} className="rounded-md border p-3">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                                <p className="text-sm font-medium">{card.title}</p>
+                                <Badge
+                                    variant="outline"
+                                    className={statusClass[card.status] ?? statusClass.watch}
+                                >
+                                    {card.status === 'at_risk'
+                                        ? 'At Risk'
+                                        : card.status === 'watch'
+                                          ? 'Watch'
+                                          : 'On Track'}
+                                </Badge>
+                            </div>
+                            <p className="text-base font-semibold leading-tight">{card.metric}</p>
+                            {card.trigger ? (
+                                <p className="mt-1 text-xs text-muted-foreground">{card.trigger}</p>
+                            ) : null}
+                            {card.recommended_actions.length > 0 ? (
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                    {card.recommended_actions[0]}
+                                </p>
+                            ) : null}
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+        );
     };
 
     const renderActionLinksPanel = () => {
@@ -679,6 +818,80 @@ export function DashboardAnalyticsPanel({
                 </Link>
             </Button>
         ));
+    };
+
+    const renderActionQueuePanel = () => {
+        if (actionQueue.length === 0) {
+            return null;
+        }
+
+        return (
+            <Card>
+                <CardHeader className="border-b py-3">
+                    <CardTitle className="text-base">Action Items</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2.5 pt-3">
+                    {actionQueue
+                        .slice()
+                        .sort((a, b) => b.priority_score - a.priority_score)
+                        .slice(0, 10)
+                        .map((item) => (
+                            <div key={item.id} className="rounded-md border p-3">
+                                <p className="text-sm font-medium">{item.title}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">{item.impact}</p>
+                                {item.href ? (
+                                    <Button asChild variant="ghost" size="sm" className="mt-2 h-7 px-0 text-xs">
+                                        <Link href={item.href}>Open</Link>
+                                    </Button>
+                                ) : null}
+                            </div>
+                        ))}
+                </CardContent>
+            </Card>
+        );
+    };
+
+    const renderAnnouncementsPanel = () => {
+        const announcements = page.props.notifications?.announcements ?? [];
+        const latestAnnouncements = announcements.slice(0, 3);
+
+        return (
+            <Card>
+                <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
+                    <Megaphone className="size-4 text-sky-500" />
+                    <CardTitle className="text-base">Latest Announcements</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2.5 pt-3">
+                    {latestAnnouncements.length === 0 ? (
+                        <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                            No announcements available.
+                        </div>
+                    ) : (
+                        latestAnnouncements.map((announcement) => (
+                            <Link
+                                key={announcement.id}
+                                href={`/notifications/announcements/${announcement.id}`}
+                                className="block rounded-md border p-3 transition-colors hover:bg-muted/50"
+                            >
+                                <div className="flex items-start justify-between gap-2">
+                                    <p className="text-sm font-medium leading-snug">
+                                        {announcement.title}
+                                    </p>
+                                    {!announcement.is_read ? (
+                                        <Badge variant="outline" className="shrink-0">
+                                            New
+                                        </Badge>
+                                    ) : null}
+                                </div>
+                                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                    {announcement.content_preview}
+                                </p>
+                            </Link>
+                        ))
+                    )}
+                </CardContent>
+            </Card>
+        );
     };
 
     const renderTrendBlocks = (compact: boolean) => {
@@ -748,6 +961,9 @@ export function DashboardAnalyticsPanel({
             </div>
 
             {children ? <div className="grid gap-3">{children}</div> : null}
+            {renderAnnouncementsPanel()}
+            {renderDecisionPanel()}
+            {renderActionQueuePanel()}
 
             {isHandheld ? (
                 <Tabs
@@ -759,7 +975,7 @@ export function DashboardAnalyticsPanel({
                 >
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="alerts">Alerts</TabsTrigger>
-                        <TabsTrigger value="trends">Trends</TabsTrigger>
+                        <TabsTrigger value="trends">Analytics</TabsTrigger>
                         <TabsTrigger value="actions">Actions</TabsTrigger>
                     </TabsList>
 
@@ -779,7 +995,7 @@ export function DashboardAnalyticsPanel({
                         <Card>
                             <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
                                 <TrendingUp className="size-4 text-emerald-500" />
-                                <CardTitle className="text-sm">Trends</CardTitle>
+                                <CardTitle className="text-sm">Analytics</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-2.5 pt-3">
                                 {renderTrendBlocks(true)}
@@ -830,7 +1046,7 @@ export function DashboardAnalyticsPanel({
                     <Card>
                         <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
                             <TrendingUp className="size-4 text-emerald-500" />
-                            <CardTitle className="text-base">Trends</CardTitle>
+                            <CardTitle className="text-base">Analytics</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-3 pt-3 md:grid-cols-2">
                             {renderTrendBlocks(false)}
@@ -838,6 +1054,7 @@ export function DashboardAnalyticsPanel({
                     </Card>
                 </>
             )}
+
         </div>
     );
 }

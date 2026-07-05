@@ -5,7 +5,9 @@ import { dashboard } from '@/routes';
 import type {
     BreadcrumbItem,
     DashboardActionLink,
+    DashboardActionQueueItem,
     DashboardAlert,
+    DashboardDecisionCard,
     DashboardKpi,
     DashboardTrend,
 } from '@/types';
@@ -22,9 +24,11 @@ interface Props {
     alerts: DashboardAlert[];
     trends: DashboardTrend[];
     action_links: DashboardActionLink[];
+    action_queue?: DashboardActionQueueItem[];
+    decision_cards?: DashboardDecisionCard[];
 }
 
-export default function Dashboard({ kpis, alerts, trends, action_links }: Props) {
+export default function Dashboard({ kpis, alerts, trends, action_links, action_queue, decision_cards }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Super Admin Dashboard" />
@@ -33,6 +37,8 @@ export default function Dashboard({ kpis, alerts, trends, action_links }: Props)
                 alerts={alerts}
                 trends={trends}
                 actionLinks={action_links}
+                actionQueue={action_queue}
+                decisionCards={decision_cards}
             />
         </AppLayout>
     );

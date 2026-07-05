@@ -1,11 +1,12 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Download, Eye, Pencil, Printer } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Download, Eye, ListFilter, Mail, Pencil, Printer } from 'lucide-react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DateOfBirthPicker } from '@/components/ui/date-picker';
 import {
     Dialog,
@@ -14,8 +15,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -27,6 +35,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import registrar from '@/routes/registrar';
 import { assessment } from '@/routes/registrar/enrollment';
@@ -79,6 +88,13 @@ interface SectionOption {
     label: string;
 }
 
+interface Filters {
+    search?: string;
+    status?: 'all' | 'enrolled' | 'enrolled_with_missing_requirements' | 'not_enrolled' | 'not_currently_enrolled' | 'transferred_out' | 'dropped';
+    sort?: 'a_z' | 'z_a' | 'newest' | 'oldest';
+    section_ids?: number[];
+}
+
 interface Props {
     students: {
         data: StudentRow[];
@@ -93,9 +109,7 @@ interface Props {
     };
     section_options: SectionOption[];
     ongoing_academic_year_id: number | null;
-    filters: {
-        search?: string;
-    };
+    filters: Filters;
 }
 
 const normalizeMobileSubscriberDigits = (value: string): string => {
@@ -153,14 +167,27 @@ export default function StudentDirectory({
     const isHandheld = Boolean(ui?.is_handheld);
     const openedAssessmentUrlRef = useRef<string | null>(null);
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
-    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<Filters['status']>(filters.status || 'all');
+    const [sortFilter, setSortFilter] = useState<Filters['sort']>(filters.sort || 'a_z');
     const [selectedStudent, setSelectedStudent] = useState<StudentRow | null>(null);
     const [isDetailEditMode, setIsDetailEditMode] = useState(false);
     const [isClaimEmailConfirmOpen, setIsClaimEmailConfirmOpen] = useState(false);
+    const [isResendClaimConfirmOpen, setIsResendClaimConfirmOpen] = useState(false);
+    const [isResendingClaimEmail, setIsResendingClaimEmail] = useState(false);
+
+    // Filters and Sections
     const [selectedSectionIds, setSelectedSectionIds] = useState<number[]>(
-        section_options.map((section) => section.id),
+        filters.section_ids || []
     );
-    const [exportSelectionError, setExportSelectionError] = useState('');
+
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (statusFilter !== 'all') count++;
+        if (sortFilter !== 'a_z') count++;
+        if (selectedSectionIds.length > 0) count++;
+        return count;
+    }, [statusFilter, sortFilter, selectedSectionIds]);
+
     const detailForm = useForm({
         first_name: '',
         middle_name: '',
@@ -183,13 +210,41 @@ export default function StudentDirectory({
         keywords: student.lrn,
     }));
 
+    const applyFilters = (overrides: Partial<Filters> = {}) => {
+        const query = {
+            search: overrides.search !== undefined ? overrides.search : (searchQuery || undefined),
+            status: overrides.status !== undefined ? overrides.status : statusFilter,
+            sort: overrides.sort !== undefined ? overrides.sort : sortFilter,
+            section_ids: overrides.section_ids !== undefined ? overrides.section_ids : (selectedSectionIds.length > 0 ? selectedSectionIds : undefined),
+            page: undefined,
+        };
+
+        router.get(registrar.student_directory.url({ query }), {}, {
+            preserveState: true,
+            replace: true,
+            preserveScroll: true,
+        });
+    };
+
+    const resetFilters = () => {
+        setSearchQuery('');
+        setStatusFilter('all');
+        setSortFilter('a_z');
+        setSelectedSectionIds([]);
+
+        router.get(registrar.student_directory.url({ query: { page: undefined } }), {}, {
+            preserveState: true,
+            replace: true,
+            preserveScroll: true,
+        });
+    };
+
     const toggleSection = (sectionId: number) => {
         setSelectedSectionIds((current) =>
             current.includes(sectionId)
                 ? current.filter((id) => id !== sectionId)
                 : [...current, sectionId],
         );
-        setExportSelectionError('');
     };
 
     const toggleAllSections = () => {
@@ -198,27 +253,26 @@ export default function StudentDirectory({
         } else {
             setSelectedSectionIds(section_options.map((section) => section.id));
         }
-        setExportSelectionError('');
     };
 
-    const exportSf1 = () => {
+    const exportSf1 = (format: 'xlsx' | 'csv') => {
         if (!ongoing_academic_year_id) {
-            return;
-        }
-
-        if (selectedSectionIds.length === 0) {
-            setExportSelectionError('Select at least one section to export.');
-
             return;
         }
 
         const params = new URLSearchParams();
         params.set('academic_year_id', String(ongoing_academic_year_id));
-        selectedSectionIds.forEach((sectionId) => {
+
+        const sectionsToExport = selectedSectionIds.length > 0
+            ? selectedSectionIds
+            : section_options.map(s => s.id);
+
+        sectionsToExport.forEach((sectionId) => {
             params.append('section_ids[]', String(sectionId));
         });
 
-        setIsExportDialogOpen(false);
+        params.set('format', format);
+
         window.location.assign(`/registrar/student-directory/export-sf1-reference?${params.toString()}`);
     };
 
@@ -240,23 +294,6 @@ export default function StudentDirectory({
         openedAssessmentUrlRef.current = assessmentPrintUrl;
         window.open(assessmentPrintUrl, '_blank', 'noopener,noreferrer');
     }, [flash.assessment_print_url]);
-
-    const applyFilters = (search?: string) => {
-        router.get(
-            registrar.student_directory.url({
-                query: {
-                    search: search || undefined,
-                    page: undefined,
-                },
-            }),
-            {},
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            },
-        );
-    };
 
     const openAssessmentForm = (enrollmentId: number | null) => {
         if (!enrollmentId) {
@@ -317,12 +354,12 @@ export default function StudentDirectory({
             return;
         }
 
-        detailForm
-            .transform((data) => ({
-                ...data,
-                send_claim_email_confirmation: forceClaimEmailConfirmation,
-            }))
-            .patch(`/registrar/student-directory/${selectedStudent.id}`, {
+        detailForm.transform((data) => ({
+            ...data,
+            send_claim_email_confirmation: forceClaimEmailConfirmation,
+        }));
+
+        detailForm.patch(`/registrar/student-directory/${selectedStudent.id}`, {
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
@@ -355,11 +392,25 @@ export default function StudentDirectory({
             onFinish: () => {
                 detailForm.transform((data) => data);
             },
-            });
+        });
     };
 
     const confirmAndSendClaimEmail = () => {
         submitStudentDetailsUpdate(true);
+    };
+
+    const resendClaimEmail = () => {
+        if (!selectedStudent) {
+            return;
+        }
+
+        setIsResendingClaimEmail(true);
+        router.post(`/registrar/student-directory/${selectedStudent.id}/resend-claim-email`, {}, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => setIsResendClaimConfirmOpen(false),
+            onFinish: () => setIsResendingClaimEmail(false),
+        });
     };
 
     const statusLabel = (status: StudentRow['status']): string => {
@@ -467,245 +518,375 @@ export default function StudentDirectory({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Student Directory" />
-
-            <div className="flex flex-col gap-4">
-                <Card>
-                    <CardHeader className="flex flex-col gap-1 border-b sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <TooltipProvider>
+                <div className="flex flex-col gap-4">
+                    <Card>
+                        <CardHeader className="flex flex-col gap-1 border-b sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <div className="space-y-1">
-                            <CardTitle>Student Directory</CardTitle>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <SearchAutocompleteInput
-                                    wrapperClassName="w-full sm:w-[18rem]"
-                                    placeholder="Search by LRN or name..."
-                                    value={searchQuery}
-                                    onValueChange={(value) => {
-                                        setSearchQuery(value);
-                                        applyFilters(value);
-                                    }}
-                                    suggestions={searchSuggestions}
-                                    showSuggestions={false}
-                                />
-                            </div>
-                        </div>
+                                <CardTitle>Student Directory</CardTitle>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="secondary" className="h-9 px-3 text-sm">
+                                        Total Students: {students.total}
+                                    </Badge>
+                                    <SearchAutocompleteInput
+                                        wrapperClassName="w-full sm:w-[18rem]"
+                                        placeholder="Search by LRN or name..."
+                                        value={searchQuery}
+                                        onValueChange={(val) => {
+                                            setSearchQuery(val);
+                                            applyFilters({ search: val });
+                                        }}
+                                        suggestions={searchSuggestions}
+                                    />
 
-                        <div className="flex items-start">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setIsExportDialogOpen(true)}
-                                disabled={!ongoing_academic_year_id || section_options.length === 0}
-                            >
-                                <Download className="size-4" />
-                                Export SF1
-                            </Button>
-                        </div>
-                    </CardHeader>
-
-                    <CardContent className="p-0">
-                        {isHandheld ? (
-                            <div className="space-y-2.5 p-3">
-                                {students.data.length === 0 ? (
-                                    <div className="rounded-md border py-10 text-center text-sm text-muted-foreground">
-                                        No students found.
-                                    </div>
-                                ) : (
-                                    students.data.map((student) => (
-                                        <div
-                                            key={student.id}
-                                            className="space-y-1 rounded-md border p-2.5"
-                                        >
-                                            <p className="text-sm font-semibold">
-                                                {student.student_name}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                LRN: {student.lrn}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {student.grade_section}
-                                            </p>
-                                            <div>{directoryStatusBadge(student.status)}</div>
-                                            <div className="flex items-center gap-2 pt-1">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        openStudentDetails(
-                                                            student,
-                                                        )
-                                                    }
-                                                >
-                                                    <Eye className="size-4" />
-                                                    View Details
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    disabled={
-                                                        !student.enrollment_id
-                                                    }
-                                                    onClick={() =>
-                                                        openAssessmentForm(
-                                                            student.enrollment_id,
-                                                        )
-                                                    }
-                                                >
-                                                    <Printer className="size-4" />
-                                                    Print
-                                                </Button>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="gap-2">
+                                                <ListFilter className="size-4" />
+                                                Filters
+                                                {activeFilterCount > 0 && (
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="ml-1 px-1 py-0 text-[10px]"
+                                                    >
+                                                        {activeFilterCount}
+                                                    </Badge>
+                                                )}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-80" align="end">
+                                            <div className="grid gap-4">
+                                                <div className="flex items-center justify-between">
+                                                    <h4 className="font-medium leading-none">
+                                                        Table Filters
+                                                    </h4>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-auto p-0 text-xs text-muted-foreground"
+                                                        onClick={resetFilters}
+                                                    >
+                                                        Reset
+                                                    </Button>
+                                                </div>
+                                                <div className="grid gap-4">
+                                                    <div className="grid gap-2">
+                                                        <Label>Enrollment Status</Label>
+                                                        <Select
+                                                            value={statusFilter}
+                                                            onValueChange={(val) => {
+                                                                const next = val as Filters['status'];
+                                                                setStatusFilter(next);
+                                                                applyFilters({ status: next });
+                                                            }}
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select status" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">All Students</SelectItem>
+                                                                <SelectItem value="enrolled">Enrolled (Complete)</SelectItem>
+                                                                <SelectItem value="enrolled_with_missing_requirements">Enrolled (Missing Req.)</SelectItem>
+                                                                <SelectItem value="not_enrolled">For Cashier Payment</SelectItem>
+                                                                <SelectItem value="not_currently_enrolled">Not Currently Enrolled</SelectItem>
+                                                                <SelectItem value="transferred_out">Transferred Out</SelectItem>
+                                                                <SelectItem value="dropped">Dropped</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Label>Sort By</Label>
+                                                        <Select
+                                                            value={sortFilter}
+                                                            onValueChange={(val) => {
+                                                                const next = val as Filters['sort'];
+                                                                setSortFilter(next);
+                                                                applyFilters({ sort: next });
+                                                            }}
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="a_z">Name (A-Z)</SelectItem>
+                                                                <SelectItem value="z_a">Name (Z-A)</SelectItem>
+                                                                <SelectItem value="newest">Newest First</SelectItem>
+                                                                <SelectItem value="oldest">Oldest First</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <Label>Sections</Label>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-auto p-0 text-[10px]"
+                                                                onClick={toggleAllSections}
+                                                            >
+                                                                {selectedSectionIds.length === section_options.length ? 'Unselect All' : 'Select All'}
+                                                            </Button>
+                                                        </div>
+                                                        <div className="max-h-48 overflow-y-auto rounded-md border p-2">
+                                                            <div className="grid gap-2">
+                                                                {section_options.map((section) => (
+                                                                    <div key={section.id} className="flex items-center space-x-2">
+                                                                        <Checkbox
+                                                                            id={`section-${section.id}`}
+                                                                            checked={selectedSectionIds.includes(section.id)}
+                                                                            onCheckedChange={() => toggleSection(section.id)}
+                                                                        />
+                                                                        <label
+                                                                            htmlFor={`section-${section.id}`}
+                                                                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                                        >
+                                                                            {section.label}
+                                                                        </label>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            size="sm"
+                                                            className="mt-2 w-full"
+                                                            onClick={() => applyFilters()}
+                                                        >
+                                                            Apply Filters
+                                                        </Button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))
-                                )}
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
                             </div>
-                        ) : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="pl-6">
-                                            LRN
-                                        </TableHead>
-                                        <TableHead className="border-l">
-                                            Student
-                                        </TableHead>
-                                        <TableHead className="border-l">
-                                            Grade and Section
-                                        </TableHead>
-                                        <TableHead className="border-l">
-                                            Status
-                                        </TableHead>
-                                        <TableHead className="border-l pr-6 text-right">
-                                            Actions
-                                        </TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
+
+                            <div className="flex items-start">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="gap-2" disabled={!ongoing_academic_year_id}>
+                                            <Download className="size-4" />
+                                            Export
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => exportSf1('xlsx')}>
+                                            Export as Excel (.xlsx)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => exportSf1('csv')}>
+                                            Export as CSV (.csv)
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </CardHeader>
+
+                        <CardContent className="p-0">
+                            {isHandheld ? (
+                                <div className="space-y-2.5 p-3">
                                     {students.data.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={5}
-                                                className="h-24 text-center text-sm text-muted-foreground"
-                                            >
-                                                No students found.
-                                            </TableCell>
-                                        </TableRow>
+                                        <div className="rounded-md border py-10 text-center text-sm text-muted-foreground">
+                                            No students found.
+                                        </div>
                                     ) : (
                                         students.data.map((student) => (
-                                            <TableRow key={student.id}>
-                                                <TableCell className="pl-6 font-medium">
-                                                    {student.lrn}
-                                                </TableCell>
-                                                <TableCell className="border-l">
+                                            <div
+                                                key={student.id}
+                                                className="space-y-1 rounded-md border p-2.5"
+                                            >
+                                                <p className="text-sm font-semibold">
                                                     {student.student_name}
-                                                </TableCell>
-                                                <TableCell className="border-l">
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    LRN: {student.lrn}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
                                                     {student.grade_section}
-                                                </TableCell>
-                                                <TableCell className="border-l">
-                                                    {directoryStatusBadge(student.status)}
-                                                </TableCell>
-                                                <TableCell className="border-l pr-6">
-                                                    <div className="flex justify-end gap-2">
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="size-8"
-                                                                    onClick={() =>
-                                                                        openStudentDetails(
-                                                                            student,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Eye className="size-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                View student details
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="size-8"
-                                                                    disabled={
-                                                                        !student.enrollment_id
-                                                                    }
-                                                                    onClick={() =>
-                                                                        openAssessmentForm(
-                                                                            student.enrollment_id,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Printer className="size-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                Print assessment form
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
+                                                </p>
+                                                <div>{directoryStatusBadge(student.status)}</div>
+                                                <div className="flex items-center gap-2 pt-1">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            openStudentDetails(
+                                                                student,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Eye className="size-4" />
+                                                        View Details
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        disabled={
+                                                            !student.enrollment_id
+                                                        }
+                                                        onClick={() =>
+                                                            openAssessmentForm(
+                                                                student.enrollment_id,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Printer className="size-4" />
+                                                        Print
+                                                    </Button>
+                                                </div>
+                                            </div>
                                         ))
                                     )}
-                                </TableBody>
-                            </Table>
-                        )}
-                    </CardContent>
-                    <div className="flex items-center justify-between border-t p-4">
-                        <p className="text-sm text-muted-foreground">
-                            Showing {students.from ?? 0}-{students.to ?? 0} of{' '}
-                            {students.total} entries
-                        </p>
-                        {students.links.length > 3 && (
-                            <div className="flex items-center gap-2">
-                                {students.links.map((link, index) => {
-                                    let label = link.label;
-                                    if (label.includes('Previous')) {
-                                        label = 'Previous';
-                                    } else if (label.includes('Next')) {
-                                        label = 'Next';
-                                    } else {
-                                        label = label
-                                            .replace(/&[^;]+;/g, '')
-                                            .trim();
-                                    }
+                                </div>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="pl-6">
+                                                LRN
+                                            </TableHead>
+                                            <TableHead className="border-l">
+                                                Student
+                                            </TableHead>
+                                            <TableHead className="border-l">
+                                                Grade and Section
+                                            </TableHead>
+                                            <TableHead className="border-l">
+                                                Status
+                                            </TableHead>
+                                            <TableHead className="border-l pr-6 text-right">
+                                                Actions
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {students.data.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell
+                                                    colSpan={5}
+                                                    className="h-24 text-center text-sm text-muted-foreground"
+                                                >
+                                                    No students found.
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            students.data.map((student) => (
+                                                <TableRow key={student.id}>
+                                                    <TableCell className="pl-6 font-medium">
+                                                        {student.lrn}
+                                                    </TableCell>
+                                                    <TableCell className="border-l">
+                                                        {student.student_name}
+                                                    </TableCell>
+                                                    <TableCell className="border-l">
+                                                        {student.grade_section}
+                                                    </TableCell>
+                                                    <TableCell className="border-l">
+                                                        {directoryStatusBadge(student.status)}
+                                                    </TableCell>
+                                                    <TableCell className="border-l pr-6">
+                                                        <div className="flex justify-end gap-2">
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-8"
+                                                                        onClick={() =>
+                                                                            openStudentDetails(
+                                                                                student,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Eye className="size-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    View student details
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-8"
+                                                                        disabled={
+                                                                            !student.enrollment_id
+                                                                        }
+                                                                        onClick={() =>
+                                                                            openAssessmentForm(
+                                                                                student.enrollment_id,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Printer className="size-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    Print assessment form
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                        <div className="flex items-center justify-between border-t p-4">
+                            <p className="text-sm text-muted-foreground">
+                                Showing {students.from ?? 0}-{students.to ?? 0} of{' '}
+                                {students.total} entries
+                            </p>
+                            {students.links.length > 3 && (
+                                <div className="flex items-center gap-2">
+                                    {students.links.map((link, index) => {
+                                        let label = link.label;
+                                        if (label.includes('Previous')) {
+                                            label = 'Previous';
+                                        } else if (label.includes('Next')) {
+                                            label = 'Next';
+                                        } else {
+                                            label = label
+                                                .replace(/&[^;]+;/g, '')
+                                                .trim();
+                                        }
 
-                                    return (
-                                        <Button
-                                            key={`${link.label}-${index}`}
-                                            variant="outline"
-                                            size="sm"
-                                            disabled={!link.url || link.active}
-                                            onClick={() => {
-                                                if (link.url) {
-                                                    router.get(
-                                                        link.url,
-                                                        {},
-                                                        {
-                                                            preserveState: true,
-                                                            preserveScroll: true,
-                                                        },
-                                                    );
-                                                }
-                                            }}
-                                        >
-                                            {label}
-                                        </Button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </Card>
-            </div>
+                                        return (
+                                            <Button
+                                                key={`${link.label}-${index}`}
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={!link.url || link.active}
+                                                onClick={() => {
+                                                    if (link.url) {
+                                                        router.get(
+                                                            link.url,
+                                                            {},
+                                                            {
+                                                                preserveState: true,
+                                                                preserveScroll: true,
+                                                            },
+                                                        );
+                                                    }
+                                                }}
+                                            >
+                                                {label}
+                                            </Button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+                </div>
+            </TooltipProvider>
 
             <Dialog open={!!selectedStudent} onOpenChange={(open) => !open && closeStudentDetails()}>
                 <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[860px]">
@@ -950,29 +1131,27 @@ export default function StudentDirectory({
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-3 pt-4">
-                                        <label className="flex items-center gap-2 text-sm">
-                                            <input
-                                                type="checkbox"
+                                        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <Checkbox
                                                 checked={detailForm.data.report_card_submitted}
                                                 disabled={!isDetailEditMode}
-                                                onChange={(event) =>
+                                                onCheckedChange={(checked) =>
                                                     detailForm.setData(
                                                         'report_card_submitted',
-                                                        event.target.checked,
+                                                        checked === true,
                                                     )
                                                 }
                                             />
                                             Previous Grade Level Report Card Submitted
                                         </label>
-                                        <label className="flex items-center gap-2 text-sm">
-                                            <input
-                                                type="checkbox"
+                                        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <Checkbox
                                                 checked={detailForm.data.birth_certificate_submitted}
                                                 disabled={!isDetailEditMode}
-                                                onChange={(event) =>
+                                                onCheckedChange={(checked) =>
                                                     detailForm.setData(
                                                         'birth_certificate_submitted',
-                                                        event.target.checked,
+                                                        checked === true,
                                                     )
                                                 }
                                             />
@@ -1067,7 +1246,7 @@ export default function StudentDirectory({
                                 </Button>
                                 <Button
                                     type="button"
-                                    onClick={submitStudentDetailsUpdate}
+                                    onClick={() => submitStudentDetailsUpdate()}
                                     disabled={detailForm.processing}
                                 >
                                     Save Changes
@@ -1078,69 +1257,21 @@ export default function StudentDirectory({
                                 <Button type="button" variant="outline" onClick={closeStudentDetails}>
                                     Close
                                 </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsResendClaimConfirmOpen(true)}
+                                    disabled={selectedStudent?.enrollment_status !== 'enrolled'}
+                                >
+                                    <Mail className="size-4" />
+                                    Resend Claim Email
+                                </Button>
                                 <Button type="button" onClick={() => setIsDetailEditMode(true)}>
                                     <Pencil className="size-4" />
                                     Edit
                                 </Button>
                             </>
                         )}
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog
-                open={isExportDialogOpen}
-                onOpenChange={(open) => {
-                    setIsExportDialogOpen(open);
-                    if (!open) {
-                        setExportSelectionError('');
-                    }
-                }}
-            >
-                <DialogContent className="sm:max-w-[520px]">
-                    <DialogHeader>
-                        <DialogTitle>Select Sections for SF1 Export</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3 py-2">
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">
-                                Choose one or more sections to include.
-                            </p>
-                            <Button type="button" variant="ghost" size="sm" onClick={toggleAllSections}>
-                                {selectedSectionIds.length === section_options.length ? 'Clear All' : 'Select All'}
-                            </Button>
-                        </div>
-                        <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-3">
-                            {section_options.map((section) => (
-                                <label
-                                    key={section.id}
-                                    className="flex cursor-pointer items-center gap-2 text-sm"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        className="size-4"
-                                        checked={selectedSectionIds.includes(section.id)}
-                                        onChange={() => toggleSection(section.id)}
-                                    />
-                                    <span>{section.label}</span>
-                                </label>
-                            ))}
-                        </div>
-                        {exportSelectionError !== '' ? (
-                            <p className="text-sm text-destructive">{exportSelectionError}</p>
-                        ) : null}
-                    </div>
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setIsExportDialogOpen(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="button" onClick={exportSf1}>
-                            Export
-                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1153,6 +1284,20 @@ export default function StudentDirectory({
                 confirmLabel="Send Claim Email"
                 loading={detailForm.processing}
                 onConfirm={confirmAndSendClaimEmail}
+            />
+
+            <ActionConfirmDialog
+                open={isResendClaimConfirmOpen}
+                onOpenChange={setIsResendClaimConfirmOpen}
+                title="Resend Account-Claim Email"
+                description={
+                    selectedStudent?.email
+                        ? `Send fresh claim links for unclaimed student or parent accounts? Student links use the student personal email when available; parent links use ${selectedStudent.email}.`
+                        : 'Send fresh claim links for unclaimed student or parent accounts? Student links use the student personal email when available. Parent claim email requires a contact email.'
+                }
+                confirmLabel="Resend Claim Email"
+                loading={isResendingClaimEmail}
+                onConfirm={resendClaimEmail}
             />
         </AppLayout>
     );

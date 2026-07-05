@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
+import { Download, Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -238,10 +244,28 @@ export default function DiscountManager({
                     <CardHeader className="border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Discount Programs</CardTitle>
-                            <Button onClick={openCreateProgramDialog}>
-                                <Plus className="size-4" />
-                                Add Program
-                            </Button>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm" className="gap-2">
+                                            <Download className="size-4" />
+                                            Export
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => window.location.assign('/finance/discount-manager/export?format=xlsx')}>
+                                            Export as Excel (.xlsx)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => window.location.assign('/finance/discount-manager/export?format=csv')}>
+                                            Export as CSV (.csv)
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <Button onClick={openCreateProgramDialog}>
+                                    <Plus className="size-4" />
+                                    Add Program
+                                </Button>
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">

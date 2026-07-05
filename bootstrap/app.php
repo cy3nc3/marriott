@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\BroadcastSystemDataUpdates;
 use App\Http\Middleware\EnsureMaintenanceMode;
 use App\Http\Middleware\EnsureParentPortalEnabled;
 use App\Http\Middleware\EnsurePasswordChanged;
@@ -15,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -45,15 +47,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
-        $middleware->validateCsrfTokens(except: [
-            'account/claim/*/otp/send',
-        ]);
+        $middleware->validateCsrfTokens();
 
         $middleware->web(append: [
             HandleAppearance::class,
             EnsureMaintenanceMode::class,
             EnsureParentPortalEnabled::class,
             EnsurePasswordChanged::class,
+            BroadcastSystemDataUpdates::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);

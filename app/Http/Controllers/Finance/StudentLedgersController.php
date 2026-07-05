@@ -22,6 +22,7 @@ class StudentLedgersController extends Controller
         $dateFrom = $validated['date_from'] ?? null;
         $dateTo = $validated['date_to'] ?? null;
         $showPaidDues = $request->boolean('show_paid_dues');
+        $overdueOnly = $request->boolean('overdue_only');
         $normalizedSearch = strtolower($search);
 
         $students = Student::query()
@@ -62,6 +63,32 @@ class StudentLedgersController extends Controller
             'total_payments' => 0.0,
             'outstanding_balance' => 0.0,
         ];
+        $overdueAccounts = BillingSchedule::query()
+            ->with('student:id,lrn,first_name,last_name')
+            ->whereDate('due_date', '<', now()->toDateString())
+            ->whereIn('status', ['unpaid', 'partially_paid'])
+            ->get(['id', 'student_id', 'description', 'due_date', 'amount_due', 'amount_paid', 'status'])
+            ->groupBy('student_id')
+            ->map(function ($rows, $studentId): array {
+                $student = optional($rows->first())->student;
+                $totalOverdue = round((float) $rows->sum(function (BillingSchedule $schedule): float {
+                    return max((float) $schedule->amount_due - (float) $schedule->amount_paid, 0);
+                }), 2);
+                $oldestDueDate = $rows->min(fn (BillingSchedule $schedule) => $schedule->due_date?->toDateString());
+                $daysOverdue = $oldestDueDate ? now()->diffInDays($oldestDueDate) : 0;
+
+                return [
+                    'student_id' => (int) $studentId,
+                    'student_name' => trim((string) ($student?->first_name ?? '').' '.(string) ($student?->last_name ?? '')),
+                    'lrn' => (string) ($student?->lrn ?? ''),
+                    'overdue_balance' => $totalOverdue,
+                    'oldest_due_date' => $oldestDueDate,
+                    'days_overdue' => (int) $daysOverdue,
+                    'overdue_items' => $rows->count(),
+                ];
+            })
+            ->sortByDesc('overdue_balance')
+            ->values();
 
         if ($selectedStudentId > 0) {
             $selectedStudent = Student::query()
@@ -113,6 +140,11 @@ class StudentLedgersController extends Controller
                 ];
 
                 $duesSchedule = (clone $billingScheduleQuery)
+                    ->when($overdueOnly, function ($query) {
+                        $query
+                            ->whereDate('due_date', '<', now()->toDateString())
+                            ->whereIn('status', ['unpaid', 'partially_paid']);
+                    })
                     ->when(! $showPaidDues, function ($query) {
                         $query->where('status', '!=', 'paid');
                     })
@@ -185,6 +217,7 @@ class StudentLedgersController extends Controller
             'dues_schedule' => $duesSchedule,
             'ledger_entries' => $ledgerEntries,
             'summary' => $summary,
+            'overdue_accounts' => $overdueAccounts->take(50)->all(),
             'filters' => [
                 'search' => $search !== '' ? $search : null,
                 'student_id' => $selectedStudentId > 0 ? $selectedStudentId : null,
@@ -192,6 +225,7 @@ class StudentLedgersController extends Controller
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
                 'show_paid_dues' => $showPaidDues,
+                'overdue_only' => $overdueOnly,
             ],
         ]);
     }

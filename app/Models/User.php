@@ -29,6 +29,7 @@ class User extends Authenticatable
         'last_name',
         'name',
         'email',
+        'personal_email',
         'avatar',
         'password',
         'birthday',
@@ -38,6 +39,7 @@ class User extends Authenticatable
         'must_change_password',
         'notification_settings',
         'password_updated_at',
+        'last_login_at',
     ];
 
     /**
@@ -79,6 +81,7 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'notification_settings' => 'array',
             'password_updated_at' => 'datetime',
+            'last_login_at' => 'datetime',
         ];
     }
 
@@ -102,6 +105,11 @@ class User extends Authenticatable
     public function studentProfile(): HasOne
     {
         return $this->hasOne(Student::class, 'user_id');
+    }
+
+    public function teacherProfile(): HasOne
+    {
+        return $this->hasOne(TeacherProfile::class, 'user_id');
     }
 
     public function announcements(): HasMany

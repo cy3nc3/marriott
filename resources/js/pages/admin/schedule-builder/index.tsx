@@ -56,8 +56,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 // Configuration
-const START_HOUR = 7;
-const END_HOUR = 17;
+const DEFAULT_START_HOUR = 7;
+const DEFAULT_END_HOUR = 17;
 const HOUR_HEIGHT = 96;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
@@ -76,6 +76,13 @@ const toTimeValue = (hour12: number, minute: number, period: 'AM' | 'PM') => {
         period === 'PM' ? (hour12 % 12) + 12 : hour12 % 12;
 
     return `${normalizedHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+};
+
+type TimeBlock = {
+    id: number;
+    day: string;
+    start_time: string;
+    end_time: string;
 };
 
 function TimePickerField({
@@ -321,8 +328,8 @@ export default function ScheduleBuilder({
         return `${color.bg} ${color.border} ${color.text} ${color.hover}`;
     };
 
-    const getPosition = (time: string) =>
-        ((timeToMinutes(time) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+    const getPosition = (time: string, startHour: number) =>
+        ((timeToMinutes(time) - startHour * 60) / 60) * HOUR_HEIGHT;
     const getHeight = (start: string, end: string) =>
         ((timeToMinutes(end) - timeToMinutes(start)) / 60) * HOUR_HEIGHT;
 
@@ -332,10 +339,83 @@ export default function ScheduleBuilder({
         return teachers.filter((t) => sub?.qualifiedTeachers.includes(t.id));
     }, [selectedSubjectId, subjects, teachers]);
 
-    const currentSectionSchedules = useMemo(() => {
-        return sectionSchedules.filter(
-            (s) => s.section_id.toString() === selectedSectionId,
+    const availableTeachersForForm = useMemo(() => {
+        const currentFormSubjectId = selectedItem
+            ? editForm.data.subject_id
+            : addForm.data.subject_id;
+
+        if (!currentFormSubjectId) {
+            return [];
+        }
+
+        const selectedFormSubject = subjects.find(
+            (s) => s.id === currentFormSubjectId,
         );
+
+        return teachers.filter((teacher) =>
+            selectedFormSubject?.qualifiedTeachers.includes(teacher.id),
+        );
+    }, [
+        selectedItem,
+        editForm.data.subject_id,
+        addForm.data.subject_id,
+        subjects,
+        teachers,
+    ]);
+
+    const currentSectionSchedules = useMemo(() => {
+        const allowedTypes = new Set<ScheduleItem['type']>([
+            'academic',
+            'break',
+            'ceremony',
+        ]);
+
+        const sectionItems = sectionSchedules
+            .filter((s) => s.section_id.toString() === selectedSectionId)
+            .filter((s): s is ScheduleItem => allowedTypes.has(s.type));
+
+        const dedupedBySlot = new Map<string, ScheduleItem>();
+        for (const item of sectionItems) {
+            const slotKey = `${item.day}|${item.start_time}|${item.end_time}`;
+            const existing = dedupedBySlot.get(slotKey);
+            if (!existing || item.id > existing.id) {
+                dedupedBySlot.set(slotKey, item);
+            }
+        }
+
+        const deduped = Array.from(dedupedBySlot.values());
+        const dayOrder = new Map(DAYS.map((day, index) => [day, index]));
+        deduped.sort((a, b) => {
+            const dayDiff =
+                (dayOrder.get(a.day) ?? Number.MAX_SAFE_INTEGER) -
+                (dayOrder.get(b.day) ?? Number.MAX_SAFE_INTEGER);
+            if (dayDiff !== 0) return dayDiff;
+
+            const startDiff = timeToMinutes(a.start_time) - timeToMinutes(b.start_time);
+            if (startDiff !== 0) return startDiff;
+
+            const endDiff = timeToMinutes(a.end_time) - timeToMinutes(b.end_time);
+            if (endDiff !== 0) return endDiff;
+
+            return b.id - a.id;
+        });
+
+        const pruned: ScheduleItem[] = [];
+        for (const day of DAYS) {
+            const dayItems = deduped.filter((item) => item.day === day);
+            let lastEnd = -1;
+            for (const item of dayItems) {
+                const start = timeToMinutes(item.start_time);
+                const end = timeToMinutes(item.end_time);
+                if (start < lastEnd) {
+                    continue;
+                }
+                pruned.push(item);
+                lastEnd = Math.max(lastEnd, end);
+            }
+        }
+
+        return pruned;
     }, [sectionSchedules, selectedSectionId]);
 
     const activeGhostBlocks = useMemo(() => {
@@ -373,6 +453,32 @@ export default function ScheduleBuilder({
 
         return uniqueGhosts;
     }, [sectionSchedules, selectedTeacherId, selectedSectionId]);
+
+    const { displayStartHour, displayEndHour } = useMemo(() => {
+        const defaultStartMinutes = DEFAULT_START_HOUR * 60;
+        const defaultEndMinutes = DEFAULT_END_HOUR * 60;
+
+        const allShownBlocks = [...currentSectionSchedules, ...activeGhostBlocks];
+        if (allShownBlocks.length === 0) {
+            return {
+                displayStartHour: DEFAULT_START_HOUR,
+                displayEndHour: DEFAULT_END_HOUR,
+            };
+        }
+
+        let minStartMinutes = defaultStartMinutes;
+        let maxEndMinutes = defaultEndMinutes;
+
+        for (const block of allShownBlocks) {
+            minStartMinutes = Math.min(minStartMinutes, timeToMinutes(block.start_time));
+            maxEndMinutes = Math.max(maxEndMinutes, timeToMinutes(block.end_time));
+        }
+
+        return {
+            displayStartHour: Math.floor(minStartMinutes / 60),
+            displayEndHour: Math.ceil(maxEndMinutes / 60),
+        };
+    }, [currentSectionSchedules, activeGhostBlocks]);
 
     const selectedGrade = useMemo(() => {
         return gradeLevels.find((g) => g.id.toString() === selectedGradeId);
@@ -648,7 +754,7 @@ export default function ScheduleBuilder({
                                         className="relative flex min-w-[980px]"
                                         style={{
                                             height:
-                                                (END_HOUR - START_HOUR) *
+                                                (displayEndHour - displayStartHour) *
                                                     HOUR_HEIGHT +
                                                 40,
                                         }}
@@ -657,7 +763,7 @@ export default function ScheduleBuilder({
                                         <div className="sticky left-0 z-30 w-20 shrink-0 border-r bg-card pt-10 pl-0.5">
                                             {Array.from({
                                                 length:
-                                                    END_HOUR - START_HOUR + 1,
+                                                    displayEndHour - displayStartHour + 1,
                                             }).map((_, i) => (
                                                 <div
                                                     key={i}
@@ -665,14 +771,14 @@ export default function ScheduleBuilder({
                                                     style={{
                                                         height:
                                                             i ===
-                                                            END_HOUR -
-                                                                START_HOUR
+                                                            displayEndHour -
+                                                                displayStartHour
                                                                 ? 0
                                                                 : HOUR_HEIGHT,
                                                     }}
                                                 >
                                                     <span className="absolute top-0 right-2 -translate-y-1/2 font-mono text-[10px] leading-none font-medium whitespace-nowrap text-muted-foreground uppercase">
-                                                        {`${(START_HOUR + i) % 12 || 12}:00 ${START_HOUR + i >= 12 ? 'PM' : 'AM'}`}
+                                                        {`${(displayStartHour + i) % 12 || 12}:00 ${displayStartHour + i >= 12 ? 'PM' : 'AM'}`}
                                                     </span>
                                                 </div>
                                             ))}
@@ -695,7 +801,7 @@ export default function ScheduleBuilder({
                                             <div className="pointer-events-none absolute inset-0 z-0 pt-10">
                                                 {Array.from({
                                                     length:
-                                                        END_HOUR - START_HOUR,
+                                                        displayEndHour - displayStartHour,
                                                 }).map((_, i) => (
                                                     <div
                                                         key={i}
@@ -760,6 +866,7 @@ export default function ScheduleBuilder({
                                                                         style={{
                                                                             top: getPosition(
                                                                                 ghost.start_time,
+                                                                                displayStartHour,
                                                                             ),
                                                                             height: getHeight(
                                                                                 ghost.start_time,
@@ -867,6 +974,7 @@ export default function ScheduleBuilder({
                                                                         style={{
                                                                             top: getPosition(
                                                                                 item.start_time,
+                                                                                displayStartHour,
                                                                             ),
                                                                             height: getHeight(
                                                                                 item.start_time,
@@ -1124,22 +1232,23 @@ export default function ScheduleBuilder({
                                                             addForm.setData('teacher_id', numVal);
                                                         }
                                                     }}
+                                                    disabled={availableTeachersForForm.length === 0}
                                                 >
                                                     <SelectTrigger className="h-10 rounded-lg">
-                                                        <SelectValue placeholder="Select teacher..." />
+                                                        <SelectValue
+                                                            placeholder={
+                                                                availableTeachersForForm.length > 0
+                                                                    ? 'Select teacher...'
+                                                                    : 'Select subject first'
+                                                            }
+                                                        />
                                                     </SelectTrigger>
                                                     <SelectContent className="max-h-72">
-                                                        {(() => {
-                                                            const currentFormSubjectId = selectedItem ? editForm.data.subject_id : addForm.data.subject_id;
-                                                            const modalFilteredTeachers = currentFormSubjectId
-                                                                ? teachers.filter((t) => subjects.find((s) => s.id === currentFormSubjectId)?.qualifiedTeachers.includes(t.id))
-                                                                : teachers;
-                                                            return modalFilteredTeachers.map((t) => (
-                                                                <SelectItem key={t.id} value={t.id.toString()}>
-                                                                    {t.name}
-                                                                </SelectItem>
-                                                            ));
-                                                        })()}
+                                                        {availableTeachersForForm.map((t) => (
+                                                            <SelectItem key={t.id} value={t.id.toString()}>
+                                                                {t.name}
+                                                            </SelectItem>
+                                                        ))}
                                                     </SelectContent>
                                                 </Select>
                                             </div>

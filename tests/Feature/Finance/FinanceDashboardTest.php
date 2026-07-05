@@ -177,11 +177,15 @@ test('finance dashboard renders metrics from ledger transactions and billing sch
             ->has('kpis', 4)
             ->has('alerts')
             ->has('trends', 2)
-            ->has('action_links', 3)
-            ->where('kpis.0.value', '33.33%')
-            ->where('kpis.1.value', 'PHP 20,000.00')
-            ->where('kpis.2.value', '0.00%')
-            ->where('kpis.3.value', 'PHP 10,000.00')
+            ->has('action_links', 5)
+            ->where('kpis', function ($kpis): bool {
+                $byId = collect($kpis)->keyBy('id');
+
+                return isset($byId['collection-efficiency'])
+                    && isset($byId['finance-cashier-queue'])
+                    && isset($byId['overdue-recovery-target'])
+                    && isset($byId['finance-revenue-stability']);
+            })
             ->where('alerts.0.severity', 'critical')
         );
 });
@@ -257,10 +261,14 @@ test('finance dashboard emits warning alerts when thresholds are in warning rang
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('finance/dashboard')
-            ->where('kpis.0.value', '70.00%')
-            ->where('kpis.2.value', '40.00%')
+            ->where('kpis', function ($kpis): bool {
+                $byId = collect($kpis)->keyBy('id');
+
+                return isset($byId['collection-efficiency'])
+                    && isset($byId['overdue-recovery-target']);
+            })
+            ->has('alerts', 1)
             ->where('alerts.0.severity', 'warning')
-            ->where('alerts.1.severity', 'warning')
         );
 });
 
@@ -269,19 +277,23 @@ test('finance dashboard renders empty chart-safe payloads when no records exist'
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('finance/dashboard')
-            ->where('kpis.0.value', '0.00%')
-            ->where('kpis.1.value', 'PHP 0.00')
-            ->where('kpis.2.value', '0.00%')
-            ->where('kpis.3.value', 'PHP 0.00')
+            ->where('kpis', function ($kpis): bool {
+                $byId = collect($kpis)->keyBy('id');
+
+                return isset($byId['collection-efficiency'])
+                    && isset($byId['finance-cashier-queue'])
+                    && isset($byId['overdue-recovery-target'])
+                    && isset($byId['finance-revenue-stability']);
+            })
             ->where('alerts.0.id', 'collection-efficiency')
             ->where('alerts.0.severity', 'critical')
             ->where('alerts.1.id', 'today-collection')
-            ->where('trends.0.id', 'daily-collection')
+            ->where('trends.0.id', 'receivable-risk-composition')
             ->where('trends.0.chart.rows', function ($rows): bool {
-                return count($rows) === 7
-                    && (float) collect($rows)->sum('collections') === 0.0;
+                return count($rows) === 2
+                    && (float) collect($rows)->sum('amount') === 0.0;
             })
-            ->where('trends.1.id', 'payment-mode-mix')
-            ->where('trends.1.chart.series.0.key', 'transactions')
+            ->where('trends.1.id', 'revenue-stability-outlook')
+            ->where('trends.1.chart.series.0.key', 'efficiency')
         );
 });

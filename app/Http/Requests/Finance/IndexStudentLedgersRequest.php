@@ -20,6 +20,7 @@ class IndexStudentLedgersRequest extends FormRequest
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
             'show_paid_dues' => ['nullable', 'boolean'],
+            'overdue_only' => ['nullable', 'boolean'],
         ];
     }
 }

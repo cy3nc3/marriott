@@ -12,7 +12,7 @@ use App\Models\RemedialCase;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\User;
-use App\Notifications\EnrollmentAccountClaimNotification;
+use App\Notifications\EnrollmentSingleAccountClaimNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
@@ -758,6 +758,10 @@ test('cashier transaction issues account claim token and queues claim email when
     $studentUser = User::factory()->create([
         'must_change_password' => true,
     ]);
+    $parentUser = User::factory()->create([
+        'role' => 'parent',
+        'must_change_password' => true,
+    ]);
 
     $student = Student::query()->create([
         'user_id' => $studentUser->id,
@@ -776,6 +780,7 @@ test('cashier transaction issues account claim token and queues claim email when
         'downpayment' => 3000,
         'status' => 'for_cashier_payment',
     ]);
+    $student->parents()->attach($parentUser->id);
 
     $this->post('/finance/cashier-panel/transactions', [
         'student_id' => $student->id,
@@ -797,10 +802,11 @@ test('cashier transaction issues account claim token and queues claim email when
 
     expect($enrollment->status)->toBe('enrolled');
     expect(AccountClaimToken::query()->where('user_id', $studentUser->id)->count())->toBe(1);
+    expect(AccountClaimToken::query()->where('user_id', $parentUser->id)->count())->toBe(1);
 
     Notification::assertSentOnDemand(
-        EnrollmentAccountClaimNotification::class,
-        function (EnrollmentAccountClaimNotification $notification, array $channels, object $notifiable): bool {
+        EnrollmentSingleAccountClaimNotification::class,
+        function (EnrollmentSingleAccountClaimNotification $notification, array $channels, object $notifiable): bool {
             $mailRoutes = $notifiable->routes['mail'] ?? [];
 
             if (is_string($mailRoutes)) {

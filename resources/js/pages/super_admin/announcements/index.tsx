@@ -448,7 +448,6 @@ export default function Announcements({
                             value={searchQuery}
                             onValueChange={handleSearch}
                             suggestions={searchSuggestions}
-                            showSuggestions={false}
                         />
 
                         <Select
@@ -832,6 +831,7 @@ export default function Announcements({
                                 form.setData('target_roles', selected)
                             }
                             placeholder="All allowed roles"
+                            selectAllLabel="Select all roles"
                         />
                         {form.errors.target_roles && (
                             <p className="text-xs text-destructive">

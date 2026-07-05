@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { AlertTriangle, Search, UserMinus } from 'lucide-react';
+import { AlertTriangle, Download, ListFilter, Search, UserMinus, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,8 +12,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
@@ -22,6 +29,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import {
     Table,
     TableBody,
@@ -85,6 +93,7 @@ interface Props {
     filters: {
         search: string | null;
         student_id: number | null;
+        reason?: string;
     };
 }
 
@@ -96,7 +105,15 @@ export default function StudentDeparture({
     filters,
 }: Props) {
     const [searchValue, setSearchValue] = useState(filters.search ?? '');
+    const [reasonFilter, setReasonFilter] = useState(filters.reason ?? 'all');
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (reasonFilter !== 'all') count++;
+        return count;
+    }, [reasonFilter]);
+
     const baseSearchSuggestions = useMemo(
         () =>
             student_lookup.map((student) => ({
@@ -190,21 +207,30 @@ export default function StudentDeparture({
     const applyLookupFilters = (next?: {
         search?: string;
         studentId?: number | null;
+        reason?: string;
     }) => {
         const querySearch = next?.search ?? searchValue;
         const queryStudentId = next?.studentId ?? selected_student?.id ?? null;
+        const queryReason = next?.reason ?? reasonFilter;
 
         router.get(
             '/registrar/student-departure',
             {
                 search: querySearch || undefined,
                 student_id: queryStudentId || undefined,
+                reason: queryReason === 'all' ? undefined : queryReason,
             },
             {
                 preserveScroll: true,
                 preserveState: true,
             },
         );
+    };
+
+    const handleResetFilters = () => {
+        setSearchValue('');
+        setReasonFilter('all');
+        router.get('/registrar/student-departure', {}, { preserveState: true });
     };
 
     const processDeparture = () => {
@@ -216,6 +242,15 @@ export default function StudentDeparture({
         });
     };
 
+    const triggerExport = (format: 'xlsx' | 'csv' | 'pdf') => {
+        const params = new URLSearchParams({
+            format,
+            search: searchValue,
+            reason: reasonFilter,
+        });
+        window.location.assign(`/registrar/student-departure/export?${params.toString()}`);
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Student Departure" />
@@ -223,14 +258,12 @@ export default function StudentDeparture({
             <div className="flex flex-col gap-6">
                 <Card className="gap-2">
                     <CardHeader className="border-b">
-                        <CardTitle>Student Lookup</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                        <div className="grid gap-4 md:grid-cols-[1fr_auto]">
-                            <div className="space-y-2">
-                                <Label>Search</Label>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <CardTitle>Student Lookup</CardTitle>
+                            <div className="flex flex-wrap items-center gap-2">
                                 <SearchAutocompleteInput
                                     placeholder="Search by LRN or student name"
+                                    wrapperClassName="w-full sm:w-[22rem]"
                                     value={searchValue}
                                     onValueChange={setSearchValue}
                                     suggestions={searchSuggestions}
@@ -250,8 +283,6 @@ export default function StudentDeparture({
                                         });
                                     }}
                                 />
-                            </div>
-                            <div className="flex items-end">
                                 <Button
                                     variant="outline"
                                     onClick={() =>
@@ -266,7 +297,7 @@ export default function StudentDeparture({
                                 </Button>
                             </div>
                         </div>
-                    </CardContent>
+                    </CardHeader>
                 </Card>
 
                 <div className="grid gap-6 lg:grid-cols-3">
@@ -438,7 +469,81 @@ export default function StudentDeparture({
 
                 <Card>
                     <CardHeader className="border-b">
-                        <CardTitle>Recent Departures</CardTitle>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <CardTitle>Recent Departures</CardTitle>
+                            <div className="flex items-center gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="sm" className="gap-2">
+                                            <ListFilter className="size-4" />
+                                            Filters
+                                            {activeFilterCount > 0 && (
+                                                <Badge variant="secondary" className="ml-1 px-1 py-0 text-[10px]">
+                                                    {activeFilterCount}
+                                                </Badge>
+                                            )}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-64" align="end">
+                                        <div className="grid gap-4">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="font-medium leading-none">Log Filters</h4>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-auto p-0 text-xs text-muted-foreground"
+                                                    onClick={handleResetFilters}
+                                                >
+                                                    Reset
+                                                </Button>
+                                            </div>
+                                            <Separator />
+                                            <div className="grid gap-4">
+                                                <div className="grid gap-2">
+                                                    <Label>Departure Reason</Label>
+                                                    <Select
+                                                        value={reasonFilter}
+                                                        onValueChange={(val) => {
+                                                            setReasonFilter(val);
+                                                            applyLookupFilters({ reason: val });
+                                                        }}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="all">All Reasons</SelectItem>
+                                                            <SelectItem value="transfer_out">Transfer Out</SelectItem>
+                                                            <SelectItem value="dropped_out">Dropped Out</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm" className="gap-2">
+                                            <Download className="size-4" />
+                                            Export
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => triggerExport('xlsx')}>
+                                            Export as Excel (.xlsx)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => triggerExport('csv')}>
+                                            Export as CSV (.csv)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => triggerExport('pdf')}>
+                                            Export as PDF (.pdf)
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table>
@@ -447,11 +552,11 @@ export default function StudentDeparture({
                                     <TableHead className="pl-6">
                                         Learner
                                     </TableHead>
-                                    <TableHead>LRN</TableHead>
-                                    <TableHead>Reason</TableHead>
-                                    <TableHead>Effective Date</TableHead>
-                                    <TableHead>Account Expiry</TableHead>
-                                    <TableHead className="pr-6 text-right">
+                                    <TableHead className="border-l">LRN</TableHead>
+                                    <TableHead className="border-l">Reason</TableHead>
+                                    <TableHead className="border-l">Effective Date</TableHead>
+                                    <TableHead className="border-l">Account Expiry</TableHead>
+                                    <TableHead className="border-l pr-6 text-right">
                                         Processed By
                                     </TableHead>
                                 </TableRow>
@@ -472,15 +577,15 @@ export default function StudentDeparture({
                                             <TableCell className="pl-6 font-medium">
                                                 {row.student_name}
                                             </TableCell>
-                                            <TableCell>{row.lrn}</TableCell>
-                                            <TableCell>{row.reason}</TableCell>
-                                            <TableCell>
+                                            <TableCell className="border-l">{row.lrn}</TableCell>
+                                            <TableCell className="border-l">{row.reason}</TableCell>
+                                            <TableCell className="border-l">
                                                 {row.effective_date ?? '-'}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="border-l">
                                                 {row.account_expires_at ?? '-'}
                                             </TableCell>
-                                            <TableCell className="pr-6 text-right text-sm text-muted-foreground">
+                                            <TableCell className="border-l pr-6 text-right text-sm text-muted-foreground">
                                                 {row.processed_by || '-'}
                                             </TableCell>
                                         </TableRow>

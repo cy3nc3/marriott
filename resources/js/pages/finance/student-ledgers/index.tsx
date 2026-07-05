@@ -1,13 +1,26 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Download, Printer } from 'lucide-react';
-import { useState } from 'react';
+import { Download, Printer, Filter, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRangePicker } from '@/components/ui/date-picker';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SearchAutocompleteInput } from '@/components/ui/search-autocomplete-input';
 import {
     Select,
@@ -16,6 +29,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import {
     Table,
@@ -91,6 +105,17 @@ type Filters = {
     date_from: string | null;
     date_to: string | null;
     show_paid_dues: boolean;
+    overdue_only: boolean;
+};
+
+type OverdueAccountRow = {
+    student_id: number;
+    student_name: string;
+    lrn: string;
+    overdue_balance: number;
+    oldest_due_date: string | null;
+    days_overdue: number;
+    overdue_items: number;
 };
 
 interface Props {
@@ -99,6 +124,7 @@ interface Props {
     dues_schedule: DueScheduleRow[];
     ledger_entries: LedgerEntryRow[];
     summary: Summary;
+    overdue_accounts: OverdueAccountRow[];
     filters: Filters;
 }
 
@@ -127,6 +153,7 @@ export default function StudentLedgers({
     dues_schedule,
     ledger_entries,
     summary,
+    overdue_accounts,
     filters,
 }: Props) {
     const { ui } = usePage<SharedData>().props;
@@ -154,6 +181,40 @@ export default function StudentLedgers({
     const [entryDateRange, setEntryDateRange] = useState<DateRange | undefined>(
         initialDateRange,
     );
+    const [overdueOnly, setOverdueOnly] = useState(filters.overdue_only);
+    const [isOverdueModalOpen, setIsOverdueModalOpen] = useState(false);
+    const [overdueSearchQuery, setOverdueSearchQuery] = useState('');
+
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (entryTypeFilter !== 'all') count++;
+        if (entryDateRange?.from || entryDateRange?.to) count++;
+        if (showPaidDues) count++;
+        if (overdueOnly) count++;
+        return count;
+    }, [entryTypeFilter, entryDateRange, showPaidDues, overdueOnly]);
+
+    const handleResetFilters = () => {
+        setEntryTypeFilter('all');
+        setEntryDateRange(undefined);
+        setShowPaidDues(false);
+        setOverdueOnly(false);
+
+        router.get(
+            student_ledgers.url({
+                query: {
+                    search: searchQuery || undefined,
+                    student_id: selectedStudentId || undefined,
+                },
+            }),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
 
     const searchSuggestions = students.map((student) => ({
         id: student.id,
@@ -162,6 +223,18 @@ export default function StudentLedgers({
         description: `LRN: ${student.lrn}`,
         keywords: student.lrn,
     }));
+
+    const filteredOverdueAccounts = useMemo(() => {
+        const query = overdueSearchQuery.trim().toLowerCase();
+        if (query === '') {
+            return overdue_accounts;
+        }
+
+        return overdue_accounts.filter((row) =>
+            row.student_name.toLowerCase().includes(query)
+            || row.lrn.toLowerCase().includes(query),
+        );
+    }, [overdue_accounts, overdueSearchQuery]);
 
     const applyFilters = (
         studentId = selectedStudentId,
@@ -173,6 +246,7 @@ export default function StudentLedgers({
                     search: searchQuery || undefined,
                     student_id: studentId || undefined,
                     show_paid_dues: paidFlag ? 1 : undefined,
+                    overdue_only: overdueOnly ? 1 : undefined,
                     entry_type:
                         entryTypeFilter === 'all' ? undefined : entryTypeFilter,
                     date_from: entryDateRange?.from
@@ -212,6 +286,7 @@ export default function StudentLedgers({
                     search: searchQuery || undefined,
                     student_id: selectedStudentId || undefined,
                     show_paid_dues: showPaidDues ? 1 : undefined,
+                    overdue_only: overdueOnly ? 1 : undefined,
                     entry_type: value === 'all' ? undefined : value,
                     date_from: entryDateRange?.from
                         ? format(entryDateRange.from, 'yyyy-MM-dd')
@@ -240,6 +315,7 @@ export default function StudentLedgers({
                     search: searchQuery || undefined,
                     student_id: selectedStudentId || undefined,
                     show_paid_dues: showPaidDues ? 1 : undefined,
+                    overdue_only: overdueOnly ? 1 : undefined,
                 },
             }),
             {},
@@ -295,7 +371,6 @@ export default function StudentLedgers({
                                 value={searchQuery}
                                 onValueChange={setSearchQuery}
                                 suggestions={searchSuggestions}
-                                showSuggestions={false}
                                 onEnterPress={() => applyFilters()}
                                 onSelectSuggestion={(option) => {
                                     const selectedId = String(option.id);
@@ -363,6 +438,15 @@ export default function StudentLedgers({
                                 onClick={() => applyFilters()}
                             >
                                 Search
+                            </Button>
+                        </div>
+                        <div className="mt-3 flex justify-end">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsOverdueModalOpen(true)}
+                            >
+                                Overdue Accounts
                             </Button>
                         </div>
                     </CardContent>
@@ -444,18 +528,24 @@ export default function StudentLedgers({
                                         </div>
                                     </div>
                                     <div className="mt-4 flex justify-end gap-2">
-                                        <Button
-                                            variant="outline"
-                                            type="button"
-                                            onClick={() => window.print()}
-                                        >
-                                            <Printer className="size-4" />
-                                            Print SOA
-                                        </Button>
-                                        <Button variant="outline" type="button">
-                                            <Download className="size-4" />
-                                            Export
-                                        </Button>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" className="gap-2">
+                                                    <Download className="size-4" />
+                                                    Export / Print
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => window.print()}>
+                                                    <Printer className="mr-2 size-4" />
+                                                    Print SOA (PDF)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => { /* Logic for CSV/XLSX export if available */ }}>
+                                                    <Download className="mr-2 size-4" />
+                                                    Export as Excel
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 </>
                             ) : (
@@ -598,51 +688,84 @@ export default function StudentLedgers({
                     <CardHeader className="border-b">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <CardTitle>Ledger Entries</CardTitle>
-                            <div className="flex flex-col gap-3 sm:flex-row">
-                                <Select
-                                    value={entryTypeFilter}
-                                    onValueChange={handleEntryTypeChange}
-                                >
-                                    <SelectTrigger className="w-full sm:w-44">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">
-                                            All Entry Types
-                                        </SelectItem>
-                                        <SelectItem value="charge">
-                                            Charges
-                                        </SelectItem>
-                                        <SelectItem value="payment">
-                                            Payments
-                                        </SelectItem>
-                                        <SelectItem value="discount">
-                                            Discounts
-                                        </SelectItem>
-                                        <SelectItem value="adjustment">
-                                            Adjustments
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <DateRangePicker
-                                    dateRange={entryDateRange}
-                                    setDateRange={setEntryDateRange}
-                                    className="w-fit max-w-full"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={resetEntryFilters}
-                                >
-                                    Reset
-                                </Button>
-                                <Button
-                                    type="button"
-                                    onClick={() => applyFilters()}
-                                >
-                                    Apply
-                                </Button>
-                            </div>
+                                <div className="flex flex-col gap-3 sm:flex-row">
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="gap-2">
+                                                <Filter className="size-4" />
+                                                Filters
+                                                {activeFilterCount > 0 && (
+                                                    <Badge variant="secondary" className="ml-1 px-1 py-0 text-[10px]">
+                                                        {activeFilterCount}
+                                                    </Badge>
+                                                )}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-80" align="end">
+                                            <div className="grid gap-4">
+                                                <div className="flex items-center justify-between">
+                                                    <h4 className="font-medium leading-none">Entry Filters</h4>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-auto p-0 text-xs text-muted-foreground"
+                                                        onClick={handleResetFilters}
+                                                    >
+                                                        Reset
+                                                    </Button>
+                                                </div>
+                                                <div className="grid gap-4">
+                                                    <div className="grid gap-2">
+                                                        <Label>Date Range</Label>
+                                                        <DateRangePicker
+                                                            dateRange={entryDateRange}
+                                                            setDateRange={setEntryDateRange}
+                                                            className="w-full"
+                                                        />
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Label>Entry Type</Label>
+                                                        <Select
+                                                            value={entryTypeFilter}
+                                                            onValueChange={handleEntryTypeChange}
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">All Entry Types</SelectItem>
+                                                                <SelectItem value="charge">Charges</SelectItem>
+                                                                <SelectItem value="payment">Payments</SelectItem>
+                                                                <SelectItem value="discount">Discounts</SelectItem>
+                                                                <SelectItem value="adjustment">Adjustments</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-2 py-1">
+                                                        <Label htmlFor="popover-overdue-only" className="cursor-pointer">Overdue Accounts Only</Label>
+                                                        <Switch
+                                                            id="popover-overdue-only"
+                                                            checked={overdueOnly}
+                                                            onCheckedChange={(checked) => {
+                                                                setOverdueOnly(checked);
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <Button size="sm" onClick={() => applyFilters()}>
+                                                        Apply Filters
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => router.get('/finance/due-reminder-settings')}
+                                    >
+                                        Reminder Scheduling
+                                    </Button>
+                                </div>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -817,6 +940,86 @@ export default function StudentLedgers({
                     </div>
                 </Card>
             </div>
+            <Dialog open={isOverdueModalOpen} onOpenChange={setIsOverdueModalOpen}>
+                <DialogContent className="sm:max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Overdue Accounts</DialogTitle>
+                    </DialogHeader>
+                    <SearchAutocompleteInput
+                        placeholder="Search overdue account by student name or LRN..."
+                        value={overdueSearchQuery}
+                        onValueChange={setOverdueSearchQuery}
+                        suggestions={overdue_accounts.map((row) => ({
+                            id: row.student_id,
+                            label: row.student_name,
+                            value: row.student_name,
+                            description: `LRN: ${row.lrn}`,
+                            keywords: row.lrn,
+                        }))}
+                    />
+                    <div className="max-h-[60vh] overflow-auto rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Student</TableHead>
+                                    <TableHead>LRN</TableHead>
+                                    <TableHead className="text-right">Overdue Balance</TableHead>
+                                    <TableHead className="text-right">Days Overdue</TableHead>
+                                    <TableHead className="text-right">Items</TableHead>
+                                    <TableHead className="text-right">Action</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredOverdueAccounts.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
+                                            No overdue accounts found.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    filteredOverdueAccounts.map((row) => (
+                                        <TableRow key={row.student_id}>
+                                            <TableCell>{row.student_name}</TableCell>
+                                            <TableCell>{row.lrn}</TableCell>
+                                            <TableCell className="text-right">{formatCurrency(row.overdue_balance)}</TableCell>
+                                            <TableCell className="text-right">{row.days_overdue}</TableCell>
+                                            <TableCell className="text-right">{row.overdue_items}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        setIsOverdueModalOpen(false);
+                                                        setSelectedStudentId(String(row.student_id));
+                                                        router.get(
+                                                            student_ledgers.url({
+                                                                query: {
+                                                                    search: row.student_name,
+                                                                    student_id: row.student_id,
+                                                                    overdue_only: 1,
+                                                                },
+                                                            }),
+                                                            {},
+                                                            {
+                                                                preserveState: true,
+                                                                preserveScroll: true,
+                                                                replace: true,
+                                                            },
+                                                        );
+                                                    }}
+                                                >
+                                                    Open Ledger
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

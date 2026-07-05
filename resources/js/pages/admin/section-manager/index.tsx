@@ -1,5 +1,5 @@
 import { Head, useForm, router } from '@inertiajs/react';
-import { Plus, Edit2, Trash2, Search, X, AlertCircle } from 'lucide-react';
+import { Download, Edit2, ListFilter, Plus, Search, Trash2, X, AlertCircle } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -14,6 +14,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -53,6 +59,14 @@ interface Teacher {
     initial: string;
 }
 
+interface AdviserHistoryEntry {
+    id: number;
+    adviser_id: number;
+    adviser_name: string;
+    academic_year_id: number;
+    academic_year_name: string;
+}
+
 interface Section {
     id: number;
     name: string;
@@ -60,6 +74,7 @@ interface Section {
     adviser_id: number | null;
     adviser: Teacher | null;
     students_count: number;
+    adviser_history: AdviserHistoryEntry[];
 }
 
 interface GradeLevel {
@@ -223,21 +238,42 @@ export default function SectionManager({
                                             </TabsTrigger>
                                         ))}
                                     </TabsList>
-                                    <Button
-                                        size="sm"
-                                        className="gap-2"
-                                        onClick={() => {
-                                            addForm.reset();
-                                            addForm.setData(
-                                                'grade_level_id',
-                                                activeTab,
-                                            );
-                                            setIsAddOpen(true);
-                                        }}
-                                    >
-                                        <Plus className="size-4" />
-                                        New Section
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" size="sm" className="gap-2">
+                                                    <Download className="size-4" />
+                                                    Export
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => window.location.assign(`/admin/section-manager/export?format=xlsx&grade_level_id=${activeTab}`)}>
+                                                    Export as Excel (.xlsx)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => window.location.assign(`/admin/section-manager/export?format=csv&grade_level_id=${activeTab}`)}>
+                                                    Export as CSV (.csv)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => window.location.assign(`/admin/section-manager/export?format=pdf&grade_level_id=${activeTab}`)}>
+                                                    Export as PDF (.pdf)
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                        <Button
+                                            size="sm"
+                                            className="gap-2"
+                                            onClick={() => {
+                                                addForm.reset();
+                                                addForm.setData(
+                                                    'grade_level_id',
+                                                    activeTab,
+                                                );
+                                                setIsAddOpen(true);
+                                            }}
+                                        >
+                                            <Plus className="size-4" />
+                                            New Section
+                                        </Button>
+                                    </div>
                                 </div>
                                 {gradeLevels.map((grade) => (
                                     <TabsContent
@@ -520,7 +556,13 @@ export default function SectionManager({
                         </DialogContent>
                     </Dialog>
 
-                    <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                    <Dialog
+                        open={isEditOpen}
+                        onOpenChange={(open) => {
+                            setIsEditOpen(open);
+                            if (!open) setSelectedSection(null);
+                        }}
+                    >
                         <DialogContent className="sm:max-w-[450px]">
                             <DialogHeader>
                                 <DialogTitle>Edit Section</DialogTitle>
@@ -632,6 +674,53 @@ export default function SectionManager({
                                                 )}
                                             </div>
                                         </div>
+                                    )}
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label>Adviser History</Label>
+                                    {selectedSection?.adviser_history?.length ? (
+                                        <div className="max-h-44 overflow-auto rounded-md border">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>
+                                                            School Year
+                                                        </TableHead>
+                                                        <TableHead>
+                                                            Adviser
+                                                        </TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {selectedSection.adviser_history.map(
+                                                        (history) => (
+                                                            <TableRow
+                                                                key={
+                                                                    history.id
+                                                                }
+                                                            >
+                                                                <TableCell className="text-xs">
+                                                                    {
+                                                                        history.academic_year_name
+                                                                    }
+                                                                </TableCell>
+                                                                <TableCell className="text-sm font-medium">
+                                                                    {
+                                                                        history.adviser_name
+                                                                    }
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ),
+                                                    )}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground italic">
+                                            No past adviser records found for
+                                            this section.
+                                        </p>
                                     )}
                                 </div>
                             </div>

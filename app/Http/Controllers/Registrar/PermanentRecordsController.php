@@ -16,6 +16,12 @@ class PermanentRecordsController extends Controller
 {
     public function index(): Response
     {
+        $recordStatusFilter = (string) request()->input('record_status', 'all');
+        $allowedRecordStatuses = ['all', 'in_progress', 'promoted', 'conditional', 'retained', 'completed'];
+        if (! in_array($recordStatusFilter, $allowedRecordStatuses, true)) {
+            $recordStatusFilter = 'all';
+        }
+
         $students = Student::query()
             ->orderBy('last_name')
             ->orderBy('first_name')
@@ -70,6 +76,10 @@ class PermanentRecordsController extends Controller
             $records = PermanentRecord::query()
                 ->with(['academicYear:id,name', 'gradeLevel:id,name'])
                 ->where('student_id', $selectedStudent->id)
+                ->when(
+                    $recordStatusFilter !== 'all',
+                    fn ($query) => $query->where('status', $recordStatusFilter)
+                )
                 ->orderByDesc('academic_year_id')
                 ->orderByDesc('id')
                 ->get()
@@ -103,6 +113,7 @@ class PermanentRecordsController extends Controller
             'records' => $records,
             'filters' => [
                 'student_id' => $selectedStudentId > 0 ? $selectedStudentId : null,
+                'record_status' => $recordStatusFilter,
             ],
         ]);
     }

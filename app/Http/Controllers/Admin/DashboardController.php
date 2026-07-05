@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\ClassSchedule;
 use App\Models\Enrollment;
+use App\Models\GradeSubmission;
 use App\Models\Section;
 use App\Models\Subject;
+use App\Models\SubjectAssignment;
 use App\Services\DashboardCacheService;
+use App\Services\DashboardDecisionService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -16,6 +19,10 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        private readonly DashboardDecisionService $dashboardDecisionService,
+    ) {}
+
     public function index(): Response
     {
         $allYears = AcademicYear::query()
@@ -58,10 +65,6 @@ class DashboardController extends Controller
             ? round((($currentEnrolledCount - $previousEnrolledCount) / $previousEnrolledCount) * 100, 2)
             : 0.0;
 
-        $unassignedSubjects = Subject::query()
-            ->doesntHave('teachers')
-            ->count();
-
         $sectionsWithoutAdviser = Section::query()
             ->when($activeYear, function ($query) use ($activeYear) {
                 $query->where('academic_year_id', $activeYear->id);
@@ -73,7 +76,6 @@ class DashboardController extends Controller
             'admin:dashboard:year-'.($activeYear?->id ?? 'none'),
             function () use ($allYears, $activeYear, $enrollmentCountsByYear): array {
                 return [
-                    'conflict_exposure' => $this->calculateScheduleConflictExposure($activeYear?->id),
                     'grade_level_trend_points' => $this->buildGradeLevelTrend($activeYear?->id),
                     'enrollment_forecast' => $this->buildEnrollmentForecast(
                         $allYears,
@@ -84,166 +86,188 @@ class DashboardController extends Controller
             }
         );
 
-        $conflictExposure = $cachedAnalytics['conflict_exposure'];
         $gradeLevelTrendPoints = $cachedAnalytics['grade_level_trend_points'];
         $enrollmentForecast = $cachedAnalytics['enrollment_forecast'];
+        $forecastRows = collect($enrollmentForecast['rows'] ?? []);
+        $nextYearForecastCount = (int) ($forecastRows->last()['forecast'] ?? 0);
 
-        $alerts = [];
+        $currentSectionCount = Section::query()
+            ->when($activeYear, fn ($query) => $query->where('academic_year_id', $activeYear->id))
+            ->count();
+        $targetSectionSize = 50;
+        $projectedSectionsNeeded = $nextYearForecastCount > 0
+            ? (int) ceil($nextYearForecastCount / $targetSectionSize)
+            : 0;
+        $sectionCapacityGap = $projectedSectionsNeeded - $currentSectionCount;
 
-        if ($enrollmentYoYGrowth <= -10) {
-            $alerts[] = [
-                'id' => 'enrollment-yoy',
-                'title' => 'Enrollment trend dropped significantly',
-                'message' => "YoY enrollment moved {$enrollmentYoYGrowth}% compared to the previous school year.",
-                'severity' => 'critical',
-            ];
-        } elseif ($enrollmentYoYGrowth < 0) {
-            $alerts[] = [
-                'id' => 'enrollment-yoy',
-                'title' => 'Enrollment trend is declining',
-                'message' => "YoY enrollment moved {$enrollmentYoYGrowth}% compared to the previous school year.",
-                'severity' => 'warning',
-            ];
-        }
+        $subjectDemandRows = Subject::query()
+            ->withCount([
+                'teachers as assigned_teacher_count' => function ($query) {
+                    $query
+                        ->where('users.is_active', true)
+                        ->where(function ($qualificationQuery) {
+                            $qualificationQuery
+                                ->whereIn('teacher_subjects.qualification_status', ['fully_qualified', 'provisionally_qualified'])
+                                ->orWhereHas('teacherProfile', function ($profileQuery): void {
+                                    $profileQuery->whereIn('qualification_status', ['fully_qualified', 'provisionally_qualified']);
+                                });
+                        });
+                },
+            ])
+            ->orderBy('subject_name')
+            ->get(['id', 'subject_name'])
+            ->map(function (Subject $subject): array {
+                $assignedTeacherCount = (int) ($subject->assigned_teacher_count ?? 0);
+                $minimumNeeded = 1;
+                $gap = max($minimumNeeded - $assignedTeacherCount, 0);
 
-        if ($sectionsWithoutAdviser > 0) {
-            $alerts[] = [
-                'id' => 'adviser-gap',
-                'title' => 'Sections without advisers detected',
-                'message' => "{$sectionsWithoutAdviser} section(s) are still unassigned.",
-                'severity' => $sectionsWithoutAdviser >= 5 ? 'critical' : 'warning',
-            ];
-        }
+                return [
+                    'subject' => (string) $subject->subject_name,
+                    'assigned_teachers' => $assignedTeacherCount,
+                    'minimum_needed' => $minimumNeeded,
+                    'gap' => $gap,
+                ];
+            })
+            ->sortByDesc('gap')
+            ->values()
+            ->all();
 
-        if ($unassignedSubjects > 0) {
-            $alerts[] = [
-                'id' => 'subject-gap',
-                'title' => 'Unassigned subjects require staffing',
-                'message' => "{$unassignedSubjects} subject(s) have no qualified teacher assignment.",
-                'severity' => $unassignedSubjects >= 10 ? 'critical' : 'warning',
-            ];
-        }
+        $pendingTeacherDemandCount = collect($subjectDemandRows)->where('gap', '>', 0)->count();
+        $subjectDemandRows = collect($subjectDemandRows)->take(12)->values()->all();
 
-        if ($conflictExposure['total_conflicts'] > 0) {
-            $alerts[] = [
-                'id' => 'schedule-conflict',
-                'title' => 'Schedule conflict exposure detected',
-                'message' => "{$conflictExposure['total_conflicts']} active conflict pair(s) found in schedule grid.",
-                'severity' => $conflictExposure['total_conflicts'] >= 10 ? 'critical' : 'warning',
-            ];
-        }
+        $scheduledMinutesBySectionSubject = ClassSchedule::query()
+            ->where('class_schedules.type', 'academic')
+            ->whereNotNull('class_schedules.subject_assignment_id')
+            ->when($activeYear, fn ($query) => $query->where('sections.academic_year_id', $activeYear->id))
+            ->join('sections', 'class_schedules.section_id', '=', 'sections.id')
+            ->get(['class_schedules.subject_assignment_id', 'class_schedules.start_time', 'class_schedules.end_time'])
+            ->groupBy('subject_assignment_id')
+            ->map(function (Collection $rows): float {
+                return $rows->sum(function (ClassSchedule $schedule): float {
+                    $start = strtotime((string) $schedule->start_time);
+                    $end = strtotime((string) $schedule->end_time);
 
-        if ($alerts === []) {
-            $alerts[] = [
-                'id' => 'admin-stable',
-                'title' => 'Academic operations are stable',
-                'message' => 'Enrollment trend, staffing, and schedule health are within expected thresholds.',
-                'severity' => 'info',
-            ];
-        }
+                    return $start !== false && $end !== false && $end > $start
+                        ? ($end - $start) / 60
+                        : 0.0;
+                });
+            });
+
+        $subjectAssignments = SubjectAssignment::query()
+            ->with('teacherSubject.subject:id,required_weekly_minutes')
+            ->when($activeYear, fn ($query) => $query->whereHas('section', fn ($sectionQuery) => $sectionQuery->where('academic_year_id', $activeYear->id)))
+            ->get(['id', 'section_id', 'teacher_subject_id']);
+
+        $incompleteSchedulesCount = $subjectAssignments
+            ->filter(function (SubjectAssignment $assignment) use ($scheduledMinutesBySectionSubject): bool {
+                $requiredMinutes = (int) ($assignment->teacherSubject?->subject?->required_weekly_minutes ?? 200);
+                $scheduledMinutes = (float) ($scheduledMinutesBySectionSubject[$assignment->id] ?? 0);
+
+                return $scheduledMinutes < $requiredMinutes;
+            })
+            ->count();
+
+        $gradeSlaBase = GradeSubmission::query()
+            ->when($activeYear, fn ($query) => $query->where('academic_year_id', $activeYear->id))
+            ->where('quarter', (string) ($activeYear?->current_quarter ?: '1'));
+        $totalSubmissionRows = (clone $gradeSlaBase)->count();
+        $verifiedSubmissionRows = (clone $gradeSlaBase)->where('status', 'verified')->count();
+        $gradeVerificationSla = $totalSubmissionRows > 0
+            ? round(($verifiedSubmissionRows / $totalSubmissionRows) * 100, 2)
+            : 100.0;
+
+        $alerts = $this->dashboardDecisionService->adminAlerts(
+            $enrollmentYoYGrowth,
+            $sectionsWithoutAdviser,
+            $pendingTeacherDemandCount,
+            $sectionCapacityGap,
+        );
+
+        $gradeVerificationPipelineRows = collect(['pending', 'submitted', 'verified', 'returned'])
+            ->map(function (string $status) use ($gradeSlaBase): array {
+                return [
+                    'status' => ucfirst($status),
+                    'count' => (int) (clone $gradeSlaBase)->where('status', $status)->count(),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $actionLinks = [
+            [
+                'id' => 'open-grade-verification',
+                'label' => 'Open Grade Verification',
+                'href' => route('admin.grade_verification'),
+            ],
+            [
+                'id' => 'open-section-manager',
+                'label' => 'Open Section Manager',
+                'href' => route('admin.section_manager'),
+            ],
+            [
+                'id' => 'open-teacher-profiles',
+                'label' => 'Open Teacher Profiles',
+                'href' => route('admin.teacher_profiles'),
+            ],
+        ];
+        $actionLinks = $this->dashboardDecisionService->prioritizeAdminActionLinks(
+            $actionLinks,
+            $sectionCapacityGap,
+            $pendingTeacherDemandCount,
+            $gradeVerificationSla,
+        );
+
+        $kpis = [
+            [
+                'id' => 'admin-capacity-gap',
+                'label' => 'Needed Sections',
+                'value' => $sectionCapacityGap > 0 ? '+'.$sectionCapacityGap : (string) $sectionCapacityGap,
+                'meta' => "{$projectedSectionsNeeded} projected from {$nextYearForecastCount} students at {$targetSectionSize}/section",
+            ],
+            [
+                'id' => 'admin-teacher-demand',
+                'label' => 'Subjects Needing Teachers',
+                'value' => $pendingTeacherDemandCount,
+                'meta' => 'Subjects without qualified teacher coverage',
+            ],
+            [
+                'id' => 'admin-incomplete-schedules',
+                'label' => 'Incomplete Schedules',
+                'value' => $incompleteSchedulesCount,
+                'meta' => 'Compared with each subject weekly minutes',
+            ],
+            [
+                'id' => 'admin-grade-verification-sla',
+                'label' => 'Grade Verification Status',
+                'value' => number_format($gradeVerificationSla, 2).'%',
+                'meta' => "{$verifiedSubmissionRows} of {$totalSubmissionRows} verified",
+            ],
+            [
+                'id' => 'admin-next-sy-forecast',
+                'label' => 'Next School Year Enrollment',
+                'value' => $nextYearForecastCount,
+                'meta' => $this->buildNextAcademicYearName((string) ($activeYear?->name ?? 'Upcoming')),
+            ],
+        ];
+
+        $kpis = $this->dashboardDecisionService->prioritizeAdminKpis(
+            $kpis,
+            $sectionCapacityGap,
+            $pendingTeacherDemandCount,
+            $gradeVerificationSla,
+        );
 
         return Inertia::render('admin/dashboard', [
-            'kpis' => [
-                [
-                    'id' => 'enrollment-yoy-growth',
-                    'label' => 'Enrollment YoY Growth',
-                    'value' => $this->formatSignedPercent($enrollmentYoYGrowth),
-                    'meta' => $previousYear
-                        ? "Current school year vs {$previousYear->name}"
-                        : 'No previous school year baseline',
-                ],
-                [
-                    'id' => 'unassigned-subjects',
-                    'label' => 'Unassigned Subjects',
-                    'value' => $unassignedSubjects,
-                    'meta' => 'Subjects without teacher mapping',
-                ],
-                [
-                    'id' => 'sections-without-adviser',
-                    'label' => 'Sections Without Adviser',
-                    'value' => $sectionsWithoutAdviser,
-                    'meta' => 'Current school year',
-                ],
-                [
-                    'id' => 'schedule-conflicts',
-                    'label' => 'Schedule Conflict Exposure',
-                    'value' => $conflictExposure['total_conflicts'],
-                    'meta' => "{$conflictExposure['section_conflicts']} section conflicts, {$conflictExposure['teacher_conflicts']} teacher conflicts",
-                ],
-            ],
+            'kpis' => $kpis,
             'alerts' => array_values($alerts),
-            'trends' => [
-                [
-                    'id' => 'grade-level-enrollment',
-                    'label' => 'Grade-Level Enrollment',
-                    'summary' => 'Current male and female enrollment distribution by grade level',
-                    'display' => 'bar',
-                    'points' => $gradeLevelTrendPoints,
-                    'chart' => [
-                        'x_key' => 'grade_level',
-                        'rows' => collect($gradeLevelTrendPoints)
-                            ->map(function (array $point): array {
-                                return [
-                                    'grade_level' => $point['label'],
-                                    'male' => $point['male'],
-                                    'female' => $point['female'],
-                                    'total' => $point['value'],
-                                ];
-                            })
-                            ->values()
-                            ->all(),
-                        'series' => [
-                            [
-                                'key' => 'male',
-                                'label' => 'Male',
-                            ],
-                            [
-                                'key' => 'female',
-                                'label' => 'Female',
-                            ],
-                        ],
-                    ],
-                ],
-                [
-                    'id' => 'enrollment-forecast',
-                    'label' => 'Enrollment Forecast (SY)',
-                    'summary' => 'Past 5 school years, current school year, and upcoming forecast',
-                    'display' => 'area',
-                    'points' => $enrollmentForecast['points'],
-                    'chart' => [
-                        'x_key' => 'school_year',
-                        'rows' => $enrollmentForecast['rows'],
-                        'series' => [
-                            [
-                                'key' => 'actual',
-                                'label' => 'Actual',
-                            ],
-                            [
-                                'key' => 'forecast',
-                                'label' => 'Forecast',
-                                'dashed' => true,
-                            ],
-                        ],
-                    ],
-                ],
-            ],
-            'action_links' => [
-                [
-                    'id' => 'open-schedule-builder',
-                    'label' => 'Open Schedule Builder',
-                    'href' => route('admin.schedule_builder'),
-                ],
-                [
-                    'id' => 'open-section-manager',
-                    'label' => 'Open Section Manager',
-                    'href' => route('admin.section_manager'),
-                ],
-                [
-                    'id' => 'open-curriculum-manager',
-                    'label' => 'Open Curriculum Manager',
-                    'href' => route('admin.curriculum_manager'),
-                ],
-            ],
+            'trends' => $this->dashboardDecisionService->adminTrends(
+                $currentSectionCount,
+                $projectedSectionsNeeded,
+                $sectionCapacityGap,
+                $subjectDemandRows,
+                $gradeVerificationPipelineRows,
+            ),
+            'action_links' => $actionLinks,
         ]);
     }
 
@@ -411,97 +435,5 @@ class DashboardController extends Controller
         }
 
         return number_format($value, 2).'%';
-    }
-
-    /**
-     * @return array{section_conflicts: int, teacher_conflicts: int, total_conflicts: int}
-     */
-    private function calculateScheduleConflictExposure(?int $academicYearId): array
-    {
-        if (! $academicYearId) {
-            return [
-                'section_conflicts' => 0,
-                'teacher_conflicts' => 0,
-                'total_conflicts' => 0,
-            ];
-        }
-
-        $schedules = ClassSchedule::query()
-            ->with([
-                'section:id,adviser_id,academic_year_id',
-                'subjectAssignment.teacherSubject:id,teacher_id',
-            ])
-            ->whereHas('section', function ($query) use ($academicYearId) {
-                $query->where('academic_year_id', $academicYearId);
-            })
-            ->get([
-                'id',
-                'section_id',
-                'subject_assignment_id',
-                'type',
-                'day',
-                'start_time',
-                'end_time',
-            ]);
-
-        $sectionConflicts = [];
-        $teacherConflicts = [];
-
-        $groupedByDay = $schedules->groupBy('day');
-        foreach ($groupedByDay as $daySchedules) {
-            $scheduleRows = $daySchedules->values();
-            $totalRows = $scheduleRows->count();
-
-            for ($left = 0; $left < $totalRows; $left++) {
-                $leftSchedule = $scheduleRows[$left];
-                $leftTeacherId = $leftSchedule->subjectAssignment?->teacherSubject?->teacher_id
-                    ?? $leftSchedule->section?->adviser_id;
-
-                for ($right = $left + 1; $right < $totalRows; $right++) {
-                    $rightSchedule = $scheduleRows[$right];
-                    if (! $this->hasOverlap(
-                        (string) $leftSchedule->start_time,
-                        (string) $leftSchedule->end_time,
-                        (string) $rightSchedule->start_time,
-                        (string) $rightSchedule->end_time
-                    )) {
-                        continue;
-                    }
-
-                    if ((int) $leftSchedule->section_id === (int) $rightSchedule->section_id) {
-                        $sectionConflicts[] = $this->conflictPairKey((int) $leftSchedule->id, (int) $rightSchedule->id);
-                    }
-
-                    $rightTeacherId = $rightSchedule->subjectAssignment?->teacherSubject?->teacher_id
-                        ?? $rightSchedule->section?->adviser_id;
-
-                    if ($leftTeacherId && $rightTeacherId && (int) $leftTeacherId === (int) $rightTeacherId) {
-                        $teacherConflicts[] = $this->conflictPairKey((int) $leftSchedule->id, (int) $rightSchedule->id);
-                    }
-                }
-            }
-        }
-
-        $sectionConflicts = array_values(array_unique($sectionConflicts));
-        $teacherConflicts = array_values(array_unique($teacherConflicts));
-
-        return [
-            'section_conflicts' => count($sectionConflicts),
-            'teacher_conflicts' => count($teacherConflicts),
-            'total_conflicts' => count(array_unique(array_merge($sectionConflicts, $teacherConflicts))),
-        ];
-    }
-
-    private function hasOverlap(string $startA, string $endA, string $startB, string $endB): bool
-    {
-        return $startA < $endB && $endA > $startB;
-    }
-
-    private function conflictPairKey(int $leftId, int $rightId): string
-    {
-        $ordered = [$leftId, $rightId];
-        sort($ordered);
-
-        return $ordered[0].'-'.$ordered[1];
     }
 }

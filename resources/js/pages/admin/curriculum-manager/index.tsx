@@ -1,5 +1,6 @@
+import { cn } from '@/lib/utils';
 import { Head, useForm, router } from '@inertiajs/react';
-import { Plus, UserPlus, Edit2, Search, X, Users, Trash2 } from 'lucide-react';
+import { Download, Edit2, ListFilter, Plus, Search, Trash2, UserPlus, Users, X } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { ActionConfirmDialog } from '@/components/action-confirm-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -14,6 +15,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -56,6 +63,7 @@ interface Teacher {
     id: number;
     name: string;
     initial: string;
+    qualification_status?: string | null;
 }
 
 interface Subject {
@@ -63,6 +71,7 @@ interface Subject {
     grade_level_id: number;
     subject_code: string;
     subject_name: string;
+    required_weekly_minutes: number;
     teachers: Teacher[];
 }
 
@@ -73,26 +82,35 @@ interface GradeLevel {
     subjects: Subject[];
 }
 
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+
 interface FacultyListProps {
-    teachers: Teacher[];
-    selectedIds: number[];
+    allTeachers: Teacher[];
+    selectedDetails: {
+        id: number;
+    }[];
     searchQuery: string;
     onSearchChange: (val: string) => void;
     onToggle: (id: number) => void;
     filteredTeachers: Teacher[];
 }
 
-// Stable component to prevent focus loss
 const FacultyCertificationList = ({
-    teachers,
-    selectedIds,
+    allTeachers,
+    selectedDetails,
     searchQuery,
     onSearchChange,
     onToggle,
     filteredTeachers,
 }: FacultyListProps) => {
     const getInitials = useInitials();
-    const selectedList = teachers.filter((t) => selectedIds.includes(t.id));
 
     return (
         <div className="grid gap-4">
@@ -135,45 +153,50 @@ const FacultyCertificationList = ({
                         </div>
                     )}
                 </div>
-                <p className="text-xs text-muted-foreground italic">
-                    Tip: You can search and select multiple teachers.
-                </p>
             </div>
 
-            <div className="space-y-3">
-                <Label>Qualified Teachers ({selectedList.length}):</Label>
+            <div className="space-y-4">
+                <Label>Qualified Teachers ({selectedDetails.length}):</Label>
 
-                {selectedList.length > 0 ? (
-                    <div className="grid gap-2">
-                        {selectedList.map((teacher) => (
-                            <div
-                                key={teacher.id}
-                                className="flex items-center justify-between rounded-lg border bg-muted/30 p-3"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="size-8">
-                                        <AvatarFallback>
-                                            {getInitials(teacher.name)}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <p className="text-sm font-medium">
-                                            {teacher.name}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Certified Faculty
-                                        </p>
+                {selectedDetails.length > 0 ? (
+                    <div className="grid gap-3">
+                        {selectedDetails.map((detail) => {
+                            const teacher = allTeachers.find((t) => t.id === detail.id);
+                            if (!teacher) return null;
+
+                            return (
+                                <div
+                                    key={detail.id}
+                                    className="rounded-lg border bg-muted/20 p-4"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="size-8">
+                                                <AvatarFallback>
+                                                    {getInitials(teacher.name)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="text-sm font-medium">
+                                                    {teacher.name}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Faculty Member
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => onToggle(detail.id)}
+                                            className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                        >
+                                            <X className="size-4" />
+                                        </Button>
                                     </div>
                                 </div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => onToggle(teacher.id)}
-                                >
-                                    <X className="size-4" />
-                                </Button>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/10 p-8 text-center">
@@ -214,16 +237,22 @@ export default function CurriculumManager({
         grade_level_id: activeTab,
         subject_code: '',
         subject_name: '',
-        teacher_ids: [] as number[],
+        required_weekly_minutes: 200,
+        teacher_details: [] as {
+            id: number;
+        }[],
     });
 
     const editForm = useForm({
         subject_code: '',
         subject_name: '',
+        required_weekly_minutes: 200,
     });
 
     const certifyForm = useForm({
-        teacher_ids: [] as number[],
+        teacher_details: [] as {
+            id: number;
+        }[],
     });
 
     const currentGrade = useMemo(
@@ -233,9 +262,9 @@ export default function CurriculumManager({
 
     const filteredTeachers = useMemo(() => {
         if (!searchQuery) return [];
-        const currentSelectedIds = isCertifyOpen
-            ? certifyForm.data.teacher_ids
-            : addForm.data.teacher_ids;
+        const currentSelectedIds = (
+            isCertifyOpen ? certifyForm.data.teacher_details : addForm.data.teacher_details
+        ).map((d) => d.id);
         return teachers
             .filter(
                 (t) =>
@@ -246,13 +275,13 @@ export default function CurriculumManager({
     }, [
         teachers,
         searchQuery,
-        addForm.data.teacher_ids,
-        certifyForm.data.teacher_ids,
+        addForm.data.teacher_details,
+        certifyForm.data.teacher_details,
         isCertifyOpen,
     ]);
 
     const handleAddSubject = () => {
-        addForm.submit(store(), {
+        addForm.post(store().url, {
             onSuccess: () => {
                 setIsAddSubjectOpen(false);
                 addForm.reset();
@@ -262,7 +291,7 @@ export default function CurriculumManager({
 
     const handleUpdateSubject = () => {
         if (!selectedSubject) return;
-        editForm.submit(update({ subject: selectedSubject.id }), {
+        editForm.patch(update({ subject: selectedSubject.id }).url, {
             onSuccess: () => {
                 setIsEditOpen(false);
                 editForm.reset();
@@ -272,7 +301,13 @@ export default function CurriculumManager({
 
     const handleCertify = () => {
         if (!selectedSubject) return;
-        certifyForm.submit(certify({ subject: selectedSubject.id }), {
+
+        certifyForm.transform((data) => ({
+            ...data,
+            _method: 'patch',
+        }));
+
+        certifyForm.post(certify({ subject: selectedSubject.id }).url, {
             onSuccess: () => {
                 setIsCertifyOpen(false);
                 certifyForm.reset();
@@ -292,19 +327,26 @@ export default function CurriculumManager({
     };
 
     const toggleTeacher = (teacherId: number, formType: 'add' | 'certify') => {
-        const currentIds =
-            formType === 'add'
-                ? addForm.data.teacher_ids
-                : certifyForm.data.teacher_ids;
+        const form = formType === 'add' ? addForm : certifyForm;
+        const currentDetails = form.data.teacher_details;
 
-        const newIds = currentIds.includes(teacherId)
-            ? currentIds.filter((id) => id !== teacherId)
-            : [...currentIds, teacherId];
+        const exists = currentDetails.find((d) => d.id === teacherId);
 
-        if (formType === 'add') {
-            addForm.setData('teacher_ids', newIds);
+        if (exists) {
+            form.setData({
+                ...form.data,
+                teacher_details: currentDetails.filter((d) => d.id !== teacherId),
+            });
         } else {
-            certifyForm.setData('teacher_ids', newIds);
+            form.setData({
+                ...form.data,
+                teacher_details: [
+                    ...currentDetails,
+                    {
+                        id: teacherId,
+                    },
+                ],
+            });
         }
 
         setSearchQuery('');
@@ -337,21 +379,45 @@ export default function CurriculumManager({
                                             </TabsTrigger>
                                         ))}
                                     </TabsList>
-                                    <Button
-                                        size="sm"
-                                        className="gap-2"
-                                        onClick={() => {
-                                            addForm.reset();
-                                            addForm.setData(
-                                                'grade_level_id',
-                                                activeTab,
-                                            );
-                                            setIsAddSubjectOpen(true);
-                                        }}
-                                    >
-                                        <Plus className="size-4" />
-                                        Add Subject
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" size="sm" className="gap-2">
+                                                    <Download className="size-4" />
+                                                    Export
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => window.location.assign(`/admin/curriculum-manager/export?format=xlsx&grade_level_id=${activeTab}`)}>
+                                                    Export as Excel (.xlsx)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => window.location.assign(`/admin/curriculum-manager/export?format=csv&grade_level_id=${activeTab}`)}>
+                                                    Export as CSV (.csv)
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => window.location.assign(`/admin/curriculum-manager/export?format=pdf&grade_level_id=${activeTab}`)}>
+                                                    Export as PDF (.pdf)
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                        <Button
+                                            size="sm"
+                                            className="gap-2"
+                                            onClick={() => {
+                                                addForm.reset();
+                                                addForm.setData({
+                                                    grade_level_id: activeTab,
+                                                    subject_code: '',
+                                                    subject_name: '',
+                                                    required_weekly_minutes: 200,
+                                                    teacher_details: [],
+                                                });
+                                                setIsAddSubjectOpen(true);
+                                            }}
+                                        >
+                                            <Plus className="size-4" />
+                                            Add Subject
+                                        </Button>
+                                    </div>
                                 </div>
                                 {gradeLevels.map((grade) => (
                                     <TabsContent
@@ -367,6 +433,9 @@ export default function CurriculumManager({
                                                     </TableHead>
                                                     <TableHead>
                                                         Descriptive Title
+                                                    </TableHead>
+                                                    <TableHead>
+                                                        Weekly Minutes
                                                     </TableHead>
                                                     <TableHead>
                                                         Qualified Teachers
@@ -390,38 +459,55 @@ export default function CurriculumManager({
                                                             {sub.subject_name}
                                                         </TableCell>
                                                         <TableCell>
+                                                            <Badge variant="secondary">
+                                                                {sub.required_weekly_minutes} min/week
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell>
                                                             <div className="flex -space-x-2">
-                                                                {sub.teachers.map(
-                                                                    (t) => (
-                                                                        <Tooltip
-                                                                            key={
-                                                                                t.id
-                                                                            }
-                                                                        >
-                                                                            <TooltipTrigger
-                                                                                asChild
+                                                                {sub.teachers.slice(0, sub.teachers.length > 3 ? 2 : 3).map((t) => (
+                                                                    <Tooltip key={t.id}>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Avatar
+                                                                                className={cn(
+                                                                                    'size-8 border-2',
+                                                                                    t.qualification_status ===
+                                                                                        'fully_qualified'
+                                                                                        ? 'border-emerald-500'
+                                                                                        : 'border-amber-500',
+                                                                                )}
                                                                             >
-                                                                                <Avatar className="size-8">
-                                                                                    <AvatarFallback>
-                                                                                        {getInitials(t.name)}
-                                                                                    </AvatarFallback>
-                                                                                </Avatar>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                {
-                                                                                    t.name
-                                                                                }
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    ),
+                                                                                <AvatarFallback>
+                                                                                    {getInitials(
+                                                                                        t.name,
+                                                                                    )}
+                                                                                </AvatarFallback>
+                                                                            </Avatar>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent className="flex flex-col gap-1 p-2">
+                                                                            <p className="text-xs font-bold leading-none">
+                                                                                {t.name}
+                                                                            </p>
+                                                                            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                                                                                {(
+                                                                                    t.qualification_status ||
+                                                                                    'certified'
+                                                                                ).replace(
+                                                                                    '_',
+                                                                                    ' ',
+                                                                                )}
+                                                                            </p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                ))}
+                                                                {sub.teachers.length > 3 && (
+                                                                    <div className="flex size-8 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-bold">
+                                                                        +{sub.teachers.length - 2}
+                                                                    </div>
                                                                 )}
-                                                                {sub.teachers
-                                                                    .length ===
-                                                                    0 && (
+                                                                {sub.teachers.length === 0 && (
                                                                     <Badge variant="outline">
-                                                                        No
-                                                                        qualified
-                                                                        teachers
+                                                                        No qualified teachers
                                                                     </Badge>
                                                                 )}
                                                             </div>
@@ -440,12 +526,14 @@ export default function CurriculumManager({
                                                                                     sub,
                                                                                 );
                                                                                 certifyForm.setData(
-                                                                                    'teacher_ids',
+                                                                                    'teacher_details',
                                                                                     sub.teachers.map(
-                                                                                        (
-                                                                                            t,
-                                                                                        ) =>
-                                                                                            t.id,
+                                                                                        (t) => ({
+                                                                                            id: t.id,
+                                                                                            qualification_status: t.qualification_status || 'fully_qualified',
+                                                                                            retained_documents: t.eligibility_documents || [],
+                                                                                            new_documents: [],
+                                                                                        }),
                                                                                     ),
                                                                                 );
                                                                                 setIsCertifyOpen(
@@ -480,6 +568,8 @@ export default function CurriculumManager({
                                                                                             sub.subject_code,
                                                                                         subject_name:
                                                                                             sub.subject_name,
+                                                                                        required_weekly_minutes:
+                                                                                            sub.required_weekly_minutes,
                                                                                     },
                                                                                 );
                                                                                 setIsEditOpen(
@@ -549,8 +639,8 @@ export default function CurriculumManager({
                         open={isAddSubjectOpen}
                         onOpenChange={setIsAddSubjectOpen}
                     >
-                        <DialogContent className="sm:max-w-[500px]">
-                            <DialogHeader>
+                        <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col p-0">
+                            <DialogHeader className="p-6 pb-2">
                                 <DialogTitle>New Subject Entry</DialogTitle>
                                 <DialogDescription>
                                     Define a core academic subject for{' '}
@@ -560,7 +650,7 @@ export default function CurriculumManager({
                                     .
                                 </DialogDescription>
                             </DialogHeader>
-                            <div className="grid gap-6 py-4">
+                            <div className="grid gap-6 py-4 overflow-y-auto px-6 flex-1">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-2">
                                         <Label>Subject Code</Label>
@@ -588,18 +678,33 @@ export default function CurriculumManager({
                                             }
                                         />
                                     </div>
+                                    <div className="grid gap-2">
+                                        <Label>Weekly Minutes</Label>
+                                        <Input
+                                            type="number"
+                                            min={1}
+                                            max={1200}
+                                            value={addForm.data.required_weekly_minutes}
+                                            onChange={(e) =>
+                                                addForm.setData(
+                                                    'required_weekly_minutes',
+                                                    Number(e.target.value),
+                                                )
+                                            }
+                                        />
+                                    </div>
                                 </div>
 
                                 <FacultyCertificationList
-                                    teachers={teachers}
-                                    selectedIds={addForm.data.teacher_ids}
+                                    allTeachers={teachers}
+                                    selectedDetails={addForm.data.teacher_details}
                                     searchQuery={searchQuery}
                                     onSearchChange={setSearchQuery}
                                     onToggle={(id) => toggleTeacher(id, 'add')}
                                     filteredTeachers={filteredTeachers}
                                 />
                             </div>
-                            <DialogFooter>
+                            <DialogFooter className="p-6 pt-2 border-t">
                                 <Button
                                     variant="outline"
                                     onClick={() => setIsAddSubjectOpen(false)}
@@ -620,8 +725,8 @@ export default function CurriculumManager({
                         open={isCertifyOpen}
                         onOpenChange={setIsCertifyOpen}
                     >
-                        <DialogContent className="sm:max-w-[500px]">
-                            <DialogHeader>
+                        <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col p-0">
+                            <DialogHeader className="p-6 pb-2">
                                 <DialogTitle>Qualified Teachers</DialogTitle>
                                 <DialogDescription>
                                     Managing qualified teachers for{' '}
@@ -631,19 +736,17 @@ export default function CurriculumManager({
                                     .
                                 </DialogDescription>
                             </DialogHeader>
-                            <div className="py-4">
+                            <div className="py-4 overflow-y-auto px-6 flex-1">
                                 <FacultyCertificationList
-                                    teachers={teachers}
-                                    selectedIds={certifyForm.data.teacher_ids}
+                                    allTeachers={teachers}
+                                    selectedDetails={certifyForm.data.teacher_details}
                                     searchQuery={searchQuery}
                                     onSearchChange={setSearchQuery}
-                                    onToggle={(id) =>
-                                        toggleTeacher(id, 'certify')
-                                    }
+                                    onToggle={(id) => toggleTeacher(id, 'certify')}
                                     filteredTeachers={filteredTeachers}
                                 />
                             </div>
-                            <DialogFooter>
+                            <DialogFooter className="p-6 pt-2 border-t">
                                 <Button
                                     variant="outline"
                                     onClick={() => setIsCertifyOpen(false)}
@@ -690,6 +793,21 @@ export default function CurriculumManager({
                                             editForm.setData(
                                                 'subject_name',
                                                 e.target.value,
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Weekly Minutes</Label>
+                                    <Input
+                                        type="number"
+                                        min={1}
+                                        max={1200}
+                                        value={editForm.data.required_weekly_minutes}
+                                        onChange={(e) =>
+                                            editForm.setData(
+                                                'required_weekly_minutes',
+                                                Number(e.target.value),
                                             )
                                         }
                                     />

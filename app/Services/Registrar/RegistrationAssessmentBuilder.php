@@ -70,9 +70,7 @@ class RegistrationAssessmentBuilder
             ->map(function (BillingSchedule $billingSchedule): array {
                 $amountDue = round((float) $billingSchedule->amount_due, 2);
                 $amountPaid = round((float) $billingSchedule->amount_paid, 2);
-                $isUponEnrollment = Str::of((string) $billingSchedule->description)
-                    ->lower()
-                    ->contains('upon enrollment');
+                $isUponEnrollment = $this->isUponEnrollmentSchedule((string) $billingSchedule->description);
 
                 return [
                     'description' => (string) $billingSchedule->description,
@@ -83,7 +81,22 @@ class RegistrationAssessmentBuilder
                     'amount_due' => $amountDue,
                     'amount_paid' => $amountPaid,
                     'balance' => round(max($amountDue - $amountPaid, 0), 2),
+                    'is_upon_enrollment' => $isUponEnrollment,
                 ];
+            })
+            ->values();
+
+        $downpaymentAmount = round((float) $billingSchedule->filter(fn ($due) => $due['is_upon_enrollment'])->sum('amount_due'), 2);
+        $duesRows = $billingSchedule
+            ->map(function (array $due): array {
+                if (! $due['is_upon_enrollment']) {
+                    return $due;
+                }
+
+                $due['amount_due'] = round((float) $due['amount_due'] * -1, 2);
+                $due['balance'] = 0.0;
+
+                return $due;
             })
             ->values();
 
@@ -116,13 +129,18 @@ class RegistrationAssessmentBuilder
                 'breakdown' => $fees['breakdown'],
                 'total' => round((float) $fees['total'], 2),
                 'adjustments' => $adjustments,
+                'downpayment' => $downpaymentAmount,
                 'net_assessment' => $netAssessment,
             ],
             'dues' => [
-                'rows' => $billingSchedule->all(),
-                'total_due' => round((float) $billingSchedule->sum('amount_due'), 2),
-                'total_paid' => round((float) $billingSchedule->sum('amount_paid'), 2),
-                'balance' => round((float) $billingSchedule->sum('balance'), 2),
+                'rows' => $duesRows->all(),
+                'total_due' => round((float) $duesRows->sum(function (array $due): float {
+                    $amountDue = (float) ($due['amount_due'] ?? 0);
+
+                    return $amountDue > 0 ? $amountDue : 0.0;
+                }), 2),
+                'total_paid' => round((float) $duesRows->sum('amount_paid'), 2),
+                'balance' => round((float) $duesRows->sum('balance'), 2),
             ],
             'accounts' => [
                 'student' => [
@@ -133,6 +151,28 @@ class RegistrationAssessmentBuilder
                 ],
             ],
         ];
+    }
+
+    private function isUponEnrollmentSchedule(string $description): bool
+    {
+        $normalized = Str::of($description)
+            ->lower()
+            ->replaceMatches('/[^a-z0-9]+/', ' ')
+            ->squish()
+            ->value();
+
+        if ($normalized === '') {
+            return false;
+        }
+
+        return Str::contains($normalized, [
+            'upon enrollment',
+            'upon enrolment',
+            'downpayment',
+            'down payment',
+            'enrollment payment',
+            'enrolment payment',
+        ]);
     }
 
     /**
@@ -254,6 +294,7 @@ class RegistrationAssessmentBuilder
     /**
      * @return array{
      *     discounts_scholarships: float,
+     *     applied_discounts: array<int, array{name: string, amount: float}>,
      *     other_charges: float,
      *     credit_adjustment: float
      * }
@@ -266,6 +307,7 @@ class RegistrationAssessmentBuilder
             $assessmentTotal
         );
         $discountTotal = round((float) ($discountSummary['total_discount_amount'] ?? 0), 2);
+        $appliedDiscounts = $discountSummary['applied_discounts'] ?? [];
 
         $otherCharges = round((float) LedgerEntry::query()
             ->where('student_id', $enrollment->student_id)
@@ -287,6 +329,7 @@ class RegistrationAssessmentBuilder
 
         return [
             'discounts_scholarships' => $discountTotal,
+            'applied_discounts' => $appliedDiscounts,
             'other_charges' => $otherCharges,
             'credit_adjustment' => $creditAdjustment,
         ];

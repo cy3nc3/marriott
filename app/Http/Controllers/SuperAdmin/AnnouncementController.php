@@ -37,7 +37,9 @@ class AnnouncementController extends Controller
     public function index(Request $request): Response
     {
         $user = $this->resolveRequestUser($request);
-        $search = $request->input('search');
+        $search = trim((string) $request->input('search', ''));
+        $normalizedSearch = mb_strtolower($search);
+        $searchPattern = "%{$normalizedSearch}%";
         $role = $request->input('role');
 
         $announcementsQuery = Announcement::query()
@@ -51,12 +53,12 @@ class AnnouncementController extends Controller
         }
 
         $announcements = $announcementsQuery
-            ->when($search, function (Builder $query, string $search): void {
-                $query->where(function (Builder $searchQuery) use ($search): void {
-                    $searchQuery->where('title', 'like', "%{$search}%")
-                        ->orWhere('content', 'like', "%{$search}%")
-                        ->orWhereHas('user', function (Builder $userQuery) use ($search): void {
-                            $userQuery->where('name', 'like', "%{$search}%");
+            ->when($search !== '', function (Builder $query) use ($searchPattern): void {
+                $query->where(function (Builder $searchQuery) use ($searchPattern): void {
+                    $searchQuery->whereRaw('LOWER(title) LIKE ?', [$searchPattern])
+                        ->orWhereRaw('LOWER(content) LIKE ?', [$searchPattern])
+                        ->orWhereHas('user', function (Builder $userQuery) use ($searchPattern): void {
+                            $userQuery->whereRaw('LOWER(name) LIKE ?', [$searchPattern]);
                         });
                 });
             })
@@ -146,7 +148,10 @@ class AnnouncementController extends Controller
             'audience' => $this->announcementAudienceResolver->resolveAudienceOptions(
                 $user
             ),
-            'filters' => $request->only(['search', 'role']),
+            'filters' => [
+                'search' => $search !== '' ? $search : null,
+                'role' => $role,
+            ],
             'summary' => [
                 'visible_announcements' => (int) $announcements->total(),
                 'scheduled_announcements' => (int) $announcementData
@@ -176,6 +181,8 @@ class AnnouncementController extends Controller
         }
 
         $search = trim((string) $request->input('search', ''));
+        $normalizedSearch = mb_strtolower($search);
+        $searchPattern = "%{$normalizedSearch}%";
         $status = (string) $request->input('status', 'all');
 
         $allowedStatuses = [
@@ -197,11 +204,11 @@ class AnnouncementController extends Controller
 
         $recipients = $this->announcementAnalyticsService
             ->reportQuery($announcement)
-            ->when($search !== '', function (Builder $query) use ($search): void {
-                $query->where(function (Builder $searchQuery) use ($search): void {
+            ->when($search !== '', function (Builder $query) use ($searchPattern): void {
+                $query->where(function (Builder $searchQuery) use ($searchPattern): void {
                     $searchQuery
-                        ->where('users.name', 'like', "%{$search}%")
-                        ->orWhere('users.email', 'like', "%{$search}%");
+                        ->whereRaw('LOWER(users.name) LIKE ?', [$searchPattern])
+                        ->orWhereRaw('LOWER(users.email) LIKE ?', [$searchPattern]);
                 });
             });
 
