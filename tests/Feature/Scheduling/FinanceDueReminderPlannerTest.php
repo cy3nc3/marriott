@@ -17,7 +17,13 @@ use App\Services\Finance\DueReminderNotificationService;
 use App\Services\Scheduling\FinanceDueReminderPlanner;
 use Illuminate\Support\Carbon;
 
+afterEach(function () {
+    Carbon::setTestNow();
+});
+
 test('finance planner creates one pending job per active rule and unpaid schedule', function () {
+    Carbon::setTestNow('2026-06-01 08:00:00');
+
     Setting::set('finance_due_reminder_auto_send_enabled', true, 'finance_due_reminders');
     Setting::set('finance_due_reminder_send_time', '07:30', 'finance_due_reminders');
 
@@ -56,6 +62,8 @@ test('finance planner creates one pending job per active rule and unpaid schedul
 });
 
 test('finance planner supersedes pending jobs when the configured send time changes', function () {
+    Carbon::setTestNow('2026-06-01 08:00:00');
+
     Setting::set('finance_due_reminder_auto_send_enabled', true, 'finance_due_reminders');
     Setting::set('finance_due_reminder_send_time', '07:30', 'finance_due_reminders');
 
@@ -99,7 +107,6 @@ test('finance planner does not create pending jobs for past reminder times', fun
 
     expect(ScheduledNotificationJob::query()->count())->toBe(0);
 
-    Carbon::setTestNow();
 });
 
 test('finance planner cancels pending jobs when automation is disabled', function () {
@@ -125,7 +132,6 @@ test('finance planner cancels pending jobs when automation is disabled', functio
         ->and($job?->canceled_at?->toDateTimeString())->toBe('2026-04-21 10:00:00')
         ->and($job?->skip_reason)->toBe('automation_disabled');
 
-    Carbon::setTestNow();
 });
 
 test('finance planner cancels only the paid schedule pending reminders', function () {
@@ -165,7 +171,6 @@ test('finance planner cancels only the paid schedule pending reminders', functio
         ->and($paidJob?->skip_reason)->toBe('billing_schedule_paid')
         ->and($openJob?->status)->toBe(ScheduledNotificationJobStatus::Pending);
 
-    Carbon::setTestNow();
 });
 
 test('finance due reminder send job sends a scheduled reminder once', function () {
@@ -214,7 +219,6 @@ test('finance due reminder send job sends a scheduled reminder once', function (
     expect(Announcement::query()->count())->toBe(1)
         ->and(FinanceDueReminderDispatch::query()->count())->toBe(1);
 
-    Carbon::setTestNow();
 });
 
 function createFinanceReminderBillingSchedule(array $attributes = []): BillingSchedule
